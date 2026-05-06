@@ -20,7 +20,16 @@ public static class DependencyInjection
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IStockService, StockService>();
-        services.AddScoped<IPaymentService, MockPaymentService>();
+        var iyzicoApiKey = configuration["Iyzico:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(iyzicoApiKey))
+        {
+            services.AddHttpClient<IyzicoPaymentService>();
+            services.AddScoped<IPaymentService, IyzicoPaymentService>();
+        }
+        else
+        {
+            services.AddScoped<IPaymentService, MockPaymentService>();
+        }
         services.AddScoped<IEmailService, EmailService>();
         services.AddHttpContextAccessor();
 

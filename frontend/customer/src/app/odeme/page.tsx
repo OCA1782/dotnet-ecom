@@ -9,7 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatPrice } from "@/lib/utils";
 import type { Address } from "@/types";
 
-type Step = "address" | "review" | "done";
+type Step = "address" | "done";
+
+interface PaymentResult {
+  transactionId: string;
+  requiresRedirect: boolean;
+  redirectUrl?: string;
+  checkoutFormContent?: string;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -60,15 +67,22 @@ export default function CheckoutPage() {
       });
 
       // 2. Initiate payment
-      const payment = await api.post<{ transactionId: string; redirectUrl?: string; requiresRedirect: boolean }>(
-        "/api/payments/initiate",
-        { orderId: order.id, method: "CreditCard" }
-      );
+      const payment = await api.post<PaymentResult>("/api/payments/initiate", {
+        orderId: order.id,
+        method: "CreditCard",
+      });
 
-      // 3. Simulate payment callback (mock provider)
+      // 3a. İyzico: redirect to hosted payment page
+      if (payment.requiresRedirect && payment.redirectUrl) {
+        window.location.href = payment.redirectUrl;
+        return;
+      }
+
+      // 3b. Mock provider: simulate successful callback
       await api.post("/api/payments/callback", {
         transactionId: payment.transactionId,
         payload: JSON.stringify({ success: true }),
+        isSuccess: true,
       });
 
       setOrderNumber(order.orderNumber);
@@ -116,7 +130,7 @@ export default function CheckoutPage() {
       <h1 className="text-2xl font-bold text-zinc-900 mb-8">Siparişi Tamamla</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Address + steps */}
+        {/* Left: Address + payment */}
         <div className="lg:col-span-2 space-y-6">
           {/* Address selection */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6">
@@ -169,13 +183,12 @@ export default function CheckoutPage() {
             </Link>
           </div>
 
-          {/* Note */}
+          {/* Payment method */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6">
             <h2 className="font-semibold text-zinc-900 mb-2">Ödeme Yöntemi</h2>
             <div className="flex items-center gap-3 p-4 border border-zinc-900 bg-zinc-50 rounded-xl">
               <span className="text-xl">💳</span>
               <span className="text-sm font-medium text-zinc-800">Kredi / Banka Kartı</span>
-              <span className="ml-auto text-xs text-zinc-400">(Simüle)</span>
             </div>
           </div>
         </div>
@@ -210,6 +223,12 @@ export default function CheckoutPage() {
                     <span>Kargo</span>
                     <span>{cart.shippingAmount === 0 ? "Ücretsiz" : formatPrice(cart.shippingAmount)}</span>
                   </div>
+                  {cart.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>İndirim</span>
+                      <span>-{formatPrice(cart.discountAmount)}</span>
+                    </div>
+                  )}
                   <div className="border-t border-zinc-200 pt-2 flex justify-between font-bold text-zinc-900">
                     <span>Toplam</span>
                     <span>{formatPrice(cart.grandTotal)}</span>
@@ -227,11 +246,11 @@ export default function CheckoutPage() {
               disabled={submitting || !selectedAddressId || !cart || cart.items.length === 0}
               className="w-full py-3 bg-zinc-900 text-white font-semibold rounded-xl hover:bg-zinc-700 transition disabled:opacity-50 text-sm"
             >
-              {submitting ? "Sipariş oluşturuluyor..." : "Siparişi Onayla ve Öde"}
+              {submitting ? "Yönlendiriliyor..." : "Siparişi Onayla ve Öde"}
             </button>
 
             <p className="text-xs text-zinc-400 text-center">
-              Siparişi onayladığınızda ödeme simüle edilecektir.
+              256-bit SSL ile güvenli ödeme
             </p>
           </div>
         </div>
