@@ -1,0 +1,57 @@
+# Development workflow files (not part of project source)
+.claude/
+CLAUDE.md
+AGENTS.md
+SESSION_GUIDE.md
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+*.tmp
+TestResults/
+
+# EF migrations designer files
+Migrations/
+
+# Sensitive config — create appsettings.Development.json locally
+appsettings.Development.json
+appsettings.Production.json
+
+# Next.js
+frontend/customer/.next/
+frontend/admin/.next/
+frontend/customer/node_modules/
+frontend/admin/node_modules/
+frontend/customer/.env.local
+frontend/admin/.env.local
+frontend/customer/.env*.local
+frontend/admin/.env*.local
+
+# Build output
+frontend/customer/out/
+frontend/admin/out/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Package lock (keep yarn.lock or package-lock.json, not both)
+# npm-debug.log*
+# yarn-debug.log*
+# yarn-error.log*
+
+# SQL Server localdb
+*.mdf
+*.ldf
+*.ndf
