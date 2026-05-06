@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Ticket,
   MessageSquare,
+  Tag,
+  Layers,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -20,6 +22,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/siparisler", label: "Siparişler", icon: ShoppingCart },
   { href: "/urunler", label: "Ürünler", icon: Package },
+  { href: "/kategoriler", label: "Kategoriler", icon: Layers },
+  { href: "/markalar", label: "Markalar", icon: Tag },
   { href: "/stok", label: "Stok", icon: Warehouse },
   { href: "/kullanicilar", label: "Kullanıcılar", icon: Users },
   { href: "/kuponlar", label: "Kuponlar", icon: Ticket },
