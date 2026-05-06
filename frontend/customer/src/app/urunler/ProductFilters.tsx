@@ -36,21 +36,21 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
   }
 
   return (
-    <div className="space-y-6">
+    <div className="bg-white rounded-2xl border border-indigo-100 p-5 space-y-6 shadow-sm">
       {/* Search */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-800 mb-2">Arama</h3>
+        <h3 className="text-sm font-bold text-zinc-800 mb-2">Arama</h3>
         <div className="flex gap-1">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && router.push(buildUrl({ s: search }))}
             placeholder="Ürün ara..."
-            className="flex-1 border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            className="flex-1 border border-indigo-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <button
             onClick={() => router.push(buildUrl({ s: search }))}
-            className="px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-sm hover:bg-zinc-700"
+            className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-700 transition"
           >
             Git
           </button>
@@ -60,12 +60,16 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
       {/* Categories */}
       {categories.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-zinc-800 mb-2">Kategoriler</h3>
+          <h3 className="text-sm font-bold text-zinc-800 mb-2">Kategoriler</h3>
           <ul className="space-y-1">
             <li>
               <button
                 onClick={() => router.push(buildUrl({ kategori: "" }))}
-                className={`text-sm w-full text-left px-2 py-1 rounded hover:bg-zinc-100 transition ${!activeCategory ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                  !activeCategory
+                    ? "bg-indigo-100 text-indigo-700 font-semibold"
+                    : "text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600"
+                }`}
               >
                 Tümü
               </button>
@@ -74,7 +78,11 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
               <li key={cat.id}>
                 <button
                   onClick={() => router.push(buildUrl({ kategori: cat.slug }))}
-                  className={`text-sm w-full text-left px-2 py-1 rounded hover:bg-zinc-100 transition ${activeCategory === cat.slug ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                    activeCategory === cat.slug
+                      ? "bg-indigo-100 text-indigo-700 font-semibold"
+                      : "text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600"
+                  }`}
                 >
                   {cat.name}
                 </button>
@@ -86,14 +94,14 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
 
       {/* Price range */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-800 mb-2">Fiyat Aralığı</h3>
+        <h3 className="text-sm font-bold text-zinc-800 mb-2">Fiyat Aralığı</h3>
         <div className="flex gap-2 items-center">
           <input
             type="number"
             placeholder="Min"
             value={min}
             onChange={(e) => setMin(e.target.value)}
-            className="w-full border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            className="w-full border border-indigo-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <span className="text-zinc-400 text-sm">–</span>
           <input
@@ -101,12 +109,12 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
             placeholder="Max"
             value={max}
             onChange={(e) => setMax(e.target.value)}
-            className="w-full border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            className="w-full border border-indigo-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
         </div>
         <button
           onClick={applyPriceFilter}
-          className="mt-2 w-full py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-sm rounded-lg transition"
+          className="mt-2 w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-sm rounded-xl transition"
         >
           Uygula
         </button>
@@ -116,7 +124,7 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
       {(activeCategory || min || max || search) && (
         <button
           onClick={() => router.push("/urunler")}
-          className="w-full py-1.5 border border-zinc-300 text-zinc-600 text-sm rounded-lg hover:bg-zinc-50 transition"
+          className="w-full py-1.5 border border-red-200 text-red-500 text-sm rounded-xl hover:bg-red-50 transition font-medium"
         >
           Filtreleri Temizle
         </button>
