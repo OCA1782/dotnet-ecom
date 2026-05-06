@@ -23,12 +23,24 @@ export interface MonthlySummary {
   orderCount: number;
 }
 
+export interface WeeklyOrder {
+  day: string;
+  label: string;
+  orderCount: number;
+  revenue: number;
+}
+
+export interface OrderStatusCount {
+  status: number;
+  label: string;
+  count: number;
+}
+
 export interface DashboardRecentOrder {
   id: string;
   orderNumber: string;
   customerName: string;
   status: number;
-  paymentStatus: number;
   grandTotal: number;
   createdDate: string;
 }
@@ -38,7 +50,13 @@ export interface DashboardStats {
   todayOrderCount: number;
   pendingOrderCount: number;
   criticalStockCount: number;
+  monthSales: number;
+  monthOrderCount: number;
+  totalCustomerCount: number;
+  newCustomerCount: number;
   monthlySummary: MonthlySummary[];
+  weeklyOrders: WeeklyOrder[];
+  orderStatusBreakdown: OrderStatusCount[];
   recentOrders: DashboardRecentOrder[];
 }
 
