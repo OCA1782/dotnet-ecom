@@ -2,7 +2,6 @@ using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Ecom.Domain.Enums;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -12,13 +11,13 @@ public record InitiatePaymentCommand(
     Guid OrderId,
     Guid? UserId,
     PaymentMethod Method,
-    string? CallbackUrl = null
+    string? CallbackUrl = null,
+    string? BuyerIp = null
 ) : IRequest<Result<PaymentInitiateResult>>;
 
 public class InitiatePaymentHandler(
     IApplicationDbContext db,
-    IPaymentService paymentService,
-    IHttpContextAccessor httpContextAccessor
+    IPaymentService paymentService
 ) : IRequestHandler<InitiatePaymentCommand, Result<PaymentInitiateResult>>
 {
     public async Task<Result<PaymentInitiateResult>> Handle(InitiatePaymentCommand request, CancellationToken cancellationToken)
@@ -73,7 +72,7 @@ public class InitiatePaymentHandler(
         )).ToList();
 
         var idempotencyKey = $"{order.Id}-{DateTime.UtcNow:yyyyMMddHH}";
-        var buyerIp = httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        var buyerIp = request.BuyerIp;
 
         var context = new PaymentContext(
             order.Id,

@@ -5,7 +5,8 @@ namespace Ecom.Application.Common.Interfaces;
 public record PaymentInitiateResult(
     string TransactionId,
     string? RedirectUrl,
-    bool RequiresRedirect
+    bool RequiresRedirect,
+    string? CheckoutFormContent = null
 );
 
 public record PaymentContext(
