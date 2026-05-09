@@ -29,7 +29,7 @@ public record ProductListItemDto(
     decimal? DiscountPrice,
     string Currency,
     int StockQuantity,
-    string? MainImageUrl,
+    string? ImageUrl,
     bool IsActive,
     bool IsPublished
 );

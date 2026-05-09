@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2 } from "lucide-react";
 
 interface Category { id: string; name: string; slug: string; }
 interface Brand { id: string; name: string; }
+interface ProductImage { id: string; imageUrl: string; altText?: string; isMain: boolean; sortOrder: number; }
 
 interface ProductForm {
   id?: string;
@@ -43,7 +44,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
           <h2 className="font-bold text-slate-800 text-lg">{title}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
         </div>
@@ -83,6 +84,12 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Image management state
+  const [productImages, setProductImages] = useState<ProductImage[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [newImageAlt, setNewImageAlt] = useState("");
+  const [imageLoading, setImageLoading] = useState(false);
+
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -104,13 +111,23 @@ export default function AdminProductsPage() {
     api.get<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=false").then(r => setBrands(r.items)).catch(() => {});
   }, []);
 
+  async function loadProductImages(slug: string) {
+    try {
+      const detail = await api.get<{ images: ProductImage[] }>(`/api/products/${slug}`);
+      setProductImages(detail.images || []);
+    } catch { setProductImages([]); }
+  }
+
   function openCreate() {
     setForm(EMPTY_FORM);
     setFormError("");
+    setProductImages([]);
+    setNewImageUrl("");
+    setNewImageAlt("");
     setModal("create");
   }
 
-  function openEdit(p: AdminProduct) {
+  async function openEdit(p: AdminProduct) {
     setForm({
       id: p.id,
       name: p.name,
@@ -128,7 +145,11 @@ export default function AdminProductsPage() {
       initialStock: "0",
     });
     setFormError("");
+    setNewImageUrl("");
+    setNewImageAlt("");
+    setProductImages([]);
     setModal("edit");
+    await loadProductImages(p.slug);
   }
 
   function setField<K extends keyof ProductForm>(k: K, v: ProductForm[K]) {
@@ -187,6 +208,48 @@ export default function AdminProductsPage() {
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : "Hata oluştu.");
     } finally { setSaving(false); }
+  }
+
+  async function handleAddImage() {
+    if (!newImageUrl || !form.id) return;
+    setImageLoading(true);
+    try {
+      await api.post(`/api/products/${form.id}/images`, {
+        productId: form.id,
+        imageUrl: newImageUrl,
+        sortOrder: productImages.length,
+        isMain: productImages.length === 0,
+        altText: newImageAlt || null,
+      });
+      setNewImageUrl("");
+      setNewImageAlt("");
+      await loadProductImages(form.slug);
+      await fetchProducts();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Fotoğraf eklenemedi.");
+    } finally { setImageLoading(false); }
+  }
+
+  async function handleDeleteImage(imageId: string) {
+    if (!form.id) return;
+    try {
+      await api.delete(`/api/products/${form.id}/images/${imageId}`);
+      setProductImages(imgs => imgs.filter(i => i.id !== imageId));
+      await fetchProducts();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Fotoğraf silinemedi.");
+    }
+  }
+
+  async function handleSetMainImage(imageId: string) {
+    if (!form.id) return;
+    try {
+      await api.patch(`/api/products/${form.id}/images/${imageId}/set-main`);
+      setProductImages(imgs => imgs.map(i => ({ ...i, isMain: i.id === imageId })));
+      await fetchProducts();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Ana fotoğraf ayarlanamadı.");
+    }
   }
 
   async function handleDeactivate(id: string) {
@@ -256,7 +319,7 @@ export default function AdminProductsPage() {
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-50" : ""}`}>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                         {p.imageUrl
                           ? <img src={p.imageUrl} alt={p.name} className="object-contain w-full h-full p-0.5" /> // eslint-disable-line @next/next/no-img-element
                           : <span className="text-base">📦</span>}
@@ -383,6 +446,60 @@ export default function AdminProductsPage() {
                 </label>
               )}
             </div>
+
+            {/* Image management — edit only */}
+            {modal === "edit" && (
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <p className="text-xs font-semibold text-slate-700">Fotoğraflar</p>
+
+                {productImages.length === 0 ? (
+                  <p className="text-xs text-slate-400">Henüz fotoğraf eklenmemiş.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {productImages.map(img => (
+                      <div key={img.id} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${img.isMain ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white"}`}>
+                        <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.imageUrl} alt={img.altText || ""} className="object-contain w-full h-full p-1" />
+                        </div>
+                        {img.isMain && (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-indigo-600">
+                            <Star size={11} fill="currentColor" /> Ana Fotoğraf
+                          </span>
+                        )}
+                        <div className="flex gap-1">
+                          {!img.isMain && (
+                            <button type="button" onClick={() => handleSetMainImage(img.id)}
+                              className="flex-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 transition">
+                              Ana Yap
+                            </button>
+                          )}
+                          <button type="button" onClick={() => handleDeleteImage(img.id)}
+                            className="flex items-center justify-center text-red-400 hover:text-red-600 border border-red-100 rounded-lg p-1 hover:bg-red-50 transition">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new image */}
+                <div className="flex gap-2">
+                  <input
+                    className={INPUT}
+                    placeholder="Fotoğraf URL'si (https://...)"
+                    value={newImageUrl}
+                    onChange={e => setNewImageUrl(e.target.value)}
+                  />
+                  <button type="button" onClick={handleAddImage}
+                    disabled={imageLoading || !newImageUrl}
+                    className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap transition">
+                    {imageLoading ? "..." : "Ekle"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
               <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">

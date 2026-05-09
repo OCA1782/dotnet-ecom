@@ -26,4 +26,12 @@ public class ProductImagesController(IMediator mediator) : ControllerBase
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    [HttpPatch("{imageId:guid}/set-main")]
+    public async Task<IActionResult> SetMain(Guid productId, Guid imageId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new SetMainProductImageCommand(imageId, productId), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }
