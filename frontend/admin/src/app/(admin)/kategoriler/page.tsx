@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
+import { Plus, Pencil, Trash2, X, Download, Upload } from "lucide-react";
 
 interface Category {
   id: string;
@@ -45,6 +46,8 @@ export default function KategorilerPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -80,6 +83,43 @@ export default function KategorilerPage() {
     finally { setSaving(false); }
   }
 
+  function handleExport() {
+    exportToExcel(
+      categories.map(c => ({
+        "Ad": c.name, "Slug": c.slug,
+        "Üst Kategori": c.parentCategoryName ?? "",
+        "Sıra": c.sortOrder, "Menüde": c.showInMenu ? "Evet" : "Hayır",
+        "Durum": c.isActive ? "Aktif" : "Pasif",
+      })),
+      "kategoriler", "Kategoriler"
+    );
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    setImporting(true); setImportResult(null);
+    let ok = 0, fail = 0;
+    try {
+      const rows = await readExcelFile(file);
+      for (const row of rows) {
+        try {
+          const name = String(row["Ad"] ?? ""); if (!name) { fail++; continue; }
+          await api.post("/api/categories", {
+            name, slug: slugify(name),
+            parentCategoryId: null, description: String(row["Açıklama"] ?? "") || null,
+            imageUrl: null, sortOrder: Number(row["Sıra"] ?? 0),
+            showInMenu: String(row["Menüde"] ?? "Evet") === "Evet",
+            metaTitle: null, metaDescription: null,
+          });
+          ok++;
+        } catch { fail++; }
+      }
+      setImportResult(`${ok} kategori eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
+      await fetch();
+    } catch { setImportResult("Dosya okunamadı."); }
+    finally { setImporting(false); e.target.value = ""; }
+  }
+
   async function handleDelete(id: string, name: string) {
     if (!confirm(`"${name}" kategorisini silmek istediğinize emin misiniz?`)) return;
     try {
@@ -95,10 +135,28 @@ export default function KategorilerPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Kategoriler</h1>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-          <Plus size={16} /> Yeni Kategori
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
+            <Download size={14} /> Excel
+          </button>
+          <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
+            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
+          </label>
+          <button onClick={() => downloadTemplate(["Ad", "Açıklama", "Sıra", "Menüde"], "kategoriler")}
+            className="text-xs text-slate-500 hover:text-slate-700 underline px-1">Şablon</button>
+          <button onClick={openCreate} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            <Plus size={16} /> Yeni Kategori
+          </button>
+        </div>
       </div>
+
+      {importResult && (
+        <div className="text-sm px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-between">
+          {importResult} <button onClick={() => setImportResult(null)}><X size={14} /></button>
+        </div>
+      )}
 
       {msg && (
         <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>

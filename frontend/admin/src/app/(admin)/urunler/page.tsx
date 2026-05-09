@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2 } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload } from "lucide-react";
+import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 
 interface Category { id: string; name: string; slug: string; }
 interface Brand { id: string; name: string; }
@@ -84,6 +85,9 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
+
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
@@ -110,6 +114,54 @@ export default function AdminProductsPage() {
     api.get<Category[]>("/api/categories?onlyActive=false").then(setCategories).catch(() => {});
     api.get<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=false").then(r => setBrands(r.items)).catch(() => {});
   }, []);
+
+  function handleExport() {
+    exportToExcel(
+      products.map(p => ({
+        "Ad": p.name, "SKU": p.sku, "Slug": p.slug,
+        "Fiyat": p.price, "İndirimli Fiyat": p.discountPrice ?? "",
+        "Kategori": p.categoryName ?? "", "Marka": p.brandName ?? "",
+        "Stok": p.availableStock, "Durum": p.isActive ? "Aktif" : "Pasif",
+      })),
+      "urunler", "Ürünler"
+    );
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    setImporting(true); setImportResult(null);
+    let ok = 0, fail = 0;
+    const cats = await api.get<{id:string;name:string}[]>("/api/categories?onlyActive=false").catch(() => []);
+    const brds = await api.get<{items:{id:string;name:string}[]}>("/api/brands?pageSize=500&onlyActive=false").then(r => r.items).catch(() => []);
+    try {
+      const rows = await readExcelFile(file);
+      for (const row of rows) {
+        try {
+          const name = String(row["Ad"] ?? ""); if (!name) { fail++; continue; }
+          const catName = String(row["Kategori"] ?? "");
+          const brandName = String(row["Marka"] ?? "");
+          const cat = cats.find(c => c.name === catName);
+          const brand = brds.find(b => b.name === brandName);
+          await api.post("/api/products", {
+            name, slug: name.toLowerCase().replace(/\s+/g, "-"),
+            sku: String(row["SKU"] ?? name.substring(0,8).toUpperCase()),
+            description: null, shortDescription: null, barcode: null, productType: 1,
+            categoryId: cat?.id ?? cats[0]?.id ?? "00000000-0000-0000-0000-000000000000",
+            brandId: brand?.id ?? null,
+            price: Number(row["Fiyat"] ?? 0),
+            discountPrice: row["İndirimli Fiyat"] ? Number(row["İndirimli Fiyat"]) : null,
+            currency: "TRY", taxRate: 18, isPublished: true,
+            metaTitle: null, metaDescription: null,
+            initialStock: Number(row["Stok"] ?? 0),
+          });
+          ok++;
+        } catch { fail++; }
+      }
+      setImportResult(`${ok} ürün eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
+      await fetchProducts();
+    } catch { setImportResult("Dosya okunamadı."); }
+    finally { setImporting(false); e.target.value = ""; }
+  }
 
   async function loadProductImages(slug: string) {
     try {
@@ -267,16 +319,33 @@ export default function AdminProductsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Ürünler</h1>
-        <button onClick={openCreate}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-          <Plus size={16} /> Yeni Ürün
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
+            <Download size={14} /> Excel
+          </button>
+          <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
+            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
+          </label>
+          <button onClick={() => downloadTemplate(["Ad", "SKU", "Fiyat", "İndirimli Fiyat", "Kategori", "Marka", "Stok"], "urunler")}
+            className="text-xs text-slate-500 hover:text-slate-700 underline px-1">Şablon</button>
+          <button onClick={openCreate}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            <Plus size={16} /> Yeni Ürün
+          </button>
+        </div>
       </div>
 
       {msg && (
         <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
           {msg.text}
           <button onClick={() => setMsg(null)}><X size={14} /></button>
+        </div>
+      )}
+      {importResult && (
+        <div className="text-sm px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-between">
+          {importResult} <button onClick={() => setImportResult(null)}><X size={14} /></button>
         </div>
       )}
 

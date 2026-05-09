@@ -6,7 +6,8 @@ import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { AdminOrderSummary, PaginatedList } from "@/types";
 import { ORDER_STATUS, ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
@@ -48,8 +49,23 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">Siparişler</h1>
-        <span className="text-sm text-zinc-500">{totalCount} sipariş</span>
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Siparişler</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">{totalCount} sipariş</p>
+        </div>
+        <button
+          onClick={() => exportToExcel(
+            orders.map(o => ({
+              "Sipariş No": o.orderNumber, "Müşteri": o.customerName,
+              "E-posta": o.customerEmail, "Durum": ORDER_STATUS[o.status] ?? o.status,
+              "Tutar": o.grandTotal, "Ürün Sayısı": o.itemCount,
+              "Tarih": formatDate(o.createdDate),
+            })),
+            "siparisler", "Siparişler"
+          )}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+          <Download size={15} /> Excel'e Aktar
+        </button>
       </div>
 
       {/* Filters */}

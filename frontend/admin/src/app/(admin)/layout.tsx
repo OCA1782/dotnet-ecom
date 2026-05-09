@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Tag,
   Layers,
+  Activity,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/kullanicilar", label: "Kullanıcılar", icon: Users },
   { href: "/kuponlar", label: "Kuponlar", icon: Ticket },
   { href: "/yorumlar", label: "Yorumlar", icon: MessageSquare },
+  { href: "/hareketler", label: "Hareketler", icon: Activity },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
