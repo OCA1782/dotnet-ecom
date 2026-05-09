@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { PaginatedList } from "@/types";
+import { exportToExcel } from "@/lib/excel";
+import { Download } from "lucide-react";
 
 interface AdminReviewDto {
   id: string;
@@ -88,6 +90,18 @@ export default function YorumlarPage() {
           <h1 className="text-2xl font-bold text-white">Yorumlar</h1>
           <p className="text-zinc-400 text-sm mt-1">{total} yorum</p>
         </div>
+        <button
+          onClick={() => exportToExcel(
+            reviews.map(r => ({
+              "Ürün": r.productName, "Kullanıcı": r.userName, "E-posta": r.userEmail,
+              "Puan": r.rating, "Başlık": r.title ?? "", "Yorum": r.body,
+              "Onaylı": r.isApproved ? "Evet" : "Hayır", "Onaylı Alış": r.isVerifiedPurchase ? "Evet" : "Hayır",
+            })),
+            "yorumlar", "Yorumlar"
+          )}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
+          <Download size={14} /> Excel'e Aktar
+        </button>
       </div>
 
       {/* Filters */}

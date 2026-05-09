@@ -3,12 +3,17 @@ using Ecom.Application;
 using Ecom.Infrastructure;
 using Ecom.Infrastructure.Persistence;
 using Ecom.API.Middleware;
+using Ecom.API.Filters;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddScoped<AuditFilter>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<AuditFilter>();
+});
 builder.Services.AddOpenApi();
 
 builder.Services.AddApplication();

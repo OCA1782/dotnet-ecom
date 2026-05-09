@@ -204,6 +204,18 @@ export const ORDER_STATUS_COLORS: Record<number, string> = {
   11: "bg-gray-100 text-gray-600",
 };
 
+// Audit Logs
+export interface AuditLog {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  action: string;
+  entityName: string;
+  entityId?: string;
+  ipAddress?: string;
+  createdDate: string;
+}
+
 export const PAYMENT_STATUS: Record<number, string> = {
   1: "Bekliyor",
   2: "Ödendi",

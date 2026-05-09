@@ -1,3 +1,4 @@
+using Ecom.Application.Features.Admin.Commands;
 using Ecom.Application.Features.Admin.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -19,5 +20,13 @@ public class UsersController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetUsersQuery(page, pageSize, search), ct);
         return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateAdminUserCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return Ok(new { id = result.Data });
     }
 }

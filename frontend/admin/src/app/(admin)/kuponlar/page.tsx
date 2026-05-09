@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { Coupon, PaginatedList } from "@/types";
 import { COUPON_TYPE_LABEL } from "@/types";
+import { exportToExcel } from "@/lib/excel";
+import { Download } from "lucide-react";
 
 type FormState = {
   code: string;
@@ -152,6 +154,19 @@ export default function KuponlarPage() {
             />
             Pasif kuponu göster
           </label>
+          <button
+            onClick={() => exportToExcel(
+              coupons.map(c => ({
+                "Kod": c.code, "Tip": COUPON_TYPE_LABEL[c.type], "Değer": c.value,
+                "Min Tutar": c.minOrderAmount, "Kullanım": c.usageCount,
+                "Durum": c.isActive ? "Aktif" : "Pasif",
+              })),
+              "kuponlar", "Kuponlar"
+            )}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition"
+          >
+            <Download size={14} /> Excel
+          </button>
           <button
             onClick={openCreate}
             className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
