@@ -69,7 +69,7 @@ backend/src/Ecom.API/wwwroot/uploads/
 admin_log.txt
 backend_log.txt
 
-# Claude Code local settings
+# Local dev settings
 .claude/
 
 # Design reference assets
