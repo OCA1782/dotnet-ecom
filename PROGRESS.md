@@ -383,6 +383,47 @@ backend/
 
 ---
 
+### ✅ ADIM 15 — Satış Hedefleri, Hata Takibi, UI Yenileme (TAMAMLANDI)
+
+**Tarih:** 2026-05-10
+
+**Ne yapıldı:**
+
+**Backend:**
+- `SalesGoal` entity + `GoalsController` — aylık ciro/sipariş hedefi, GET+PUT upsert
+- `ErrorLog` entity + `ErrorLogsController` + `ErrorLoggingMiddleware` — 4xx/5xx otomatik log, frontend log endpoint
+- `UploadController` — multipart form ile `wwwroot/uploads/` görsel yükleme, URL dönüşü
+- `UpdateAdminUserCommand` + `ToggleUserActiveCommand` — admin kullanıcı güncelleme, aktif/pasif
+- `UpdateReviewCommand` — kullanıcı kendi yorumunu düzenleyebilir (onay sıfırlanır)
+- `OrderStatus.OnHold = 12` — askıya alma statüsü, geçiş tablosuna eklendi
+- `Product.IsFeatured` alanı — `GetProductsQuery` ile `?featured=true` filtresi
+- Dashboard: activeCustomerCount, cancelledOrders, abandonedOrders, satisfactionRate, reviewCount, weeklyNewUsers, MonthTargetRevenue/OrderCount
+- `GetAuditLogsQuery`: userEmail + startDate/endDate filtresi; `GetCouponsQuery`: search + type filtresi
+- `ProductListItemDto` + `ReviewDto`: IsFeatured ve UserId eklendi
+- Migrations: `AddProductIsFeatured`, `AddSalesGoals`, `AddErrorLogs` oluşturuldu ve uygulandı
+- `Program.cs`: static file serving (wwwroot) + ErrorLoggingMiddleware
+
+**Frontend Admin:**
+- Yeni sayfa: `/hedefler` — aylık satış hedefleri, progress ring, inline düzenleme, fiili/hedef karşılaştırma
+- Yeni sayfa: `/takip` — hata log listesi, filtreler (kaynak/seviye/tarih/arama), stack trace expander
+- Sidebar: Hedefler (Target) + Takip (ShieldAlert) navigasyon öğeleri, lacivert tema (#1c2044)
+- Dashboard: count-up animasyonu, live ticker, animated weekly bars, satisfaction gauge, yeni kullanıcı bars, hedef progress ring
+- Kullanıcılar: düzenleme modali (ad/soyad/rol), aktivasyon toggle, import/export Excel
+- Yorumlar: search filtresi eklendi
+- Hareketler: userEmail + tarih aralığı filtresi, Excel export
+- Yeni bileşenler: `ImageUpload.tsx` (görsel yükleme), `ConfirmModal.tsx` (onay diyaloğu)
+- `api.ts`: FormData upload desteği
+
+**Frontend Customer:**
+- Yeni hero bölümü: gradient arka plan, Keyvora logolu, kampanya/alışveriş CTA
+- `ProductCard.tsx`: ayrı client bileşen, sepete ekle ile animasyon
+- `ProductImageGallery.tsx`: fullscreen lightbox, klavye/swipe navigasyon
+- `ReviewSection.tsx`: kendi yorumunu düzenleme akışı (edit butonu UserId ile karşılaştırır)
+- Footer: çok kolonlu, linkler, güven rozetleri, sosyal ikonlar
+- Tüm sayfalar (sepet, ödeme, hesabım, sipariş detay) UI polish
+
+---
+
 ## Önemli Dosya Konumları
 
 | Dosya | Konum |
