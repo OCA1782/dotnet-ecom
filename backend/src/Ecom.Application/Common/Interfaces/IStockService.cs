@@ -17,5 +17,5 @@ public interface IStockService
     Task<Result> ReturnToStockAsync(Guid productId, Guid? variantId, int quantity, Guid orderId, string? note = null, CancellationToken ct = default);
 
     /// <summary>Manuel stok düzeltmesi (StockIn / StockOut / Adjustment).</summary>
-    Task<Result> AdjustAsync(Guid productId, Guid? variantId, int quantity, string movementType, string? note, Guid? operatorUserId = null, CancellationToken ct = default);
+    Task<Result> AdjustAsync(Guid productId, Guid? variantId, int quantity, string movementType, string? note, Guid? operatorUserId = null, int? criticalStockLevel = null, CancellationToken ct = default);
 }

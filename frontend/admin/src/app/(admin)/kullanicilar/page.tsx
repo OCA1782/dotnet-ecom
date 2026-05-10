@@ -236,14 +236,15 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{formatDate(u.createdDate)}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center gap-3 justify-end">
-                      <button onClick={() => handleToggleActive(u)} title={u.isActive ? "Pasife Çek" : "Aktive Et"}
-                        className={u.isActive ? "text-green-500 hover:text-red-500 hover:scale-125 active:scale-95 transition-all duration-150" : "text-slate-400 hover:text-green-500 hover:scale-125 active:scale-95 transition-all duration-150"}>
-                        {u.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <button onClick={() => openEdit(u)} title="Düzenle"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Pencil size={18} />
                       </button>
-                      <button onClick={() => openEdit(u)} className="text-teal-500 hover:text-teal-700 hover:scale-125 active:scale-95 transition-all duration-150">
-                        <Pencil size={14} />
+                      <button onClick={() => handleToggleActive(u)} title={u.isActive ? "Pasife Çek" : "Aktive Et"}
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${u.isActive ? "bg-green-50 text-green-600 hover:bg-green-500 hover:text-white hover:shadow-green-200 hover:shadow-md" : "bg-slate-100 text-slate-500 hover:bg-emerald-500 hover:text-white hover:shadow-emerald-200 hover:shadow-md"}`}>
+                        {u.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                       </button>
                     </div>
                   </td>

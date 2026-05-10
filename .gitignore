@@ -1,5 +1,14 @@
-# Development workflow files
-SESSION_GUIDE.md
+# Development workflow files (local-only, not for commit)
+DOCS/DAILY_PROGRESS.md
+DOCS/IMPORTANT_COMMANDS.md
+session_rules.md
+ai_notes.md
+ai_context.md
+assistant_notes.md
+prompt.md
+prompts.md
+project_memory.md
+local_notes.md
 
 # .NET
 bin/

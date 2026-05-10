@@ -103,7 +103,7 @@ public class StockService(IApplicationDbContext db) : IStockService
         return Result.Success();
     }
 
-    public async Task<Result> AdjustAsync(Guid productId, Guid? variantId, int quantity, string movementType, string? note, Guid? operatorUserId = null, CancellationToken ct = default)
+    public async Task<Result> AdjustAsync(Guid productId, Guid? variantId, int quantity, string movementType, string? note, Guid? operatorUserId = null, int? criticalStockLevel = null, CancellationToken ct = default)
     {
         var stock = await GetStockAsync(productId, variantId, ct);
         if (stock is null) return Result.Failure("Stok kaydı bulunamadı.");
@@ -121,6 +121,9 @@ public class StockService(IApplicationDbContext db) : IStockService
             StockMovementType.Damage => Math.Max(0, stock.Quantity - quantity),
             _ => stock.Quantity
         };
+
+        if (criticalStockLevel.HasValue)
+            stock.CriticalStockLevel = criticalStockLevel.Value;
 
         db.StockMovements.Add(new StockMovement
         {

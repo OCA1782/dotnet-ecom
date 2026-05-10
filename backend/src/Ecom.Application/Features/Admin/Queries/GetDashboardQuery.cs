@@ -11,6 +11,8 @@ public record DashboardDto(
     int TodayOrderCount,
     int PendingOrderCount,
     int CriticalStockCount,
+    int OutOfStockCount,
+    int TotalProductCount,
     decimal MonthSales,
     int MonthOrderCount,
     int TotalCustomerCount,
@@ -85,6 +87,12 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
 
         var criticalStockCount = await db.Stocks
             .CountAsync(s => (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel, cancellationToken);
+
+        var outOfStockCount = await db.Stocks
+            .CountAsync(s => (s.Quantity - s.ReservedQuantity) <= 0, cancellationToken);
+
+        var totalProductCount = await db.Products
+            .CountAsync(p => p.IsActive, cancellationToken);
 
         var totalCustomers = await db.UserRoles.CountAsync(r => r.Role == UserRoleEnum.Customer, cancellationToken);
 
@@ -200,6 +208,8 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             TodayOrderCount: todayOrders.Count,
             PendingOrderCount: pendingCount,
             CriticalStockCount: criticalStockCount,
+            OutOfStockCount: outOfStockCount,
+            TotalProductCount: totalProductCount,
             MonthSales: monthOrders.Sum(o => o.GrandTotal),
             MonthOrderCount: monthOrders.Count,
             TotalCustomerCount: totalCustomers,

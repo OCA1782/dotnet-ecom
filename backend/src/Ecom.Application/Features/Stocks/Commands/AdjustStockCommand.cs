@@ -10,7 +10,8 @@ public record AdjustStockCommand(
     Guid? VariantId,
     int Quantity,
     string MovementType,
-    string? Note
+    string? Note,
+    int? CriticalStockLevel
 ) : IRequest<Result>;
 
 public class AdjustStockValidator : AbstractValidator<AdjustStockCommand>
@@ -25,6 +26,9 @@ public class AdjustStockValidator : AbstractValidator<AdjustStockCommand>
             .NotEmpty()
             .Must(t => AllowedTypes.Contains(t))
             .WithMessage($"Geçerli hareket tipleri: {string.Join(", ", AllowedTypes)}");
+        RuleFor(x => x.CriticalStockLevel)
+            .GreaterThanOrEqualTo(0).When(x => x.CriticalStockLevel.HasValue)
+            .WithMessage("Kritik eşik sıfır veya daha büyük olmalıdır.");
     }
 }
 
@@ -36,7 +40,7 @@ public class AdjustStockHandler(IStockService stockService, ICurrentUserService 
         var result = await stockService.AdjustAsync(
             request.ProductId, request.VariantId,
             request.Quantity, request.MovementType, request.Note,
-            currentUser.UserId, cancellationToken);
+            currentUser.UserId, request.CriticalStockLevel, cancellationToken);
 
         if (result.Succeeded)
             await audit.LogAsync("StockAdjusted", "Stock",

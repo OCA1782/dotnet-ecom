@@ -1,10 +1,10 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
-import { Plus, Download, Upload, X, Search, Pencil } from "lucide-react";
+import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX } from "lucide-react";
 
 const MOVEMENT_TYPES = [
   { value: "StockIn", label: "Stok Girişi" },
@@ -27,7 +27,7 @@ export default function StockPage() {
 
   // Adjust existing stock
   const [adjustTarget, setAdjustTarget] = useState<StockItem | null>(null);
-  const [adjustForm, setAdjustForm] = useState({ quantity: "", movementType: "StockIn", note: "" });
+  const [adjustForm, setAdjustForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
   const [adjusting, setAdjusting] = useState(false);
 
   // New stock entry modal
@@ -35,7 +35,7 @@ export default function StockPage() {
   const [productSearch, setProductSearch] = useState("");
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null);
-  const [newForm, setNewForm] = useState({ quantity: "", movementType: "StockIn", note: "" });
+  const [newForm, setNewForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
   const [newSaving, setNewSaving] = useState(false);
 
   // Excel import
@@ -78,11 +78,12 @@ export default function StockPage() {
         variantId: adjustTarget.variantId ?? null,
         quantity: Number(adjustForm.quantity),
         movementType: adjustForm.movementType,
-        note: adjustForm.note,
+        note: adjustForm.note || null,
+        criticalStockLevel: adjustForm.criticalStockLevel !== "" ? Number(adjustForm.criticalStockLevel) : null,
       });
       setMsg({ text: "Stok güncellendi.", ok: true });
       setAdjustTarget(null);
-      setAdjustForm({ quantity: "", movementType: "StockIn", note: "" });
+      setAdjustForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
       await fetchStocks();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
@@ -99,11 +100,12 @@ export default function StockPage() {
         quantity: Number(newForm.quantity),
         movementType: newForm.movementType,
         note: newForm.note || null,
+        criticalStockLevel: newForm.criticalStockLevel !== "" ? Number(newForm.criticalStockLevel) : null,
       });
       setMsg({ text: `${selectedProduct.name} için stok güncellendi.`, ok: true });
       setShowNew(false);
       setSelectedProduct(null); setProductSearch("");
-      setNewForm({ quantity: "", movementType: "StockIn", note: "" });
+      setNewForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
       await fetchStocks();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
@@ -204,6 +206,37 @@ export default function StockPage() {
         </div>
       )}
 
+      {/* Liste-bazlı alarm bandı */}
+      {!loading && (() => {
+        const outOfStock = stocks.filter(s => s.availableQuantity === 0).length;
+        const critical = stocks.filter(s => s.isCritical && s.availableQuantity > 0).length;
+        if (!outOfStock && !critical) return null;
+        const parts = [
+          outOfStock > 0 && `${outOfStock} ürün tükendi`,
+          critical > 0 && `${critical} ürün kritik stok seviyesinin altında`,
+        ].filter(Boolean).join(", ");
+        return (
+          <div className="flex items-center gap-3 bg-red-50 border-2 border-red-400 rounded-2xl px-5 py-4 shadow-sm shadow-red-100">
+            <span className="relative flex h-5 w-5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center">
+                <AlertTriangle size={11} className="text-white" />
+              </span>
+            </span>
+            <p className="text-sm font-bold text-red-700 flex-1">
+              {parts} — Acil müdahale gerekiyor!
+            </p>
+            {(outOfStock > 0 || critical > 0) && (
+              <button
+                onClick={() => { setCriticalOnly(true); setPage(1); }}
+                className="shrink-0 text-xs text-red-600 font-semibold border border-red-300 bg-white hover:bg-red-50 px-3 py-1.5 rounded-xl transition">
+                Sadece kritikleri göster
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Adjust modal */}
       {adjustTarget && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -228,6 +261,15 @@ export default function StockPage() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Miktar</label>
                 <input type="number" className={INPUT} value={adjustForm.quantity}
                   onChange={e => setAdjustForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Adet" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Kritik Eşik Seviyesi
+                  <span className="ml-1 text-slate-400 font-normal">(mevcut: {adjustTarget?.criticalStockLevel})</span>
+                </label>
+                <input type="number" min={0} className={INPUT} value={adjustForm.criticalStockLevel}
+                  onChange={e => setAdjustForm(f => ({ ...f, criticalStockLevel: e.target.value }))}
+                  placeholder="Boş bırakırsanız değişmez" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
@@ -291,6 +333,15 @@ export default function StockPage() {
                   onChange={e => setNewForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Adet" />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Kritik Eşik Seviyesi
+                  <span className="ml-1 text-slate-400 font-normal">(alarm için minimum stok)</span>
+                </label>
+                <input type="number" min={0} className={INPUT} value={newForm.criticalStockLevel}
+                  onChange={e => setNewForm(f => ({ ...f, criticalStockLevel: e.target.value }))}
+                  placeholder="Varsayılan: 5" />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
                 <input className={INPUT} value={newForm.note}
                   onChange={e => setNewForm(f => ({ ...f, note: e.target.value }))} placeholder="İsteğe bağlı" />
@@ -313,9 +364,13 @@ export default function StockPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Ürün", "SKU", "Toplam", "Rezerve", "Kullanılabilir", "Kritik Seviye", ""].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Ürün</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">SKU</th>
+                <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Toplam</th>
+                <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Rezerve</th>
+                <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kullanılabilir</th>
+                <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kritik Seviye</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -324,27 +379,77 @@ export default function StockPage() {
               ) : stocks.length === 0 ? (
                 <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Stok kaydı bulunamadı</td></tr>
               ) : stocks.map((s, i) => (
-                <tr key={`${s.productId}-${s.variantId ?? i}`} className={`hover:bg-slate-50 transition ${s.isCritical ? "bg-red-50/30" : ""}`}>
-                  <td className="px-5 py-3.5">
-                    <p className="font-medium text-slate-900 max-w-[220px] truncate text-xs">{s.productName}</p>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">{s.sku}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-700 text-xs">{s.quantity}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500 text-xs">{s.reservedQuantity}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    <span className={`font-semibold text-xs ${s.availableQuantity === 0 ? "text-red-600 animate-pulse" : s.isCritical ? "text-orange-600" : "text-slate-900"}`}>
-                      {s.availableQuantity}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-right text-slate-400 text-xs">{s.criticalStockLevel}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    <button onClick={() => { setAdjustTarget(s); setAdjustForm({ quantity: "", movementType: "StockIn", note: "" }); }}
-                      title="Stok Güncelle"
-                      className="w-7 h-7 inline-flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-800 hover:scale-110 active:scale-95 transition-all duration-150">
-                      <Pencil size={13} />
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={`${s.productId}-${s.variantId ?? i}`}>
+                  <tr className={`transition-all ${
+                    s.availableQuantity === 0
+                      ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100/60"
+                      : s.isCritical
+                      ? "bg-amber-50/50 border-l-4 border-l-amber-400 hover:bg-amber-50"
+                      : "hover:bg-slate-50"
+                  }`}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-medium text-slate-900 max-w-[200px] truncate text-xs">{s.productName}</p>
+                        {s.availableQuantity === 0 && (
+                          <span className="shrink-0 text-xs bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-md animate-pulse">TÜKENDI</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">{s.sku}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-700 text-xs">{s.quantity}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-500 text-xs">{s.reservedQuantity}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <span className={`font-bold text-xs ${
+                        s.availableQuantity === 0
+                          ? "text-red-600 text-sm"
+                          : s.isCritical
+                          ? "text-amber-600"
+                          : "text-slate-900"
+                      }`}>
+                        {s.availableQuantity}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <span className={`text-xs ${s.availableQuantity === 0 ? "text-red-400 font-semibold" : s.isCritical ? "text-amber-500 font-semibold" : "text-slate-400"}`}>
+                        {s.criticalStockLevel}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end">
+                        <button onClick={() => { setAdjustTarget(s); setAdjustForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: String(s.criticalStockLevel) }); }}
+                          title="Stok Güncelle"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <Pencil size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {(s.availableQuantity === 0 || s.isCritical) && (
+                    <tr className={s.availableQuantity === 0
+                      ? "bg-red-50 border-l-4 border-l-red-500"
+                      : "bg-amber-50/50 border-l-4 border-l-amber-400"}>
+                      <td colSpan={7} className="px-5 pb-3 pt-0">
+                        <div className="flex items-center gap-2">
+                          {s.availableQuantity === 0 ? (
+                            <>
+                              <PackageX size={13} className="text-red-500 shrink-0 animate-pulse" />
+                              <span className="text-xs font-semibold text-red-600">
+                                Stok tamamen tükendi — Satış yapılamıyor. Acil stok girişi yapınız!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                              <span className="text-xs font-semibold text-amber-700">
+                                Kritik stok seviyesinin altında ({s.availableQuantity} adet kaldı, eşik: {s.criticalStockLevel}) — Yakında tükenebilir. Stok girişi önerilir.
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
