@@ -8,7 +8,7 @@ import {
   TrendingUp, ShoppingCart, AlertTriangle,
   Users, ArrowUpRight, Star, Clock,
   Ghost, Target, CheckCircle2, Zap, Activity,
-  Package, UserCheck,
+  Package, UserCheck, PackageX, Boxes,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -192,6 +192,58 @@ function ProgressBar({ label, actual, target, gradient, format }: {
   );
 }
 
+function RingMeter({ pct, color, label, sub }: { pct: number; color: string; label: string; sub: string }) {
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setDrawn(pct), 250); return () => clearTimeout(t); }, [pct]);
+  const R = 38; const CX = 50; const CY = 50; const stroke = 11;
+  const circ = 2 * Math.PI * R;
+  const dash = (drawn / 100) * circ;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={circ / 4}
+          strokeLinecap="round" transform={`rotate(-90 ${CX} ${CY})`}
+          style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.4,0,0.2,1)" }} />
+        <text x={CX} y={CY - 5} textAnchor="middle" fontSize="15" fontWeight="800" fill="#0f172a">{drawn.toFixed(0)}%</text>
+        <text x={CX} y={CY + 12} textAnchor="middle" fontSize="8.5" fill="#94a3b8">{sub}</text>
+      </svg>
+      <p className="text-xs font-semibold text-slate-600 text-center">{label}</p>
+    </div>
+  );
+}
+
+function SegmentBar({ segments }: { segments: { label: string; value: number; color: string }[] }) {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setDrawn(true), 300); return () => clearTimeout(t); }, []);
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  return (
+    <div>
+      <div className="flex rounded-full overflow-hidden h-4 gap-0.5">
+        {segments.map((seg, i) => (
+          <div key={i} className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: drawn ? `${(seg.value / total) * 100}%` : "0%",
+              background: seg.color,
+              transitionDelay: `${i * 120}ms`,
+            }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5">
+        {segments.map((seg, i) => (
+          <div key={i} className="flex items-center gap-1.5 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
+            <span className="text-slate-500">{seg.label}</span>
+            <span className="font-bold text-slate-700">{seg.value}</span>
+            <span className="text-slate-300">({((seg.value / total) * 100).toFixed(0)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function HeroCard({
   value, label, sub, gradient, icon: Icon, alert, link, pulse,
 }: {
@@ -257,8 +309,12 @@ export default function DashboardPage() {
 
   const todaySales = useCountUp(stats?.todaySales ?? 0);
   const monthSales = useCountUp(stats?.monthSales ?? 0);
+  const todayOrderCount = useCountUp(stats?.todayOrderCount ?? 0, 800);
+  const monthOrderCount = useCountUp(stats?.monthOrderCount ?? 0, 900);
   const pendingCount = useCountUp(stats?.pendingOrderCount ?? 0, 800);
   const criticalCount = useCountUp(stats?.criticalStockCount ?? 0, 800);
+  const outOfStockAnim = useCountUp(stats?.outOfStockCount ?? 0, 700);
+  const totalProductAnim = useCountUp(stats?.totalProductCount ?? 0, 600);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -276,6 +332,8 @@ export default function DashboardPage() {
   }));
   const statusTotal = statusSlices.reduce((s, x) => s + x.value, 0) || 1;
   const hasGoal = !!(stats.monthTargetRevenue || stats.monthTargetOrderCount);
+  const refundOrderCount = (stats.orderStatusBreakdown ?? []).find(s => s.status === 9)?.count ?? 0;
+  const holdOrderCount = (stats.orderStatusBreakdown ?? []).find(s => s.status === 12)?.count ?? 0;
   const totalRevenue12 = (stats.monthlySummary ?? []).reduce((s, m) => s + m.revenue, 0);
 
   const tickerItems = [
@@ -318,95 +376,161 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 1 — Hero KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <HeroCard
-          value={formatPrice(todaySales)}
-          label="Bugün Gelir"
-          sub={`${stats.todayOrderCount} sipariş`}
-          gradient="linear-gradient(135deg, #10b981 0%, #14b8a6 100%)"
-          icon={Zap}
-        />
-        <HeroCard
-          value={formatPrice(monthSales)}
-          label="Bu Ay Gelir"
-          sub={`${stats.monthOrderCount ?? 0} sipariş`}
-          gradient="linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
-          icon={TrendingUp}
-        />
-        <HeroCard
-          value={String(pendingCount)}
-          label="Bekleyen Sipariş"
-          sub="işlem bekliyor"
-          gradient={stats.pendingOrderCount > 0
-            ? "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
-            : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
-          icon={Clock}
-          link="/siparisler"
-          alert={stats.pendingOrderCount > 0}
-          pulse={stats.pendingOrderCount > 0}
-        />
-        <HeroCard
-          value={String(criticalCount)}
-          label="Kritik Stok"
-          sub="eşik altında ürün"
-          gradient={stats.criticalStockCount > 0
-            ? "linear-gradient(135deg, #ef4444 0%, #ec4899 100%)"
-            : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
-          icon={AlertTriangle}
-          link="/stok"
-          alert={stats.criticalStockCount > 0}
-          pulse={stats.criticalStockCount > 0}
-        />
+      {/* ── BÖLÜM 0: STOK ───────────────────────────────────────────── */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-violet-100 border border-violet-200 rounded-xl px-3 py-1.5 shrink-0">
+            <Boxes size={13} className="text-violet-600" />
+            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">Stok</span>
+          </div>
+          <div className="flex-1 h-px bg-slate-300" />
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Toplam Ürün */}
+          <HeroCard
+            value={String(totalProductAnim)}
+            label="Toplam Ürün"
+            sub="aktif ürün"
+            gradient="linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
+            icon={Package}
+            link="/urunler"
+          />
+          {/* Sağlıklı Stok */}
+          <HeroCard
+            value={String(Math.max((stats.totalProductCount ?? 0) - (stats.criticalStockCount ?? 0), 0))}
+            label="Sağlıklı Stok"
+            sub="yeterli stoklu ürün"
+            gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
+            icon={CheckCircle2}
+          />
+          {/* Kritik Eşikte */}
+          <HeroCard
+            value={String(criticalCount)}
+            label="Kritik Eşikte"
+            sub="eşik altında ürün"
+            gradient={stats.criticalStockCount > 0
+              ? "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
+              : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
+            icon={AlertTriangle}
+            link="/stok"
+            alert={stats.criticalStockCount > 0}
+            pulse={stats.criticalStockCount > 0}
+          />
+          {/* Tükenen */}
+          <HeroCard
+            value={String(outOfStockAnim)}
+            label="Tükenen Ürün"
+            sub="stok sıfır"
+            gradient={stats.outOfStockCount > 0
+              ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+              : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
+            icon={PackageX}
+            link="/stok"
+            alert={stats.outOfStockCount > 0}
+            pulse={stats.outOfStockCount > 0}
+          />
+        </div>
+
+        {/* Stok alarm bandı */}
+        {(stats.outOfStockCount > 0 || stats.criticalStockCount > 0) && (
+          <Link href="/stok"
+            className="flex items-center gap-3 bg-red-50 border-2 border-red-400 rounded-2xl px-5 py-4 shadow-sm shadow-red-100 hover:bg-red-100 hover:border-red-500 transition-all group">
+            <span className="relative flex h-5 w-5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center">
+                <AlertTriangle size={11} className="text-white" />
+              </span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-red-700">
+                Tükenen ürünler var — Acil müdahale gerekiyor!
+              </p>
+            </div>
+            <span className="ml-auto text-xs text-red-500 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all whitespace-nowrap shrink-0">
+              Stok Yönetimi <ArrowUpRight size={13} />
+            </span>
+          </Link>
+        )}
       </div>
 
-      {/* Row 2 — Goals */}
-      {hasGoal && (
-        <div className="rounded-2xl overflow-hidden shadow-lg"
-          style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #0f766e 100%)" }}>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-                  <Target size={18} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-white text-sm">Bu Ay Hedefleri</h2>
-                  <p className="text-white/50 text-xs">{new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}</p>
-                </div>
-              </div>
-              <Link href="/hedefler" className="text-xs text-white/60 hover:text-white flex items-center gap-1 transition-colors">
-                Düzenle <ArrowUpRight size={11} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {stats.monthTargetRevenue && stats.monthTargetRevenue > 0 && (
-                <ProgressBar label="Gelir Hedefi" actual={stats.monthSales ?? 0}
-                  target={stats.monthTargetRevenue} gradient="linear-gradient(to right, #6366f1, #2dd4bf)" format="price" />
-              )}
-              {stats.monthTargetOrderCount && stats.monthTargetOrderCount > 0 && (
-                <ProgressBar label="Sipariş Hedefi" actual={stats.monthOrderCount ?? 0}
-                  target={stats.monthTargetOrderCount} gradient="linear-gradient(to right, #0ea5e9, #8b5cf6)" format="count" />
-              )}
-            </div>
+      {/* ── BÖLÜM 1: SİPARİŞLER ─────────────────────────────────────── */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-indigo-100 border border-indigo-200 rounded-xl px-3 py-1.5 shrink-0">
+            <ShoppingCart size={13} className="text-indigo-600" />
+            <span className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">Siparişler</span>
           </div>
+          <div className="flex-1 h-px bg-slate-300" />
         </div>
-      )}
 
-      {/* Row 3 — Weekly charts + Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2 space-y-4">
+        {/* Sipariş KPI kartları */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <HeroCard
+            value={String(todayOrderCount)}
+            label="Bugün Sipariş"
+            sub="adet"
+            gradient="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"
+            icon={ShoppingCart}
+          />
+          <HeroCard
+            value={String(monthOrderCount)}
+            label="Bu Ay Sipariş"
+            sub="adet"
+            gradient="linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
+            icon={Activity}
+          />
+          <HeroCard
+            value={String(pendingCount)}
+            label="Bekleyen Sipariş"
+            sub="işlem bekliyor"
+            gradient={stats.pendingOrderCount > 0
+              ? "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
+              : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
+            icon={Clock}
+            link="/siparisler"
+            alert={stats.pendingOrderCount > 0}
+            pulse={stats.pendingOrderCount > 0}
+          />
+        </div>
+
+        {/* Sipariş alarm bandı */}
+        {(refundOrderCount > 0 || holdOrderCount > 0) && (
+          <Link href={refundOrderCount > 0 ? "/siparisler?status=9" : "/siparisler?status=12"}
+            className={`flex items-center gap-3 rounded-2xl px-5 py-4 shadow-sm border-2 transition-all group ${
+              refundOrderCount > 0
+                ? "bg-red-50 border-red-400 shadow-red-100 hover:bg-red-100 hover:border-red-500"
+                : "bg-amber-50 border-amber-400 shadow-amber-100 hover:bg-amber-100 hover:border-amber-500"
+            }`}>
+            <span className="relative flex h-5 w-5 shrink-0">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${refundOrderCount > 0 ? "bg-red-400" : "bg-amber-400"}`} />
+              <span className={`relative inline-flex rounded-full h-5 w-5 items-center justify-center ${refundOrderCount > 0 ? "bg-red-500" : "bg-amber-500"}`}>
+                <AlertTriangle size={11} className="text-white" />
+              </span>
+            </span>
+            <p className={`text-sm font-bold flex-1 ${refundOrderCount > 0 ? "text-red-700" : "text-amber-700"}`}>
+              {[
+                refundOrderCount > 0 && `${refundOrderCount} iade talebi`,
+                holdOrderCount > 0 && `${holdOrderCount} askıdaki sipariş`,
+              ].filter(Boolean).join(", ")} — İnceleme gerekiyor!
+            </p>
+            <span className={`ml-auto text-xs font-semibold flex items-center gap-1 group-hover:gap-2 transition-all whitespace-nowrap shrink-0 ${refundOrderCount > 0 ? "text-red-500" : "text-amber-600"}`}>
+              Siparişlere Git <ArrowUpRight size={13} />
+            </span>
+          </Link>
+        )}
+
+        {/* Sipariş grafik + durum dağılımı */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {(stats.weeklyOrders?.length ?? 0) > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                    <ShoppingCart size={14} className="text-indigo-500" /> Son 7 Gün — Sipariş
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Toplam <span className="font-bold text-indigo-600">{stats.weeklyOrders.reduce((s, d) => s + d.orderCount, 0)}</span>
-                  </p>
-                </div>
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="mb-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <ShoppingCart size={14} className="text-indigo-500" /> Son 7 Gün — Sipariş
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Toplam <span className="font-bold text-indigo-600">{stats.weeklyOrders.reduce((s, d) => s + d.orderCount, 0)}</span>
+                </p>
               </div>
               <WeeklyBars
                 bars={stats.weeklyOrders.map(d => d.orderCount)}
@@ -415,122 +539,259 @@ export default function DashboardPage() {
               />
             </div>
           )}
-          {(stats.weeklyNewUsers?.length ?? 0) > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                    <Users size={14} className="text-violet-500" /> Son 7 Gün — Yeni Üye
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Toplam <span className="font-bold text-violet-600">{stats.weeklyNewUsers.reduce((s, d) => s + d.count, 0)}</span>
-                  </p>
+
+          {statusSlices.length > 0 && (
+            <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Activity size={14} className="text-teal-500" /> Sipariş Durum Dağılımı
+                </h3>
+                <Link href="/siparisler" className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 font-medium transition-colors">
+                  Tümü <ArrowUpRight size={11} />
+                </Link>
+              </div>
+              <DonutChart slices={statusSlices} total={statusTotal} />
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                  <Clock size={13} className="text-amber-600 shrink-0" />
+                  <div>
+                    <p className="text-xs text-amber-600 font-semibold">Bekleyen</p>
+                    <p className="text-lg font-extrabold text-amber-700">{stats.pendingOrderCount}</p>
+                  </div>
                 </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                  <Ghost size={13} className="text-slate-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold">Yarıda Kalan</p>
+                    <p className="text-lg font-extrabold text-slate-600">{stats.abandonedOrderCount ?? 0}</p>
+                  </div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                  <AlertTriangle size={13} className="text-red-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-red-500 font-semibold">İptal</p>
+                    <p className="text-lg font-extrabold text-red-600">{stats.cancelledOrderCount ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── BÖLÜM 2: GELİR ───────────────────────────────────────────── */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 shrink-0">
+            <TrendingUp size={13} className="text-emerald-600" />
+            <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-wider">Gelir</span>
+          </div>
+          <div className="flex-1 h-px bg-slate-300" />
+        </div>
+
+        {/* Gelir KPI kartları */}
+        <div className="grid grid-cols-2 gap-4">
+          <HeroCard
+            value={formatPrice(todaySales)}
+            label="Bugün Gelir"
+            sub={`${stats.todayOrderCount} sipariş`}
+            gradient="linear-gradient(135deg, #10b981 0%, #14b8a6 100%)"
+            icon={Zap}
+          />
+          <HeroCard
+            value={formatPrice(monthSales)}
+            label="Bu Ay Gelir"
+            sub={`${stats.monthOrderCount ?? 0} sipariş`}
+            gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
+            icon={TrendingUp}
+          />
+        </div>
+
+        {/* 12 Aylık gelir grafiği */}
+        {totalRevenue12 > 0 && (
+          <div className="rounded-2xl p-5 shadow-sm" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp size={15} className="text-emerald-400" />
+              <h3 className="font-bold text-white text-sm">12 Aylık Gelir</h3>
+            </div>
+            <p className="text-2xl font-extrabold text-white">{formatPrice(totalRevenue12)}</p>
+            <p className="text-slate-400 text-xs mt-1">son 12 ay toplam</p>
+            <div className="mt-3 flex items-end gap-1 h-10">
+              {(stats.monthlySummary ?? []).map((m, i) => {
+                const maxR = Math.max(...(stats.monthlySummary ?? []).map(x => x.revenue), 1);
+                return (
+                  <div key={m.month} className="flex-1 rounded-sm"
+                    style={{
+                      height: `${Math.max((m.revenue / maxR) * 100, 4)}%`,
+                      background: `rgba(52, 211, 153, ${0.3 + (i / (stats.monthlySummary.length - 1 || 1)) * 0.7})`,
+                    }} />
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── BÖLÜM 3: MÜŞTERİLER ─────────────────────────────────────── */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-amber-100 border border-amber-200 rounded-xl px-3 py-1.5 shrink-0">
+            <Star size={13} className="text-amber-600" />
+            <span className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">Müşteriler</span>
+          </div>
+          <div className="flex-1 h-px bg-slate-300" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* Memnuniyet gauge */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col items-center justify-center">
+            <div className="flex items-center gap-2 mb-3 self-start">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-300 flex items-center justify-center shadow">
+                <Star size={15} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-700 text-sm">Müşteri Memnuniyeti</h3>
+                <p className="text-xs text-slate-400">yorumlara göre</p>
+              </div>
+            </div>
+            <SatisfactionGauge rate={stats.satisfactionRate ?? 0} reviewCount={stats.reviewCount ?? 0} />
+          </div>
+
+          {/* Aktiflik + Ortalama Sipariş ring'leri */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h3 className="font-bold text-slate-700 text-sm mb-4 flex items-center gap-1.5">
+              <UserCheck size={14} className="text-violet-500" /> Müşteri Oranları
+            </h3>
+            <div className="flex justify-around items-center">
+              <RingMeter
+                pct={stats.totalCustomerCount ? Math.round((stats.activeCustomerCount ?? 0) / stats.totalCustomerCount * 100) : 0}
+                color="#8b5cf6"
+                label="Aktiflik Oranı"
+                sub="son 30 gün"
+              />
+              <RingMeter
+                pct={stats.totalCustomerCount ? Math.round((stats.newCustomerCount ?? 0) / stats.totalCustomerCount * 100) : 0}
+                color="#10b981"
+                label="Yeni Üye Oranı"
+                sub="bu ay"
+              />
+            </div>
+          </div>
+
+          {/* Ortalama sipariş + müşteri segmentasyonu */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center shadow">
+                  <TrendingUp size={13} className="text-white" />
+                </div>
+                <h3 className="font-bold text-slate-700 text-sm">Ort. Sipariş Tutarı</h3>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                {stats.monthOrderCount && stats.monthOrderCount > 0
+                  ? formatPrice((stats.monthSales ?? 0) / stats.monthOrderCount)
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-400">bu ay / sipariş başına</p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 mb-2.5 flex items-center gap-1">
+                <Users size={11} /> Müşteri Dağılımı
+              </p>
+              <SegmentBar segments={[
+                { label: "Aktif", value: stats.activeCustomerCount ?? 0, color: "#8b5cf6" },
+                { label: "Yeni", value: Math.max((stats.newCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#10b981" },
+                { label: "Pasif", value: Math.max((stats.totalCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#e2e8f0" },
+              ]} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BÖLÜM 5: HEDEFLER ────────────────────────────────────────── */}
+      {hasGoal && (
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 rounded-xl px-3 py-1.5 shrink-0">
+              <Target size={13} className="text-blue-600" />
+              <span className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">Hedefler</span>
+            </div>
+            <div className="flex-1 h-px bg-slate-300" />
+            <Link href="/hedefler" className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold transition-colors">
+              Düzenle <ArrowUpRight size={11} />
+            </Link>
+          </div>
+          <div className="rounded-2xl overflow-hidden shadow-lg"
+            style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #0f766e 100%)" }}>
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <p className="text-white/60 text-xs">{new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" })} hedefleri</p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {stats.monthTargetRevenue && stats.monthTargetRevenue > 0 && (
+                  <ProgressBar label="Gelir Hedefi" actual={stats.monthSales ?? 0}
+                    target={stats.monthTargetRevenue} gradient="linear-gradient(to right, #6366f1, #2dd4bf)" format="price" />
+                )}
+                {stats.monthTargetOrderCount && stats.monthTargetOrderCount > 0 && (
+                  <ProgressBar label="Sipariş Hedefi" actual={stats.monthOrderCount ?? 0}
+                    target={stats.monthTargetOrderCount} gradient="linear-gradient(to right, #0ea5e9, #8b5cf6)" format="count" />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BÖLÜM 6: KULLANICILAR ────────────────────────────────────── */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-violet-100 border border-violet-200 rounded-xl px-3 py-1.5 shrink-0">
+            <Users size={13} className="text-violet-600" />
+            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">Kullanıcılar</span>
+          </div>
+          <div className="flex-1 h-px bg-slate-300" />
+          <Link href="/kullanicilar" className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1 font-semibold transition-colors">
+            Tümü <ArrowUpRight size={11} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[
+                { label: "Toplam", value: stats.totalCustomerCount ?? 0, color: "text-slate-900" },
+                { label: "Aktif (30g)", value: stats.activeCustomerCount ?? 0, color: "text-violet-600" },
+                { label: "Yeni (Bu Ay)", value: stats.newCustomerCount ?? 0, color: "text-emerald-600" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="text-center">
+                  <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1"><UserCheck size={11} className="text-violet-400" /> Son 30 gün aktif</span>
+              <span className="flex items-center gap-1"><Package size={11} className="text-emerald-400" /> Bu ay yeni</span>
+            </div>
+          </div>
+
+          {(stats.weeklyNewUsers?.length ?? 0) > 0 && (
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="mb-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Users size={14} className="text-violet-500" /> Son 7 Gün — Yeni Üye
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Toplam <span className="font-bold text-violet-600">{stats.weeklyNewUsers.reduce((s, d) => s + d.count, 0)}</span>
+                </p>
               </div>
               <WeeklyBars
                 bars={stats.weeklyNewUsers.map(d => d.count)}
                 labels={stats.weeklyNewUsers.map(d => d.label)}
                 gradient={["#8b5cf6", "#d8b4fe"]}
               />
-            </div>
-          )}
-        </div>
-
-        {statusSlices.length > 0 && (
-          <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                <Activity size={14} className="text-teal-500" /> Sipariş Durum Dağılımı
-              </h2>
-              <Link href="/siparisler" className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 font-medium transition-colors">
-                Tümü <ArrowUpRight size={11} />
-              </Link>
-            </div>
-            <DonutChart slices={statusSlices} total={statusTotal} />
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <Clock size={15} className="text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-amber-600 font-semibold">Bekleyen</p>
-                  <p className="text-xl font-extrabold text-amber-700">{stats.pendingOrderCount}</p>
-                </div>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <Ghost size={15} className="text-slate-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold">Yarıda Kalan</p>
-                  <p className="text-xl font-extrabold text-slate-600">{stats.abandonedOrderCount ?? 0}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Row 4 — Kullanıcılar + Satisfaction */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center shadow">
-              <Users size={15} className="text-white" />
-            </div>
-            <h3 className="font-bold text-slate-700 text-sm">Kullanıcılar</h3>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "Toplam", value: stats.totalCustomerCount ?? 0, color: "text-slate-900" },
-              { label: "Aktif", value: stats.activeCustomerCount ?? 0, color: "text-violet-600" },
-              { label: "Yeni", value: stats.newCustomerCount ?? 0, color: "text-emerald-600" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="text-center">
-                <p className={`text-xl font-extrabold ${color}`}>{value}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
-            <span className="flex items-center gap-1"><UserCheck size={11} className="text-violet-400" /> Son 30 gün aktif</span>
-            <span className="flex items-center gap-1"><Package size={11} className="text-emerald-400" /> Bu ay yeni</span>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-300 flex items-center justify-center shadow">
-                  <Star size={15} className="text-white" />
-                </div>
-                <h3 className="font-bold text-slate-700 text-sm">Müşteri Memnuniyeti</h3>
-              </div>
-            </div>
-            <SatisfactionGauge rate={stats.satisfactionRate ?? 0} reviewCount={stats.reviewCount ?? 0} />
-          </div>
-
-          {totalRevenue12 > 0 && (
-            <div className="rounded-2xl p-5 shadow-sm" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={15} className="text-emerald-400" />
-                <h3 className="font-bold text-white text-sm">12 Aylık Gelir</h3>
-              </div>
-              <p className="text-2xl font-extrabold text-white">{formatPrice(totalRevenue12)}</p>
-              <p className="text-slate-400 text-xs mt-1">son 12 ay toplam</p>
-              <div className="mt-3 flex items-end gap-1 h-10">
-                {(stats.monthlySummary ?? []).map((m, i) => {
-                  const maxR = Math.max(...(stats.monthlySummary ?? []).map(x => x.revenue), 1);
-                  return (
-                    <div key={m.month} className="flex-1 rounded-sm"
-                      style={{
-                        height: `${Math.max((m.revenue / maxR) * 100, 4)}%`,
-                        background: `rgba(52, 211, 153, ${0.3 + (i / (stats.monthlySummary.length - 1 || 1)) * 0.7})`,
-                      }} />
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>

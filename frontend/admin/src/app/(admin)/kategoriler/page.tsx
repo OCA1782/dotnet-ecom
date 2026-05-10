@@ -244,10 +244,16 @@ export default function KategorilerPage() {
                         Aktif
                       </span>
                     </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3 justify-end">
-                        <button onClick={() => openEdit(cat)} className="text-teal-500 hover:text-teal-700 hover:scale-125 active:scale-95 transition-all duration-150"><Pencil size={14} /></button>
-                        <button onClick={() => handleDelete(cat.id, cat.name)} className="text-red-400 hover:text-red-600 hover:scale-125 active:scale-95 transition-all duration-150"><Trash2 size={14} /></button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <button onClick={() => openEdit(cat)} title="Düzenle"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <Pencil size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(cat.id, cat.name)} title="Sil"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -270,10 +276,16 @@ export default function KategorilerPage() {
                       <td className="px-5 py-2.5">
                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Aktif</span>
                       </td>
-                      <td className="px-5 py-2.5">
-                        <div className="flex items-center gap-3 justify-end">
-                          <button onClick={() => openEdit(sub)} className="text-teal-500 hover:text-teal-700 hover:scale-125 active:scale-95 transition-all duration-150"><Pencil size={14} /></button>
-                          <button onClick={() => handleDelete(sub.id, sub.name)} className="text-red-400 hover:text-red-600 hover:scale-125 active:scale-95 transition-all duration-150"><Trash2 size={14} /></button>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <button onClick={() => openEdit(sub)} title="Düzenle"
+                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => handleDelete(sub.id, sub.name)} title="Sil"
+                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>

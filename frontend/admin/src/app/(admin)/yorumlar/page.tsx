@@ -178,25 +178,25 @@ export default function YorumlarPage() {
                       {r.isApproved ? "Onaylı" : "Bekliyor"}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex justify-end gap-2 items-center">
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-1.5 items-center">
                       {!r.isApproved ? (
                         <button onClick={() => handleApprove(r.id, true)}
                           title="Onayla"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-800 hover:scale-110 active:scale-95 transition-all duration-150">
-                          <CheckCircle size={14} />
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-500 hover:text-white shadow-sm hover:shadow-green-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <CheckCircle size={18} />
                         </button>
                       ) : (
                         <button onClick={() => handleApprove(r.id, false)}
                           title="Onayı Kaldır"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-800 hover:scale-110 active:scale-95 transition-all duration-150">
-                          <XCircle size={14} />
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <XCircle size={18} />
                         </button>
                       )}
                       <button onClick={() => setConfirmDelete(r.id)}
                         title="Sil"
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 hover:scale-110 active:scale-95 transition-all duration-150">
-                        <Trash2 size={13} />
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>

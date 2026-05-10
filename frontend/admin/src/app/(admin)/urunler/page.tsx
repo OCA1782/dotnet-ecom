@@ -440,18 +440,18 @@ export default function AdminProductsPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2 justify-end">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openEdit(p)}
                         title="Düzenle"
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-800 hover:scale-110 active:scale-95 transition-all duration-150">
-                        <Pencil size={13} />
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Pencil size={18} />
                       </button>
                       {p.isActive && (
                         <button onClick={() => setConfirmDeactivate(p.id)}
                           title="Pasife Al"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 hover:scale-110 active:scale-95 transition-all duration-150">
-                          <ToggleLeft size={14} />
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white shadow-sm hover:shadow-orange-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <ToggleLeft size={18} />
                         </button>
                       )}
                     </div>

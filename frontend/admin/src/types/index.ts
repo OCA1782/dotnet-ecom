@@ -56,6 +56,8 @@ export interface DashboardStats {
   todayOrderCount: number;
   pendingOrderCount: number;
   criticalStockCount: number;
+  outOfStockCount: number;
+  totalProductCount: number;
   monthSales: number;
   monthOrderCount: number;
   totalCustomerCount: number;
