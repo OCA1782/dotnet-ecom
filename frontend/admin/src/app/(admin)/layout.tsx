@@ -16,6 +16,8 @@ import {
   Tag,
   Layers,
   Activity,
+  Target,
+  ShieldAlert,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -30,6 +32,8 @@ const NAV_ITEMS = [
   { href: "/kuponlar", label: "Kuponlar", icon: Ticket },
   { href: "/yorumlar", label: "Yorumlar", icon: MessageSquare },
   { href: "/hareketler", label: "Hareketler", icon: Activity },
+  { href: "/hedefler", label: "Hedefler", icon: Target },
+  { href: "/takip", label: "Takip", icon: ShieldAlert },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -54,10 +58,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-60 bg-zinc-900 flex flex-col shrink-0">
-        <div className="px-6 py-5 border-b border-zinc-800">
-          <h1 className="text-white font-bold text-lg">Ecom Admin</h1>
-          <p className="text-zinc-400 text-xs mt-0.5 truncate">{user.email}</p>
+      <aside className="w-60 bg-[#1c2044] flex flex-col shrink-0">
+        <div className="px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-icon.png" alt="Keyvora" className="w-full h-full object-contain p-0.5" />
+            </div>
+            <span className="text-white font-bold text-base">Keyvora</span>
+          </div>
+          <p className="text-slate-400 text-xs truncate">{user.email}</p>
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto">
@@ -67,10 +77,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-6 py-2.5 text-sm font-medium transition ${
+                className={`flex items-center gap-3 px-6 py-2.5 text-sm font-medium transition border-l-2 ${
                   active
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                    ? "bg-white/10 text-white border-teal-400"
+                    : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
                 }`}
               >
                 <Icon size={17} />
@@ -81,10 +91,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="p-4 border-t border-zinc-800">
+        <div className="p-4 border-t border-white/10">
           <button
             onClick={() => { logout(); router.push("/giris"); }}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white text-sm transition w-full px-2 py-1.5"
+            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition w-full px-2 py-1.5"
           >
             <LogOut size={16} />
             Çıkış Yap

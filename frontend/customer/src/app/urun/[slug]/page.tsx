@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
 import type { ProductDetail } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import AddToCartButton from "./AddToCartButton";
 import ReviewSection from "./ReviewSection";
+import ProductImageGallery from "./ProductImageGallery";
 
 async function getProduct(slug: string): Promise<ProductDetail | null> {
   try {
@@ -54,7 +55,6 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  const mainImage = product.images?.find((i) => i.isMain) ?? product.images?.[0];
   const displayPrice = product.discountPrice ?? product.price;
 
   return (
@@ -62,54 +62,26 @@ export default async function ProductDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Images */}
         <div>
-          <div className="aspect-square bg-zinc-100 rounded-2xl overflow-hidden flex items-center justify-center">
-            {mainImage?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={mainImage.imageUrl}
-                alt={mainImage.altText ?? product.name}
-                className="object-contain w-full h-full p-8"
-              />
-            ) : (
-              <span className="text-6xl">📦</span>
-            )}
-          </div>
-          {product.images?.length > 1 && (
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-              {product.images.map((img) => (
-                <div
-                  key={img.id}
-                  className="w-16 h-16 shrink-0 bg-zinc-100 rounded-lg overflow-hidden border border-zinc-200"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.imageUrl}
-                    alt={img.altText ?? ""}
-                    className="object-contain w-full h-full p-1"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <ProductImageGallery images={product.images ?? []} productName={product.name} />
         </div>
 
         {/* Info */}
         <div className="space-y-6">
           {product.brandName && (
-            <p className="text-sm font-medium text-zinc-500 uppercase tracking-wide">{product.brandName}</p>
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{product.brandName}</p>
           )}
-          <h1 className="text-2xl font-bold text-zinc-900">{product.name}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{product.name}</h1>
 
           {/* Price */}
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-zinc-900">{formatPrice(displayPrice)}</span>
+            <span className="text-3xl font-bold text-slate-900">{formatPrice(displayPrice)}</span>
             {product.discountPrice && (
-              <span className="text-lg text-zinc-400 line-through">{formatPrice(product.price)}</span>
+              <span className="text-lg text-slate-400 line-through">{formatPrice(product.price)}</span>
             )}
           </div>
 
           {product.shortDescription && (
-            <p className="text-sm text-zinc-600 leading-relaxed">{product.shortDescription}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{product.shortDescription}</p>
           )}
 
           {/* Stock status */}
@@ -128,10 +100,10 @@ export default async function ProductDetailPage({
 
           {/* Description */}
           {product.description && (
-            <div className="border-t border-zinc-200 pt-6">
-              <h2 className="text-sm font-semibold text-zinc-800 mb-3">Ürün Açıklaması</h2>
+            <div className="border-t border-slate-200 pt-6">
+              <h2 className="text-sm font-semibold text-slate-800 mb-3">Ürün Açıklaması</h2>
               <div
-                className="text-sm text-zinc-600 leading-relaxed prose prose-sm max-w-none"
+                className="text-sm text-slate-600 leading-relaxed prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: product.description }}
               />
             </div>

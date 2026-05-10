@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Category, ProductListItem, PaginatedList } from "@/types";
@@ -11,6 +11,8 @@ type SearchParams = Promise<{
   minFiyat?: string;
   maxFiyat?: string;
   sayfa?: string;
+  ozellik?: string;
+  indirimli?: string;
 }>;
 
 async function getCategories(): Promise<Category[]> {
@@ -30,6 +32,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     if (params.kategori) qs.set("categorySlug", params.kategori);
     if (params.minFiyat) qs.set("minPrice", params.minFiyat);
     if (params.maxFiyat) qs.set("maxPrice", params.maxFiyat);
+    if (params.ozellik === "featured") qs.set("featured", "true");
     return await api.get<PaginatedList<ProductListItem>>(`/api/products?${qs}`);
   } catch {
     return { items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false, hasPreviousPage: false };
@@ -40,12 +43,14 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   const params = await searchParams;
   const title = params.s
     ? `"${params.s}" için Arama Sonuçları`
+    : params.ozellik === "featured"
+    ? "Öne Çıkan Ürünler"
     : params.kategori
     ? `${params.kategori.charAt(0).toUpperCase() + params.kategori.slice(1)} Ürünleri`
     : "Tüm Ürünler";
   return {
     title,
-    description: `Ecom'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`,
+    description: `Keyvora'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`,
   };
 }
 
@@ -83,17 +88,25 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-indigo-400 font-medium">
-              <span className="text-indigo-700 font-bold">{products.totalCount}</span> ürün bulundu
-            </p>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="text-sm text-teal-400 font-medium">
+                <span className="text-teal-700 font-bold">{products.totalCount}</span> ürün bulundu
+              </p>
+              {params.ozellik === "featured" && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
+                  ★ Öne Çıkan Ürünler
+                  <Link href="/urunler" className="ml-1 hover:text-amber-900">×</Link>
+                </span>
+              )}
+            </div>
           </div>
 
           {products.items.length === 0 ? (
-            <div className="text-center py-24 text-zinc-400">
+            <div className="text-center py-24 text-slate-400">
               <p className="text-5xl mb-4">🔍</p>
-              <p className="text-lg font-medium text-zinc-600">Ürün bulunamadı</p>
-              <Link href="/urunler" className="mt-3 inline-block text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+              <p className="text-lg font-medium text-slate-600">Ürün bulunamadı</p>
+              <Link href="/urunler" className="mt-3 inline-block text-sm font-semibold text-teal-600 hover:text-teal-800">
                 Filtreleri Temizle
               </Link>
             </div>
@@ -103,9 +116,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 <Link
                   key={product.id}
                   href={`/urun/${product.slug}`}
-                  className="bg-white rounded-2xl border border-indigo-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-100/50 hover:-translate-y-1 transition-all duration-200 group"
+                  className="bg-white rounded-2xl border border-teal-100 overflow-hidden hover:shadow-xl hover:shadow-teal-100/50 hover:-translate-y-1 transition-all duration-200 group"
                 >
-                  <div className="aspect-square bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center relative">
+                  <div className="aspect-square bg-gradient-to-br from-teal-50 to-cyan-50 flex items-center justify-center relative">
                     {product.discountPrice && (
                       <span className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
                         İndirim
@@ -123,18 +136,18 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="text-xs text-indigo-400 font-medium mb-0.5">{product.brandName}</p>
-                    <h3 className="font-semibold text-zinc-800 line-clamp-2 text-sm group-hover:text-indigo-700 transition-colors">
+                    <p className="text-xs text-teal-400 font-medium mb-0.5">{product.brandName}</p>
+                    <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm group-hover:text-teal-700 transition-colors">
                       {product.name}
                     </h3>
                     <div className="mt-2 flex items-center gap-2">
                       {product.discountPrice ? (
                         <>
-                          <span className="font-bold text-indigo-700">{formatPrice(product.discountPrice)}</span>
-                          <span className="text-xs text-zinc-400 line-through">{formatPrice(product.price)}</span>
+                          <span className="font-bold text-teal-700">{formatPrice(product.discountPrice)}</span>
+                          <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
                         </>
                       ) : (
-                        <span className="font-bold text-indigo-700">{formatPrice(product.price)}</span>
+                        <span className="font-bold text-teal-700">{formatPrice(product.price)}</span>
                       )}
                     </div>
                     {product.availableStock === 0 && (
@@ -152,7 +165,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               {products.hasPreviousPage && (
                 <Link
                   href={buildUrl({ sayfa: String(currentPage - 1) })}
-                  className="px-4 py-2 rounded-xl border border-indigo-200 text-sm text-indigo-600 hover:bg-indigo-50 transition font-medium"
+                  className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium"
                 >
                   ← Önceki
                 </Link>
@@ -165,8 +178,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     href={buildUrl({ sayfa: String(p) })}
                     className={`px-4 py-2 rounded-xl border text-sm font-medium transition ${
                       p === currentPage
-                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow"
-                        : "border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                        ? "bg-gradient-to-r from-teal-500 to-teal-700 text-white border-transparent shadow"
+                        : "border-teal-200 text-teal-600 hover:bg-teal-50"
                     }`}
                   >
                     {p}
@@ -175,7 +188,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               {products.hasNextPage && (
                 <Link
                   href={buildUrl({ sayfa: String(currentPage + 1) })}
-                  className="px-4 py-2 rounded-xl border border-indigo-200 text-sm text-indigo-600 hover:bg-indigo-50 transition font-medium"
+                  className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium"
                 >
                   Sonraki →
                 </Link>

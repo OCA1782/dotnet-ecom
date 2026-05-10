@@ -17,6 +17,7 @@ public record ProductReviewsResult(
 
 public record ReviewDto(
     Guid Id,
+    Guid UserId,
     string UserName,
     int Rating,
     string? Title,
@@ -54,6 +55,7 @@ public class GetProductReviewsHandler(IApplicationDbContext db)
             .Take(request.PageSize)
             .Select(r => new ReviewDto(
                 r.Id,
+                r.UserId,
                 r.User.Name + " " + r.User.Surname.Substring(0, 1) + ".",
                 r.Rating,
                 r.Title,

@@ -31,7 +31,7 @@ export default function CartPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-zinc-400">
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">
         Sepet yükleniyor...
       </div>
     );
@@ -40,8 +40,8 @@ export default function CartPage() {
   if (!cart || cart.items.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <p className="text-xl text-zinc-500 mb-4">Sepetiniz boş</p>
-        <Link href="/urunler" className="inline-block bg-zinc-900 text-white px-6 py-2.5 rounded-lg hover:bg-zinc-700 transition">
+        <p className="text-xl text-slate-500 mb-4">Sepetiniz boş</p>
+        <Link href="/urunler" className="inline-block bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition">
           Alışverişe Başla
         </Link>
       </div>
@@ -50,13 +50,13 @@ export default function CartPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 className="text-2xl font-bold text-zinc-900 mb-8">Sepetim</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-8">Sepetim</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.items.map((item) => (
-            <div key={item.cartItemId} className="bg-white border border-zinc-200 rounded-xl p-4 flex gap-4">
-              <div className="w-20 h-20 bg-zinc-100 rounded-lg flex items-center justify-center shrink-0">
+            <div key={item.cartItemId} className="bg-white border border-slate-200 rounded-xl p-4 flex gap-4">
+              <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.imageUrl} alt={item.productName} className="object-contain w-full h-full p-2" />
@@ -65,15 +65,15 @@ export default function CartPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-zinc-900 text-sm line-clamp-2">{item.productName}</p>
-                {item.variantName && <p className="text-xs text-zinc-500 mt-0.5">{item.variantName}</p>}
-                <p className="text-xs text-zinc-400 mt-0.5">SKU: {item.sku}</p>
+                <p className="font-medium text-slate-900 text-sm line-clamp-2">{item.productName}</p>
+                {item.variantName && <p className="text-xs text-slate-500 mt-0.5">{item.variantName}</p>}
+                <p className="text-xs text-slate-400 mt-0.5">SKU: {item.sku}</p>
                 <div className="mt-2 flex items-center gap-3">
-                  <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden">
+                  <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
                     <button
                       onClick={() => updateItem(item.cartItemId, item.quantity - 1)}
                       disabled={item.quantity <= 1}
-                      className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 transition disabled:opacity-40 text-sm"
+                      className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 text-sm"
                     >
                       −
                     </button>
@@ -81,7 +81,7 @@ export default function CartPage() {
                     <button
                       onClick={() => updateItem(item.cartItemId, item.quantity + 1)}
                       disabled={item.quantity >= item.availableStock}
-                      className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 transition disabled:opacity-40 text-sm"
+                      className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 text-sm"
                     >
                       +
                     </button>
@@ -95,15 +95,15 @@ export default function CartPage() {
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-zinc-900">{formatPrice(item.lineTotal)}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">{formatPrice(item.unitPrice)} / adet</p>
+                <p className="font-bold text-slate-900">{formatPrice(item.lineTotal)}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{formatPrice(item.unitPrice)} / adet</p>
               </div>
             </div>
           ))}
 
           {/* Coupon input */}
-          <div className="bg-white border border-zinc-200 rounded-xl p-4">
-            <p className="text-sm font-medium text-zinc-700 mb-3">İndirim Kuponu</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-slate-700 mb-3">İndirim Kuponu</p>
             {cart.couponCode ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center justify-between">
@@ -125,12 +125,12 @@ export default function CartPage() {
                   onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
                   onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
                   placeholder="Kupon kodunuzu girin"
-                  className="flex-1 border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono uppercase"
+                  className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 font-mono uppercase"
                 />
                 <button
                   onClick={handleApplyCoupon}
                   disabled={couponLoading || !couponInput.trim()}
-                  className="bg-zinc-900 text-white text-sm px-4 py-2 rounded-lg hover:bg-zinc-700 transition disabled:opacity-50 shrink-0"
+                  className="bg-teal-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 shrink-0"
                 >
                   {couponLoading ? "..." : "Uygula"}
                 </button>
@@ -144,17 +144,17 @@ export default function CartPage() {
 
         {/* Order summary */}
         <div>
-          <div className="bg-white border border-zinc-200 rounded-xl p-6 sticky top-24 space-y-3">
-            <h2 className="font-semibold text-zinc-900 mb-4">Sipariş Özeti</h2>
-            <div className="flex justify-between text-sm text-zinc-600">
+          <div className="bg-white border border-slate-200 rounded-xl p-6 sticky top-24 space-y-3">
+            <h2 className="font-semibold text-slate-900 mb-4">Sipariş Özeti</h2>
+            <div className="flex justify-between text-sm text-slate-600">
               <span>Ara Toplam</span>
               <span>{formatPrice(cart.subTotal)}</span>
             </div>
-            <div className="flex justify-between text-sm text-zinc-600">
+            <div className="flex justify-between text-sm text-slate-600">
               <span>KDV</span>
               <span>{formatPrice(cart.taxAmount)}</span>
             </div>
-            <div className="flex justify-between text-sm text-zinc-600">
+            <div className="flex justify-between text-sm text-slate-600">
               <span>Kargo</span>
               <span>{cart.shippingAmount === 0 ? "Ücretsiz" : formatPrice(cart.shippingAmount)}</span>
             </div>
@@ -164,19 +164,19 @@ export default function CartPage() {
                 <span>−{formatPrice(cart.discountAmount)}</span>
               </div>
             )}
-            <div className="border-t border-zinc-200 pt-3 flex justify-between font-bold text-zinc-900">
+            <div className="border-t border-slate-200 pt-3 flex justify-between font-bold text-slate-900">
               <span>Toplam</span>
               <span>{formatPrice(cart.grandTotal)}</span>
             </div>
             <Link
               href="/odeme"
-              className="block w-full text-center bg-zinc-900 text-white font-semibold py-3 rounded-xl hover:bg-zinc-700 transition mt-4"
+              className="block w-full text-center bg-teal-600 text-white font-semibold py-3 rounded-xl hover:bg-teal-700 transition mt-4"
             >
               Siparişi Tamamla
             </Link>
             <Link
               href="/urunler"
-              className="block w-full text-center text-sm text-zinc-500 hover:text-zinc-900 transition"
+              className="block w-full text-center text-sm text-slate-500 hover:text-slate-900 transition"
             >
               Alışverişe Devam Et
             </Link>

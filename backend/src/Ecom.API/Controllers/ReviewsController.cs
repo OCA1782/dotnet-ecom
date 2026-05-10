@@ -37,9 +37,32 @@ public class ReviewsController(IMediator mediator, ICurrentUserService currentUs
 
         return result.Succeeded ? Ok(new { id = result.Data }) : BadRequest(result.Error);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> Update(Guid productId, Guid id, [FromBody] UpdateReviewRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UpdateReviewCommand
+        {
+            Id = id,
+            UserId = currentUser.UserId!.Value,
+            Rating = req.Rating,
+            Title = req.Title,
+            Body = req.Body
+        }, ct);
+
+        return result.Succeeded ? Ok() : BadRequest(result.Error);
+    }
 }
 
 public class CreateReviewRequest
+{
+    public int Rating { get; set; }
+    public string? Title { get; set; }
+    public string Body { get; set; } = string.Empty;
+}
+
+public class UpdateReviewRequest
 {
     public int Rating { get; set; }
     public string? Title { get; set; }

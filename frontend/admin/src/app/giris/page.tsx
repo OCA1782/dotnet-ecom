@@ -27,11 +27,15 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#1c2044] px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Ecom Admin</h1>
-          <p className="text-zinc-400 text-sm mt-1">Yönetim paneline giriş yapın</p>
+          <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-icon.png" alt="Keyvora" className="w-full h-full object-contain p-1" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Keyvora Admin</h1>
+          <p className="text-slate-400 text-sm mt-1">Yönetim paneline giriş yapın</p>
         </div>
         <div className="bg-white rounded-2xl p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -41,29 +45,29 @@ export default function AdminLoginPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">E-posta</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">E-posta</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-zinc-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Şifre</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Şifre</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-zinc-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-zinc-900 text-white font-semibold py-2.5 rounded-lg hover:bg-zinc-700 transition disabled:opacity-50"
+              className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-lg hover:bg-teal-700 transition disabled:opacity-50"
             >
               {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
             </button>

@@ -4,7 +4,11 @@ using Ecom.Infrastructure;
 using Ecom.Infrastructure.Persistence;
 using Ecom.API.Middleware;
 using Ecom.API.Filters;
+using Ecom.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -65,6 +69,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ValidationExceptionMiddleware>();
 app.UseCors("EcomCors");
+app.UseMiddleware<ErrorLoggingMiddleware>();
+
+var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(webRootPath, "uploads"));
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath),
+    RequestPath = ""
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();

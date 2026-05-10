@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export default function PaymentFailurePage() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-zinc-900">Ödeme Başarısız</h1>
-        <p className="text-zinc-600">
+        <h1 className="text-2xl font-bold text-slate-900">Ödeme Başarısız</h1>
+        <p className="text-slate-600">
           Ödeme işlemi tamamlanamadı. Kart bilgilerinizi kontrol edip tekrar deneyebilirsiniz.
         </p>
       </div>
@@ -25,13 +25,13 @@ export default function PaymentFailurePage() {
       <div className="flex gap-3 justify-center pt-2">
         <Link
           href="/sepet"
-          className="bg-zinc-900 text-white px-6 py-2.5 rounded-lg hover:bg-zinc-700 transition text-sm font-semibold"
+          className="bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition text-sm font-semibold"
         >
           Sepete Dön
         </Link>
         <Link
           href="/hesabim/siparisler"
-          className="border border-zinc-300 text-zinc-700 px-6 py-2.5 rounded-lg hover:bg-zinc-50 transition text-sm"
+          className="border border-slate-300 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm"
         >
           Siparişlerim
         </Link>

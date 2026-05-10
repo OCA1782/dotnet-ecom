@@ -28,14 +28,15 @@ public class UpdateOrderStatusHandler(IApplicationDbContext db) : IRequestHandle
     // Hangi statüden hangi statülere geçilebileceği
     private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedTransitions = new()
     {
-        [OrderStatus.Created]          = [OrderStatus.PaymentPending, OrderStatus.Cancelled, OrderStatus.Failed],
-        [OrderStatus.PaymentPending]   = [OrderStatus.PaymentCompleted, OrderStatus.Cancelled, OrderStatus.Failed],
-        [OrderStatus.PaymentCompleted] = [OrderStatus.Preparing, OrderStatus.Cancelled],
-        [OrderStatus.Preparing]        = [OrderStatus.Shipped, OrderStatus.Cancelled],
-        [OrderStatus.Shipped]          = [OrderStatus.Delivered],
+        [OrderStatus.Created]          = [OrderStatus.PaymentPending, OrderStatus.Cancelled, OrderStatus.Failed, OrderStatus.OnHold],
+        [OrderStatus.PaymentPending]   = [OrderStatus.PaymentCompleted, OrderStatus.Cancelled, OrderStatus.Failed, OrderStatus.OnHold],
+        [OrderStatus.PaymentCompleted] = [OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.OnHold],
+        [OrderStatus.Preparing]        = [OrderStatus.Shipped, OrderStatus.Cancelled, OrderStatus.OnHold],
+        [OrderStatus.Shipped]          = [OrderStatus.Delivered, OrderStatus.OnHold],
         [OrderStatus.Delivered]        = [OrderStatus.Completed, OrderStatus.RefundRequested],
         [OrderStatus.Completed]        = [OrderStatus.RefundRequested],
         [OrderStatus.RefundRequested]  = [OrderStatus.Refunded, OrderStatus.Completed],
+        [OrderStatus.OnHold]           = [OrderStatus.Created, OrderStatus.PaymentPending, OrderStatus.PaymentCompleted, OrderStatus.Preparing, OrderStatus.Cancelled],
         [OrderStatus.Cancelled]        = [],
         [OrderStatus.Failed]           = [],
         [OrderStatus.Refunded]         = [],

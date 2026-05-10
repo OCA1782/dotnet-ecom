@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Admin.Coupons;
 
-public record GetCouponsQuery(int Page = 1, int PageSize = 20, bool IncludeInactive = false)
+public record GetCouponsQuery(int Page = 1, int PageSize = 20, bool IncludeInactive = false, string? Search = null, int? Type = null)
     : IRequest<PaginatedList<CouponDto>>;
 
 public record CouponDto(
@@ -30,6 +30,10 @@ public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCo
     {
         var query = db.Coupons.AsQueryable();
         if (!request.IncludeInactive) query = query.Where(c => c.IsActive);
+        if (!string.IsNullOrWhiteSpace(request.Search))
+            query = query.Where(c => c.Code.Contains(request.Search) || (c.Description != null && c.Description.Contains(request.Search)));
+        if (request.Type.HasValue)
+            query = query.Where(c => (int)c.Type == request.Type.Value);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query

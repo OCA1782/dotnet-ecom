@@ -20,11 +20,12 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
         [FromQuery] bool? inStock = null,
+        [FromQuery] bool? featured = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, brandId, minPrice, maxPrice, inStock, isAdmin), ct);
+            page, pageSize, search, categoryId, brandId, minPrice, maxPrice, inStock, isAdmin, featured), ct);
         return Ok(result);
     }
 

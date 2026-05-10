@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { Plus, Pencil, Trash2, X, Download, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Download, Upload, Search } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
 
 interface Category {
   id: string;
@@ -11,10 +12,12 @@ interface Category {
   slug: string;
   parentCategoryId?: string;
   parentCategoryName?: string;
+  imageUrl?: string;
   sortOrder: number;
   showInMenu: boolean;
   isActive: boolean;
   productCount?: number;
+  subCategories?: Category[];
 }
 
 interface CatForm {
@@ -25,9 +28,21 @@ interface CatForm {
   description: string;
   sortOrder: string;
   showInMenu: boolean;
+  imageUrl: string;
+  isActive: boolean;
 }
 
-const EMPTY: CatForm = { name: "", slug: "", parentCategoryId: "", description: "", sortOrder: "0", showInMenu: true };
+const EMPTY: CatForm = { name: "", slug: "", parentCategoryId: "", description: "", sortOrder: "0", showInMenu: true, imageUrl: "", isActive: true };
+
+function flattenCategories(cats: Category[]): Category[] {
+  const result: Category[] = [];
+  for (const cat of cats) {
+    result.push(cat);
+    if (cat.subCategories && cat.subCategories.length > 0)
+      result.push(...flattenCategories(cat.subCategories));
+  }
+  return result;
+}
 
 function slugify(s: string) {
   return s.toLowerCase()
@@ -36,7 +51,7 @@ function slugify(s: string) {
     .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
 }
 
-const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 export default function KategorilerPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -48,12 +63,14 @@ export default function KategorilerPage() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState("");
+  const [menuFilter, setMenuFilter] = useState<"" | "true" | "false">("");
 
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.get<Category[]>("/api/categories?onlyActive=false");
-      setCategories(data);
+      setCategories(flattenCategories(data));
     } catch { setCategories([]); }
     finally { setLoading(false); }
   }, []);
@@ -62,7 +79,7 @@ export default function KategorilerPage() {
 
   function openCreate() { setForm(EMPTY); setError(""); setModal("create"); }
   function openEdit(c: Category) {
-    setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu });
+    setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu, imageUrl: c.imageUrl ?? "", isActive: c.isActive });
     setError(""); setModal("edit");
   }
 
@@ -70,12 +87,12 @@ export default function KategorilerPage() {
     if (!form.name) { setError("Ad zorunludur."); return; }
     setSaving(true); setError("");
     try {
-      const body = { name: form.name, slug: form.slug || slugify(form.name), parentCategoryId: form.parentCategoryId || null, description: form.description || null, imageUrl: null, sortOrder: parseInt(form.sortOrder) || 0, showInMenu: form.showInMenu, metaTitle: null, metaDescription: null };
+      const body = { name: form.name, slug: form.slug || slugify(form.name), parentCategoryId: form.parentCategoryId || null, description: form.description || null, imageUrl: form.imageUrl || null, sortOrder: parseInt(form.sortOrder) || 0, showInMenu: form.showInMenu, metaTitle: null, metaDescription: null };
       if (modal === "create") {
         await api.post("/api/categories", body);
         setMsg({ text: "Kategori oluşturuldu.", ok: true });
       } else {
-        await api.put(`/api/categories/${form.id}`, { id: form.id, ...body });
+        await api.put(`/api/categories/${form.id}`, { id: form.id, isActive: form.isActive, ...body });
         setMsg({ text: "Kategori güncellendi.", ok: true });
       }
       setModal(null); await fetch();
@@ -128,28 +145,54 @@ export default function KategorilerPage() {
     } catch (e: unknown) { setMsg({ text: e instanceof Error ? e.message : "Silinemedi", ok: false }); }
   }
 
-  const roots = categories.filter(c => !c.parentCategoryId);
-  const children = (parentId: string) => categories.filter(c => c.parentCategoryId === parentId);
+  const filtered = categories.filter(c => {
+    const matchText = !filterText || c.name.toLowerCase().includes(filterText.toLowerCase());
+    const matchMenu = !menuFilter || String(c.showInMenu) === menuFilter;
+    return matchText && matchMenu;
+  });
+  const roots = filtered.filter(c => !c.parentCategoryId);
+  const children = (parentId: string) => filtered.filter(c => c.parentCategoryId === parentId);
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Kategoriler</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => downloadTemplate(["Ad", "Açıklama", "Sıra", "Menüde"], "kategoriler")}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel
+            <Download size={14} /> Excel'e Aktar
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
             <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
-          <button onClick={() => downloadTemplate(["Ad", "Açıklama", "Sıra", "Menüde"], "kategoriler")}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-xl transition border border-slate-200">Şablon İndir</button>
-          <button onClick={openCreate} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+          <button onClick={openCreate} className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
             <Plus size={16} /> Yeni Kategori
           </button>
         </div>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+          <input value={filterText} onChange={e => setFilterText(e.target.value)}
+            placeholder="Kategori adı ara..."
+            className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white" />
+        </div>
+        <select value={menuFilter} onChange={e => setMenuFilter(e.target.value as "" | "true" | "false")}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <option value="">Tüm Menü Durumu</option>
+          <option value="true">Menüde</option>
+          <option value="false">Menüde Değil</option>
+        </select>
+        {(filterText || menuFilter) && (
+          <button onClick={() => { setFilterText(""); setMenuFilter(""); }}
+            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+        )}
+        <span className="self-center text-sm text-slate-500">{filtered.length} kategori</span>
       </div>
 
       {importResult && (
@@ -182,7 +225,14 @@ export default function KategorilerPage() {
               {roots.map(cat => (
                 <>
                   <tr key={cat.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-semibold text-slate-800 text-xs">{cat.name}</td>
+                    <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
+                      <div className="flex items-center gap-3">
+                        {cat.imageUrl
+                          ? <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" /> // eslint-disable-line @next/next/no-img-element
+                          : <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-base">📁</div>}
+                        {cat.name}
+                      </div>
+                    </td>
                     <td className="px-5 py-3 text-slate-400 text-xs font-mono">{cat.slug}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
@@ -196,14 +246,21 @@ export default function KategorilerPage() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3 justify-end">
-                        <button onClick={() => openEdit(cat)} className="text-indigo-500 hover:text-indigo-700"><Pencil size={14} /></button>
-                        <button onClick={() => handleDelete(cat.id, cat.name)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                        <button onClick={() => openEdit(cat)} className="text-teal-500 hover:text-teal-700 hover:scale-125 active:scale-95 transition-all duration-150"><Pencil size={14} /></button>
+                        <button onClick={() => handleDelete(cat.id, cat.name)} className="text-red-400 hover:text-red-600 hover:scale-125 active:scale-95 transition-all duration-150"><Trash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>
                   {children(cat.id).map(sub => (
                     <tr key={sub.id} className="hover:bg-slate-50 bg-slate-50/50">
-                      <td className="px-5 py-2.5 text-xs text-slate-600 pl-10">↳ {sub.name}</td>
+                      <td className="px-5 py-2.5 text-xs text-slate-600 pl-10">
+                        <div className="flex items-center gap-3">
+                          {sub.imageUrl
+                            ? <img src={sub.imageUrl} alt={sub.name} className="w-6 h-6 object-cover rounded" /> // eslint-disable-line @next/next/no-img-element
+                            : <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center text-xs">📁</div>}
+                          ↳ {sub.name}
+                        </div>
+                      </td>
                       <td className="px-5 py-2.5 text-slate-400 text-xs font-mono">{sub.slug}</td>
                       <td className="px-5 py-2.5">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${sub.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
@@ -215,8 +272,8 @@ export default function KategorilerPage() {
                       </td>
                       <td className="px-5 py-2.5">
                         <div className="flex items-center gap-3 justify-end">
-                          <button onClick={() => openEdit(sub)} className="text-indigo-500 hover:text-indigo-700"><Pencil size={14} /></button>
-                          <button onClick={() => handleDelete(sub.id, sub.name)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                          <button onClick={() => openEdit(sub)} className="text-teal-500 hover:text-teal-700 hover:scale-125 active:scale-95 transition-all duration-150"><Pencil size={14} /></button>
+                          <button onClick={() => handleDelete(sub.id, sub.name)} className="text-red-400 hover:text-red-600 hover:scale-125 active:scale-95 transition-all duration-150"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -245,6 +302,11 @@ export default function KategorilerPage() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Slug</label>
                 <input className={INPUT} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: slugify(e.target.value) }))} />
               </div>
+              <ImageUpload
+                value={form.imageUrl}
+                onChange={url => setForm(f => ({ ...f, imageUrl: url }))}
+                label="Kategori Görseli"
+              />
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Üst Kategori</label>
                 <select className={INPUT} value={form.parentCategoryId} onChange={e => setForm(f => ({ ...f, parentCategoryId: e.target.value }))}>
@@ -257,16 +319,22 @@ export default function KategorilerPage() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Sıra</label>
                   <input type="number" className={INPUT} value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
                 </div>
-                <div className="flex items-end pb-1">
+                <div className="flex flex-col gap-2 justify-end pb-1">
                   <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                     <input type="checkbox" checked={form.showInMenu} onChange={e => setForm(f => ({ ...f, showInMenu: e.target.checked }))} />
                     Menüde Göster
                   </label>
+                  {modal === "edit" && (
+                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
+                      Aktif
+                    </label>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
                 <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
-                <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
                   {saving ? "Kaydediliyor..." : modal === "create" ? "Oluştur" : "Güncelle"}
                 </button>
               </div>
