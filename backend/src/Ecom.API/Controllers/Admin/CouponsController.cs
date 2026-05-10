@@ -15,9 +15,11 @@ public class CouponsController(IMediator mediator) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] bool includeInactive = false,
+        [FromQuery] string? search = null,
+        [FromQuery] int? type = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetCouponsQuery(page, pageSize, includeInactive), ct);
+        var result = await mediator.Send(new GetCouponsQuery(page, pageSize, includeInactive, search, type), ct);
         return Ok(result);
     }
 

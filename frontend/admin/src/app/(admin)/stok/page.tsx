@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
-import { Plus, Download, Upload, X, Search } from "lucide-react";
+import { Plus, Download, Upload, X, Search, Pencil } from "lucide-react";
 
 const MOVEMENT_TYPES = [
   { value: "StockIn", label: "Stok Girişi" },
@@ -21,6 +21,8 @@ export default function StockPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [criticalOnly, setCriticalOnly] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockSearchInput, setStockSearchInput] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   // Adjust existing stock
@@ -44,13 +46,14 @@ export default function StockPage() {
     setLoading(true);
     try {
       const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
-      if (criticalOnly) qs.set("criticalOnly", "true");
+      if (criticalOnly) qs.set("onlyCritical", "true");
+      if (stockSearch) qs.set("search", stockSearch);
       const data = await api.get<PaginatedList<StockItem>>(`/api/admin/stocks?${qs}`);
       setStocks(data.items);
       setTotalPages(data.totalPages);
     } catch { setStocks([]); }
     finally { setLoading(false); }
-  }, [page, criticalOnly]);
+  }, [page, criticalOnly, stockSearch]);
 
   useEffect(() => { fetchStocks(); }, [fetchStocks]);
 
@@ -145,35 +148,48 @@ export default function StockPage() {
     finally { setImporting(false); e.target.value = ""; }
   }
 
-  const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+  const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Stok Yönetimi</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => downloadTemplate(["Ürün ID", "Miktar", "Tip", "Not"], "stok")}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel
+            <Download size={14} /> Excel'e Aktar
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
             <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
-          <button onClick={() => downloadTemplate(["Ürün ID", "Miktar", "Tip", "Not"], "stok")}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-xl transition border border-slate-200">Şablon İndir</button>
           <button onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
             <Plus size={15} /> Yeni Stok Girişi
           </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <form onSubmit={e => { e.preventDefault(); setPage(1); setStockSearch(stockSearchInput); }} className="flex gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input value={stockSearchInput} onChange={e => setStockSearchInput(e.target.value)}
+              placeholder="Ürün adı veya SKU ara..."
+              className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-60 text-slate-900 bg-white" />
+          </div>
+          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+          {(stockSearch || stockSearchInput) && (
+            <button type="button" onClick={() => { setStockSearch(""); setStockSearchInput(""); setPage(1); }}
+              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+          )}
+        </form>
         <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
           <input type="checkbox" checked={criticalOnly}
             onChange={e => { setCriticalOnly(e.target.checked); setPage(1); }} className="rounded" />
-          Sadece kritik stokları göster
+          Sadece kritik stoklar
         </label>
       </div>
 
@@ -220,7 +236,7 @@ export default function StockPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={handleAdjust} disabled={adjusting || !adjustForm.quantity}
-                  className="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 text-sm">
+                  className="flex-1 bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm">
                   {adjusting ? "Kaydediliyor..." : "Kaydet"}
                 </button>
                 <button onClick={() => setAdjustTarget(null)}
@@ -245,7 +261,7 @@ export default function StockPage() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Ürün Ara</label>
                 <div className="relative">
                   <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
-                  <input className="pl-8 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  <input className="pl-8 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
                     value={selectedProduct ? selectedProduct.name : productSearch}
                     onChange={e => { setProductSearch(e.target.value); setSelectedProduct(null); }}
                     placeholder="Ürün adı veya SKU..." />
@@ -255,7 +271,7 @@ export default function StockPage() {
                     {productOptions.map(p => (
                       <button key={p.id} type="button"
                         onClick={() => { setSelectedProduct(p); setProductOptions([]); setProductSearch(p.name); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 border-b border-slate-100 last:border-0">
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-teal-50 border-b border-slate-100 last:border-0">
                         <span className="font-medium text-slate-800">{p.name}</span>
                         <span className="text-slate-400 text-xs ml-2">{p.sku}</span>
                       </button>
@@ -281,7 +297,7 @@ export default function StockPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={handleNewStock} disabled={newSaving || !selectedProduct || !newForm.quantity}
-                  className="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 text-sm">
+                  className="flex-1 bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm">
                   {newSaving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
                 <button onClick={() => { setShowNew(false); setSelectedProduct(null); setProductSearch(""); }}
@@ -316,14 +332,17 @@ export default function StockPage() {
                   <td className="px-5 py-3.5 text-right text-slate-700 text-xs">{s.quantity}</td>
                   <td className="px-5 py-3.5 text-right text-slate-500 text-xs">{s.reservedQuantity}</td>
                   <td className="px-5 py-3.5 text-right">
-                    <span className={`font-semibold text-xs ${s.availableQuantity === 0 ? "text-red-600" : s.isCritical ? "text-orange-600" : "text-slate-900"}`}>
+                    <span className={`font-semibold text-xs ${s.availableQuantity === 0 ? "text-red-600 animate-pulse" : s.isCritical ? "text-orange-600" : "text-slate-900"}`}>
                       {s.availableQuantity}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-right text-slate-400 text-xs">{s.criticalStockLevel}</td>
                   <td className="px-5 py-3.5 text-right">
                     <button onClick={() => { setAdjustTarget(s); setAdjustForm({ quantity: "", movementType: "StockIn", note: "" }); }}
-                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium transition">Düzenle</button>
+                      title="Stok Güncelle"
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-800 hover:scale-110 active:scale-95 transition-all duration-150">
+                      <Pencil size={13} />
+                    </button>
                   </td>
                 </tr>
               ))}

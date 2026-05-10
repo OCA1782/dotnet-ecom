@@ -25,7 +25,8 @@ public record CreateProductCommand(
     bool IsPublished,
     string? MetaTitle,
     string? MetaDescription,
-    int InitialStock = 0
+    int InitialStock = 0,
+    bool IsFeatured = false
 ) : IRequest<Result<Guid>>;
 
 public class CreateProductValidator : AbstractValidator<CreateProductCommand>
@@ -80,6 +81,7 @@ public class CreateProductHandler(IApplicationDbContext db, IAuditService audit)
             Currency = request.Currency,
             TaxRate = request.TaxRate,
             IsPublished = request.IsPublished,
+            IsFeatured = request.IsFeatured,
             MetaTitle = request.MetaTitle,
             MetaDescription = request.MetaDescription
         };

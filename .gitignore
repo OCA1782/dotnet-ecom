@@ -52,3 +52,16 @@ desktop.ini
 *.mdf
 *.ldf
 *.ndf
+
+# Uploaded files (runtime)
+backend/src/Ecom.API/wwwroot/uploads/
+
+# Dev logs
+admin_log.txt
+backend_log.txt
+
+# Claude Code local settings
+.claude/
+
+# Design reference assets
+logo/

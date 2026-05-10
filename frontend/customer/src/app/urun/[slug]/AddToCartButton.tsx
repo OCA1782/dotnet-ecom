@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useCart } from "@/hooks/useCart";
@@ -44,7 +44,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
       {/* Variant selection */}
       {variants.length > 1 && (
         <div>
-          <p className="text-sm font-medium text-zinc-700 mb-2">Seçenek</p>
+          <p className="text-sm font-medium text-slate-700 mb-2">Seçenek</p>
           <div className="flex flex-wrap gap-2">
             {variants.map((v) => (
               <button
@@ -53,10 +53,10 @@ export default function AddToCartButton({ productId, variants, availableStock }:
                 disabled={v.availableStock === 0}
                 className={`px-3 py-1.5 rounded-lg border text-sm transition ${
                   selectedVariantId === v.id
-                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    ? "border-teal-600 bg-teal-600 text-white"
                     : v.availableStock === 0
-                    ? "border-zinc-200 text-zinc-300 cursor-not-allowed"
-                    : "border-zinc-300 hover:border-zinc-500"
+                    ? "border-slate-200 text-slate-300 cursor-not-allowed"
+                    : "border-slate-300 hover:border-slate-500"
                 }`}
               >
                 {v.attributesJson ? JSON.parse(v.attributesJson)?.name ?? v.sku : v.sku}
@@ -68,18 +68,18 @@ export default function AddToCartButton({ productId, variants, availableStock }:
 
       {/* Quantity */}
       <div className="flex items-center gap-3">
-        <p className="text-sm font-medium text-zinc-700">Adet</p>
-        <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden">
+        <p className="text-sm font-medium text-slate-700">Adet</p>
+        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
           <button
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="px-3 py-2 text-zinc-600 hover:bg-zinc-100 transition"
+            className="px-3 py-2 text-slate-600 hover:bg-slate-100 transition"
           >
             −
           </button>
           <span className="px-4 py-2 text-sm font-medium">{quantity}</span>
           <button
             onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
-            className="px-3 py-2 text-zinc-600 hover:bg-zinc-100 transition"
+            className="px-3 py-2 text-slate-600 hover:bg-slate-100 transition"
           >
             +
           </button>
@@ -93,7 +93,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
       <button
         onClick={handleAdd}
         disabled={!canAdd || loading}
-        className="w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 bg-zinc-900 text-white hover:bg-zinc-700"
+        className="w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 bg-teal-600 text-white hover:bg-teal-700"
       >
         {loading ? "Ekleniyor..." : !canAdd ? (effectiveStock === 0 ? "Stokta Yok" : "Seçenek Seçin") : "Sepete Ekle"}
       </button>

@@ -30,6 +30,12 @@ export interface WeeklyOrder {
   revenue: number;
 }
 
+export interface WeeklyCount {
+  day: string;
+  label: string;
+  count: number;
+}
+
 export interface OrderStatusCount {
   status: number;
   label: string;
@@ -54,10 +60,26 @@ export interface DashboardStats {
   monthOrderCount: number;
   totalCustomerCount: number;
   newCustomerCount: number;
+  activeCustomerCount: number;
+  cancelledOrderCount: number;
+  abandonedOrderCount: number;
+  satisfactionRate: number;
+  reviewCount: number;
   monthlySummary: MonthlySummary[];
   weeklyOrders: WeeklyOrder[];
   orderStatusBreakdown: OrderStatusCount[];
   recentOrders: DashboardRecentOrder[];
+  weeklyNewUsers: WeeklyCount[];
+  monthTargetRevenue?: number;
+  monthTargetOrderCount?: number;
+}
+
+export interface SalesGoal {
+  id: string;
+  year: number;
+  month: number;
+  targetRevenue: number;
+  targetOrderCount: number;
 }
 
 // Orders
@@ -120,6 +142,7 @@ export interface AdminProduct {
   discountPrice?: number;
   taxRate: number;
   isActive: boolean;
+  isFeatured: boolean;
   imageUrl?: string;
   availableStock: number;
   brandName?: string;
@@ -147,6 +170,7 @@ export interface AdminUser {
   name: string;
   surname: string;
   email: string;
+  isActive: boolean;
   createdDate: string;
   roles: string[];
 }
@@ -188,6 +212,7 @@ export const ORDER_STATUS: Record<number, string> = {
   9: "İade Talep Edildi",
   10: "İade Edildi",
   11: "Başarısız",
+  12: "Askıda",
 };
 
 export const ORDER_STATUS_COLORS: Record<number, string> = {
@@ -202,6 +227,7 @@ export const ORDER_STATUS_COLORS: Record<number, string> = {
   9: "bg-orange-100 text-orange-800",
   10: "bg-rose-100 text-rose-800",
   11: "bg-gray-100 text-gray-600",
+  12: "bg-slate-100 text-slate-700",
 };
 
 // Audit Logs

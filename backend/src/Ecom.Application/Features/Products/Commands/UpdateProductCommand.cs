@@ -22,6 +22,7 @@ public record UpdateProductCommand(
     decimal TaxRate,
     bool IsActive,
     bool IsPublished,
+    bool IsFeatured,
     string? MetaTitle,
     string? MetaDescription
 ) : IRequest<Result>;
@@ -66,6 +67,7 @@ public class UpdateProductHandler(IApplicationDbContext db, IAuditService audit)
         product.TaxRate = request.TaxRate;
         product.IsActive = request.IsActive;
         product.IsPublished = request.IsPublished;
+        product.IsFeatured = request.IsFeatured;
         product.MetaTitle = request.MetaTitle;
         product.MetaDescription = request.MetaDescription;
 

@@ -14,7 +14,8 @@ public record GetProductsQuery(
     decimal? MinPrice = null,
     decimal? MaxPrice = null,
     bool? InStock = null,
-    bool AdminView = false
+    bool AdminView = false,
+    bool? IsFeatured = null
 ) : IRequest<PaginatedList<ProductListItemDto>>;
 
 public record ProductListItemDto(
@@ -31,7 +32,8 @@ public record ProductListItemDto(
     int StockQuantity,
     string? ImageUrl,
     bool IsActive,
-    bool IsPublished
+    bool IsPublished,
+    bool IsFeatured
 );
 
 public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
@@ -66,6 +68,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
         if (request.InStock == true)
             query = query.Where(p => p.Stock != null && (p.Stock.Quantity - p.Stock.ReservedQuantity) > 0);
 
+        if (request.IsFeatured.HasValue)
+            query = query.Where(p => p.IsFeatured == request.IsFeatured.Value);
+
         var total = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(p => p.CreatedDate)
@@ -78,7 +83,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
                 p.Price, p.DiscountPrice, p.Currency,
                 p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
                 p.Images.Any() ? p.Images.First().ImageUrl : null,
-                p.IsActive, p.IsPublished))
+                p.IsActive, p.IsPublished, p.IsFeatured))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);

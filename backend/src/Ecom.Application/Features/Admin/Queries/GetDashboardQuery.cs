@@ -15,14 +15,23 @@ public record DashboardDto(
     int MonthOrderCount,
     int TotalCustomerCount,
     int NewCustomerCount,
+    int ActiveCustomerCount,
+    int CancelledOrderCount,
+    int AbandonedOrderCount,
+    double SatisfactionRate,
+    int ReviewCount,
     IEnumerable<MonthlySummaryDto> MonthlySummary,
     IEnumerable<WeeklyOrderDto> WeeklyOrders,
     IEnumerable<OrderStatusCountDto> OrderStatusBreakdown,
-    IEnumerable<RecentOrderDto> RecentOrders
+    IEnumerable<RecentOrderDto> RecentOrders,
+    IEnumerable<WeeklyCountDto> WeeklyNewUsers,
+    decimal? MonthTargetRevenue,
+    int? MonthTargetOrderCount
 );
 
 public record MonthlySummaryDto(string Month, decimal Revenue, int OrderCount);
 public record WeeklyOrderDto(string Day, string Label, int OrderCount, decimal Revenue);
+public record WeeklyCountDto(string Day, string Label, int Count);
 public record OrderStatusCountDto(int Status, string Label, int Count);
 public record RecentOrderDto(string Id, string OrderNumber, string CustomerName, decimal GrandTotal, int Status, DateTime CreatedDate);
 
@@ -43,6 +52,7 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
         [OrderStatus.Completed] = "Tamamlandı",
         [OrderStatus.Cancelled] = "İptal",
         [OrderStatus.Failed] = "Başarısız",
+        [OrderStatus.OnHold] = "Askıda",
     };
 
     public async Task<DashboardDto> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
@@ -50,41 +60,57 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var thirtyDaysAgo = now.AddDays(-30);
         var twelveMonthsAgo = new DateTime(now.Year, now.Month, 1).AddMonths(-11);
         var sevenDaysAgo = todayStart.AddDays(-6);
+        var oneHourAgo = now.AddHours(-1);
 
-        // ── Today ────────────────────────────────────────────────────────────
         var todayOrders = await db.Orders
             .Where(o => o.CreatedDate >= todayStart
                      && o.Status != OrderStatus.Cancelled
                      && o.Status != OrderStatus.Failed)
             .ToListAsync(cancellationToken);
 
-        // ── Month ─────────────────────────────────────────────────────────────
         var monthOrders = await db.Orders
             .Where(o => o.CreatedDate >= monthStart
                      && o.Status != OrderStatus.Cancelled
                      && o.Status != OrderStatus.Failed)
             .ToListAsync(cancellationToken);
 
-        // ── Pending ───────────────────────────────────────────────────────────
         var pendingCount = await db.Orders.CountAsync(
             o => o.Status == OrderStatus.Created
               || o.Status == OrderStatus.PaymentPending
               || o.Status == OrderStatus.PaymentCompleted
               || o.Status == OrderStatus.Preparing, cancellationToken);
 
-        // ── Critical stock ────────────────────────────────────────────────────
         var criticalStockCount = await db.Stocks
             .CountAsync(s => (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel, cancellationToken);
 
-        // ── Customers ─────────────────────────────────────────────────────────
         var totalCustomers = await db.UserRoles.CountAsync(r => r.Role == UserRoleEnum.Customer, cancellationToken);
 
         var newCustomers = await db.Users
             .CountAsync(u => u.CreatedDate >= monthStart, cancellationToken);
 
-        // ── Monthly summary (last 12 months) ─────────────────────────────────
+        var activeCustomerCount = await db.Orders
+            .Where(o => o.CreatedDate >= thirtyDaysAgo && o.UserId != null
+                     && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Failed)
+            .Select(o => o.UserId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        var cancelledOrderCount = await db.Orders
+            .CountAsync(o => o.Status == OrderStatus.Cancelled, cancellationToken);
+
+        var abandonedOrderCount = await db.Orders
+            .CountAsync(o => (o.Status == OrderStatus.Created || o.Status == OrderStatus.PaymentPending)
+                          && o.CreatedDate < oneHourAgo, cancellationToken);
+
+        var approvedReviews = await db.ProductReviews
+            .Where(r => r.IsApproved)
+            .Select(r => r.Rating)
+            .ToListAsync(cancellationToken);
+        var satisfactionRate = approvedReviews.Count > 0 ? Math.Round((approvedReviews.Average() / 5.0) * 100, 1) : 0;
+
         var allOrders12 = await db.Orders
             .Where(o => o.CreatedDate >= twelveMonthsAgo
                      && o.Status != OrderStatus.Cancelled
@@ -102,7 +128,6 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             ))
             .ToList();
 
-        // ── Weekly orders (last 7 days) ───────────────────────────────────────
         var weekOrders = await db.Orders
             .Where(o => o.CreatedDate >= sevenDaysAgo)
             .Select(o => new { o.CreatedDate, o.GrandTotal })
@@ -122,7 +147,23 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             })
             .ToList();
 
-        // ── Order status breakdown ────────────────────────────────────────────
+        var weekUsers = await db.Users
+            .Where(u => u.CreatedDate >= sevenDaysAgo)
+            .Select(u => u.CreatedDate)
+            .ToListAsync(cancellationToken);
+
+        var weeklyNewUsers = Enumerable.Range(0, 7)
+            .Select(i =>
+            {
+                var day = sevenDaysAgo.AddDays(i);
+                return new WeeklyCountDto(
+                    Day: day.ToString("yyyy-MM-dd"),
+                    Label: DAY_LABELS[(int)day.DayOfWeek],
+                    Count: weekUsers.Count(u => u.Date == day.Date)
+                );
+            })
+            .ToList();
+
         var statusCounts = await db.Orders
             .GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
@@ -137,7 +178,9 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             ))
             .ToList();
 
-        // ── Recent orders (with customer name) ───────────────────────────────
+        var currentGoal = await db.SalesGoals
+            .FirstOrDefaultAsync(g => g.Year == now.Year && g.Month == now.Month, cancellationToken);
+
         var recentOrders = await db.Orders
             .Include(o => o.User)
             .OrderByDescending(o => o.CreatedDate)
@@ -161,10 +204,18 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             MonthOrderCount: monthOrders.Count,
             TotalCustomerCount: totalCustomers,
             NewCustomerCount: newCustomers,
+            ActiveCustomerCount: activeCustomerCount,
+            CancelledOrderCount: cancelledOrderCount,
+            AbandonedOrderCount: abandonedOrderCount,
+            SatisfactionRate: satisfactionRate,
+            ReviewCount: approvedReviews.Count,
             MonthlySummary: monthlySummary,
             WeeklyOrders: weeklyOrders,
             OrderStatusBreakdown: statusBreakdown,
-            RecentOrders: recentOrders
+            RecentOrders: recentOrders,
+            WeeklyNewUsers: weeklyNewUsers,
+            MonthTargetRevenue: currentGoal?.TargetRevenue,
+            MonthTargetOrderCount: currentGoal?.TargetOrderCount
         );
     }
 }

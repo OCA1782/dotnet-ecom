@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, ToggleLeft } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 
 interface Category { id: string; name: string; slug: string; }
@@ -25,13 +26,14 @@ interface ProductForm {
   brandId: string;
   isPublished: boolean;
   isActive: boolean;
+  isFeatured: boolean;
   initialStock: string;
 }
 
 const EMPTY_FORM: ProductForm = {
   name: "", slug: "", sku: "", description: "", shortDescription: "",
   price: "", discountPrice: "", taxRate: "18", categoryId: "",
-  brandId: "", isPublished: true, isActive: true, initialStock: "0",
+  brandId: "", isPublished: true, isActive: true, isFeatured: false, initialStock: "0",
 };
 
 function slugify(s: string) {
@@ -64,8 +66,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
-const SELECT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
+const SELECT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -85,6 +87,7 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const [confirmDeactivate, setConfirmDeactivate] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
@@ -93,6 +96,7 @@ export default function AdminProductsPage() {
   const [newImageUrl, setNewImageUrl] = useState("");
   const [newImageAlt, setNewImageAlt] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
+  const [stagedImages, setStagedImages] = useState<string[]>([]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -176,6 +180,7 @@ export default function AdminProductsPage() {
     setProductImages([]);
     setNewImageUrl("");
     setNewImageAlt("");
+    setStagedImages([]);
     setModal("create");
   }
 
@@ -194,6 +199,7 @@ export default function AdminProductsPage() {
       brandId: "",
       isPublished: true,
       isActive: p.isActive,
+      isFeatured: p.isFeatured,
       initialStock: "0",
     });
     setFormError("");
@@ -214,7 +220,7 @@ export default function AdminProductsPage() {
     setSaving(true); setFormError("");
     try {
       if (modal === "create") {
-        await api.post("/api/products", {
+        const created = await api.post<{ id: string }>("/api/products", {
           name: form.name,
           slug: form.slug || slugify(form.name),
           sku: form.sku,
@@ -229,10 +235,24 @@ export default function AdminProductsPage() {
           currency: "TRY",
           taxRate: parseFloat(form.taxRate) || 18,
           isPublished: form.isPublished,
+          isFeatured: form.isFeatured,
           metaTitle: null,
           metaDescription: null,
           initialStock: parseInt(form.initialStock) || 0,
         });
+        if (created?.id && stagedImages.length > 0) {
+          for (let i = 0; i < stagedImages.length; i++) {
+            try {
+              await api.post(`/api/products/${created.id}/images`, {
+                productId: created.id,
+                imageUrl: stagedImages[i],
+                sortOrder: i,
+                isMain: i === 0,
+                altText: null,
+              });
+            } catch { /* resim eklenemedi ama ürün oluşturuldu */ }
+          }
+        }
         setMsg({ text: "Ürün oluşturuldu.", ok: true });
       } else {
         await api.put(`/api/products/${form.id}`, {
@@ -250,6 +270,7 @@ export default function AdminProductsPage() {
           taxRate: parseFloat(form.taxRate) || 18,
           isActive: form.isActive,
           isPublished: form.isPublished,
+          isFeatured: form.isFeatured,
           metaTitle: null,
           metaDescription: null,
         });
@@ -305,7 +326,6 @@ export default function AdminProductsPage() {
   }
 
   async function handleDeactivate(id: string) {
-    if (!confirm("Bu ürünü pasif yapmak istediğinize emin misiniz?")) return;
     try {
       await api.delete(`/api/products/${id}`);
       setMsg({ text: "Ürün pasif yapıldı.", ok: true });
@@ -320,18 +340,18 @@ export default function AdminProductsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Ürünler</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => downloadTemplate(["Ad", "SKU", "Fiyat", "İndirimli Fiyat", "Kategori", "Marka", "Stok"], "urunler")}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel
+            <Download size={14} /> Excel'e Aktar
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
             <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
-          <button onClick={() => downloadTemplate(["Ad", "SKU", "Fiyat", "İndirimli Fiyat", "Kategori", "Marka", "Stok"], "urunler")}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-xl transition border border-slate-200">Şablon İndir</button>
           <button onClick={openCreate}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
             <Plus size={16} /> Yeni Ürün
           </button>
         </div>
@@ -356,9 +376,9 @@ export default function AdminProductsPage() {
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Ürün adı veya SKU..."
-              className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 w-56 text-slate-900 bg-white" />
+              className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-56 text-slate-900 bg-white" />
           </div>
-          <button type="submit" className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-700 transition">Ara</button>
+          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
           {search && <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
             className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>}
         </form>
@@ -388,7 +408,7 @@ export default function AdminProductsPage() {
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-50" : ""}`}>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                      <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                         {p.imageUrl
                           ? <img src={p.imageUrl} alt={p.name} className="object-contain w-full h-full p-0.5" /> // eslint-disable-line @next/next/no-img-element
                           : <span className="text-base">📦</span>}
@@ -402,26 +422,37 @@ export default function AdminProductsPage() {
                     <p className="text-slate-400">{p.brandName ?? "—"}</p>
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <p className="font-bold text-indigo-700 text-xs">{formatPrice(p.discountPrice ?? p.price)}</p>
+                    <p className="font-bold text-teal-700 text-xs">{formatPrice(p.discountPrice ?? p.price)}</p>
                     {p.discountPrice && <p className="text-xs text-slate-400 line-through">{formatPrice(p.price)}</p>}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <span className={`font-semibold text-xs ${p.availableStock === 0 ? "text-red-600" : p.availableStock <= 5 ? "text-orange-500" : "text-slate-900"}`}>
+                    <span className={`font-semibold text-xs ${p.availableStock === 0 ? "text-red-600 animate-pulse" : p.availableStock <= 5 ? "text-orange-500" : "text-slate-900"}`}>
                       {p.availableStock}
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                      {p.isActive ? "Aktif" : "Pasif"}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                        {p.isActive ? "Aktif" : "Pasif"}
+                      </span>
+                      {p.isFeatured && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Öne Çıkan</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-3 justify-end">
-                      <button onClick={() => openEdit(p)} className="text-indigo-500 hover:text-indigo-700 transition">
-                        <Pencil size={14} />
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => openEdit(p)}
+                        title="Düzenle"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-800 hover:scale-110 active:scale-95 transition-all duration-150">
+                        <Pencil size={13} />
                       </button>
                       {p.isActive && (
-                        <button onClick={() => handleDeactivate(p.id)} className="text-xs text-red-400 hover:text-red-600 transition">Pasif</button>
+                        <button onClick={() => setConfirmDeactivate(p.id)}
+                          title="Pasife Al"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 hover:scale-110 active:scale-95 transition-all duration-150">
+                          <ToggleLeft size={14} />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -438,6 +469,16 @@ export default function AdminProductsPage() {
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages} — {totalCount} ürün</span>
           {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
         </div>
+      )}
+
+      {confirmDeactivate && (
+        <ConfirmModal
+          title="Ürünü Pasife Al"
+          message="Bu ürünü pasif duruma almak istediğinizden emin misiniz? Pasif ürünler mağazada görünmez."
+          confirmLabel="Pasife Al"
+          onConfirm={() => { handleDeactivate(confirmDeactivate); setConfirmDeactivate(null); }}
+          onCancel={() => setConfirmDeactivate(null)}
+        />
       )}
 
       {/* Create / Edit Modal */}
@@ -503,6 +544,65 @@ export default function AdminProductsPage() {
               </Field>
             )}
 
+            {modal === "create" && (
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <p className="text-xs font-semibold text-slate-700">
+                  Fotoğraflar <span className="font-normal text-slate-400">(isteğe bağlı)</span>
+                </p>
+
+                {stagedImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3">
+                    {stagedImages.map((url, i) => (
+                      <div key={i} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${i === 0 ? "border-teal-400 bg-teal-50" : "border-slate-200 bg-white"}`}>
+                        <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="object-contain w-full h-full p-1" />
+                        </div>
+                        {i === 0 && (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">
+                            <Star size={11} fill="currentColor" /> Ana Fotoğraf
+                          </span>
+                        )}
+                        <button type="button"
+                          onClick={() => setStagedImages(imgs => imgs.filter((_, idx) => idx !== i))}
+                          className="flex items-center justify-center gap-1 text-red-400 hover:text-red-600 border border-red-100 rounded-lg p-1 hover:bg-red-50 transition w-full text-xs">
+                          <Trash2 size={12} /> Kaldır
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <input
+                    className={INPUT}
+                    placeholder="Fotoğraf URL'si veya dosya yükleyin..."
+                    value={newImageUrl}
+                    onChange={e => setNewImageUrl(e.target.value)}
+                  />
+                  <label className={`flex items-center gap-1.5 px-3 py-2 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 cursor-pointer transition whitespace-nowrap ${imageLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <ImagePlus size={13} /> Dosyadan
+                    <input type="file" accept="image/*" className="hidden" disabled={imageLoading}
+                      onChange={async e => {
+                        const file = e.target.files?.[0]; if (!file) return;
+                        setImageLoading(true);
+                        try {
+                          const { url } = await api.upload(file);
+                          setNewImageUrl(url);
+                        } catch { /* ignore */ }
+                        finally { setImageLoading(false); e.target.value = ""; }
+                      }} />
+                  </label>
+                  <button type="button"
+                    onClick={() => { if (!newImageUrl) return; setStagedImages(imgs => [...imgs, newImageUrl]); setNewImageUrl(""); }}
+                    disabled={imageLoading || !newImageUrl}
+                    className="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap transition">
+                    {imageLoading ? "..." : "Ekle"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={form.isPublished} onChange={e => setField("isPublished", e.target.checked)} />
@@ -514,6 +614,10 @@ export default function AdminProductsPage() {
                   Aktif
                 </label>
               )}
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input type="checkbox" checked={form.isFeatured} onChange={e => setField("isFeatured", e.target.checked)} />
+                Öne Çıkan
+              </label>
             </div>
 
             {/* Image management — edit only */}
@@ -526,20 +630,20 @@ export default function AdminProductsPage() {
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     {productImages.map(img => (
-                      <div key={img.id} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${img.isMain ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white"}`}>
+                      <div key={img.id} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${img.isMain ? "border-teal-400 bg-teal-50" : "border-slate-200 bg-white"}`}>
                         <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={img.imageUrl} alt={img.altText || ""} className="object-contain w-full h-full p-1" />
                         </div>
                         {img.isMain && (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-indigo-600">
+                          <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">
                             <Star size={11} fill="currentColor" /> Ana Fotoğraf
                           </span>
                         )}
                         <div className="flex gap-1">
                           {!img.isMain && (
                             <button type="button" onClick={() => handleSetMainImage(img.id)}
-                              className="flex-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 transition">
+                              className="flex-1 text-xs text-teal-600 hover:text-teal-800 border border-teal-200 rounded-lg py-1 hover:bg-teal-50 transition">
                               Ana Yap
                             </button>
                           )}
@@ -553,7 +657,7 @@ export default function AdminProductsPage() {
                   </div>
                 )}
 
-                {/* Add new image */}
+                {/* Add new image — file upload or URL */}
                 <div className="flex gap-2">
                   <input
                     className={INPUT}
@@ -561,9 +665,22 @@ export default function AdminProductsPage() {
                     value={newImageUrl}
                     onChange={e => setNewImageUrl(e.target.value)}
                   />
+                  <label className={`flex items-center gap-1.5 px-3 py-2 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 cursor-pointer transition whitespace-nowrap ${imageLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <ImagePlus size={13} /> Dosyadan
+                    <input type="file" accept="image/*" className="hidden" disabled={imageLoading}
+                      onChange={async e => {
+                        const file = e.target.files?.[0]; if (!file) return;
+                        setImageLoading(true);
+                        try {
+                          const { url } = await api.upload(file);
+                          setNewImageUrl(url);
+                        } catch { /* ignore, keep input */ }
+                        finally { setImageLoading(false); e.target.value = ""; }
+                      }} />
+                  </label>
                   <button type="button" onClick={handleAddImage}
                     disabled={imageLoading || !newImageUrl}
-                    className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap transition">
+                    className="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap transition">
                     {imageLoading ? "..." : "Ekle"}
                   </button>
                 </div>
@@ -575,7 +692,7 @@ export default function AdminProductsPage() {
                 Vazgeç
               </button>
               <button onClick={handleSave} disabled={saving}
-                className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
+                className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50">
                 {saving ? "Kaydediliyor..." : modal === "create" ? "Oluştur" : "Güncelle"}
               </button>
             </div>

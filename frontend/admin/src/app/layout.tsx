@@ -5,8 +5,8 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 
 export const metadata: Metadata = {
-  title: "Ecom Admin",
-  description: "Ecom yönetim paneli",
+  title: "Keyvora Admin",
+  description: "Keyvora yönetim paneli",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

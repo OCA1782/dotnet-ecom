@@ -20,7 +20,10 @@ public record GetAuditLogsQuery(
     int Page = 1,
     int PageSize = 30,
     string? EntityName = null,
-    string? Action = null
+    string? Action = null,
+    string? UserEmail = null,
+    DateTime? StartDate = null,
+    DateTime? EndDate = null
 ) : IRequest<PaginatedList<AuditLogDto>>;
 
 public class GetAuditLogsHandler(IApplicationDbContext db)
@@ -35,6 +38,21 @@ public class GetAuditLogsHandler(IApplicationDbContext db)
 
         if (!string.IsNullOrWhiteSpace(request.Action))
             query = query.Where(l => l.Action.Contains(request.Action));
+
+        if (!string.IsNullOrWhiteSpace(request.UserEmail))
+        {
+            var matchingUserIds = await db.Users
+                .Where(u => u.Email.Contains(request.UserEmail))
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            query = query.Where(l => l.UserId.HasValue && matchingUserIds.Contains(l.UserId!.Value));
+        }
+
+        if (request.StartDate.HasValue)
+            query = query.Where(l => l.CreatedDate >= request.StartDate.Value);
+
+        if (request.EndDate.HasValue)
+            query = query.Where(l => l.CreatedDate <= request.EndDate.Value);
 
         var total = await query.CountAsync(cancellationToken);
 

@@ -29,4 +29,29 @@ public class UsersController(IMediator mediator) : ControllerBase
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return Ok(new { id = result.Data });
     }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateAdminUserCommand command, CancellationToken ct)
+    {
+        if (id != command.Id) return BadRequest(new { error = "ID uyuşmazlığı." });
+        var result = await mediator.Send(command, ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/deactivate")]
+    public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ToggleUserActiveCommand(id, false), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/activate")]
+    public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ToggleUserActiveCommand(id, true), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }

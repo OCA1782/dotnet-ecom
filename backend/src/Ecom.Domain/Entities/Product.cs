@@ -22,6 +22,7 @@ public class Product : BaseEntity
     public decimal TaxRate { get; set; } = 20;
     public bool IsActive { get; set; } = true;
     public bool IsPublished { get; set; } = false;
+    public bool IsFeatured { get; set; } = false;
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
 

@@ -15,6 +15,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // When sending FormData, let the browser set Content-Type (with boundary)
+  if (options.body instanceof FormData) {
+    delete headers["Content-Type"];
+  }
+
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (!res.ok) {
@@ -37,4 +42,9 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  upload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return request<{ url: string }>("/api/admin/upload", { method: "POST", body: fd });
+  },
 };

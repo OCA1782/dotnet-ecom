@@ -25,6 +25,7 @@ export interface ProductListItem {
   availableStock: number;
   brandName?: string;
   categoryName?: string;
+  isFeatured: boolean;
 }
 
 export interface ProductImage {
@@ -151,6 +152,7 @@ export interface OrderDetail extends OrderSummary {
 
 export interface ReviewDto {
   id: string;
+  userId: string;
   userName: string;
   rating: number;
   title?: string;
