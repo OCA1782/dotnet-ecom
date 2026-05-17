@@ -130,6 +130,9 @@ export default function AdminOrderDetailPage() {
   const [showShipmentForm, setShowShipmentForm] = useState(false);
   const [shipmentForm, setShipmentForm] = useState({ trackingNumber: "", carrier: "Yurtiçi Kargo" });
   const [creatingShipment, setCreatingShipment] = useState(false);
+  const [editingShipmentId, setEditingShipmentId] = useState<string | null>(null);
+  const [editShipmentForm, setEditShipmentForm] = useState({ carrier: "", trackingNumber: "", trackingUrl: "", status: 3 });
+  const [savingShipment, setSavingShipment] = useState(false);
 
   async function fetchOrder() {
     try {
@@ -176,6 +179,20 @@ export default function AdminOrderDetailPage() {
       alert(err instanceof Error ? err.message : "Kargo oluşturulamadı");
     } finally {
       setCreatingShipment(false);
+    }
+  }
+
+  async function handleUpdateShipment() {
+    if (!editingShipmentId) return;
+    setSavingShipment(true);
+    try {
+      await api.patch(`/api/admin/shipments/${editingShipmentId}`, editShipmentForm);
+      setEditingShipmentId(null);
+      await fetchOrder();
+    } catch {
+      alert("Kargo güncellenemedi");
+    } finally {
+      setSavingShipment(false);
     }
   }
 
@@ -358,21 +375,50 @@ export default function AdminOrderDetailPage() {
               {order.shipments?.length > 0 ? (
                 order.shipments.map((s) => (
                   <div key={s.id} className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 space-y-1.5">
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="text-sm font-semibold text-purple-800">{s.carrier}</p>
-                      {s.shippedAt && <p className="text-xs text-purple-400 shrink-0">{formatDate(s.shippedAt)}</p>}
-                    </div>
-                    {s.trackingNumber && (
-                      <p className="text-xs text-purple-600 font-mono">{s.trackingNumber}</p>
-                    )}
-                    {s.trackingUrl && (
-                      <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-xs text-teal-600 hover:text-teal-800 underline">
-                        Kargo takibini aç →
-                      </a>
-                    )}
-                    {s.deliveredAt && (
-                      <p className="text-xs text-emerald-600 font-medium">✓ Teslim: {formatDate(s.deliveredAt)}</p>
+                    {editingShipmentId === s.id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input value={editShipmentForm.carrier} onChange={e => setEditShipmentForm(f => ({ ...f, carrier: e.target.value }))}
+                            placeholder="Kargo firması" className={INPUT} />
+                          <input value={editShipmentForm.trackingNumber} onChange={e => setEditShipmentForm(f => ({ ...f, trackingNumber: e.target.value }))}
+                            placeholder="Takip numarası" className={INPUT} />
+                        </div>
+                        <input value={editShipmentForm.trackingUrl} onChange={e => setEditShipmentForm(f => ({ ...f, trackingUrl: e.target.value }))}
+                          placeholder="Takip URL (opsiyonel)" className={INPUT} />
+                        <select value={editShipmentForm.status} onChange={e => setEditShipmentForm(f => ({ ...f, status: Number(e.target.value) }))} className={INPUT}>
+                          <option value={2}>Hazırlanıyor</option>
+                          <option value={3}>Kargoda</option>
+                          <option value={4}>Teslim Edildi</option>
+                          <option value={5}>İade</option>
+                        </select>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={handleUpdateShipment} disabled={savingShipment}
+                            className="px-4 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition">
+                            {savingShipment ? "Kaydediliyor..." : "Kaydet"}
+                          </button>
+                          <button onClick={() => setEditingShipmentId(null)}
+                            className="px-4 py-1.5 border border-slate-300 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition">
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="text-sm font-semibold text-purple-800">{s.carrier}</p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {s.shippedAt && <p className="text-xs text-purple-400">{formatDate(s.shippedAt)}</p>}
+                            <button onClick={() => { setEditingShipmentId(s.id); setEditShipmentForm({ carrier: s.carrier, trackingNumber: s.trackingNumber ?? "", trackingUrl: s.trackingUrl ?? "", status: s.status ?? 3 }); }}
+                              className="text-xs text-slate-400 hover:text-teal-600 underline transition">Düzenle</button>
+                          </div>
+                        </div>
+                        {s.trackingNumber && <p className="text-xs text-purple-600 font-mono">{s.trackingNumber}</p>}
+                        {s.trackingUrl && (
+                          <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-teal-600 hover:text-teal-800 underline">Kargo takibini aç →</a>
+                        )}
+                        {s.deliveredAt && <p className="text-xs text-emerald-600 font-medium">✓ Teslim: {formatDate(s.deliveredAt)}</p>}
+                      </>
                     )}
                   </div>
                 ))
