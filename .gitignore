@@ -1,13 +1,7 @@
-# Development workflow files (local-only, not for commit)
+# Local-only docs (not for commit)
 DOCS/DAILY_PROGRESS.md
 DOCS/IMPORTANT_COMMANDS.md
 session_rules.md
-ai_notes.md
-ai_context.md
-assistant_notes.md
-prompt.md
-prompts.md
-project_memory.md
 local_notes.md
 
 # .NET
@@ -74,13 +68,6 @@ dev.log
 # Docker environment overrides (contain secrets)
 .env
 docker-compose.override.yml
-
-# Local dev settings
-.claude/
-CLAUDE.md
-claude.md
-AGENTS.md
-agents.md
 
 # Design reference assets
 logo/
