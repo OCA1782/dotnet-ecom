@@ -81,4 +81,35 @@ internal static class EmailTemplates
             </p>
             <p style="color:#71717a;font-size:13px;line-height:1.6;">Bu bağlantı 24 saat geçerlidir. Eğer bu talebi siz yapmadıysanız bu e-postayı dikkate almayınız.</p>
         """);
+
+    public static string LowStockAlert(string productName, int availableStock, int criticalLevel) =>
+        Wrap("Kritik Stok Uyarısı", $"""
+            <h2 style="color:#b91c1c;margin:0 0 16px;">⚠ Kritik Stok Uyarısı</h2>
+            <p style="color:#3f3f46;line-height:1.6;">Aşağıdaki ürünün stoku kritik eşiğin altına düştü.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;">
+              <tr style="background:#fef2f2;">
+                <td style="padding:16px 20px;">
+                  <p style="margin:0 0 6px;font-size:13px;color:#71717a;">Ürün</p>
+                  <p style="margin:0;font-size:16px;font-weight:bold;color:#18181b;">{productName}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 20px;">
+                  <table width="100%">
+                    <tr>
+                      <td style="text-align:center;padding:8px;">
+                        <p style="margin:0 0 4px;font-size:12px;color:#71717a;">Mevcut Stok</p>
+                        <p style="margin:0;font-size:28px;font-weight:bold;color:#b91c1c;">{availableStock}</p>
+                      </td>
+                      <td style="text-align:center;padding:8px;">
+                        <p style="margin:0 0 4px;font-size:12px;color:#71717a;">Kritik Eşik</p>
+                        <p style="margin:0;font-size:28px;font-weight:bold;color:#71717a;">{criticalLevel}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#3f3f46;font-size:14px;">Stok yönetimi panelinden yeni stok girişi yapabilirsiniz.</p>
+        """);
 }
