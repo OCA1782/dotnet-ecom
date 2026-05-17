@@ -15,6 +15,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
     private readonly string _password = configuration["Email:Password"] ?? "";
     private readonly string _fromAddress = configuration["Email:FromAddress"] ?? "noreply@ecom.com";
     private readonly string _fromName = configuration["Email:FromName"] ?? "Ecom";
+    private readonly bool _useSsl = bool.TryParse(configuration["Email:UseSsl"], out var ssl) && ssl;
     private readonly string _resetBaseUrl = configuration["Email:ResetPasswordBaseUrl"] ?? "http://localhost:3000/sifre-sifirla";
 
     public async Task SendOrderConfirmationAsync(string toEmail, string toName, string orderNumber, decimal grandTotal, CancellationToken ct = default)
@@ -55,6 +56,18 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, toName, subject, body, ct);
     }
 
+    public async Task SendTestEmailAsync(string toEmail, CancellationToken ct = default)
+    {
+        var body = $"""
+            <div style="font-family:sans-serif;max-width:480px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
+              <h2 style="color:#0f766e">SMTP Test E-postası</h2>
+              <p>Bu e-posta, SMTP yapılandırmanızın doğru çalıştığını doğrulamak için gönderildi.</p>
+              <p style="color:#64748b;font-size:13px">Gönderim zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>
+            </div>
+            """;
+        await SendAsync(toEmail, "Test", "SMTP Test — Ecom", body, ct);
+    }
+
     private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com")
@@ -72,7 +85,8 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             message.Body = new TextPart("html") { Text = htmlBody };
 
             using var client = new SmtpClient();
-            await client.ConnectAsync(_host, _port, SecureSocketOptions.StartTls, ct);
+            var sslOption = _useSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+            await client.ConnectAsync(_host, _port, sslOption, ct);
             if (!string.IsNullOrEmpty(_username))
                 await client.AuthenticateAsync(_username, _password, ct);
             await client.SendAsync(message, ct);
