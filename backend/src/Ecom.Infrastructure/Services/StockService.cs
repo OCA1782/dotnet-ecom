@@ -3,11 +3,13 @@ using Ecom.Application.Common.Models;
 using Ecom.Domain.Entities;
 using Ecom.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Ecom.Infrastructure.Services;
 
-public class StockService(IApplicationDbContext db) : IStockService
+public class StockService(IApplicationDbContext db, IEmailService emailService, IConfiguration configuration) : IStockService
 {
+    private readonly string _alertEmail = configuration["Seed:AdminEmail"] ?? "";
     public async Task<Result> ReserveAsync(Guid productId, Guid? variantId, int quantity, Guid orderId, CancellationToken ct = default)
     {
         var stock = await GetStockAsync(productId, variantId, ct);
@@ -55,6 +57,16 @@ public class StockService(IApplicationDbContext db) : IStockService
         });
 
         await db.SaveChangesAsync(ct);
+
+        // Stok kritik eşiğin altına düştüyse admin'e uyarı e-postası gönder
+        var available = stock.Quantity - stock.ReservedQuantity;
+        if (available <= stock.CriticalStockLevel && !string.IsNullOrEmpty(_alertEmail))
+        {
+            var productName = stock.Product?.Name ?? stock.ProductVariant?.SKU ?? "Bilinmeyen Ürün";
+            try { await emailService.SendLowStockAlertAsync(_alertEmail, productName, available, stock.CriticalStockLevel, ct); }
+            catch { }
+        }
+
         return Result.Success();
     }
 
@@ -143,7 +155,11 @@ public class StockService(IApplicationDbContext db) : IStockService
     private async Task<Stock?> GetStockAsync(Guid productId, Guid? variantId, CancellationToken ct)
     {
         if (variantId.HasValue)
-            return await db.Stocks.FirstOrDefaultAsync(s => s.ProductVariantId == variantId, ct);
-        return await db.Stocks.FirstOrDefaultAsync(s => s.ProductId == productId && s.ProductVariantId == null, ct);
+            return await db.Stocks
+                .Include(s => s.ProductVariant)
+                .FirstOrDefaultAsync(s => s.ProductVariantId == variantId, ct);
+        return await db.Stocks
+            .Include(s => s.Product)
+            .FirstOrDefaultAsync(s => s.ProductId == productId && s.ProductVariantId == null, ct);
     }
 }
