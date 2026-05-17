@@ -91,6 +91,30 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
             id, req.Status, currentUser.UserId, req.Note), ct);
         return result.Succeeded ? Ok() : BadRequest(result.Error);
     }
+
+    [HttpGet("admin/export")]
+    [Authorize(Roles = "SuperAdmin,Admin,FinanceUser,OrderManager")]
+    public async Task<IActionResult> Export(
+        [FromQuery] OrderStatus? status = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
+    {
+        var rows = await mediator.Send(new ExportAdminOrdersQuery(status, from, to, search), ct);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Sipariş No,Tarih,Durum,Ödeme,Kargo,Ürün Sayısı,Toplam (TL),Müşteri");
+        foreach (var r in rows)
+            sb.AppendLine($"{r.OrderNumber},{r.CreatedDate},{r.Status},{r.PaymentStatus},{r.ShipmentStatus},{r.ItemCount},{r.GrandTotal:F2},{r.CustomerEmail}");
+
+        var bytes = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString()))
+            .ToArray();
+
+        var filename = $"siparisler-{DateTime.Now:yyyyMMdd}.csv";
+        return File(bytes, "text/csv; charset=utf-8", filename);
+    }
 }
 
 public class UpdateOrderStatusRequest

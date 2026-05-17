@@ -93,6 +93,25 @@ export default function OrdersPage() {
     }
   }
 
+  async function handleCsvExport() {
+    const qs = new URLSearchParams();
+    if (search) qs.set("search", search);
+    if (statusFilter) qs.set("status", statusFilter);
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
+    const res = await fetch(`${API_BASE}/api/orders/admin/export?${qs}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) { setMsg({ text: "Dışa aktarma başarısız.", ok: false }); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `siparisler-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -100,19 +119,26 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold text-slate-900">Siparişler</h1>
           {!loading && <p className="text-sm text-slate-500 mt-0.5">{totalCount} sipariş</p>}
         </div>
-        <button
-          onClick={() => exportToExcel(
-            orders.map(o => ({
-              "Sipariş No": o.orderNumber, "Müşteri": o.customerName,
-              "E-posta": o.customerEmail, "Durum": ORDER_STATUS[o.status] ?? o.status,
-              "Tutar": o.grandTotal, "Ürün Sayısı": o.itemCount,
-              "Tarih": formatDate(o.createdDate),
-            })),
-            "siparisler", "Siparişler"
-          )}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-          <Download size={15} /> Excel'e Aktar
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCsvExport}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            <Download size={15} /> CSV İndir (Tümü)
+          </button>
+          <button
+            onClick={() => exportToExcel(
+              orders.map(o => ({
+                "Sipariş No": o.orderNumber, "Müşteri": o.customerName,
+                "E-posta": o.customerEmail, "Durum": ORDER_STATUS[o.status] ?? o.status,
+                "Tutar": o.grandTotal, "Ürün Sayısı": o.itemCount,
+                "Tarih": formatDate(o.createdDate),
+              })),
+              "siparisler", "Siparişler"
+            )}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
+            <Download size={15} /> Excel (Sayfa)
+          </button>
+        </div>
       </div>
 
       {msg && (
