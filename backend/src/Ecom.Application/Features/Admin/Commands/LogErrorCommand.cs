@@ -13,7 +13,9 @@ public record LogErrorCommand(
     string? UserEmail,
     string? IpAddress,
     string? UserAgent,
-    int? StatusCode
+    int? StatusCode,
+    string? ExceptionType = null,
+    string? Url = null
 ) : IRequest;
 
 public class LogErrorHandler(IApplicationDbContext db) : IRequestHandler<LogErrorCommand>
@@ -27,10 +29,12 @@ public class LogErrorHandler(IApplicationDbContext db) : IRequestHandler<LogErro
             Message = request.Message,
             StackTrace = request.StackTrace,
             Path = request.Path,
+            Url = request.Url,
             UserEmail = request.UserEmail,
             IpAddress = request.IpAddress,
             UserAgent = request.UserAgent,
             StatusCode = request.StatusCode,
+            ExceptionType = request.ExceptionType,
         });
         await db.SaveChangesAsync(cancellationToken);
     }

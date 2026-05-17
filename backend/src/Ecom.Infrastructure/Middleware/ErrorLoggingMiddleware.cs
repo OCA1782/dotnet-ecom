@@ -20,7 +20,7 @@ public class ErrorLoggingMiddleware(RequestDelegate next)
         }
         catch (Exception ex)
         {
-            await LogAsync(context, "Error", ex.Message, context.Request.Path, ex.StackTrace);
+            await LogAsync(context, "Error", ex.Message, context.Request.Path, ex.StackTrace, ex.GetType().Name);
 
             if (!context.Response.HasStarted)
             {
@@ -31,7 +31,7 @@ public class ErrorLoggingMiddleware(RequestDelegate next)
         }
     }
 
-    private static async Task LogAsync(HttpContext context, string level, string message, string path, string? stackTrace)
+    private static async Task LogAsync(HttpContext context, string level, string message, string path, string? stackTrace, string? exceptionType = null)
     {
         try
         {
@@ -41,6 +41,9 @@ public class ErrorLoggingMiddleware(RequestDelegate next)
                 ? context.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value
                 : null;
 
+            var req = context.Request;
+            var url = $"{req.Scheme}://{req.Host}{req.Path}{req.QueryString}";
+
             db.ErrorLogs.Add(new ErrorLog
             {
                 Source = "Backend",
@@ -48,6 +51,8 @@ public class ErrorLoggingMiddleware(RequestDelegate next)
                 Message = message,
                 StackTrace = stackTrace,
                 Path = path,
+                Url = url,
+                ExceptionType = exceptionType,
                 UserEmail = userEmail,
                 IpAddress = context.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = context.Request.Headers.UserAgent.FirstOrDefault(),

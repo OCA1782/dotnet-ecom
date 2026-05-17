@@ -38,6 +38,15 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, toName, subject, body, ct);
     }
 
+    public async Task SendEmailVerificationAsync(string toEmail, string toName, string code, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com")
+            logger.LogInformation("[EMAIL-DEV] VerificationCode={Code} To={To}", code, toEmail);
+        var subject = "E-posta Doğrulama — Ecom";
+        var body = EmailTemplates.EmailVerification(toName, code);
+        await SendAsync(toEmail, toName, subject, body, ct);
+    }
+
     public async Task SendPasswordResetAsync(string toEmail, string toName, string resetToken, CancellationToken ct = default)
     {
         var resetUrl = $"{_resetBaseUrl}?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";

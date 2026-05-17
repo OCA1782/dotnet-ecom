@@ -17,6 +17,24 @@ public class AuthController(IMediator mediator) : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand command, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded)
+            return BadRequest(new { error = result.Error });
+        return Ok(result.Data);
+    }
+
+    [HttpPost("verify-telegram")]
+    public async Task<IActionResult> VerifyTelegram([FromBody] VerifyTelegramCommand command, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded)
+            return BadRequest(new { error = result.Error });
+        return Ok(result.Data);
+    }
+
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command, CancellationToken cancellationToken)
     {
@@ -30,7 +48,6 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command, CancellationToken cancellationToken)
     {
         await mediator.Send(command, cancellationToken);
-        // Always return 200 to avoid user enumeration
         return Ok(new { message = "Şifre sıfırlama bağlantısı gönderildi." });
     }
 

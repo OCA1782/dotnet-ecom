@@ -12,6 +12,8 @@ public record AuditLogDto(
     string Action,
     string EntityName,
     string? EntityId,
+    string? OldValue,
+    string? NewValue,
     string? IpAddress,
     DateTime CreatedDate
 );
@@ -42,6 +44,7 @@ public class GetAuditLogsHandler(IApplicationDbContext db)
         if (!string.IsNullOrWhiteSpace(request.UserEmail))
         {
             var matchingUserIds = await db.Users
+                .IgnoreQueryFilters()
                 .Where(u => u.Email.Contains(request.UserEmail))
                 .Select(u => u.Id)
                 .ToListAsync(cancellationToken);
@@ -60,11 +63,12 @@ public class GetAuditLogsHandler(IApplicationDbContext db)
             .OrderByDescending(l => l.CreatedDate)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(l => new { l.Id, l.UserId, l.Action, l.EntityName, l.EntityId, l.IpAddress, l.CreatedDate })
+            .Select(l => new { l.Id, l.UserId, l.Action, l.EntityName, l.EntityId, l.OldValue, l.NewValue, l.IpAddress, l.CreatedDate })
             .ToListAsync(cancellationToken);
 
         var userIds = logs.Where(l => l.UserId.HasValue).Select(l => l.UserId!.Value).Distinct().ToList();
         var emails = await db.Users
+            .IgnoreQueryFilters()
             .Where(u => userIds.Contains(u.Id))
             .Select(u => new { u.Id, u.Email })
             .ToListAsync(cancellationToken);
@@ -72,7 +76,7 @@ public class GetAuditLogsHandler(IApplicationDbContext db)
         var items = logs.Select(l => new AuditLogDto(
             l.Id, l.UserId,
             l.UserId.HasValue ? (emails.FirstOrDefault(e => e.Id == l.UserId)?.Email ?? "-") : "-",
-            l.Action, l.EntityName, l.EntityId, l.IpAddress, l.CreatedDate
+            l.Action, l.EntityName, l.EntityId, l.OldValue, l.NewValue, l.IpAddress, l.CreatedDate
         )).ToList();
 
         return PaginatedList<AuditLogDto>.Create(items, total, request.Page, request.PageSize);

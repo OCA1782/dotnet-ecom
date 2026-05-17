@@ -71,6 +71,10 @@ backend_log.txt
 
 # Local dev settings
 .claude/
+CLAUDE.md
+claude.md
+AGENTS.md
+agents.md
 
 # Design reference assets
 logo/

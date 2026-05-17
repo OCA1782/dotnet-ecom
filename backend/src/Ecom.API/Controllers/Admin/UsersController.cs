@@ -54,4 +54,12 @@ public class UsersController(IMediator mediator) : ControllerBase
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteUserCommand(id), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }

@@ -61,6 +61,17 @@ internal static class EmailTemplates
             {(trackingUrl is not null ? $"<p><a href=\"{trackingUrl}\" style=\"background:#18181b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;\">Kargumu Takip Et</a></p>" : "")}
         """);
 
+    public static string EmailVerification(string name, string code) =>
+        Wrap("E-posta Doğrulama", $"""
+            <h2 style="color:#18181b;margin:0 0 16px;">Merhaba {name},</h2>
+            <p style="color:#3f3f46;line-height:1.6;">Hesabınızı doğrulamak için aşağıdaki kodu kullanın. Kod 10 dakika geçerlidir.</p>
+            <div style="background:#f4f4f5;border-radius:8px;padding:28px;margin:24px 0;text-align:center;">
+              <p style="margin:0 0 10px;color:#71717a;font-size:13px;">E-posta Doğrulama Kodunuz</p>
+              <p style="margin:0;font-size:40px;font-weight:bold;color:#18181b;letter-spacing:10px;">{code}</p>
+            </div>
+            <p style="color:#71717a;font-size:13px;">Bu kodu siz talep etmediyseniz bu e-postayı görmezden gelebilirsiniz.</p>
+        """);
+
     public static string PasswordReset(string name, string resetUrl) =>
         Wrap("Şifre Sıfırlama", $"""
             <h2 style="color:#18181b;margin:0 0 16px;">Merhaba {name},</h2>

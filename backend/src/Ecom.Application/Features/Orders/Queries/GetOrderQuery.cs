@@ -29,6 +29,16 @@ public record OrderStatusHistoryDto(
     DateTime ChangedAt
 );
 
+public record ShipmentInfoDto(
+    Guid Id,
+    string Carrier,
+    string? TrackingNumber,
+    string? TrackingUrl,
+    int Status,
+    DateTime? ShippedAt,
+    DateTime? DeliveredAt
+);
+
 public record OrderDetailDto(
     Guid Id,
     string OrderNumber,
@@ -47,7 +57,8 @@ public record OrderDetailDto(
     string? Note,
     DateTime CreatedDate,
     IEnumerable<OrderItemDto> Items,
-    IEnumerable<OrderStatusHistoryDto> StatusHistory
+    IEnumerable<OrderStatusHistoryDto> StatusHistory,
+    IEnumerable<ShipmentInfoDto> Shipments
 );
 
 public record GetOrderQuery(string OrderNumber, Guid? UserId = null) : IRequest<Result<OrderDetailDto>>;
@@ -59,6 +70,7 @@ public class GetOrderHandler(IApplicationDbContext db) : IRequestHandler<GetOrde
         var order = await db.Orders
             .Include(o => o.Items)
             .Include(o => o.StatusHistory)
+            .Include(o => o.Shipment)
             .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber, cancellationToken);
 
         if (order is null) return Result<OrderDetailDto>.Failure("Sipariş bulunamadı.");
@@ -80,7 +92,17 @@ public class GetOrderHandler(IApplicationDbContext db) : IRequestHandler<GetOrde
                 i.TaxRate, i.TaxAmount, i.LineTotal, i.ImageUrl)),
             order.StatusHistory
                 .OrderByDescending(h => h.CreatedDate)
-                .Select(h => new OrderStatusHistoryDto(h.FromStatus, h.ToStatus, h.Note, h.CreatedDate))
+                .Select(h => new OrderStatusHistoryDto(h.FromStatus, h.ToStatus, h.Note, h.CreatedDate)),
+            order.Shipment is null
+                ? []
+                : [new ShipmentInfoDto(
+                    order.Shipment.Id,
+                    order.Shipment.CargoCompany,
+                    order.Shipment.TrackingNumber,
+                    order.Shipment.TrackingUrl,
+                    (int)order.Shipment.Status,
+                    order.Shipment.ShippedDate,
+                    order.Shipment.DeliveredDate)]
         );
 
         return Result<OrderDetailDto>.Success(dto);

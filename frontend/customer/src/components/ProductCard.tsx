@@ -2,14 +2,43 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { ProductListItem } from "@/types";
 
-export default function ProductCard({ product }: { product: ProductListItem }) {
+export default function ProductCard({ product, initialLiked = false }: {
+  product: ProductListItem;
+  initialLiked?: boolean;
+}) {
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [liked, setLiked] = useState(initialLiked);
+  const [liking, setLiking] = useState(false);
+
+  async function handleToggleWishlist(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!user) { router.push("/giris"); return; }
+    if (liking) return;
+    setLiking(true);
+    try {
+      if (liked) {
+        await api.delete(`/api/wishlist/${product.id}`);
+      } else {
+        await api.post(`/api/wishlist/${product.id}`, {});
+      }
+      setLiked(l => !l);
+    } catch {
+      // silent
+    } finally {
+      setLiking(false);
+    }
+  }
 
   async function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
@@ -33,6 +62,17 @@ export default function ProductCard({ product }: { product: ProductListItem }) {
             İndirim
           </span>
         )}
+        <button
+          onClick={handleToggleWishlist}
+          disabled={liking}
+          className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow transition-all ${
+            liked ? "bg-red-500 text-white" : "bg-white/80 text-slate-400 hover:text-red-400"
+          } backdrop-blur-sm`}
+          title={liked ? "Favorilerden çıkar" : "Favorilere ekle"}>
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
         <div className="h-44 bg-gradient-to-b from-[#F0FBFA] to-white flex items-center justify-center overflow-hidden">
           {product.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

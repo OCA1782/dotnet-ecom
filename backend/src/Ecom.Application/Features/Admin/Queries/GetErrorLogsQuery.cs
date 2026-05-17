@@ -12,6 +12,8 @@ public record ErrorLogDto(
     string Message,
     string? StackTrace,
     string? Path,
+    string? Url,
+    string? ExceptionType,
     string? UserEmail,
     string? IpAddress,
     string? UserAgent,
@@ -57,7 +59,7 @@ public class GetErrorLogsHandler(IApplicationDbContext db)
             .OrderByDescending(e => e.CreatedDate)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(e => new ErrorLogDto(e.Id, e.Source, e.Level, e.Message, e.StackTrace, e.Path, e.UserEmail, e.IpAddress, e.UserAgent, e.StatusCode, e.CreatedDate))
+            .Select(e => new ErrorLogDto(e.Id, e.Source, e.Level, e.Message, e.StackTrace, e.Path, e.Url, e.ExceptionType, e.UserEmail, e.IpAddress, e.UserAgent, e.StatusCode, e.CreatedDate))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<ErrorLogDto>.Create(items, total, request.Page, request.PageSize);
