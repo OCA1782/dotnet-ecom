@@ -1,0 +1,15 @@
+#!/bin/sh
+# Commit mesajında Claude/Anthropic referansı varsa commit'i reddeder
+
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+
+if echo "$MSG" | grep -iqE "co-authored-by:.*claude|co-authored-by:.*anthropic|noreply@anthropic"; then
+  echo ""
+  echo "HATA: Commit mesajında Claude/Anthropic bilgisi tespit edildi."
+  echo "Lütfen ilgili satırı kaldırıp tekrar deneyin."
+  echo ""
+  exit 1
+fi
+
+exit 0
