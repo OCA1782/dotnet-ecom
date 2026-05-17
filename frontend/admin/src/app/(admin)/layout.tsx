@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
+import NotificationsPanel from "@/components/NotificationsPanel";
 
 const ALL_NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -125,6 +126,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-12 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+            {navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))?.label
+              ?? (pathname === SETTINGS_ITEM.href ? SETTINGS_ITEM.label : "")}
+          </span>
+          <NotificationsPanel />
+        </header>
         <main className="flex-1 overflow-y-auto p-8">{children}</main>
       </div>
     </div>
