@@ -10,6 +10,14 @@ namespace Ecom.API.Controllers.Admin;
 [Route("api/admin/error-logs")]
 public class ErrorLogsController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("stats")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetStats([FromQuery] int days = 7, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetErrorLogStatsQuery(days), ct);
+        return Ok(result);
+    }
+
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetAll(
@@ -44,7 +52,9 @@ public class ErrorLogsController(IMediator mediator) : ControllerBase
             userEmail,
             ip,
             ua,
-            req.StatusCode
+            req.StatusCode,
+            req.ExceptionType,
+            req.Url
         ), ct);
 
         return NoContent();
@@ -57,5 +67,7 @@ public record LogErrorRequest(
     string Message,
     string? StackTrace,
     string? Path,
-    int? StatusCode
+    int? StatusCode,
+    string? ExceptionType = null,
+    string? Url = null
 );

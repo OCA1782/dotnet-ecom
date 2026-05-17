@@ -60,6 +60,9 @@ export default function Header() {
                   <Link href="/hesabim/siparisler" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 hover:text-teal-700 rounded-t-xl">
                     Siparişlerim
                   </Link>
+                  <Link href="/hesabim/favoriler" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 hover:text-teal-700">
+                    Favorilerim
+                  </Link>
                   <Link href="/hesabim/adresler" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 hover:text-teal-700">
                     Adreslerim
                   </Link>

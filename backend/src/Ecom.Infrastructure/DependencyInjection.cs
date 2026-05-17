@@ -31,6 +31,7 @@ public static class DependencyInjection
             services.AddScoped<IPaymentService, MockPaymentService>();
         }
         services.AddScoped<IEmailService, EmailService>();
+        services.AddHttpClient<ITelegramService, TelegramService>();
         services.AddHttpContextAccessor();
 
         return services;

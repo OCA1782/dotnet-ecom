@@ -3,7 +3,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel } from "@/lib/excel";
-import type { AuditLog, PaginatedList } from "@/types";
+import type { PaginatedList } from "@/types";
+
+interface AuditLog {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  action: string;
+  entityName: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  ipAddress?: string;
+  createdDate: string;
+}
 import { Download, Filter, Search } from "lucide-react";
 
 const ENTITY_OPTIONS = [
@@ -13,14 +26,36 @@ const ENTITY_OPTIONS = [
 
 const ACTION_OPTIONS = [
   "Tümü", "Oluşturuldu", "Güncellendi", "Silindi",
+  "Login", "Register", "CreateUser", "UpdateUser", "DeleteUser",
+  "ActivateUser", "DeactivateUser", "VerifyEmail", "VerifyTelegram",
 ];
 
 const PAGE_SIZES = [20, 30, 50, 100];
 
+const ACTION_LABELS: Record<string, string> = {
+  Login: "Giriş",
+  Register: "Kayıt",
+  CreateUser: "Kullanıcı Oluşturuldu",
+  UpdateUser: "Kullanıcı Güncellendi",
+  DeleteUser: "Kullanıcı Silindi",
+  ActivateUser: "Kullanıcı Aktif Edildi",
+  DeactivateUser: "Kullanıcı Pasif Edildi",
+  VerifyEmail: "E-posta Doğrulandı",
+  VerifyTelegram: "Telegram Doğrulandı",
+};
+
+function translateAction(action: string): string {
+  return ACTION_LABELS[action] ?? action;
+}
+
 function actionBadge(action: string) {
-  if (action.includes("Oluşturuldu")) return "bg-green-100 text-green-700";
-  if (action.includes("Silindi")) return "bg-red-100 text-red-700";
-  if (action.includes("Güncellendi")) return "bg-blue-100 text-blue-700";
+  if (action === "DeleteUser" || action.includes("Silindi")) return "bg-red-100 text-red-700";
+  if (action === "CreateUser" || action === "Register" || action.includes("Oluşturuldu")) return "bg-green-100 text-green-700";
+  if (action === "UpdateUser" || action.includes("Güncellendi")) return "bg-blue-100 text-blue-700";
+  if (action === "Login") return "bg-violet-100 text-violet-700";
+  if (action === "ActivateUser") return "bg-emerald-100 text-emerald-700";
+  if (action === "DeactivateUser") return "bg-orange-100 text-orange-700";
+  if (action === "VerifyEmail" || action === "VerifyTelegram") return "bg-sky-100 text-sky-700";
   return "bg-slate-100 text-slate-600";
 }
 
@@ -84,7 +119,7 @@ export default function HareketlerPage() {
       data.items.map(l => ({
         "Tarih": formatDate(l.createdDate),
         "Kullanıcı": l.userEmail,
-        "İşlem": l.action,
+        "İşlem": translateAction(l.action),
         "Varlık": l.entityName,
         "ID": l.entityId ?? "",
         "IP": l.ipAddress ?? "",
@@ -178,7 +213,7 @@ export default function HareketlerPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Tarih", "Kullanıcı", "İşlem", "Varlık", "ID", "IP"].map(h => (
+                {["Tarih", "Kullanıcı", "İşlem", "Varlık", "Detay", "IP"].map(h => (
                   <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
                 ))}
               </tr>
@@ -194,11 +229,17 @@ export default function HareketlerPage() {
                   <td className="px-5 py-3 text-xs text-slate-700">{l.userEmail}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${actionBadge(l.action)}`}>
-                      {l.action}
+                      {translateAction(l.action)}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-xs font-semibold text-slate-700">{l.entityName}</td>
-                  <td className="px-5 py-3 text-xs text-slate-400 font-mono max-w-[120px] truncate">{l.entityId ?? "—"}</td>
+                  <td className="px-5 py-3 text-xs text-slate-600 max-w-[220px]">
+                    {l.newValue
+                      ? <span title={l.newValue} className="truncate block">{l.newValue}</span>
+                      : l.oldValue
+                      ? <span title={l.oldValue} className="truncate block text-slate-400 line-through">{l.oldValue}</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
                   <td className="px-5 py-3 text-xs text-slate-400">{l.ipAddress ?? "—"}</td>
                 </tr>
               ))}

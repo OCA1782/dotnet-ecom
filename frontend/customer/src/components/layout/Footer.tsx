@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getSettings } from "@/lib/settings";
 
 function IconInstagram() {
   return (
@@ -34,7 +35,24 @@ function IconLinkedIn() {
   );
 }
 
-export default function Footer() {
+export default async function Footer() {
+  const settings = await getSettings();
+
+  const siteName = settings.SiteName || "Keyvora";
+  const logoUrl = settings.LogoUrl || "/logo-icon.png";
+  const tagline = settings.Footer_Tagline || "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.";
+  const email = settings.ContactEmail || "";
+  const phone = settings.ContactPhone || "";
+
+  const socials = [
+    { icon: <IconInstagram />, label: "Instagram", url: settings.SocialInstagram || "" },
+    { icon: <IconX />, label: "X", url: settings.SocialTwitter || "" },
+    { icon: <IconYouTube />, label: "YouTube", url: settings.SocialYoutube || "" },
+    { icon: <IconLinkedIn />, label: "LinkedIn", url: settings.SocialLinkedin || "" },
+  ].filter(s => s.url);
+
+  const year = new Date().getFullYear();
+
   return (
     <footer className="bg-[#12304A] text-slate-400 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
@@ -44,27 +62,37 @@ export default function Footer() {
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-icon.png" alt="Keyvora" className="w-full h-full object-contain p-0.5" />
+                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain p-0.5" />
               </div>
-              <span className="text-white font-bold text-xl">Keyvora</span>
+              <span className="text-white font-bold text-xl">{siteName}</span>
             </div>
-            <p className="text-sm text-slate-400 mb-5 leading-relaxed">
-              Keyifli alışverişin yeni adresi.<br />Sevdiğin ürünler, güvenli ödeme.
+            <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
+              {tagline}
             </p>
-            {/* Sosyal medya */}
-            <div className="flex gap-2">
-              {[
-                { icon: <IconInstagram />, label: "Instagram" },
-                { icon: <IconX />, label: "X" },
-                { icon: <IconYouTube />, label: "YouTube" },
-                { icon: <IconLinkedIn />, label: "LinkedIn" },
-              ].map(s => (
-                <a key={s.label} href="#" aria-label={s.label}
-                  className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
-                  {s.icon}
-                </a>
-              ))}
-            </div>
+            {socials.length > 0 ? (
+              <div className="flex gap-2">
+                {socials.map(s => (
+                  <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label}
+                    className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
+                    {s.icon}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {[
+                  { icon: <IconInstagram />, label: "Instagram" },
+                  { icon: <IconX />, label: "X" },
+                  { icon: <IconYouTube />, label: "YouTube" },
+                  { icon: <IconLinkedIn />, label: "LinkedIn" },
+                ].map(s => (
+                  <a key={s.label} href="#" aria-label={s.label}
+                    className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
+                    {s.icon}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Hesabım */}
@@ -82,10 +110,10 @@ export default function Footer() {
           <div>
             <h4 className="text-white text-sm font-semibold mb-4">Yardım</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link href="#" className="hover:text-white transition">SSS</Link></li>
-              <li><Link href="#" className="hover:text-white transition">İade & Değişim</Link></li>
-              <li><Link href="#" className="hover:text-white transition">Kargo Takibi</Link></li>
-              <li><Link href="#" className="hover:text-white transition">İletişim</Link></li>
+              <li><Link href="/sss" className="hover:text-white transition">SSS</Link></li>
+              <li><Link href="/iade-degisim" className="hover:text-white transition">İade & Değişim</Link></li>
+              <li><Link href="/kargo-takibi" className="hover:text-white transition">Kargo Takibi</Link></li>
+              <li><Link href="/iletisim" className="hover:text-white transition">İletişim</Link></li>
             </ul>
           </div>
 
@@ -93,21 +121,23 @@ export default function Footer() {
           <div>
             <h4 className="text-white text-sm font-semibold mb-4">Kurumsal</h4>
             <ul className="space-y-2.5 text-sm mb-5">
-              <li><Link href="#" className="hover:text-white transition">Hakkımızda</Link></li>
-              <li><Link href="#" className="hover:text-white transition">KVKK</Link></li>
-              <li><Link href="#" className="hover:text-white transition">Gizlilik Politikası</Link></li>
+              <li><Link href="/hakkimizda" className="hover:text-white transition">Hakkımızda</Link></li>
+              <li><Link href="/kvkk" className="hover:text-white transition">KVKK</Link></li>
+              <li><Link href="/gizlilik" className="hover:text-white transition">Gizlilik Politikası</Link></li>
             </ul>
-            <div className="space-y-1.5 text-xs text-slate-500">
-              <p className="text-slate-400 font-medium text-sm">İletişim</p>
-              <p>destek@keyvora.com</p>
-              <p>0850 000 00 00</p>
-            </div>
+            {(email || phone) && (
+              <div className="space-y-1.5 text-xs text-slate-500">
+                <p className="text-slate-400 font-medium text-sm">İletişim</p>
+                {email && <p>{email}</p>}
+                {phone && <p>{phone}</p>}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Ödeme yöntemleri */}
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500">© 2026 Keyvora. Tüm hakları saklıdır.</p>
+          <p className="text-xs text-slate-500">© {year} {siteName}. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 mr-1">Güvenli ödeme:</span>
             {["VISA", "MC", "TROY", "SSL"].map(p => (

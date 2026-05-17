@@ -10,8 +10,9 @@ import { ORDER_STATUS, ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
 import {
   ArrowLeft, Package, User, MapPin, CreditCard, Truck,
   FileText, Clock, ChevronRight, AlertCircle, CheckCircle2,
-  Phone, Mail, Hash, Tag, ShoppingBag, Receipt,
+  Phone, Mail, Hash, Tag, ShoppingBag, Receipt, AlertTriangle,
 } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const ALLOWED_TRANSITIONS: Record<number, number[]> = {
   1:  [2, 8, 11, 12],
@@ -125,6 +126,7 @@ export default function AdminOrderDetailPage() {
   const [newStatus, setNewStatus] = useState<number | "">("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [showShipmentForm, setShowShipmentForm] = useState(false);
   const [shipmentForm, setShipmentForm] = useState({ trackingNumber: "", carrier: "Yurtiçi Kargo" });
   const [creatingShipment, setCreatingShipment] = useState(false);
@@ -197,7 +199,30 @@ export default function AdminOrderDetailPage() {
   const discountAmount = (order.totalProductAmount + order.shippingAmount) - order.grandTotal + order.taxAmount
     - ((order.totalProductAmount + order.shippingAmount + order.taxAmount) - order.grandTotal);
 
+  const isDangerousStatus = newStatus === 8 || newStatus === 11;
+  const statusConfirmMessage = newStatus !== ""
+    ? `Sipariş durumu "${ORDER_STATUS[order?.status ?? 0] ?? "—"}" → "${ORDER_STATUS[Number(newStatus)] ?? "—"}" olarak değiştirilecek.${isDangerousStatus ? " Bu işlem geri alınamaz." : ""}`
+    : "";
+
   return (
+    <>
+    {showStatusConfirm && newStatus !== "" && (
+      <ConfirmModal
+        title="Durum Değiştirmeyi Onayla"
+        message={statusConfirmMessage}
+        confirmLabel={updatingStatus ? "Güncelleniyor..." : "Evet, Güncelle"}
+        cancelLabel="Vazgeç"
+        danger={isDangerousStatus}
+        icon={isDangerousStatus
+          ? <AlertTriangle size={16} className="text-red-500" />
+          : <CheckCircle2 size={16} className="text-teal-500" />}
+        onConfirm={async () => {
+          setShowStatusConfirm(false);
+          await handleStatusUpdate();
+        }}
+        onCancel={() => setShowStatusConfirm(false)}
+      />
+    )}
     <div className="space-y-5 max-w-6xl">
 
       {/* ── Header ── */}
@@ -309,7 +334,7 @@ export default function AdminOrderDetailPage() {
                         <option key={s} value={s}>{ORDER_STATUS[s]}</option>
                       ))}
                     </select>
-                    <button onClick={handleStatusUpdate}
+                    <button onClick={() => { if (newStatus !== "") setShowStatusConfirm(true); }}
                       disabled={updatingStatus || newStatus === ""}
                       className="px-5 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition disabled:opacity-40 font-semibold">
                       {updatingStatus ? "Güncelleniyor..." : "Güncelle"}
@@ -332,12 +357,23 @@ export default function AdminOrderDetailPage() {
             <div className="p-5 space-y-3">
               {order.shipments?.length > 0 ? (
                 order.shipments.map((s) => (
-                  <div key={s.id} className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 flex items-start justify-between gap-4">
-                    <div>
+                  <div key={s.id} className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-4">
                       <p className="text-sm font-semibold text-purple-800">{s.carrier}</p>
-                      <p className="text-xs text-purple-600 font-mono mt-0.5">{s.trackingNumber}</p>
+                      {s.shippedAt && <p className="text-xs text-purple-400 shrink-0">{formatDate(s.shippedAt)}</p>}
                     </div>
-                    <p className="text-xs text-purple-400 shrink-0">{formatDate(s.shippedAt)}</p>
+                    {s.trackingNumber && (
+                      <p className="text-xs text-purple-600 font-mono">{s.trackingNumber}</p>
+                    )}
+                    {s.trackingUrl && (
+                      <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-teal-600 hover:text-teal-800 underline">
+                        Kargo takibini aç →
+                      </a>
+                    )}
+                    {s.deliveredAt && (
+                      <p className="text-xs text-emerald-600 font-medium">✓ Teslim: {formatDate(s.deliveredAt)}</p>
+                    )}
                   </div>
                 ))
               ) : (
@@ -467,5 +503,6 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

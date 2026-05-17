@@ -155,6 +155,47 @@ export default function OrderDetailPage() {
         </div>
       )}
 
+      {/* Shipment tracking */}
+      {order.shipments?.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+            <span className="text-lg">🚚</span>
+            <h2 className="font-semibold text-slate-800">Kargo Bilgisi</h2>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {order.shipments.map((s) => (
+              <div key={s.id} className="px-5 py-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-800">{s.carrier}</span>
+                  {s.shippedAt && (
+                    <span className="text-xs text-slate-400">{formatDate(s.shippedAt)}</span>
+                  )}
+                </div>
+                {s.trackingNumber && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Takip No:</span>
+                    <span className="text-xs font-mono font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded">
+                      {s.trackingNumber}
+                    </span>
+                  </div>
+                )}
+                {s.trackingUrl && (
+                  <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 font-medium underline">
+                    Kargo takip sayfasını aç →
+                  </a>
+                )}
+                {s.deliveredAt && (
+                  <p className="text-xs text-emerald-600 font-medium">
+                    ✓ Teslim edildi: {formatDate(s.deliveredAt)}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Status History */}
       {order.statusHistory?.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5">

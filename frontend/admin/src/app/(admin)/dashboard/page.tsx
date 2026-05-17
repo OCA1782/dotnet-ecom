@@ -277,11 +277,15 @@ function HeroCard({
   return inner;
 }
 
+type Period = "today" | "week" | "month";
+const PERIOD_LABELS: Record<Period, string> = { today: "Bugün", week: "Bu Hafta", month: "Bu Ay" };
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshIn, setRefreshIn] = useState(30);
+  const [period, setPeriod] = useState<Period>("today");
 
   const fetchData = useCallback(async () => {
     try {
@@ -307,6 +311,17 @@ export default function DashboardPage() {
     return () => clearInterval(iv);
   }, [fetchData]);
 
+  const weekSalesRaw = (stats?.weeklyOrders ?? []).reduce((s, d) => s + d.revenue, 0);
+  const weekOrdersRaw = (stats?.weeklyOrders ?? []).reduce((s, d) => s + d.orderCount, 0);
+  const periodSalesRaw = period === "today" ? (stats?.todaySales ?? 0)
+    : period === "week" ? weekSalesRaw
+    : (stats?.monthSales ?? 0);
+  const periodOrdersRaw = period === "today" ? (stats?.todayOrderCount ?? 0)
+    : period === "week" ? weekOrdersRaw
+    : (stats?.monthOrderCount ?? 0);
+
+  const periodSalesAnim = useCountUp(periodSalesRaw);
+  const periodOrdersAnim = useCountUp(periodOrdersRaw, 800);
   const todaySales = useCountUp(stats?.todaySales ?? 0);
   const monthSales = useCountUp(stats?.monthSales ?? 0);
   const todayOrderCount = useCountUp(stats?.todayOrderCount ?? 0, 800);
@@ -354,14 +369,27 @@ export default function DashboardPage() {
       `}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-xs text-slate-400 mt-0.5">
             {new Date().toLocaleDateString("tr-TR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Period tabs */}
+          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-0.5">
+            {(["today", "week", "month"] as Period[]).map((p) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  period === p
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}>
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
           <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 min-w-[160px]">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
             <LiveTicker items={tickerItems} />
@@ -467,16 +495,16 @@ export default function DashboardPage() {
         {/* Sipariş KPI kartları */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <HeroCard
-            value={String(todayOrderCount)}
-            label="Bugün Sipariş"
+            value={String(periodOrdersAnim)}
+            label={`${PERIOD_LABELS[period]} Sipariş`}
             sub="adet"
             gradient="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"
             icon={ShoppingCart}
           />
           <HeroCard
             value={String(monthOrderCount)}
-            label="Bu Ay Sipariş"
-            sub="adet"
+            label="Bu Ay Toplam"
+            sub={`${stats.todayOrderCount} bugün`}
             gradient="linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
             icon={Activity}
           />
@@ -592,16 +620,16 @@ export default function DashboardPage() {
         {/* Gelir KPI kartları */}
         <div className="grid grid-cols-2 gap-4">
           <HeroCard
-            value={formatPrice(todaySales)}
-            label="Bugün Gelir"
-            sub={`${stats.todayOrderCount} sipariş`}
+            value={formatPrice(periodSalesAnim)}
+            label={`${PERIOD_LABELS[period]} Geliri`}
+            sub={`${periodOrdersRaw} sipariş`}
             gradient="linear-gradient(135deg, #10b981 0%, #14b8a6 100%)"
             icon={Zap}
           />
           <HeroCard
             value={formatPrice(monthSales)}
-            label="Bu Ay Gelir"
-            sub={`${stats.monthOrderCount ?? 0} sipariş`}
+            label="Bu Ay Toplam"
+            sub={`${formatPrice(todaySales)} bugün`}
             gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
             icon={TrendingUp}
           />

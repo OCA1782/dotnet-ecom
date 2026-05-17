@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate } from "@/lib/utils";
 import type { AdminUser, PaginatedList } from "@/types";
-import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -56,6 +56,9 @@ export default function UsersPage() {
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -113,6 +116,20 @@ export default function UsersPage() {
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
     }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/admin/users/${deleteTarget.id}`);
+      setMsg({ text: "Kullanıcı silindi.", ok: true });
+      setDeleteTarget(null);
+      await fetchUsers();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silinemedi", ok: false });
+      setDeleteTarget(null);
+    } finally { setDeleting(false); }
   }
 
   function handleExport() {
@@ -246,6 +263,10 @@ export default function UsersPage() {
                         className={`w-9 h-9 flex items-center justify-center rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${u.isActive ? "bg-green-50 text-green-600 hover:bg-green-500 hover:text-white hover:shadow-green-200 hover:shadow-md" : "bg-slate-100 text-slate-500 hover:bg-emerald-500 hover:text-white hover:shadow-emerald-200 hover:shadow-md"}`}>
                         {u.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                       </button>
+                      <button onClick={() => setDeleteTarget(u)} title="Sil"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -302,6 +323,33 @@ export default function UsersPage() {
                 <button onClick={handleCreate} disabled={saving}
                   className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
                   {saving ? "Kaydediliyor..." : "Oluştur"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 size={18} className="text-red-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">Kullanıcıyı Sil</p>
+                  <p className="text-sm text-slate-500">{deleteTarget.name} {deleteTarget.surname}</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600">Bu işlem geri alınamaz. Kullanıcıya ait tüm veriler silinecek.</p>
+              <div className="flex justify-end gap-3 pt-1">
+                <button onClick={() => setDeleteTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                  {deleting ? "Siliniyor..." : "Evet, Sil"}
                 </button>
               </div>
             </div>

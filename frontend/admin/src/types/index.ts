@@ -128,9 +128,12 @@ export interface AdminOrderDetail extends AdminOrderSummary {
   }[];
   shipments: {
     id: string;
-    trackingNumber: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
     carrier: string;
-    shippedAt: string;
+    status: number;
+    shippedAt?: string;
+    deliveredAt?: string;
   }[];
 }
 

@@ -9,6 +9,8 @@ public class ErrorLog : BaseEntity
     public string Message { get; set; } = string.Empty;
     public string? StackTrace { get; set; }
     public string? Path { get; set; }
+    public string? Url { get; set; }
+    public string? ExceptionType { get; set; }
     public string? UserEmail { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }

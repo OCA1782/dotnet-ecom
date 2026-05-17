@@ -19,7 +19,7 @@ public record RegisterCommand(
     bool CommercialConsent
 ) : IRequest<Result<RegisterResult>>;
 
-public record RegisterResult(Guid UserId, string Email, string Token);
+public record RegisterResult(Guid UserId, string Name, string Surname, string Email);
 
 public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
@@ -36,15 +36,20 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 public class RegisterCommandHandler(
     IApplicationDbContext db,
     IPasswordService passwordService,
-    IJwtService jwtService,
-    IAuditService auditService
+    IAuditService auditService,
+    IEmailService emailService,
+    ITelegramService telegramService
 ) : IRequestHandler<RegisterCommand, Result<RegisterResult>>
 {
     public async Task<Result<RegisterResult>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var emailExists = await db.Users.AnyAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
+        var emailExists = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
         if (emailExists)
             return Result<RegisterResult>.Failure("Bu e-posta adresi zaten kayıtlı.");
+
+        var emailCode = GenerateCode();
+        var telegramCode = GenerateCode();
+        var expiry = DateTime.UtcNow.AddMinutes(10);
 
         var user = new User
         {
@@ -55,7 +60,11 @@ public class RegisterCommandHandler(
             PasswordHash = passwordService.Hash(request.Password),
             KvkkConsent = request.KvkkConsent,
             CommercialConsent = request.CommercialConsent,
-            KvkkConsentDate = request.KvkkConsent ? DateTime.UtcNow : null
+            KvkkConsentDate = request.KvkkConsent ? DateTime.UtcNow : null,
+            EmailVerificationCode = emailCode,
+            EmailVerificationCodeExpiry = expiry,
+            TelegramVerificationCode = telegramCode,
+            TelegramVerificationCodeExpiry = expiry
         };
 
         var customerRole = new UserRoleEntity
@@ -70,7 +79,12 @@ public class RegisterCommandHandler(
 
         await auditService.LogAsync("Register", "User", user.Id.ToString(), userId: user.Id, cancellationToken: cancellationToken);
 
-        var token = jwtService.GenerateToken(user, ["Customer"]);
-        return Result<RegisterResult>.Success(new RegisterResult(user.Id, user.Email, token));
+        try { await emailService.SendEmailVerificationAsync(user.Email, user.Name, emailCode, cancellationToken); } catch { }
+        try { await telegramService.SendAsync($"Ecom Doğrulama — Merhaba {user.Name}, Telegram doğrulama kodunuz: {telegramCode} (10 dakika geçerlidir)", cancellationToken); } catch { }
+
+        return Result<RegisterResult>.Success(new RegisterResult(user.Id, user.Name, user.Surname, user.Email));
     }
+
+    private static string GenerateCode() =>
+        Random.Shared.Next(100000, 999999).ToString();
 }

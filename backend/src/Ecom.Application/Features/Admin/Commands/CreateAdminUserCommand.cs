@@ -29,8 +29,12 @@ public class CreateAdminUserValidator : AbstractValidator<CreateAdminUserCommand
     }
 }
 
-public class CreateAdminUserHandler(IApplicationDbContext db, IPasswordService passwordService)
-    : IRequestHandler<CreateAdminUserCommand, Result<Guid>>
+public class CreateAdminUserHandler(
+    IApplicationDbContext db,
+    IPasswordService passwordService,
+    ICurrentUserService currentUser,
+    IAuditService auditService
+) : IRequestHandler<CreateAdminUserCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateAdminUserCommand request, CancellationToken cancellationToken)
     {
@@ -55,6 +59,10 @@ public class CreateAdminUserHandler(IApplicationDbContext db, IPasswordService p
 
         db.UserRoles.Add(new UserRole { UserId = user.Id, Role = role });
         await db.SaveChangesAsync(cancellationToken);
+
+        await auditService.LogAsync("CreateUser", "User", user.Id.ToString(),
+            newValue: $"{user.Name} {user.Surname} <{user.Email}> rol={request.Role}",
+            userId: currentUser.UserId, cancellationToken: cancellationToken);
 
         return Result<Guid>.Success(user.Id);
     }

@@ -148,6 +148,26 @@ export interface OrderDetail extends OrderSummary {
     note?: string;
     changedAt: string;
   }[];
+  shipments: {
+    id: string;
+    carrier: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+    status: number;
+    shippedAt?: string;
+    deliveredAt?: string;
+  }[];
+}
+
+export interface WishlistItem {
+  id: string;
+  productId: string;
+  name: string;
+  slug: string;
+  price: number;
+  discountPrice?: number;
+  imageUrl?: string;
+  isActive: boolean;
 }
 
 export interface ReviewDto {

@@ -14,8 +14,11 @@ public record UpdateAdminUserCommand(
     string Role
 ) : IRequest<Result<bool>>;
 
-public class UpdateAdminUserHandler(IApplicationDbContext db)
-    : IRequestHandler<UpdateAdminUserCommand, Result<bool>>
+public class UpdateAdminUserHandler(
+    IApplicationDbContext db,
+    ICurrentUserService currentUser,
+    IAuditService auditService
+) : IRequestHandler<UpdateAdminUserCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(UpdateAdminUserCommand request, CancellationToken cancellationToken)
     {
@@ -24,6 +27,8 @@ public class UpdateAdminUserHandler(IApplicationDbContext db)
 
         if (!Enum.TryParse<UserRoleEnum>(request.Role, ignoreCase: true, out var role))
             return Result<bool>.Failure("Geçersiz rol.");
+
+        var oldValue = $"{user.Name} {user.Surname}";
 
         user.Name = request.Name;
         user.Surname = request.Surname;
@@ -36,6 +41,12 @@ public class UpdateAdminUserHandler(IApplicationDbContext db)
         db.UserRoles.Add(new UserRole { UserId = request.Id, Role = role });
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await auditService.LogAsync("UpdateUser", "User", request.Id.ToString(),
+            oldValue: oldValue,
+            newValue: $"{user.Name} {user.Surname} rol={request.Role}",
+            userId: currentUser.UserId, cancellationToken: cancellationToken);
+
         return Result<bool>.Success(true);
     }
 }
