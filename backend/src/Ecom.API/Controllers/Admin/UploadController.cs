@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ecom.API.Controllers.Admin;
 
 [ApiController]
 [Route("api/admin/upload")]
 [Authorize(Roles = "SuperAdmin,Admin,ProductManager,ContentManager")]
+[EnableRateLimiting("upload")]
 public class UploadController(IWebHostEnvironment env) : ControllerBase
 {
     private static readonly string[] AllowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
