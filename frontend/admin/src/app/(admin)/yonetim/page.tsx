@@ -7,6 +7,7 @@ import {
   Save, Upload, Loader2, CheckCircle, GripVertical,
   Share2, Image as ImageIcon, Link, ChevronUp, ChevronDown,
   Plus, Trash2, HelpCircle, RefreshCw, MapPin, Clock, Phone, Mail,
+  SendHorizonal, XCircle,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -196,6 +197,9 @@ export default function YonetimPage() {
   const [saved, setSaved]         = useState(false);
   const [uploadingLogo, setUploadingLogo]       = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [testEmail, setTestEmail]               = useState("");
+  const [testEmailSending, setTestEmailSending] = useState(false);
+  const [testEmailResult, setTestEmailResult]   = useState<{ ok: boolean; msg: string } | null>(null);
   const logoRef    = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
 
@@ -239,6 +243,20 @@ export default function YonetimPage() {
       const data = await res.json();
       if (data.url) set(type === "logo" ? "LogoUrl" : "FaviconUrl", data.url);
     } finally { setUploading(false); }
+  }
+
+  async function sendTestEmail() {
+    if (!testEmail.trim()) return;
+    setTestEmailSending(true);
+    setTestEmailResult(null);
+    try {
+      await api.post("/api/admin/email/test", { toEmail: testEmail });
+      setTestEmailResult({ ok: true, msg: `Test e-postası ${testEmail} adresine gönderildi.` });
+    } catch {
+      setTestEmailResult({ ok: false, msg: "Gönderilemedi. SMTP ayarlarını kontrol edin." });
+    } finally {
+      setTestEmailSending(false);
+    }
   }
 
   if (loading) return (
@@ -594,6 +612,42 @@ export default function YonetimPage() {
                 <Shield size={14} /> Dikkat: Bakım modu aktif. Müşteri sitesi şu anda erişilemez.
               </div>
             )}
+          </Section>
+          <Section title="E-posta / SMTP Test" icon={<Mail size={16} />}
+            subtitle="SMTP yapılandırmanızın çalıştığını doğrulamak için test e-postası gönderin. appsettings.json → Email bölümünü doldurun.">
+            <div className="space-y-3">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs text-slate-600 space-y-1 font-mono">
+                <p>SmtpHost → <span className="text-slate-900">appsettings.json : Email:SmtpHost</span></p>
+                <p>SmtpPort → <span className="text-slate-900">587 (StartTLS) veya 465 (SSL — UseSsl: true)</span></p>
+                <p>Gmail    → host: smtp.gmail.com, port: 587, UseSsl: false</p>
+                <p>Mailtrap → host: sandbox.smtp.mailtrap.io, port: 587</p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={e => setTestEmail(e.target.value)}
+                  placeholder="test@example.com"
+                  className={inp + " flex-1"}
+                  onKeyDown={e => e.key === "Enter" && sendTestEmail()}
+                />
+                <button onClick={sendTestEmail} disabled={testEmailSending || !testEmail.trim()}
+                  className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
+                  {testEmailSending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                  Gönder
+                </button>
+              </div>
+              {testEmailResult && (
+                <div className={`flex items-center gap-2 p-3 rounded-xl text-sm border ${
+                  testEmailResult.ok
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}>
+                  {testEmailResult.ok ? <CheckCircle size={15} /> : <XCircle size={15} />}
+                  {testEmailResult.msg}
+                </div>
+              )}
+            </div>
           </Section>
           <Section title="Sistem Bilgisi" icon={<Settings size={16} />}>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
