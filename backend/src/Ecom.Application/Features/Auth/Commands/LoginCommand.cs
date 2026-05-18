@@ -33,10 +33,21 @@ public class LoginCommandHandler(
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
 
         if (user is null || !passwordService.Verify(request.Password, user.PasswordHash))
+        {
+            await auditService.LogAsync("LoginFailed", "User",
+                entityId: user?.Id.ToString() ?? request.Email,
+                newValue: $"Başarısız giriş: {request.Email}",
+                userId: user?.Id, cancellationToken: cancellationToken);
             return Result<LoginResult>.Failure("E-posta veya şifre hatalı.");
+        }
 
         if (!user.IsActive)
+        {
+            await auditService.LogAsync("LoginFailed", "User", user.Id.ToString(),
+                newValue: $"Pasif hesap giriş denemesi: {request.Email}",
+                userId: user.Id, cancellationToken: cancellationToken);
             return Result<LoginResult>.Failure("Hesabınız pasif durumda. Lütfen destek ile iletişime geçin.");
+        }
 
         user.LastLoginDate = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);

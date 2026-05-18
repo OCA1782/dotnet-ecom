@@ -23,7 +23,26 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
             req.ShippingAddressId, req.BillingAddressId, req.Note), ct);
 
         return result.Succeeded
-            ? Ok(new { orderNumber = result.Data })
+            ? Ok(new { orderNumber = result.Data!.OrderNumber, id = result.Data.OrderId })
+            : BadRequest(result.Error);
+    }
+
+    [HttpPost("guest")]
+    public async Task<IActionResult> CreateGuest([FromBody] CreateGuestOrderRequest req, CancellationToken ct)
+    {
+        var sessionId = Request.Cookies.TryGetValue(SessionCookieName, out var sid) ? sid : null;
+        if (string.IsNullOrEmpty(sessionId))
+            return BadRequest(new { error = "Oturum bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin." });
+
+        var address = new GuestAddressInfo(
+            req.FirstName, req.LastName, req.Phone,
+            req.City, req.District, req.FullAddress, req.PostalCode);
+
+        var result = await mediator.Send(new CreateOrderCommand(
+            null, sessionId, null, null, req.Note, req.GuestEmail, address), ct);
+
+        return result.Succeeded
+            ? Ok(new { orderNumber = result.Data!.OrderNumber, id = result.Data.OrderId })
             : BadRequest(result.Error);
     }
 
@@ -127,6 +146,19 @@ public class CreateOrderRequest
 {
     public Guid ShippingAddressId { get; set; }
     public Guid? BillingAddressId { get; set; }
+    public string? Note { get; set; }
+}
+
+public class CreateGuestOrderRequest
+{
+    public string GuestEmail { get; set; } = "";
+    public string FirstName { get; set; } = "";
+    public string LastName { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string City { get; set; } = "";
+    public string District { get; set; } = "";
+    public string FullAddress { get; set; } = "";
+    public string? PostalCode { get; set; }
     public string? Note { get; set; }
 }
 

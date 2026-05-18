@@ -46,6 +46,8 @@ export function useAuth() {
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY, JSON.stringify(data));
     setUser(data);
+    // Merge guest cart into user cart after login (fire-and-forget)
+    api.post("/api/cart/merge", {}).catch(() => {});
     return data;
   }, []);
 

@@ -9,14 +9,27 @@ using System.Text.Json;
 
 namespace Ecom.Application.Features.Orders.Commands;
 
+public record GuestAddressInfo(
+    string FirstName,
+    string LastName,
+    string Phone,
+    string City,
+    string District,
+    string FullAddress,
+    string? PostalCode = null
+);
+
+public record OrderCreatedResult(string OrderNumber, Guid OrderId);
+
 public record CreateOrderCommand(
     Guid? UserId,
     string? SessionId,
-    Guid ShippingAddressId,
+    Guid? ShippingAddressId,
     Guid? BillingAddressId,
     string? Note,
-    string? GuestEmail = null
-) : IRequest<Result<string>>;
+    string? GuestEmail = null,
+    GuestAddressInfo? GuestShippingAddress = null
+) : IRequest<Result<OrderCreatedResult>>;
 
 public class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
 {
@@ -24,7 +37,8 @@ public class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
     {
         RuleFor(x => x).Must(x => x.UserId.HasValue || !string.IsNullOrEmpty(x.GuestEmail))
             .WithMessage("Kayıtlı kullanıcı veya misafir e-postası zorunludur.");
-        RuleFor(x => x.ShippingAddressId).NotEmpty();
+        RuleFor(x => x).Must(x => x.ShippingAddressId.HasValue || x.GuestShippingAddress != null)
+            .WithMessage("Teslimat adresi zorunludur.");
     }
 }
 
@@ -32,9 +46,9 @@ public class CreateOrderHandler(
     IApplicationDbContext db,
     IStockService stockService,
     IEmailService emailService
-) : IRequestHandler<CreateOrderCommand, Result<string>>
+) : IRequestHandler<CreateOrderCommand, Result<OrderCreatedResult>>
 {
-    public async Task<Result<string>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
+    public async Task<Result<OrderCreatedResult>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         // Load cart
         var cart = await db.Carts
@@ -45,20 +59,64 @@ public class CreateOrderHandler(
                 cancellationToken);
 
         if (cart is null || !cart.Items.Any())
-            return Result<string>.Failure("Sepet boş veya bulunamadı.");
+            return Result<OrderCreatedResult>.Failure("Sepet boş veya bulunamadı.");
 
-        // Load shipping address
-        var shippingAddress = await db.UserAddresses
-            .FirstOrDefaultAsync(a => a.Id == request.ShippingAddressId, cancellationToken);
-        if (shippingAddress is null)
-            return Result<string>.Failure("Teslimat adresi bulunamadı.");
+        // Build shipping address snapshot
+        string shippingSnapshot;
+        if (request.ShippingAddressId.HasValue)
+        {
+            var addr = await db.UserAddresses
+                .FirstOrDefaultAsync(a => a.Id == request.ShippingAddressId, cancellationToken);
+            if (addr is null)
+                return Result<OrderCreatedResult>.Failure("Teslimat adresi bulunamadı.");
+            shippingSnapshot = JsonSerializer.Serialize(new
+            {
+                addr.AddressTitle, addr.FirstName, addr.LastName, addr.PhoneNumber,
+                addr.Country, addr.City, addr.District, addr.Neighborhood,
+                addr.FullAddress, addr.PostalCode
+            });
+        }
+        else if (request.GuestShippingAddress is { } ga)
+        {
+            shippingSnapshot = JsonSerializer.Serialize(new
+            {
+                AddressTitle = "Teslimat Adresi",
+                ga.FirstName, ga.LastName,
+                PhoneNumber = ga.Phone,
+                Country = "TR",
+                ga.City, ga.District,
+                Neighborhood = "",
+                ga.FullAddress,
+                PostalCode = ga.PostalCode ?? ""
+            });
+        }
+        else
+        {
+            return Result<OrderCreatedResult>.Failure("Teslimat adresi zorunludur.");
+        }
 
-        // Load billing address (defaults to shipping if not specified)
-        var billingAddress = request.BillingAddressId.HasValue
-            ? await db.UserAddresses.FirstOrDefaultAsync(a => a.Id == request.BillingAddressId, cancellationToken)
-            : shippingAddress;
+        // Build billing address snapshot (defaults to shipping)
+        string billingSnapshot;
+        if (request.BillingAddressId.HasValue)
+        {
+            var bAddr = await db.UserAddresses
+                .FirstOrDefaultAsync(a => a.Id == request.BillingAddressId, cancellationToken);
+            billingSnapshot = bAddr is not null
+                ? JsonSerializer.Serialize(new
+                {
+                    bAddr.AddressTitle, bAddr.FirstName, bAddr.LastName, bAddr.PhoneNumber,
+                    bAddr.Country, bAddr.City, bAddr.District, bAddr.Neighborhood,
+                    bAddr.FullAddress, bAddr.PostalCode, bAddr.InvoiceType, bAddr.TaxNumber,
+                    bAddr.TaxOffice, bAddr.CompanyName
+                })
+                : shippingSnapshot;
+        }
+        else
+        {
+            billingSnapshot = shippingSnapshot;
+        }
 
-        // Load products and variants for snapshots
+        // Load cart item products, variants and images
         var productIds = cart.Items.Select(i => i.ProductId).Distinct().ToList();
         var products = await db.Products
             .Where(p => productIds.Contains(p.Id))
@@ -85,7 +143,7 @@ public class CreateOrderHandler(
             if (stock is null || stock.AvailableQuantity < item.Quantity)
             {
                 var product = products.First(p => p.Id == item.ProductId);
-                return Result<string>.Failure($"'{product.Name}' için yeterli stok yok.");
+                return Result<OrderCreatedResult>.Failure($"'{product.Name}' için yeterli stok yok.");
             }
         }
 
@@ -204,39 +262,6 @@ public class CreateOrderHandler(
 
         decimal grandTotal = Math.Max(0, totalProductAmount + shippingAmount - discountAmount);
 
-        // Serialize address snapshots
-        var shippingSnapshot = JsonSerializer.Serialize(new
-        {
-            shippingAddress.AddressTitle,
-            shippingAddress.FirstName,
-            shippingAddress.LastName,
-            shippingAddress.PhoneNumber,
-            shippingAddress.Country,
-            shippingAddress.City,
-            shippingAddress.District,
-            shippingAddress.Neighborhood,
-            shippingAddress.FullAddress,
-            shippingAddress.PostalCode
-        });
-
-        var billingSnapshot = JsonSerializer.Serialize(new
-        {
-            billingAddress!.AddressTitle,
-            billingAddress.FirstName,
-            billingAddress.LastName,
-            billingAddress.PhoneNumber,
-            billingAddress.Country,
-            billingAddress.City,
-            billingAddress.District,
-            billingAddress.Neighborhood,
-            billingAddress.FullAddress,
-            billingAddress.PostalCode,
-            billingAddress.InvoiceType,
-            billingAddress.TaxNumber,
-            billingAddress.TaxOffice,
-            billingAddress.CompanyName
-        });
-
         var order = new Order
         {
             OrderNumber = orderNumber,
@@ -308,6 +333,6 @@ public class CreateOrderHandler(
         }
         catch { /* email failure should not affect order creation */ }
 
-        return Result<string>.Success(order.OrderNumber);
+        return Result<OrderCreatedResult>.Success(new OrderCreatedResult(order.OrderNumber, order.Id));
     }
 }

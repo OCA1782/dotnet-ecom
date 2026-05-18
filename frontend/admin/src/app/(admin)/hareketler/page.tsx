@@ -26,7 +26,7 @@ const ENTITY_OPTIONS = [
 
 const ACTION_OPTIONS = [
   "Tümü", "Oluşturuldu", "Güncellendi", "Silindi",
-  "Login", "Register", "CreateUser", "UpdateUser", "DeleteUser",
+  "Login", "LoginFailed", "Register", "CreateUser", "UpdateUser", "DeleteUser",
   "ActivateUser", "DeactivateUser", "VerifyEmail", "VerifyTelegram",
 ];
 
@@ -34,6 +34,7 @@ const PAGE_SIZES = [20, 30, 50, 100];
 
 const ACTION_LABELS: Record<string, string> = {
   Login: "Giriş",
+  LoginFailed: "Başarısız Giriş",
   Register: "Kayıt",
   CreateUser: "Kullanıcı Oluşturuldu",
   UpdateUser: "Kullanıcı Güncellendi",
@@ -49,6 +50,7 @@ function translateAction(action: string): string {
 }
 
 function actionBadge(action: string) {
+  if (action === "LoginFailed") return "bg-red-100 text-red-700 font-semibold";
   if (action === "DeleteUser" || action.includes("Silindi")) return "bg-red-100 text-red-700";
   if (action === "CreateUser" || action === "Register" || action.includes("Oluşturuldu")) return "bg-green-100 text-green-700";
   if (action === "UpdateUser" || action.includes("Güncellendi")) return "bg-blue-100 text-blue-700";
@@ -224,7 +226,7 @@ export default function HareketlerPage() {
               ) : logs.length === 0 ? (
                 <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Kayıt bulunamadı</td></tr>
               ) : logs.map(l => (
-                <tr key={l.id} className="hover:bg-slate-50 transition">
+                <tr key={l.id} className={`transition ${l.action === "LoginFailed" ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"}`}>
                   <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(l.createdDate)}</td>
                   <td className="px-5 py-3 text-xs text-slate-700">{l.userEmail}</td>
                   <td className="px-5 py-3">
