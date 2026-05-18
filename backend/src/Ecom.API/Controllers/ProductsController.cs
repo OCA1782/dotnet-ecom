@@ -16,16 +16,18 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? categorySlug = null,
         [FromQuery] Guid? brandId = null,
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
         [FromQuery] bool? inStock = null,
         [FromQuery] bool? featured = null,
+        [FromQuery] bool? onSale = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, brandId, minPrice, maxPrice, inStock, isAdmin, featured), ct);
+            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale), ct);
         return Ok(result);
     }
 

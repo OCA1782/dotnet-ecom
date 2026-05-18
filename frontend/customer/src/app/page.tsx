@@ -48,8 +48,8 @@ async function getFeaturedProducts(): Promise<ProductListItem[]> {
 
 async function getDiscountProducts(): Promise<ProductListItem[]> {
   try {
-    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=4");
-    return data.items.filter(p => p.discountPrice != null);
+    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=4&onSale=true");
+    return data.items;
   } catch { return []; }
 }
 
@@ -221,8 +221,8 @@ export default async function HomePage() {
             <div className="relative overflow-hidden bg-gradient-to-br from-[#FF7A45] to-[#d95f28] rounded-2xl p-8 text-white">
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">%</div>
               <p className="text-sm font-semibold opacity-80 mb-2">Fırsatı Kaçırma</p>
-              <h3 className="text-3xl font-extrabold mb-4">%40'a Varan İndirim</h3>
-              <Link href="/urunler" className="inline-block bg-white text-[#FF7A45] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-orange-50 transition">
+              <h3 className="text-3xl font-extrabold mb-4">%40&apos;a Varan İndirim</h3>
+              <Link href="/urunler?indirimli=true" className="inline-block bg-white text-[#FF7A45] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-orange-50 transition">
                 İncele →
               </Link>
             </div>
@@ -240,7 +240,7 @@ export default async function HomePage() {
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">★</div>
               <p className="text-sm font-semibold opacity-80 mb-2">Yeni Gelenler</p>
               <h3 className="text-3xl font-extrabold mb-4">Yeni Sezon Ürünleri</h3>
-              <Link href="/urunler" className="inline-block bg-white text-[#12304A] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-slate-50 transition">
+              <Link href="/urunler?ozellik=featured" className="inline-block bg-white text-[#12304A] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-slate-50 transition">
                 Keşfet →
               </Link>
             </div>
@@ -249,7 +249,7 @@ export default async function HomePage() {
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">#1</div>
               <p className="text-sm font-semibold opacity-80 mb-2">En Çok Tercih Edilen</p>
               <h3 className="text-3xl font-extrabold mb-4">Çok Satanlar</h3>
-              <Link href="/urunler" className="inline-block bg-white text-amber-600 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-amber-50 transition">
+              <Link href="/urunler?ozellik=featured" className="inline-block bg-white text-amber-600 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-amber-50 transition">
                 Hepsini Gör →
               </Link>
             </div>

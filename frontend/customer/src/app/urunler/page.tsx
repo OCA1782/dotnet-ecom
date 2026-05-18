@@ -33,6 +33,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     if (params.minFiyat) qs.set("minPrice", params.minFiyat);
     if (params.maxFiyat) qs.set("maxPrice", params.maxFiyat);
     if (params.ozellik === "featured") qs.set("featured", "true");
+    if (params.indirimli === "true") qs.set("onSale", "true");
     return await api.get<PaginatedList<ProductListItem>>(`/api/products?${qs}`);
   } catch {
     return { items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false, hasPreviousPage: false };
@@ -45,6 +46,8 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     ? `"${params.s}" için Arama Sonuçları`
     : params.ozellik === "featured"
     ? "Öne Çıkan Ürünler"
+    : params.indirimli === "true"
+    ? "İndirimli Ürünler"
     : params.kategori
     ? `${params.kategori.charAt(0).toUpperCase() + params.kategori.slice(1)} Ürünleri`
     : "Tüm Ürünler";
@@ -67,6 +70,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     if (merged.kategori) qs.set("kategori", merged.kategori);
     if (merged.minFiyat) qs.set("minFiyat", merged.minFiyat);
     if (merged.maxFiyat) qs.set("maxFiyat", merged.maxFiyat);
+    if (merged.ozellik) qs.set("ozellik", merged.ozellik);
+    if (merged.indirimli) qs.set("indirimli", merged.indirimli);
     if (merged.sayfa && merged.sayfa !== "1") qs.set("sayfa", merged.sayfa);
     const q = qs.toString();
     return `/urunler${q ? `?${q}` : ""}`;
@@ -93,13 +98,36 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               <p className="text-sm text-teal-400 font-medium">
                 <span className="text-teal-700 font-bold">{products.totalCount}</span> ürün bulundu
               </p>
+              {params.s && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                  🔍 &quot;{params.s}&quot;
+                  <Link href={buildUrl({ s: undefined, sayfa: "1" })} className="ml-1 hover:text-blue-900">×</Link>
+                </span>
+              )}
+              {params.kategori && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-teal-100 text-teal-700 px-3 py-1 rounded-full">
+                  📂 {categories.find(c => c.slug === params.kategori)?.name ?? params.kategori}
+                  <Link href={buildUrl({ kategori: undefined, sayfa: "1" })} className="ml-1 hover:text-teal-900">×</Link>
+                </span>
+              )}
               {params.ozellik === "featured" && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
                   ★ Öne Çıkan Ürünler
-                  <Link href="/urunler" className="ml-1 hover:text-amber-900">×</Link>
+                  <Link href={buildUrl({ ozellik: undefined, sayfa: "1" })} className="ml-1 hover:text-amber-900">×</Link>
+                </span>
+              )}
+              {params.indirimli === "true" && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
+                  🏷️ İndirimli Ürünler
+                  <Link href={buildUrl({ indirimli: undefined, sayfa: "1" })} className="ml-1 hover:text-orange-900">×</Link>
                 </span>
               )}
             </div>
+            {(params.s || params.kategori || params.ozellik || params.indirimli || params.minFiyat || params.maxFiyat) && (
+              <Link href="/urunler" className="text-xs text-slate-400 hover:text-red-500 transition">
+                Tümünü temizle
+              </Link>
+            )}
           </div>
 
           {products.items.length === 0 ? (

@@ -10,12 +10,14 @@ public record GetProductsQuery(
     int PageSize = 20,
     string? Search = null,
     Guid? CategoryId = null,
+    string? CategorySlug = null,
     Guid? BrandId = null,
     decimal? MinPrice = null,
     decimal? MaxPrice = null,
     bool? InStock = null,
     bool AdminView = false,
-    bool? IsFeatured = null
+    bool? IsFeatured = null,
+    bool? OnSale = null
 ) : IRequest<PaginatedList<ProductListItemDto>>;
 
 public record ProductListItemDto(
@@ -51,10 +53,16 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
             query = query.Where(p => p.IsActive && p.IsPublished);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
-            query = query.Where(p => p.Name.Contains(request.Search) || p.SKU.Contains(request.Search));
+            query = query.Where(p => p.Name.Contains(request.Search) || p.SKU.Contains(request.Search) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
         if (request.CategoryId.HasValue)
             query = query.Where(p => p.CategoryId == request.CategoryId);
+
+        if (!string.IsNullOrWhiteSpace(request.CategorySlug))
+        {
+            var slug = request.CategorySlug.ToLower();
+            query = query.Where(p => p.Category.Slug == slug);
+        }
 
         if (request.BrandId.HasValue)
             query = query.Where(p => p.BrandId == request.BrandId);
@@ -70,6 +78,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
 
         if (request.IsFeatured.HasValue)
             query = query.Where(p => p.IsFeatured == request.IsFeatured.Value);
+
+        if (request.OnSale == true)
+            query = query.Where(p => p.DiscountPrice != null);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query
