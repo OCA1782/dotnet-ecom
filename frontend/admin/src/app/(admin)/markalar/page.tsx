@@ -3,24 +3,73 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 
-interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; }
+interface AuditLog {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdDate: string;
+}
+
+const BRAND_ACTION_COLORS: Record<string, string> = {
+  BrandCreated: "bg-green-100 text-green-700",
+  BrandUpdated: "bg-blue-100 text-blue-700",
+  BrandDeleted: "bg-red-100 text-red-700",
+  "Oluşturuldu — Marka": "bg-green-100 text-green-700",
+  "Güncellendi — Marka": "bg-blue-100 text-blue-700",
+  "Silindi — Marka": "bg-red-100 text-red-700",
+};
+
+interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; }
 interface BrandForm { id?: string; name: string; slug: string; logoUrl: string; description: string; isActive: boolean; }
 
 const EMPTY: BrandForm = { name: "", slug: "", logoUrl: "", description: "", isActive: true };
 
+const TR: Record<string, string> = {
+  "ğ":"g","Ğ":"g",
+  "ü":"u","Ü":"u",
+  "ş":"s","Ş":"s",
+  "ı":"i","İ":"i",
+  "ö":"o","Ö":"o",
+  "ç":"c","Ç":"c",
+};
 function slugify(s: string) {
-  return s.toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
+  return [...s].map(c => TR[c] ?? c).join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
 }
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 export default function MarkalarPage() {
+  const [historyTarget, setHistoryTarget] = useState<Brand | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadBrandHistory = useCallback(async (brandId: string) => {
+    setHistoryLoading(true);
+    setHistoryLogs([]);
+    try {
+      const data = await api.get<{ items: AuditLog[]; totalCount: number }>(`/api/admin/audit-logs/entity/Marka/${brandId}`);
+      setHistoryLogs(data.items);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  function openHistory(b: Brand) {
+    setHistoryTarget(b);
+    loadBrandHistory(b.id);
+  }
+
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -37,6 +86,8 @@ export default function MarkalarPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(20);
+  const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -115,6 +166,21 @@ export default function MarkalarPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/brands/${deleteTarget.id}`);
+      setMsg({ text: `"${deleteTarget.name}" silindi.`, ok: true });
+      setDeleteTarget(null);
+      await fetch();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silme hatası", ok: false });
+      setDeleteTarget(null);
+    }
+    setDeleting(false);
+  }
+
   async function handleSave() {
     if (!form.name) { setError("Ad zorunludur."); return; }
     setSaving(true); setError("");
@@ -157,7 +223,7 @@ export default function MarkalarPage() {
       </div>
 
       {/* Search & Filter */}
-      <div className="flex flex-wrap gap-3">
+      <div className="sticky top-0 z-10 bg-white py-3 flex flex-wrap gap-3">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
@@ -208,14 +274,22 @@ export default function MarkalarPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Marka", "Slug", "Logo", "Durum", ""].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Marka</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
+                  <span className="flex items-center gap-1">
+                    Slug
+                    <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'nike' → /marka/nike. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
+                  </span>
+                </th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Logo</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {brands.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
               ) : brands.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
@@ -233,8 +307,17 @@ export default function MarkalarPage() {
                       {b.isActive ? "Aktif" : "Pasif"}
                     </span>
                   </td>
+                  <td className="px-5 py-3">
+                    {b.importedFromSourceName
+                      ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{b.importedFromSourceName}</span>
+                      : <span className="text-xs text-slate-300">—</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
+                      <button onClick={() => openHistory(b)} title="Geçmiş"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <History size={16} />
+                      </button>
                       <button onClick={() => openEdit(b)} title="Düzenle"
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
@@ -242,6 +325,10 @@ export default function MarkalarPage() {
                       <button onClick={() => handleToggleActive(b)} title={b.isActive ? "Pasife Çek" : "Aktive Et"}
                         className={`w-9 h-9 flex items-center justify-center rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${b.isActive ? "bg-green-50 text-green-600 hover:bg-green-500 hover:text-white hover:shadow-green-200 hover:shadow-md" : "bg-slate-100 text-slate-500 hover:bg-emerald-500 hover:text-white hover:shadow-emerald-200 hover:shadow-md"}`}>
                         {b.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                      </button>
+                      <button onClick={() => setDeleteTarget(b)} title="Sil"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -260,6 +347,95 @@ export default function MarkalarPage() {
         </div>
       )}
 
+      {/* Brand History Modal */}
+      {historyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <History size={16} className="text-amber-500" /> Marka Geçmişi
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">{historyTarget.name}</p>
+              </div>
+              <button onClick={() => setHistoryTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {historyLoading ? (
+                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+              ) : historyLogs.length === 0 ? (
+                <p className="p-8 text-center text-slate-400">Bu markaya ait hareket kaydı bulunamadı.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>
+                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historyLogs.map(l => (
+                      <tr key={l.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                          {new Date(l.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 text-xs">{l.userEmail}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${BRAND_ACTION_COLORS[l.action] ?? "bg-slate-100 text-slate-600"}`}>
+                            {l.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {l.newValue
+                            ? l.newValue.split(" | ").map((part, i) => (
+                                <div key={i} className="text-xs text-slate-600">{part}</div>
+                              ))
+                            : l.oldValue
+                            ? <span className="text-xs text-slate-400">{l.oldValue}</span>
+                            : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 size={18} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Markayı Sil</h3>
+                  <p className="text-xs text-slate-500">Bu işlem geri alınamaz.</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <strong>"{deleteTarget.name}"</strong> markası silinecek. Aktif ürünü olan markalar silinemez.
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-xl hover:bg-slate-50 transition">İptal</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
+                {deleting ? "Siliniyor..." : "Evet, Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
@@ -274,7 +450,10 @@ export default function MarkalarPage() {
                 <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, slug: slugify(e.target.value) }))} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Slug</label>
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 mb-1">
+                  Slug
+                  <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'nike'. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
+                </label>
                 <input className={INPUT} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: slugify(e.target.value) }))} />
               </div>
               <ImageUpload

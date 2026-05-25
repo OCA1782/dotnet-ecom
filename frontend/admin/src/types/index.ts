@@ -4,6 +4,7 @@ export interface AuthUser {
   surname: string;
   email: string;
   token: string;
+  roles: string[];
 }
 
 export interface PaginatedList<T> {
@@ -147,12 +148,13 @@ export interface AdminProduct {
   discountPrice?: number;
   taxRate: number;
   isActive: boolean;
+  isPublished: boolean;
   isFeatured: boolean;
   imageUrl?: string;
   availableStock: number;
   brandName?: string;
   categoryName?: string;
-  createdDate: string;
+  importedFromSourceName?: string;
 }
 
 // Stock
@@ -175,6 +177,7 @@ export interface AdminUser {
   name: string;
   surname: string;
   email: string;
+  phoneNumber?: string;
   isActive: boolean;
   createdDate: string;
   roles: string[];

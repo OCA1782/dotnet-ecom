@@ -16,6 +16,8 @@ public class Category : BaseEntity
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
 
+    public Guid? ImportedFromSourceId { get; set; }
+
     public ICollection<Category> SubCategories { get; set; } = new List<Category>();
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }

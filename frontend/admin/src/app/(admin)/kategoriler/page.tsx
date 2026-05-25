@@ -1,9 +1,32 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { Plus, Pencil, Trash2, X, Download, Upload, Search } from "lucide-react";
+import {
+  Plus, Pencil, Trash2, X, Download, Upload, Search,
+  ChevronRight, ChevronDown, FolderOpen, Folder,
+  ChevronsDownUp, ChevronsUpDown, Info, History,
+} from "lucide-react";
+
+interface AuditLog {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdDate: string;
+}
+
+const CAT_ACTION_COLORS: Record<string, string> = {
+  CategoryCreated: "bg-green-100 text-green-700",
+  CategoryUpdated: "bg-blue-100 text-blue-700",
+  CategoryDeleted: "bg-red-100 text-red-700",
+  "Oluşturuldu — Kategori": "bg-green-100 text-green-700",
+  "Güncellendi — Kategori": "bg-blue-100 text-blue-700",
+  "Silindi — Kategori": "bg-red-100 text-red-700",
+};
 import ImageUpload from "@/components/ImageUpload";
 
 interface Category {
@@ -18,6 +41,7 @@ interface Category {
   isActive: boolean;
   productCount?: number;
   subCategories?: Category[];
+  importedFromSourceName?: string;
 }
 
 interface CatForm {
@@ -44,16 +68,52 @@ function flattenCategories(cats: Category[]): Category[] {
   return result;
 }
 
+const TR: Record<string, string> = {
+  "ğ":"g","Ğ":"g","ü":"u","Ü":"u","ş":"s","Ş":"s",
+  "ı":"i","İ":"i","ö":"o","Ö":"o","ç":"c","Ç":"c",
+};
 function slugify(s: string) {
-  return s.toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
+  return [...s].map(c => TR[c] ?? c).join("")
+    .toLowerCase().replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-").replace(/-+/g, "-").trim();
 }
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
+const PAGE_SIZES = [10, 25, 50] as const;
+type PageSize = typeof PAGE_SIZES[number];
+
+function buildPageNums(total: number, current: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  if (current > 3) pages.push("…");
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+  if (current < total - 2) pages.push("…");
+  pages.push(total);
+  return pages;
+}
+
 export default function KategorilerPage() {
+  const [historyTarget, setHistoryTarget] = useState<Category | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadCategoryHistory = useCallback(async (categoryId: string) => {
+    setHistoryLoading(true);
+    setHistoryLogs([]);
+    try {
+      const data = await api.get<{ items: AuditLog[]; totalCount: number }>(`/api/admin/audit-logs/entity/Kategori/${categoryId}`);
+      setHistoryLogs(data.items);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  function openHistory(c: Category) {
+    setHistoryTarget(c);
+    loadCategoryHistory(c.id);
+  }
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
@@ -65,8 +125,14 @@ export default function KategorilerPage() {
   const [importResult, setImportResult] = useState<string | null>(null);
   const [filterText, setFilterText] = useState("");
   const [menuFilter, setMenuFilter] = useState<"" | "true" | "false">("");
+  const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(25);
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.get<Category[]>("/api/categories?onlyActive=false");
@@ -75,7 +141,18 @@ export default function KategorilerPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => { setPage(1); }, [filterText, menuFilter, activeFilter, pageSize]);
+
+  function toggleCollapse(id: string) {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   function openCreate() { setForm(EMPTY); setError(""); setModal("create"); }
   function openEdit(c: Category) {
@@ -95,7 +172,7 @@ export default function KategorilerPage() {
         await api.put(`/api/categories/${form.id}`, { id: form.id, isActive: form.isActive, ...body });
         setMsg({ text: "Kategori güncellendi.", ok: true });
       }
-      setModal(null); await fetch();
+      setModal(null); await fetchData();
     } catch (e: unknown) { setError(e instanceof Error ? e.message : "Hata"); }
     finally { setSaving(false); }
   }
@@ -122,8 +199,8 @@ export default function KategorilerPage() {
         try {
           const name = String(row["Ad"] ?? ""); if (!name) { fail++; continue; }
           await api.post("/api/categories", {
-            name, slug: slugify(name),
-            parentCategoryId: null, description: String(row["Açıklama"] ?? "") || null,
+            name, slug: slugify(name), parentCategoryId: null,
+            description: String(row["Açıklama"] ?? "") || null,
             imageUrl: null, sortOrder: Number(row["Sıra"] ?? 0),
             showInMenu: String(row["Menüde"] ?? "Evet") === "Evet",
             metaTitle: null, metaDescription: null,
@@ -132,29 +209,59 @@ export default function KategorilerPage() {
         } catch { fail++; }
       }
       setImportResult(`${ok} kategori eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
-      await fetch();
+      await fetchData();
     } catch { setImportResult("Dosya okunamadı."); }
     finally { setImporting(false); e.target.value = ""; }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`"${name}" kategorisini silmek istediğinize emin misiniz?`)) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/api/categories/${id}`);
-      setMsg({ text: "Kategori silindi.", ok: true }); await fetch();
-    } catch (e: unknown) { setMsg({ text: e instanceof Error ? e.message : "Silinemedi", ok: false }); }
+      await api.delete(`/api/categories/${deleteTarget.id}`);
+      setMsg({ text: `"${deleteTarget.name}" silindi.`, ok: true });
+      setDeleteTarget(null);
+      await fetchData();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silinemedi", ok: false });
+      setDeleteTarget(null);
+    } finally { setDeleting(false); }
   }
 
-  const filtered = categories.filter(c => {
+  // ── Derived data ───────────────────────────────────────────────────────────
+  const isSearching = !!(filterText || menuFilter || activeFilter);
+
+  const filteredCats = categories.filter(c => {
     const matchText = !filterText || c.name.toLowerCase().includes(filterText.toLowerCase());
     const matchMenu = !menuFilter || String(c.showInMenu) === menuFilter;
-    return matchText && matchMenu;
+    const matchActive = !activeFilter || String(c.isActive) === activeFilter;
+    return matchText && matchMenu && matchActive;
   });
-  const roots = filtered.filter(c => !c.parentCategoryId);
-  const children = (parentId: string) => filtered.filter(c => c.parentCategoryId === parentId);
+
+  const allRoots = categories.filter(c => !c.parentCategoryId);
+
+  // A root is visible if it itself matches OR any of its children match
+  const visibleRoots = allRoots.filter(cat =>
+    filteredCats.some(c => c.id === cat.id) ||
+    filteredCats.some(c => c.parentCategoryId === cat.id)
+  );
+
+  const totalRoots = visibleRoots.length;
+  const totalPages = Math.max(1, Math.ceil(totalRoots / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRoots = visibleRoots.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const getVisibleChildren = (parentId: string) =>
+    filteredCats.filter(c => c.parentCategoryId === parentId);
+
+  const isExpanded = (catId: string) => isSearching || !collapsedIds.has(catId);
+
+  const anyCollapsed = collapsedIds.size > 0;
+  const pageNums = buildPageNums(totalPages, safePage);
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Kategoriler</h1>
         <div className="flex items-center gap-2">
@@ -174,25 +281,65 @@ export default function KategorilerPage() {
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex flex-wrap gap-3">
+      {/* Filters */}
+      <div className="sticky top-0 z-10 bg-white py-3 flex flex-wrap items-center gap-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input value={filterText} onChange={e => setFilterText(e.target.value)}
             placeholder="Kategori adı ara..."
             className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white" />
+          {filterText && (
+            <button onClick={() => setFilterText("")} className="absolute right-2 top-2.5 text-slate-300 hover:text-slate-500">
+              <X size={14} />
+            </button>
+          )}
         </div>
         <select value={menuFilter} onChange={e => setMenuFilter(e.target.value as "" | "true" | "false")}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          <option value="">Tüm Menü Durumu</option>
+          <option value="">Tüm Menü</option>
           <option value="true">Menüde</option>
           <option value="false">Menüde Değil</option>
         </select>
-        {(filterText || menuFilter) && (
-          <button onClick={() => { setFilterText(""); setMenuFilter(""); }}
-            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+        <select value={activeFilter} onChange={e => setActiveFilter(e.target.value as "" | "true" | "false")}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <option value="">Tüm Durum</option>
+          <option value="true">Aktif</option>
+          <option value="false">Pasif</option>
+        </select>
+        {isSearching && (
+          <button onClick={() => { setFilterText(""); setMenuFilter(""); setActiveFilter(""); }}
+            className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">
+            Temizle
+          </button>
         )}
-        <span className="self-center text-sm text-slate-500">{filtered.length} kategori</span>
+
+        <div className="flex items-center gap-1 ml-auto">
+          {/* Expand/Collapse all */}
+          {!isSearching && (
+            <button
+              onClick={() => anyCollapsed ? setCollapsedIds(new Set()) : setCollapsedIds(new Set(allRoots.map(c => c.id)))}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 transition"
+              title={anyCollapsed ? "Tümünü Genişlet" : "Tümünü Daralt"}
+            >
+              {anyCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+              {anyCollapsed ? "Genişlet" : "Daralt"}
+            </button>
+          )}
+
+          {/* Page size */}
+          <div className="flex items-center gap-1 border border-slate-300 rounded-xl overflow-hidden ml-1">
+            {PAGE_SIZES.map(s => (
+              <button key={s} onClick={() => setPageSize(s)}
+                className={`px-3 py-2 text-xs font-medium transition ${pageSize === s ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <span className="text-sm text-slate-500 ml-2 whitespace-nowrap">
+            {totalRoots} ana kategori
+          </span>
+        </div>
       </div>
 
       {importResult && (
@@ -200,103 +347,283 @@ export default function KategorilerPage() {
           {importResult} <button onClick={() => setImportResult(null)}><X size={14} /></button>
         </div>
       )}
-
       {msg && (
         <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
           {msg.text} <button onClick={() => setMsg(null)}><X size={14} /></button>
         </div>
       )}
 
+      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
           <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
-        ) : roots.length === 0 ? (
+        ) : pagedRoots.length === 0 ? (
           <p className="p-8 text-center text-slate-400">Henüz kategori yok</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Kategori", "Slug", "Menüde", "Durum", ""].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kategori</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
+                  <span className="flex items-center gap-1">
+                    Slug
+                    <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-ayakkabisi' → /kategori/erkek-ayakkabisi. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
+                  </span>
+                </th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Menüde</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {roots.map(cat => (
-                <>
-                  <tr key={cat.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
-                      <div className="flex items-center gap-3">
-                        {cat.imageUrl
-                          ? <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" /> // eslint-disable-line @next/next/no-img-element
-                          : <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-base">📁</div>}
-                        {cat.name}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-slate-400 text-xs font-mono">{cat.slug}</td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                        {cat.showInMenu ? "Evet" : "Hayır"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.isActive !== false ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                        Aktif
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        <button onClick={() => openEdit(cat)} title="Düzenle"
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
-                          <Pencil size={18} />
-                        </button>
-                        <button onClick={() => handleDelete(cat.id, cat.name)} title="Sil"
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {children(cat.id).map(sub => (
-                    <tr key={sub.id} className="hover:bg-slate-50 bg-slate-50/50">
-                      <td className="px-5 py-2.5 text-xs text-slate-600 pl-10">
-                        <div className="flex items-center gap-3">
-                          {sub.imageUrl
-                            ? <img src={sub.imageUrl} alt={sub.name} className="w-6 h-6 object-cover rounded" /> // eslint-disable-line @next/next/no-img-element
-                            : <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center text-xs">📁</div>}
-                          ↳ {sub.name}
+              {pagedRoots.map(cat => {
+                const visibleKids = getVisibleChildren(cat.id);
+                const expanded = isExpanded(cat.id);
+                return (
+                  <>
+                    {/* Parent row */}
+                    <tr key={cat.id} className="hover:bg-teal-50/40 border-l-4 border-l-teal-500 bg-white">
+                      <td className="px-4 py-3 font-bold text-slate-800">
+                        <div className="flex items-center gap-2">
+                          {/* Collapse toggle */}
+                          {visibleKids.length > 0 ? (
+                            <button
+                              onClick={() => !isSearching && toggleCollapse(cat.id)}
+                              className={`text-slate-400 hover:text-teal-600 transition ${isSearching ? "cursor-default opacity-50" : ""}`}
+                            >
+                              {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                            </button>
+                          ) : (
+                            <span className="w-[15px]" />
+                          )}
+                          {/* Icon */}
+                          {cat.imageUrl
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" />
+                            : (expanded
+                              ? <FolderOpen size={18} className="text-teal-500 shrink-0" />
+                              : <Folder size={18} className="text-teal-400 shrink-0" />)
+                          }
+                          <span className="text-slate-800">{cat.name}</span>
+                          {visibleKids.length > 0 && (
+                            <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold shrink-0">
+                              {visibleKids.length} alt
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-5 py-2.5 text-slate-400 text-xs font-mono">{sub.slug}</td>
-                      <td className="px-5 py-2.5">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${sub.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                          {sub.showInMenu ? "Evet" : "Hayır"}
+                      <td className="px-5 py-3 text-slate-400 text-xs font-mono">{cat.slug}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                          {cat.showInMenu ? "Evet" : "Hayır"}
                         </span>
                       </td>
-                      <td className="px-5 py-2.5">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Aktif</span>
+                      <td className="px-5 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                          {cat.isActive ? "Aktif" : "Pasif"}
+                        </span>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-5 py-3">
+                        {cat.importedFromSourceName
+                          ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.importedFromSourceName}</span>
+                          : <span className="text-xs text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 justify-end">
-                          <button onClick={() => openEdit(sub)} title="Düzenle"
-                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
-                            <Pencil size={16} />
+                          <button onClick={() => openHistory(cat)} title="Geçmiş"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                            <History size={16} />
                           </button>
-                          <button onClick={() => handleDelete(sub.id, sub.name)} title="Sil"
-                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
-                            <Trash2 size={16} />
+                          <button onClick={() => openEdit(cat)} title="Düzenle"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                            <Pencil size={18} />
+                          </button>
+                          <button onClick={() => setDeleteTarget(cat)} title="Sil"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </>
-              ))}
+
+                    {/* Child rows */}
+                    {expanded && visibleKids.map(sub => (
+                      <tr key={sub.id} className="hover:bg-slate-50 bg-slate-50/50 border-l-4 border-l-transparent">
+                        <td className="px-5 py-2.5 text-xs text-slate-600 pl-12">
+                          <div className="flex items-center gap-2">
+                            {sub.imageUrl
+                              // eslint-disable-next-line @next/next/no-img-element
+                              ? <img src={sub.imageUrl} alt={sub.name} className="w-6 h-6 object-cover rounded" />
+                              : <Folder size={14} className="text-slate-400 shrink-0" />}
+                            <span className="text-slate-400 mr-0.5">↳</span>
+                            {sub.name}
+                          </div>
+                        </td>
+                        <td className="px-5 py-2.5 text-slate-400 text-xs font-mono">{sub.slug}</td>
+                        <td className="px-5 py-2.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${sub.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                            {sub.showInMenu ? "Evet" : "Hayır"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${sub.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                            {sub.isActive ? "Aktif" : "Pasif"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-2.5">
+                          {sub.importedFromSourceName
+                            ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{sub.importedFromSourceName}</span>
+                            : <span className="text-xs text-slate-300">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <button onClick={() => openHistory(sub)} title="Geçmiş"
+                              className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                              <History size={14} />
+                            </button>
+                            <button onClick={() => openEdit(sub)} title="Düzenle"
+                              className="w-8 h-8 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                              <Pencil size={16} />
+                            </button>
+                            <button onClick={() => setDeleteTarget(sub)} title="Sil"
+                              className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-500">
+            {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalRoots)} / {totalRoots} ana kategori
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={safePage === 1}
+              className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-sm hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">«</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-sm hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">‹</button>
+            {pageNums.map((n, i) =>
+              n === "…"
+                ? <span key={`e${i}`} className="px-2 py-1.5 text-slate-400 text-sm select-none">…</span>
+                : <button key={n} onClick={() => setPage(n as number)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition ${safePage === n ? "bg-teal-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                    {n}
+                  </button>
+            )}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+              className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-sm hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
+              className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-sm hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">»</button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 size={18} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Kategoriyi Sil</h3>
+                  <p className="text-xs text-slate-500">Bu işlem geri alınamaz.</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-slate-700">
+                <p className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  <strong>"{deleteTarget.name}"</strong> kategorisi silinecek.
+                </p>
+                <p className="text-xs text-slate-500 px-1">Alt kategorisi veya aktif ürünü olan kategoriler silinemez.</p>
+              </div>
+            </div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition">İptal</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
+                {deleting ? "Siliniyor..." : "Evet, Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category History Modal */}
+      {historyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <History size={16} className="text-amber-500" /> Kategori Geçmişi
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">{historyTarget.name}</p>
+              </div>
+              <button onClick={() => setHistoryTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {historyLoading ? (
+                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+              ) : historyLogs.length === 0 ? (
+                <p className="p-8 text-center text-slate-400">Bu kategoriye ait hareket kaydı bulunamadı.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>
+                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historyLogs.map(l => (
+                      <tr key={l.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                          {new Date(l.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 text-xs">{l.userEmail}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${CAT_ACTION_COLORS[l.action] ?? "bg-slate-100 text-slate-600"}`}>
+                            {l.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {l.newValue
+                            ? l.newValue.split(" | ").map((part, i) => (
+                                <div key={i} className="text-xs text-slate-600">{part}</div>
+                              ))
+                            : l.oldValue
+                            ? <span className="text-xs text-slate-400">{l.oldValue}</span>
+                            : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
@@ -308,17 +635,16 @@ export default function KategorilerPage() {
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
-                <input className={INPUT} value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value, slug: slugify(e.target.value) })); }} />
+                <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, slug: slugify(e.target.value) }))} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Slug</label>
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 mb-1">
+                  Slug
+                  <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-ayakkabisi'. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
+                </label>
                 <input className={INPUT} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: slugify(e.target.value) }))} />
               </div>
-              <ImageUpload
-                value={form.imageUrl}
-                onChange={url => setForm(f => ({ ...f, imageUrl: url }))}
-                label="Kategori Görseli"
-              />
+              <ImageUpload value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label="Kategori Görseli" />
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Üst Kategori</label>
                 <select className={INPUT} value={form.parentCategoryId} onChange={e => setForm(f => ({ ...f, parentCategoryId: e.target.value }))}>

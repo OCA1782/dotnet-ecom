@@ -26,6 +26,8 @@ public class Product : BaseEntity
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
 
+    public Guid? ImportedFromSourceId { get; set; }
+
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
     public Stock? Stock { get; set; }

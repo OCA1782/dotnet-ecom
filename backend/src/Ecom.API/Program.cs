@@ -19,8 +19,11 @@ builder.Services.AddScoped<AuditFilter>();
 builder.Services.AddControllers(options =>
 {
     options.Filters.AddService<AuditFilter>();
+    options.Filters.Add<ValidationExceptionFilter>();
 });
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -95,12 +98,14 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-    await DbInitializer.SeedAsync(db, config);
+    await DbInitializer.SeedAsync(db, config, app.Environment.ContentRootPath);
 }
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<InputSanitizationMiddleware>();
 app.UseMiddleware<ValidationExceptionMiddleware>();
 app.UseCors("EcomCors");
 app.UseMiddleware<ErrorLoggingMiddleware>();
@@ -117,5 +122,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
 app.MapControllers().RequireRateLimiting("api");
+app.MapHealthChecks("/health");
 
 app.Run();

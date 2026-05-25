@@ -1,16 +1,42 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, ToggleLeft } from "lucide-react";
-import ConfirmModal from "@/components/ConfirmModal";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info } from "lucide-react";
+import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 
-interface Category { id: string; name: string; slug: string; }
+interface Category { id: string; name: string; slug: string; parentCategoryId?: string; subCategories?: Category[]; }
+
+function flattenCategories(cats: Category[]): Category[] {
+  const result: Category[] = [];
+  for (const c of cats) {
+    result.push(c);
+    if (c.subCategories?.length) result.push(...flattenCategories(c.subCategories));
+  }
+  return result;
+}
 interface Brand { id: string; name: string; }
 interface ProductImage { id: string; imageUrl: string; altText?: string; isMain: boolean; sortOrder: number; }
+interface ProductDetail {
+  id: string; name: string; slug: string; sku: string;
+  description?: string; shortDescription?: string;
+  price: number; discountPrice?: number; taxRate: number;
+  categoryId: string; brandId?: string;
+  isActive: boolean; isPublished: boolean; isFeatured: boolean;
+  images: ProductImage[];
+}
+interface ProductHistoryEntry {
+  eventType: "audit" | "stock";
+  action: string;
+  detail?: string;
+  oldValue?: string;
+  newValue?: string;
+  userEmail?: string;
+  occurredAt: string;
+}
 
 interface ProductForm {
   id?: string;
@@ -36,11 +62,21 @@ const EMPTY_FORM: ProductForm = {
   brandId: "", isPublished: true, isActive: true, isFeatured: false, initialStock: "0",
 };
 
+const TR: Record<string, string> = {
+  "ğ":"g","Ğ":"g", // ğ Ğ
+  "ü":"u","Ü":"u", // ü Ü
+  "ş":"s","Ş":"s", // ş Ş
+  "ı":"i","İ":"i", // ı İ
+  "ö":"o","Ö":"o", // ö Ö
+  "ç":"c","Ç":"c", // ç Ç
+};
 function slugify(s: string) {
-  return s.toLowerCase()
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
+  return [...s].map(c => TR[c] ?? c).join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -57,10 +93,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+      <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 mb-1">{label}</div>
       {children}
     </div>
   );
@@ -69,15 +105,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 const SELECT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
+type SortField = "name" | "price" | "stock";
+type SortDir   = "asc" | "desc";
+const PAGE_SIZES = [10, 25, 50] as const;
+
+function buildSortKey(field: SortField, dir: SortDir) { return `${field}-${dir}`; }
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [search, setSearch] = useState("");
+
+  // Search: local input state + committed search string
   const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Filters
   const [showInactive, setShowInactive] = useState(false);
+  const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterBrandId, setFilterBrandId] = useState("");
+
+  // Sort
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -87,7 +142,12 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const [confirmDeactivate, setConfirmDeactivate] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [historyTarget, setHistoryTarget] = useState<{ id: string; name: string } | null>(null);
+  const [history, setHistory] = useState<ProductHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
@@ -98,26 +158,76 @@ export default function AdminProductsPage() {
   const [imageLoading, setImageLoading] = useState(false);
   const [stagedImages, setStagedImages] = useState<string[]>([]);
 
+  // Computed: how many active filters
+  const activeFilterCount = useMemo(() =>
+    [search, filterCategoryId, filterBrandId, showInactive ? "1" : ""].filter(Boolean).length,
+    [search, filterCategoryId, filterBrandId, showInactive]
+  );
+
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ page: String(page), pageSize: "15", admin: "true" });
+      const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (search) qs.set("search", search);
-      if (showInactive) qs.set("includeInactive", "true");
+      if (!showInactive) qs.set("onlyActive", "true");
+      if (filterCategoryId) qs.set("categoryId", filterCategoryId);
+      if (filterBrandId) qs.set("brandId", filterBrandId);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<AdminProduct>>(`/api/products?${qs}`);
       setProducts(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount);
     } catch { setProducts([]); }
     finally { setLoading(false); }
-  }, [page, search, showInactive]);
+  }, [page, pageSize, search, showInactive, filterCategoryId, filterBrandId, sortField, sortDir]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   useEffect(() => {
-    api.get<Category[]>("/api/categories?onlyActive=false").then(setCategories).catch(() => {});
+    api.get<Category[]>("/api/categories?onlyActive=false").then(data => setCategories(flattenCategories(data))).catch(() => {});
     api.get<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=false").then(r => setBrands(r.items)).catch(() => {});
   }, []);
+
+  // Debounced search: commit after 400ms idle
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(value);
+      setPage(1);
+    }, 400);
+  }
+
+  function commitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSearch(searchInput);
+    setPage(1);
+  }
+
+  function clearAllFilters() {
+    setSearchInput(""); setSearch(""); setFilterCategoryId(""); setFilterBrandId("");
+    setShowInactive(false); setSortField(null); setPage(1);
+  }
+
+  // Toggle sort: same field → flip direction; different field → set asc
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortField(null); }
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc"
+      ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" />
+      : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   function handleExport() {
     exportToExcel(
@@ -147,7 +257,7 @@ export default function AdminProductsPage() {
           const cat = cats.find(c => c.name === catName);
           const brand = brds.find(b => b.name === brandName);
           await api.post("/api/products", {
-            name, slug: name.toLowerCase().replace(/\s+/g, "-"),
+            name, slug: slugify(name),
             sku: String(row["SKU"] ?? name.substring(0,8).toUpperCase()),
             description: null, shortDescription: null, barcode: null, productType: 1,
             categoryId: cat?.id ?? cats[0]?.id ?? "00000000-0000-0000-0000-000000000000",
@@ -167,13 +277,6 @@ export default function AdminProductsPage() {
     finally { setImporting(false); e.target.value = ""; }
   }
 
-  async function loadProductImages(slug: string) {
-    try {
-      const detail = await api.get<{ images: ProductImage[] }>(`/api/products/${slug}`);
-      setProductImages(detail.images || []);
-    } catch { setProductImages([]); }
-  }
-
   function openCreate() {
     setForm(EMPTY_FORM);
     setFormError("");
@@ -186,28 +289,31 @@ export default function AdminProductsPage() {
 
   async function openEdit(p: AdminProduct) {
     setForm({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      sku: p.sku,
-      description: "",
-      shortDescription: "",
-      price: String(p.price),
-      discountPrice: p.discountPrice ? String(p.discountPrice) : "",
-      taxRate: String(p.taxRate),
-      categoryId: "",
-      brandId: "",
-      isPublished: true,
-      isActive: p.isActive,
-      isFeatured: p.isFeatured,
-      initialStock: "0",
+      id: p.id, name: p.name, slug: p.slug, sku: p.sku,
+      description: "", shortDescription: "",
+      price: String(p.price), discountPrice: p.discountPrice ? String(p.discountPrice) : "",
+      taxRate: String(p.taxRate), categoryId: "", brandId: "",
+      isPublished: true, isActive: p.isActive, isFeatured: p.isFeatured, initialStock: "0",
     });
     setFormError("");
     setNewImageUrl("");
     setNewImageAlt("");
     setProductImages([]);
     setModal("edit");
-    await loadProductImages(p.slug);
+    try {
+      const detail = await api.get<ProductDetail>(`/api/products/${p.id}`);
+      setProductImages(detail.images ?? []);
+      setForm(f => ({
+        ...f,
+        description: detail.description ?? "",
+        shortDescription: detail.shortDescription ?? "",
+        categoryId: detail.categoryId ?? "",
+        brandId: detail.brandId ?? "",
+        isPublished: detail.isPublished,
+        isFeatured: detail.isFeatured,
+        taxRate: String(detail.taxRate),
+      }));
+    } catch { setProductImages([]); }
   }
 
   function setField<K extends keyof ProductForm>(k: K, v: ProductForm[K]) {
@@ -296,7 +402,8 @@ export default function AdminProductsPage() {
       });
       setNewImageUrl("");
       setNewImageAlt("");
-      await loadProductImages(form.slug);
+      const refreshed = await api.get<ProductDetail>(`/api/products/${form.id}`);
+      setProductImages(refreshed.images ?? []);
       await fetchProducts();
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : "Fotoğraf eklenemedi.");
@@ -325,14 +432,31 @@ export default function AdminProductsPage() {
     }
   }
 
-  async function handleDeactivate(id: string) {
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/api/products/${id}`);
-      setMsg({ text: "Ürün pasif yapıldı.", ok: true });
+      await api.delete(`/api/products/${deleteTarget.id}`);
+      setMsg({ text: `"${deleteTarget.name}" silindi.`, ok: true });
+      setDeleteTarget(null);
       await fetchProducts();
     } catch (err: unknown) {
-      setMsg({ text: err instanceof Error ? err.message : "Hata", ok: false });
-    }
+      setMsg({ text: err instanceof Error ? err.message : "Silinemedi.", ok: false });
+      setDeleteTarget(null);
+    } finally { setDeleting(false); }
+  }
+
+  async function openHistory(p: { id: string; name: string }) {
+    setHistoryTarget(p);
+    setHistory([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    try {
+      const data = await api.get<ProductHistoryEntry[]>(`/api/products/${p.id}/history`);
+      setHistory(data ?? []);
+    } catch (e: unknown) {
+      setHistoryError(e instanceof Error ? e.message : "Geçmiş yüklenemedi.");
+    } finally { setHistoryLoading(false); }
   }
 
   return (
@@ -370,22 +494,96 @@ export default function AdminProductsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <form onSubmit={(e) => { e.preventDefault(); setPage(1); setSearch(searchInput); }} className="flex gap-2">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-            <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Ürün adı veya SKU..."
-              className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-56 text-slate-900 bg-white" />
+      <div className="sticky top-0 z-10 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <form onSubmit={commitSearch} className="flex gap-2 flex-1 min-w-[220px]">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <input
+                value={searchInput}
+                onChange={e => handleSearchChange(e.target.value)}
+                placeholder="Ürün adı, SKU veya marka..."
+                className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-full text-slate-900 bg-white"
+              />
+              {searchInput && (
+                <button type="button" onClick={() => { setSearchInput(""); setSearch(""); setPage(1); }}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+          </form>
+
+          {/* Category filter */}
+          <select
+            value={filterCategoryId}
+            onChange={e => { setFilterCategoryId(e.target.value); setPage(1); }}
+            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[150px]"
+          >
+            <option value="">Tüm Kategoriler</option>
+            {categories.filter(c => !c.parentCategoryId).map(parent => {
+              const subs = categories.filter(c => c.parentCategoryId === parent.id);
+              return subs.length > 0 ? (
+                <optgroup key={parent.id} label={parent.name}>
+                  <option value={parent.id}>{parent.name}</option>
+                  {subs.map(sub => <option key={sub.id} value={sub.id}>↳ {sub.name}</option>)}
+                </optgroup>
+              ) : (
+                <option key={parent.id} value={parent.id}>{parent.name}</option>
+              );
+            })}
+          </select>
+
+          {/* Brand filter */}
+          <select
+            value={filterBrandId}
+            onChange={e => { setFilterBrandId(e.target.value); setPage(1); }}
+            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[130px]"
+          >
+            <option value="">Tüm Markalar</option>
+            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+
+          {/* Page size */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Sayfa başı:</span>
+            {PAGE_SIZES.map(n => (
+              <button key={n} onClick={() => { setPageSize(n); setPage(1); }}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${pageSize === n ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                {n}
+              </button>
+            ))}
           </div>
-          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
-          {search && <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>}
-        </form>
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={showInactive} onChange={(e) => { setShowInactive(e.target.checked); setPage(1); }} className="rounded" />
-          Pasif ürünleri göster
-        </label>
+        </div>
+
+        {/* Second row: toggles + active filter chips */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-100 transition">
+            <input type="checkbox" checked={showInactive} onChange={e => { setShowInactive(e.target.checked); setPage(1); }} className="rounded" />
+            Pasif ürünleri dahil et
+          </label>
+
+          {sortField && (
+            <span className="flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-700 rounded-lg px-2.5 py-1.5">
+              <Filter size={10} />
+              Sıralama: {sortField === "name" ? "İsim" : sortField === "price" ? "Fiyat" : "Stok"} {sortDir === "asc" ? "↑" : "↓"}
+              <button onClick={() => { setSortField(null); setPage(1); }} className="ml-1 hover:text-red-500"><X size={11} /></button>
+            </span>
+          )}
+
+          {(activeFilterCount > 0 || sortField) && (
+            <button onClick={clearAllFilters}
+              className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1.5 hover:bg-red-50 transition">
+              Tüm Filtreleri Temizle
+            </button>
+          )}
+
+          <span className="ml-auto text-xs text-slate-400">
+            {loading ? "Yükleniyor..." : `${totalCount} ürün`}
+          </span>
+        </div>
       </div>
 
       {/* Table */}
@@ -394,16 +592,36 @@ export default function AdminProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Ürün", "SKU", "Kategori / Marka", "Fiyat", "Stok", "Durum", ""].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">
+                  <button onClick={() => handleSort("name")}
+                    className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">
+                    Ürün <SortIcon field="name" />
+                  </button>
+                </th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">SKU</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Kategori / Marka</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">
+                  <button onClick={() => handleSort("price")}
+                    className="flex items-center gap-0.5 ml-auto hover:text-teal-600 transition select-none">
+                    Fiyat <SortIcon field="price" />
+                  </button>
+                </th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">
+                  <button onClick={() => handleSort("stock")}
+                    className="flex items-center gap-0.5 ml-auto hover:text-teal-600 transition select-none">
+                    Stok <SortIcon field="stock" />
+                  </button>
+                </th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Durum</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Kaynak</th>
+                <th className="px-5 py-3 text-xs font-medium text-slate-500 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
               ) : products.map((p) => (
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-50" : ""}`}>
                   <td className="px-5 py-3">
@@ -440,6 +658,11 @@ export default function AdminProductsPage() {
                       )}
                     </div>
                   </td>
+                  <td className="px-5 py-3">
+                    {p.importedFromSourceName
+                      ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{p.importedFromSourceName}</span>
+                      : <span className="text-xs text-slate-300">—</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openEdit(p)}
@@ -447,13 +670,16 @@ export default function AdminProductsPage() {
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
                       </button>
-                      {p.isActive && (
-                        <button onClick={() => setConfirmDeactivate(p.id)}
-                          title="Pasife Al"
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white shadow-sm hover:shadow-orange-200 hover:shadow-md transition-all duration-150 active:scale-95">
-                          <ToggleLeft size={18} />
-                        </button>
-                      )}
+                      <button onClick={() => openHistory({ id: p.id, name: p.name })}
+                        title="Geçmiş"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-500 hover:text-white shadow-sm hover:shadow-slate-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Clock size={18} />
+                      </button>
+                      <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                        title="Sil"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -463,22 +689,169 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
-          <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages} — {totalCount} ürün</span>
-          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+      {/* Pagination */}
+      {totalPages >= 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          {/* Info */}
+          <span className="text-xs text-slate-500 shrink-0">
+            {totalCount === 0 ? "Kayıt yok" : (() => {
+              const from = (page - 1) * pageSize + 1;
+              const to   = Math.min(page * pageSize, totalCount);
+              return `${from}–${to} / ${totalCount} ürün`;
+            })()}
+          </span>
+
+          {/* Page buttons */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              {/* First */}
+              <button onClick={() => setPage(1)} disabled={page === 1}
+                className="px-2 py-1.5 rounded-lg text-xs border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-slate-700">
+                «
+              </button>
+              {/* Prev */}
+              <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
+                className="px-2 py-1.5 rounded-lg text-xs border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-slate-700">
+                ‹
+              </button>
+
+              {/* Numbered pages */}
+              {(() => {
+                const pages: (number | "…")[] = [];
+                if (totalPages <= 7) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (page > 3) pages.push("…");
+                  for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+                  if (page < totalPages - 2) pages.push("…");
+                  pages.push(totalPages);
+                }
+                return pages.map((p, i) =>
+                  p === "…" ? (
+                    <span key={`e${i}`} className="px-2 text-xs text-slate-400 select-none">…</span>
+                  ) : (
+                    <button key={p} onClick={() => setPage(p)}
+                      className={`min-w-[30px] h-[30px] rounded-lg text-xs font-medium transition border ${
+                        p === page
+                          ? "bg-teal-600 text-white border-teal-600 shadow-sm"
+                          : "border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}>
+                      {p}
+                    </button>
+                  )
+                );
+              })()}
+
+              {/* Next */}
+              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages}
+                className="px-2 py-1.5 rounded-lg text-xs border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-slate-700">
+                ›
+              </button>
+              {/* Last */}
+              <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
+                className="px-2 py-1.5 rounded-lg text-xs border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-slate-700">
+                »
+              </button>
+            </div>
+          )}
+
+          {/* Go to page input */}
+          {totalPages > 5 && (
+            <form onSubmit={e => {
+              e.preventDefault();
+              const val = Number((e.currentTarget.elements.namedItem("gotoPage") as HTMLInputElement).value);
+              if (val >= 1 && val <= totalPages) { setPage(val); (e.currentTarget.elements.namedItem("gotoPage") as HTMLInputElement).value = ""; }
+            }} className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Git:</span>
+              <input name="gotoPage" type="number" min={1} max={totalPages}
+                className="w-16 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-center" />
+              <button type="submit" className="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition">→</button>
+            </form>
+          )}
         </div>
       )}
 
-      {confirmDeactivate && (
-        <ConfirmModal
-          title="Ürünü Pasife Al"
-          message="Bu ürünü pasif duruma almak istediğinizden emin misiniz? Pasif ürünler mağazada görünmez."
-          confirmLabel="Pasife Al"
-          onConfirm={() => { handleDeactivate(confirmDeactivate); setConfirmDeactivate(null); }}
-          onCancel={() => setConfirmDeactivate(null)}
-        />
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">Ürünü Sil</h2>
+                <p className="text-xs text-slate-500">Bu işlem geri alınamaz.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">&quot;{deleteTarget.name}&quot;</span> ürününü silmek istediğinizden emin misiniz?
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Aktif siparişi bulunan ürünler silinemez. Siparişler tamamlanana kadar ürün pasif yapılabilir.
+            </p>
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
+                Vazgeç
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                {deleting ? "Siliniyor..." : "Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-800">Ürün Geçmişi</h2>
+                <p className="text-xs text-slate-500">{historyTarget.name}</p>
+              </div>
+              <button onClick={() => setHistoryTarget(null)} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+              {historyLoading ? (
+                <p className="text-sm text-slate-400 text-center py-8">Yükleniyor...</p>
+              ) : historyError ? (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{historyError}</p>
+              ) : history.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">Henüz kayıt bulunamadı.</p>
+              ) : (
+                <ol className="relative border-l border-slate-200 space-y-6 ml-2">
+                  {history.map((entry, i) => (
+                    <li key={i} className="ml-4">
+                      <span className={`absolute -left-1.5 w-3 h-3 rounded-full border-2 border-white ${entry.eventType === "stock" ? "bg-teal-500" : "bg-slate-400"}`} />
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                            {entry.eventType === "stock" ? "📦 " : "📝 "}
+                            {entry.action}
+                          </p>
+                          {entry.detail && <p className="text-sm text-slate-600">{entry.detail}</p>}
+                          {(entry.oldValue || entry.newValue) && (
+                            <p className="text-xs text-slate-500">
+                              {entry.oldValue && <span className="line-through text-red-400 mr-1">{entry.oldValue}</span>}
+                              {entry.newValue && <span className="text-green-600">{entry.newValue}</span>}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400">{entry.userEmail ?? "Sistem"}</p>
+                        </div>
+                        <p className="text-xs text-slate-400 whitespace-nowrap shrink-0">
+                          {new Date(entry.occurredAt).toLocaleString("tr-TR")}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Create / Edit Modal */}
@@ -492,7 +865,7 @@ export default function AdminProductsPage() {
                 <input className={INPUT} value={form.name}
                   onChange={e => { setField("name", e.target.value); if (!form.slug || modal === "create") setField("slug", slugify(e.target.value)); }} />
               </Field>
-              <Field label="Slug *">
+              <Field label={<>Slug * <span title="Slug, ürünün URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-spor-ayakkabisi' → /urun/erkek-spor-ayakkabisi. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span></>}>
                 <input className={INPUT} value={form.slug} onChange={e => setField("slug", slugify(e.target.value))} />
               </Field>
             </div>
@@ -519,7 +892,17 @@ export default function AdminProductsPage() {
               <Field label="Kategori *">
                 <select className={SELECT} value={form.categoryId} onChange={e => setField("categoryId", e.target.value)}>
                   <option value="">Seçiniz...</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {categories.filter(c => !c.parentCategoryId).map(parent => {
+                    const subs = categories.filter(c => c.parentCategoryId === parent.id);
+                    return subs.length > 0 ? (
+                      <optgroup key={parent.id} label={parent.name}>
+                        <option value={parent.id}>{parent.name}</option>
+                        {subs.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                      </optgroup>
+                    ) : (
+                      <option key={parent.id} value={parent.id}>{parent.name}</option>
+                    );
+                  })}
                 </select>
               </Field>
               <Field label="Marka">

@@ -12,5 +12,7 @@ public class Brand : BaseEntity
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
 
+    public Guid? ImportedFromSourceId { get; set; }
+
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }
