@@ -350,6 +350,27 @@ const TEMPLATES = [
     columns: 5, headerLayout: "amazon",
     headerColor: "#131921", bgColor: "#eaeded", cardBg: "#ffffff", textColor: "#0f1111", svgRadius: 1, hasShadow: true,
   },
+  {
+    id: "atolye", name: "Atölye", emoji: "🌷",
+    description: "3 sütun, krem arka plan, ortalanmış başlık. Türk halk sanatı estetiği, el işi dükkanları için.",
+    tags: ["El İşi", "Krem", "3 Sütun"],
+    columns: 3, headerLayout: "centered",
+    headerColor: "#F5F0E8", bgColor: "#F5F0E8", cardBg: "#FEFCF7", textColor: "#2C1A10", svgRadius: 8, hasShadow: true,
+  },
+  {
+    id: "anadolu", name: "Anadolu", emoji: "🔵",
+    description: "3 sütun, lacivert başlık, krem zemin. Geleneksel Türk renk paleti, butik ve kültürel markalar için.",
+    tags: ["Geleneksel", "Lacivert", "3 Sütun"],
+    columns: 3, headerLayout: "standard",
+    headerColor: "#1E5B8C", bgColor: "#F5F0E8", cardBg: "#FEFCF7", textColor: "#1E3A5F", svgRadius: 4, hasShadow: true,
+  },
+  {
+    id: "cini", name: "Çini", emoji: "🏺",
+    description: "4 sütun, terracotta başlık, düz köşeler. Türk çini sanatından ilham, seramik ve el sanatları için.",
+    tags: ["Çini", "Terracotta", "Düz"],
+    columns: 4, headerLayout: "standard",
+    headerColor: "#C74B2A", bgColor: "#F0EBE3", cardBg: "#FEFCF7", textColor: "#2C1A10", svgRadius: 2, hasShadow: false,
+  },
 ] as const;
 
 function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
@@ -366,6 +387,9 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "pastel" ? "#ec4899" :
     id === "catalog" ? "#febd69" :
     id === "instagram" ? "#262626" :
+    id === "atolye" ? "#1E5B8C" :
+    id === "anadolu" ? "#C74B2A" :
+    id === "cini" ? "#1E5B8C" :
     "#0d9488";
 
   /* Görsel arka plan */
@@ -376,10 +400,11 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "neon" ? "#1a003a" :
     id === "instagram" ? "#c8c8c8" :
     id === "catalog" ? "#f0f0f0" :
+    id === "atolye" || id === "anadolu" || id === "cini" ? "#E8DFD0" :
     "#e2e8f0";
 
   /* Header açık mı koyu mu */
-  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)"];
+  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A"];
   const isLightHdr = !darkHeaders.some(c => headerColor.startsWith(c));
   const searchBg = isLightHdr ? "#f1f5f9" : id === "catalog" ? "#ffffff" : "rgba(255,255,255,0.18)";
   const iconBg   = isLightHdr ? "#e2e8f0" : "rgba(255,255,255,0.22)";
@@ -395,6 +420,9 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "glassmorphism" ? "rgba(255,255,255,0.1)" :
     id === "catalog" ? "#232f3e" :
     id === "brutalist" ? "#f5f5f5" :
+    id === "atolye" ? "#D4882C33" :
+    id === "anadolu" ? "#1E5B8C22" :
+    id === "cini" ? "#C74B2A22" :
     accent + "22";
 
   const cr = Math.min(svgRadius, 8);

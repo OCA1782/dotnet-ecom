@@ -46,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe", "sport", "retro", "instagram", "masonry", "brutalist", "glassmorphism", "neon", "pastel", "catalog"] as const;
+const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe", "sport", "retro", "instagram", "masonry", "brutalist", "glassmorphism", "neon", "pastel", "catalog", "atolye", "anadolu", "cini"] as const;
 type TemplateName = typeof VALID_TEMPLATES[number];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

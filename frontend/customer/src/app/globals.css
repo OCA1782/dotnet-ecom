@@ -612,3 +612,115 @@ html[data-template="catalog"] .bg-\[\#12304A\] { background: #232f3e !important;
 html[data-template="catalog"] .hover\:bg-\[\#FF7A45\]:hover { background: #f3a847 !important; }
 html[data-template="catalog"] .text-teal-500, html[data-template="catalog"] .text-teal-600,
 html[data-template="catalog"] .text-\[\#008F86\] { color: #007185 !important; }
+
+/* ── Atölye ──────────────────────────────────────────────────────────── */
+/* Neslinin Rengi Atölyesi: krem zemin, halk sanatı renkleri            */
+html[data-template="atolye"] {
+  --color-primary: #1E5B8C;
+  --color-accent:  #C74B2A;
+}
+html[data-template="atolye"] body { background-color: #F5F0E8; color: #2C1A10; }
+html[data-template="atolye"] header[data-tmpl-header] { background-color: #F5F0E8 !important; border-bottom: 2px solid #D4882C; }
+html[data-template="atolye"] header[data-tmpl-header] a,
+html[data-template="atolye"] header[data-tmpl-header] button,
+html[data-template="atolye"] header[data-tmpl-header] span { color: #2C1A10 !important; }
+html[data-template="atolye"] header[data-tmpl-header] input {
+  background: #EDE6D8 !important; border-color: #C9B89A !important; color: #2C1A10 !important;
+}
+html[data-template="atolye"] header[data-tmpl-header] input::placeholder { color: #8C7B6A !important; }
+html[data-template="atolye"] .bg-white { background-color: #FEFCF7 !important; }
+html[data-template="atolye"] .bg-slate-50, html[data-template="atolye"] .bg-gray-50 { background-color: #F5F0E8 !important; }
+html[data-template="atolye"] .product-card,
+html[data-template="atolye"] [data-product-grid] > * {
+  background-color: #FEFCF7 !important; border-color: #D9CEBC !important;
+  box-shadow: 0 2px 8px rgba(44,26,16,0.08) !important;
+}
+html[data-template="atolye"] .product-card:hover,
+html[data-template="atolye"] [data-product-grid] > *:hover { border-color: #1E5B8C !important; }
+html[data-template="atolye"] .bg-teal-500, html[data-template="atolye"] .bg-teal-600 { background: #1E5B8C !important; }
+html[data-template="atolye"] .hover\:bg-teal-600:hover { background: #174E7A !important; }
+html[data-template="atolye"] .text-teal-500, html[data-template="atolye"] .text-teal-600,
+html[data-template="atolye"] .text-teal-700 { color: #1E5B8C !important; }
+html[data-template="atolye"] .border-teal-100, html[data-template="atolye"] .border-teal-200 { border-color: #C9B89A !important; }
+html[data-template="atolye"] .bg-teal-50 { background: #EDE6D8 !important; }
+html[data-template="atolye"] footer { background-color: #2C1A10 !important; color: #F5F0E8 !important; }
+html[data-template="atolye"] .text-orange-500, html[data-template="atolye"] .text-orange-600 { color: #C74B2A !important; }
+html[data-template="atolye"] .bg-orange-500 { background: #C74B2A !important; }
+
+/* ── Anadolu ─────────────────────────────────────────────────────────── */
+/* Lacivert başlık, krem zemin, terracotta vurgu                         */
+html[data-template="anadolu"] {
+  --color-primary: #C74B2A;
+  --color-accent:  #D4882C;
+}
+html[data-template="anadolu"] body { background-color: #F5F0E8; color: #1E3A5F; }
+html[data-template="anadolu"] header[data-tmpl-header] { background-color: #1E5B8C !important; }
+html[data-template="anadolu"] header[data-tmpl-header] a,
+html[data-template="anadolu"] header[data-tmpl-header] button,
+html[data-template="anadolu"] header[data-tmpl-header] span,
+html[data-template="anadolu"] header[data-tmpl-header] .text-slate-700,
+html[data-template="anadolu"] header[data-tmpl-header] .text-slate-900 { color: #ffffff !important; }
+html[data-template="anadolu"] header[data-tmpl-header] input {
+  background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.3) !important; color: #ffffff !important;
+}
+html[data-template="anadolu"] header[data-tmpl-header] input::placeholder { color: rgba(255,255,255,0.6) !important; }
+html[data-template="anadolu"] header[data-tmpl-header] .bg-teal-500 { background: rgba(255,255,255,0.25) !important; }
+html[data-template="anadolu"] .bg-white { background-color: #FEFCF7 !important; }
+html[data-template="anadolu"] .bg-slate-50, html[data-template="anadolu"] .bg-gray-50 { background-color: #F5F0E8 !important; }
+html[data-template="anadolu"] .product-card,
+html[data-template="anadolu"] [data-product-grid] > * {
+  background-color: #FEFCF7 !important; border-color: #D9CEBC !important;
+  box-shadow: 0 2px 10px rgba(30,58,95,0.10) !important;
+}
+html[data-template="anadolu"] .product-card:hover,
+html[data-template="anadolu"] [data-product-grid] > *:hover { border-color: #C74B2A !important; }
+html[data-template="anadolu"] .bg-teal-500, html[data-template="anadolu"] .bg-teal-600 { background: #C74B2A !important; }
+html[data-template="anadolu"] .hover\:bg-teal-600:hover { background: #A83D21 !important; }
+html[data-template="anadolu"] .text-teal-500, html[data-template="anadolu"] .text-teal-600,
+html[data-template="anadolu"] .text-teal-700 { color: #C74B2A !important; }
+html[data-template="anadolu"] .border-teal-100, html[data-template="anadolu"] .border-teal-200 { border-color: #C9B89A !important; }
+html[data-template="anadolu"] .bg-teal-50 { background: #FAE8E0 !important; }
+html[data-template="anadolu"] footer { background-color: #1E3A5F !important; color: #F5F0E8 !important; }
+html[data-template="anadolu"] .text-orange-500, html[data-template="anadolu"] .text-orange-600 { color: #D4882C !important; }
+
+/* ── Çini ────────────────────────────────────────────────────────────── */
+/* Terracotta başlık, kilden ilham zemin, düz geometrik köşeler          */
+html[data-template="cini"] {
+  --color-primary: #1E5B8C;
+  --color-accent:  #D4882C;
+}
+html[data-template="cini"] body { background-color: #F0EBE3; color: #2C1A10; }
+html[data-template="cini"] header[data-tmpl-header] { background-color: #C74B2A !important; }
+html[data-template="cini"] header[data-tmpl-header] a,
+html[data-template="cini"] header[data-tmpl-header] button,
+html[data-template="cini"] header[data-tmpl-header] span,
+html[data-template="cini"] header[data-tmpl-header] .text-slate-700,
+html[data-template="cini"] header[data-tmpl-header] .text-slate-900 { color: #ffffff !important; }
+html[data-template="cini"] header[data-tmpl-header] input {
+  background: rgba(255,255,255,0.18) !important; border-color: rgba(255,255,255,0.35) !important; color: #ffffff !important;
+}
+html[data-template="cini"] header[data-tmpl-header] input::placeholder { color: rgba(255,255,255,0.6) !important; }
+html[data-template="cini"] header[data-tmpl-header] .bg-teal-500 { background: rgba(255,255,255,0.25) !important; }
+html[data-template="cini"] [class*="rounded-2xl"],
+html[data-template="cini"] [class*="rounded-xl"],
+html[data-template="cini"] [class*="rounded-lg"],
+html[data-template="cini"] [class*="rounded-full"] { border-radius: 0.25rem !important; }
+html[data-template="cini"] [class*="shadow"] { box-shadow: none !important; }
+html[data-template="cini"] .bg-white { background-color: #FEFCF7 !important; }
+html[data-template="cini"] .bg-slate-50, html[data-template="cini"] .bg-gray-50 { background-color: #F0EBE3 !important; }
+html[data-template="cini"] .product-card,
+html[data-template="cini"] [data-product-grid] > * {
+  background-color: #FEFCF7 !important;
+  border: 2px solid #C9B89A !important; border-radius: 0.25rem !important; box-shadow: none !important;
+}
+html[data-template="cini"] .product-card:hover,
+html[data-template="cini"] [data-product-grid] > *:hover { border-color: #1E5B8C !important; }
+html[data-template="cini"] .bg-teal-500, html[data-template="cini"] .bg-teal-600 { background: #1E5B8C !important; }
+html[data-template="cini"] .hover\:bg-teal-600:hover { background: #174E7A !important; }
+html[data-template="cini"] .text-teal-500, html[data-template="cini"] .text-teal-600,
+html[data-template="cini"] .text-teal-700 { color: #1E5B8C !important; }
+html[data-template="cini"] .border-teal-100, html[data-template="cini"] .border-teal-200 { border-color: #C9B89A !important; }
+html[data-template="cini"] .bg-teal-50 { background: #EDE6D8 !important; }
+html[data-template="cini"] footer { background-color: #2C1A10 !important; color: #F5F0E8 !important; }
+html[data-template="cini"] .text-orange-500, html[data-template="cini"] .text-orange-600 { color: #D4882C !important; }
+html[data-template="cini"] .bg-orange-500 { background: #D4882C !important; }
