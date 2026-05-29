@@ -261,18 +261,24 @@ public class DocsController(
         if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured))
             return configured;
 
-        // 2. DOCS folder in git repo root
+        // 2. DOCS / docs folder in git repo root (case-insensitive search)
         var repoRoot = FindGitRoot(env.ContentRootPath);
         if (repoRoot is not null)
         {
-            var p = Path.Combine(repoRoot, "DOCS");
-            if (Directory.Exists(p)) return p;
+            foreach (var name in new[] { "DOCS", "docs" })
+            {
+                var p = Path.Combine(repoRoot, name);
+                if (Directory.Exists(p)) return p;
+            }
         }
         var cwd = FindGitRoot(Directory.GetCurrentDirectory());
         if (cwd is not null)
         {
-            var p = Path.Combine(cwd, "DOCS");
-            if (Directory.Exists(p)) return p;
+            foreach (var name in new[] { "DOCS", "docs" })
+            {
+                var p = Path.Combine(cwd, name);
+                if (Directory.Exists(p)) return p;
+            }
         }
         return null;
     }

@@ -559,35 +559,47 @@ const CONTENT_SUBS: { id: ContentSub; label: string }[] = [
 
 /* ─── RBAC Matrix ────────────────────────────────────────────────────── */
 const ROLE_COLUMNS = [
-  { key: "SuperAdmin", label: "Süper Admin" },
-  { key: "Admin", label: "Admin" },
+  { key: "SuperAdmin",     label: "Süper Admin" },
+  { key: "Admin",          label: "Admin" },
   { key: "ProductManager", label: "Ürün Yön." },
-  { key: "StockManager", label: "Stok Yön." },
-  { key: "OrderManager", label: "Sipariş Yön." },
-  { key: "CustomerSupport", label: "Müşteri Des." },
-  { key: "FinanceUser", label: "Finans" },
+  { key: "StockManager",   label: "Stok Yön." },
+  { key: "OrderManager",   label: "Sipariş Yön." },
+  { key: "CustomerSupport",label: "Müşteri Des." },
+  { key: "FinanceUser",    label: "Finans" },
   { key: "ContentManager", label: "İçerik Yön." },
 ];
 
-const PERMISSION_MATRIX = [
-  { module: "Dashboard",     roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
-  { module: "Siparişler",    roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
-  { module: "Ürünler",       roles: ["SuperAdmin","Admin","ProductManager"] },
-  { module: "Kategoriler",   roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
-  { module: "Markalar",      roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
-  { module: "Stok",          roles: ["SuperAdmin","Admin","StockManager","ProductManager"] },
-  { module: "Kullanıcılar",  roles: ["SuperAdmin","Admin","CustomerSupport"] },
-  { module: "Kuponlar",      roles: ["SuperAdmin","Admin","FinanceUser"] },
-  { module: "Yorumlar",      roles: ["SuperAdmin","Admin","CustomerSupport","ContentManager"] },
-  { module: "Hareketler",    roles: ["SuperAdmin","Admin"] },
-  { module: "Hedefler",      roles: ["SuperAdmin","Admin","FinanceUser"] },
-  { module: "Takip",         roles: ["SuperAdmin","Admin"] },
-  { module: "Dış Kaynaklar", roles: ["SuperAdmin","Admin"] },
-  { module: "Ziyaretçiler",  roles: ["SuperAdmin","Admin"] },
-  { module: "Analiz",        roles: ["SuperAdmin","Admin","FinanceUser"] },
-  { module: "Servisler",     roles: ["SuperAdmin","Admin"] },
-  { module: "Kuyruklar",     roles: ["SuperAdmin","Admin"] },
-  { module: "Yönetim",       roles: ["SuperAdmin","Admin"] },
+// module names MUST match nav item labels in layout.tsx exactly
+const PERMISSION_MATRIX: { module: string; group: string; roles: string[] }[] = [
+  // ── Genel
+  { module: "Dashboard",     group: "Genel",     roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
+  { module: "Analiz",        group: "Genel",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  { module: "Hedefler",      group: "Genel",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  // ── Katalog
+  { module: "Ürünler",       group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager"] },
+  { module: "Kategoriler",   group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
+  { module: "Markalar",      group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
+  { module: "Stok",          group: "Katalog",   roles: ["SuperAdmin","Admin","StockManager","ProductManager"] },
+  { module: "Yorumlar",      group: "Katalog",   roles: ["SuperAdmin","Admin","CustomerSupport","ContentManager"] },
+  { module: "Duyurular",     group: "Katalog",   roles: ["SuperAdmin","Admin","ContentManager"] },
+  // ── Satış
+  { module: "Siparişler",    group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { module: "Ödemeler",      group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  { module: "İadeler",       group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { module: "Kuponlar",      group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  { module: "Kargo",         group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager"] },
+  { module: "Faturalar",     group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  // ── Kullanıcı
+  { module: "Kullanıcılar",  group: "Kullanıcı", roles: ["SuperAdmin","Admin","CustomerSupport"] },
+  { module: "Ziyaretçiler",  group: "Kullanıcı", roles: ["SuperAdmin","Admin"] },
+  // ── Sistem
+  { module: "Hareketler",    group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "Takip",         group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "Dış Kaynaklar", group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "Servisler",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "Kuyruklar",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "Dokümanlar",    group: "Sistem",    roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
+  { module: "Yönetim",       group: "Sistem",    roles: ["SuperAdmin","Admin"] },
 ];
 
 /* ─── MenuSorter ─────────────────────────────────────────────────────── */
@@ -1116,8 +1128,6 @@ export default function YonetimPage() {
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
-  const [uploadingLogo, setUploadingLogo]       = useState(false);
-  const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [testEmail, setTestEmail]               = useState("");
   const [testEmailSending, setTestEmailSending] = useState(false);
@@ -1364,15 +1374,6 @@ export default function YonetimPage() {
     } finally { setSaving(false); }
   }
 
-  async function uploadImage(file: File, type: "logo" | "favicon") {
-    const setUploading = type === "logo" ? setUploadingLogo : setUploadingFavicon;
-    setUploading(true);
-    try {
-      const data = await api.upload(file);
-      if (data.url) set(type === "logo" ? "LogoUrl" : "FaviconUrl", data.url);
-    } finally { setUploading(false); }
-  }
-
   async function uploadFor(file: File, settingKey: string) {
     setUploadingKey(settingKey);
     try {
@@ -1508,71 +1509,6 @@ export default function YonetimPage() {
               <Field label="İletişim Telefonu">
                 <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp} placeholder="+90 532 000 00 00" />
               </Field>
-            </div>
-          </Section>
-          <Section title="Logo & Favicon" icon={<ImageIcon size={16} />}
-            subtitle="Admin ve müşteri sitesi görselleri. Ayrıntılı ayarlar için Görünüm sekmesini kullanın.">
-            <div className="space-y-4">
-              {/* Admin */}
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Admin Panel</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: "AdminLogoNamed", label: "İsimli Logo", bg: "bg-[#1c2044]", ref: adminLogoNamedRef, accept: "image/*" },
-                    { key: "AdminLogoIcon",  label: "İsimsiz Logo", bg: "bg-[#1c2044]", ref: adminLogoIconRef, accept: "image/*" },
-                    { key: "AdminFaviconUrl",label: "Favicon",      bg: "bg-slate-50",  ref: adminFaviconRef,  accept: "image/*,.ico" },
-                  ].map(({ key, label, bg, ref, accept }) => {
-                    const busy = uploadingKey === key;
-                    return (
-                      <div key={key} className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-slate-600">{label}</p>
-                        <div className={`h-12 rounded-xl ${bg} border border-slate-200 flex items-center justify-center overflow-hidden px-1`}>
-                          {settings[key]
-                            ? <img src={settings[key]} alt={label} className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                            : <ImageIcon size={16} className="text-slate-400 opacity-40" />}
-                        </div>
-                        <input ref={ref} type="file" accept={accept} className="hidden"
-                          onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                        <button onClick={() => ref.current?.click()} disabled={busy}
-                          className="flex items-center gap-1 text-[10px] border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-50 transition w-full justify-center">
-                          {busy ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
-                          {busy ? "..." : "Yükle"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Customer */}
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Müşteri Sitesi</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: "CustomerLogoNamed",  label: "İsimli Logo",  bg: "bg-white border-2",  ref: customerLogoNamedRef, accept: "image/*" },
-                    { key: "CustomerLogoIcon",   label: "İsimsiz Logo", bg: "bg-white border-2",  ref: customerLogoIconRef,  accept: "image/*" },
-                    { key: "CustomerFaviconUrl", label: "Favicon",      bg: "bg-slate-50",         ref: customerFaviconRef,   accept: "image/*,.ico" },
-                  ].map(({ key, label, bg, ref, accept }) => {
-                    const busy = uploadingKey === key;
-                    return (
-                      <div key={key} className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-slate-600">{label}</p>
-                        <div className={`h-12 rounded-xl ${bg} border-slate-200 flex items-center justify-center overflow-hidden px-1`}>
-                          {settings[key]
-                            ? <img src={settings[key]} alt={label} className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                            : <ImageIcon size={16} className="text-slate-400 opacity-40" />}
-                        </div>
-                        <input ref={ref} type="file" accept={accept} className="hidden"
-                          onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                        <button onClick={() => ref.current?.click()} disabled={busy}
-                          className="flex items-center gap-1 text-[10px] border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-50 transition w-full justify-center">
-                          {busy ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
-                          {busy ? "..." : "Yükle"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           </Section>
         </div>
@@ -2729,45 +2665,61 @@ export default function YonetimPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {PERMISSION_MATRIX.map((row, ri) => {
-                    const currentRoles = rbacMatrix[row.module] ?? row.roles;
-                    const defaultRoles = defaultMatrix[row.module] ?? row.roles;
-                    const isChanged = JSON.stringify([...currentRoles].sort()) !== JSON.stringify([...defaultRoles].sort());
-                    return (
-                      <tr key={row.module} className={`border-b border-slate-100 transition ${isChanged ? "bg-amber-50/50" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
-                        <td className="py-2 px-4 font-medium whitespace-nowrap flex items-center gap-1.5">
-                          {row.module}
-                          {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
-                        </td>
-                        {[...ROLE_COLUMNS, ...customRoles.map(r => ({ key: r, label: r }))].map(r => {
-                          const hasRole = currentRoles.includes(r.key);
-                          const isLocked = r.key === "SuperAdmin";
-                          return (
-                            <td key={r.key} className="py-2 px-2 text-center">
-                              {isLocked ? (
-                                <span className="inline-flex w-6 h-6 rounded-full bg-violet-100 text-violet-500 items-center justify-center cursor-not-allowed" title="Süper Admin her zaman tam yetkili">
-                                  ✓
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => togglePerm(row.module, r.key)}
-                                  title={hasRole ? `${r.label} yetkisini kaldır` : `${r.label} yetkisini ekle`}
-                                  className={`inline-flex w-6 h-6 rounded-full items-center justify-center transition-all duration-150 ${
-                                    hasRole
-                                      ? "bg-teal-100 text-teal-600 hover:bg-red-100 hover:text-red-500 border border-teal-200 hover:border-red-200"
-                                      : "bg-slate-100 text-slate-300 hover:bg-teal-50 hover:text-teal-400 border border-slate-200 hover:border-teal-200"
-                                  }`}
-                                >
-                                  {hasRole ? "✓" : "—"}
-                                </button>
-                              )}
+                  {(() => {
+                    const allCols = [...ROLE_COLUMNS, ...customRoles.map(r => ({ key: r, label: r }))];
+                    const rows: React.ReactNode[] = [];
+                    let lastGroup = "";
+                    PERMISSION_MATRIX.forEach((row, ri) => {
+                      if (row.group !== lastGroup) {
+                        lastGroup = row.group;
+                        rows.push(
+                          <tr key={`group-${row.group}`} className="border-b border-slate-200 bg-slate-100/70">
+                            <td colSpan={allCols.length + 1} className="py-1.5 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              {row.group}
                             </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
+                          </tr>
+                        );
+                      }
+                      const currentRoles = rbacMatrix[row.module] ?? row.roles;
+                      const defaultRoles = defaultMatrix[row.module] ?? row.roles;
+                      const isChanged = JSON.stringify([...currentRoles].sort()) !== JSON.stringify([...defaultRoles].sort());
+                      rows.push(
+                        <tr key={row.module} className={`border-b border-slate-100 transition ${isChanged ? "bg-amber-50/50" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
+                          <td className="py-2 px-4 font-medium whitespace-nowrap flex items-center gap-1.5">
+                            {row.module}
+                            {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
+                          </td>
+                          {allCols.map(r => {
+                            const hasRole = currentRoles.includes(r.key);
+                            const isLocked = r.key === "SuperAdmin";
+                            return (
+                              <td key={r.key} className="py-2 px-2 text-center">
+                                {isLocked ? (
+                                  <span className="inline-flex w-6 h-6 rounded-full bg-violet-100 text-violet-500 items-center justify-center cursor-not-allowed" title="Süper Admin her zaman tam yetkili">
+                                    ✓
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePerm(row.module, r.key)}
+                                    title={hasRole ? `${r.label} yetkisini kaldır` : `${r.label} yetkisini ekle`}
+                                    className={`inline-flex w-6 h-6 rounded-full items-center justify-center transition-all duration-150 ${
+                                      hasRole
+                                        ? "bg-teal-100 text-teal-600 hover:bg-red-100 hover:text-red-500 border border-teal-200 hover:border-red-200"
+                                        : "bg-slate-100 text-slate-300 hover:bg-teal-50 hover:text-teal-400 border border-slate-200 hover:border-teal-200"
+                                    }`}
+                                  >
+                                    {hasRole ? "✓" : "—"}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    });
+                    return rows;
+                  })()}
                 </tbody>
               </table>
             </div>
