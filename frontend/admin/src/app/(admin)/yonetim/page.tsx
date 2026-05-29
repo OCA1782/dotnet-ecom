@@ -1482,12 +1482,6 @@ export default function YonetimPage() {
               <Field label="Admin Panel Başlığı" hint="Admin paneli sol üst köşesi ve tarayıcı sekmesinde görünür">
                 <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Örn: Keyvora" />
               </Field>
-              <Field label="Site URL" hint="Müşteri mağazası adresi">
-                <div className="relative">
-                  <Link size={14} className="absolute left-3 top-3 text-slate-400" />
-                  <input value={settings.SiteUrl} onChange={e => set("SiteUrl", e.target.value)} className={inp + " pl-9"} placeholder="https://keyvora.com" />
-                </div>
-              </Field>
               <Field label="Para Birimi">
                 <select value={settings.Currency} onChange={e => set("Currency", e.target.value)} className={inp}>
                   <option value="TRY">TRY — Türk Lirası</option>
@@ -1509,6 +1503,24 @@ export default function YonetimPage() {
               <Field label="İletişim Telefonu">
                 <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp} placeholder="+90 532 000 00 00" />
               </Field>
+            </div>
+          </Section>
+          <Section title="Sosyal Medya" icon={<Share2 size={16} />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { label: "Instagram", key: "SocialInstagram", ph: "https://instagram.com/keyvora" },
+                { label: "Twitter / X", key: "SocialTwitter", ph: "https://twitter.com/keyvora" },
+                { label: "Facebook", key: "SocialFacebook", ph: "https://facebook.com/keyvora" },
+                { label: "YouTube", key: "SocialYoutube", ph: "https://youtube.com/@keyvora" },
+                { label: "LinkedIn", key: "SocialLinkedin", ph: "https://linkedin.com/company/keyvora" },
+              ].map(({ label, key, ph }) => (
+                <Field key={key} label={label}>
+                  <div className="relative">
+                    <Share2 size={13} className="absolute left-3 top-3 text-slate-400" />
+                    <input value={settings[key] ?? ""} onChange={e => set(key, e.target.value)} className={inp + " pl-8"} placeholder={ph} />
+                  </div>
+                </Field>
+              ))}
             </div>
           </Section>
         </div>
@@ -1853,24 +1865,6 @@ export default function YonetimPage() {
               Font ve renk değişiklikleri kaydedildikten sonra sayfa yenilenince tam olarak uygulanır.
             </div>
           </Section>
-          <Section title="Sosyal Medya" icon={<Share2 size={16} />}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { label: "Instagram", key: "SocialInstagram", ph: "https://instagram.com/keyvora" },
-                { label: "Twitter / X", key: "SocialTwitter", ph: "https://twitter.com/keyvora" },
-                { label: "Facebook", key: "SocialFacebook", ph: "https://facebook.com/keyvora" },
-                { label: "YouTube", key: "SocialYoutube", ph: "https://youtube.com/@keyvora" },
-                { label: "LinkedIn", key: "SocialLinkedin", ph: "https://linkedin.com/company/keyvora" },
-              ].map(({ label, key, ph }) => (
-                <Field key={key} label={label}>
-                  <div className="relative">
-                    <Share2 size={13} className="absolute left-3 top-3 text-slate-400" />
-                    <input value={settings[key] ?? ""} onChange={e => set(key, e.target.value)} className={inp + " pl-8"} placeholder={ph} />
-                  </div>
-                </Field>
-              ))}
-            </div>
-          </Section>
         </div>
       )}
 
@@ -2162,7 +2156,7 @@ export default function YonetimPage() {
                     rows={3} className={inp + " resize-none"} placeholder="Keyifli alışverişin yeni adresi." />
                 </Field>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
-                  Sosyal medya bağlantıları için <button className="text-teal-600 underline" onClick={() => setTab("gorunum")}>Görünüm sekmesine</button> gidin.
+                  Sosyal medya bağlantıları için <button className="text-teal-600 underline" onClick={() => setTab("genel")}>Genel sekmesine</button> gidin.
                   İletişim bilgileri (e-posta & telefon) <button className="text-teal-600 underline" onClick={() => setContentSub("iletisim")}>İletişim bölümünden</button> yönetilir.
                 </div>
               </div>
@@ -3068,7 +3062,9 @@ export default function YonetimPage() {
           </Section>
 
           <Section title="Aktivasyon Anahtarı" icon={<KeyRound size={16} />}
-            subtitle="Uygulamayı çalıştırmak için gereken geliştirici anahtarı. Anahtar şifreli saklanır; görüntülemek için ayrı şifre gereklidir.">
+            subtitle="Uygulamayı çalıştırmak için gereken lisans anahtarı. Geçersiz veya eksik lisansta sistem başlamaz ve API yanıt vermez.">
+
+            {/* Durum kartı */}
             {devKeyLoading ? (
               <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
                 <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
@@ -3078,24 +3074,102 @@ export default function YonetimPage() {
                 <Shield size={15} className="mt-0.5 shrink-0 text-amber-500" />
                 <div>
                   <p className="font-semibold">Anahtar yapılandırılmamış</p>
-                  <p className="text-xs mt-0.5 text-amber-700">appsettings.Development.json dosyasına DevKey ve DevKeyPepper ekleyin, ardından uygulamayı yeniden başlatın.</p>
+                  <p className="text-xs mt-1 text-amber-700">
+                    <code className="bg-amber-100 px-1 rounded">appsettings.Development.json</code> dosyasında{" "}
+                    <code className="bg-amber-100 px-1 rounded">"License"</code> anahtarı eksik veya boş.
+                    Aşağıdaki rehberi takip ederek yapılandır.
+                  </p>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Aktivasyon Anahtarı</p>
-                  <p className="font-mono text-sm font-semibold text-slate-700 tracking-widest">{devKeyStatus.maskedKey ?? "****-****-****-****"}</p>
-                  {!devKeyStatus.revealPasswordSet && (
-                    <p className="text-[10px] text-amber-600 mt-1">Görüntüleme şifresi henüz ayarlanmamış (DevRevealPassword eksik).</p>
-                  )}
+              <div className="space-y-3">
+                <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Aktivasyon Anahtarı</p>
+                    <p className="font-mono text-sm font-semibold text-slate-700 tracking-widest">{devKeyStatus.maskedKey ?? "****-****-****-****"}</p>
+                    {!devKeyStatus.revealPasswordSet && (
+                      <p className="text-[10px] text-amber-600 mt-1">Görüntüleme şifresi henüz ayarlanmamış (DevRevealPassword eksik).</p>
+                    )}
+                  </div>
+                  <button onClick={openRevealModal} disabled={!devKeyStatus.revealPasswordSet}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                    <Eye size={13} /> Görüntüle
+                  </button>
                 </div>
-                <button onClick={openRevealModal} disabled={!devKeyStatus.revealPasswordSet}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                  <Eye size={13} /> Görüntüle
-                </button>
+                <div className="flex items-start gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+                  <Shield size={12} className="shrink-0 mt-0.5" />
+                  <span>Lisans geçerli · RSA-2048 imzası doğrulandı · Geçerlilik: 2026-01-01 – 2028-12-31</span>
+                </div>
               </div>
             )}
+
+            {/* Kullanım rehberi */}
+            <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center gap-2">
+                <BookOpen size={13} className="text-slate-400" />
+                <p className="text-xs font-semibold text-slate-600">Bu anahtarı nasıl kullanırım?</p>
+              </div>
+              <div className="p-4 space-y-4">
+
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 1 — Token'ı Görüntüle</p>
+                  <ol className="space-y-1">
+                    {[
+                      '"Görüntüle" butonuna tıkla',
+                      'Açılan modalda görüntüleme şifresini gir (sistem yöneticisinden al)',
+                      'Tam token ekranda belirir — "Kopyala" butonuna bas',
+                    ].map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                        <span className="w-4 h-4 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">{i + 1}</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 2 — Yapılandırma Dosyasına Yapıştır</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono space-y-1">
+                      <p className="text-slate-400">{'// appsettings.Development.json'}</p>
+                      <p className="text-amber-300">{'"License": "<buraya yapıştır>"'}</p>
+                    </div>
+                    <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono space-y-1">
+                      <p className="text-slate-400">{'# Production ortam değişkeni'}</p>
+                      <p className="text-emerald-300">{'ECOM_LICENSE=<buraya yapıştır>'}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <Shield size={10} /> appsettings.Development.json gitignore'dadır — token git'e commit edilmez.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 3 — Uygulamayı Yeniden Başlat</p>
+                  <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono">
+                    <p className="text-slate-400">{'# backend/ dizininden'}</p>
+                    <p className="text-teal-300">{'dotnet run --project src/Ecom.API'}</p>
+                  </div>
+                  <p className="text-xs text-slate-500">Başarılıysa bu sayfaya geri dön — durum "Yapılandırılmış" olarak güncellenir.</p>
+                </div>
+
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
+                  <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
+                  {[
+                    { s: "Uygulama başlamıyor", c: "Token eksik veya imzası hatalı. Terminal'deki hatayı oku ve token'ı tekrar kopyala/yapıştır." },
+                    { s: "Giriş 401 veriyor", c: "JWT anahtarı lisanstan türetilir. Token değişmişse oturumu kapatıp tekrar giriş yap." },
+                    { s: "Tüm API'ler 503 veriyor", c: "LicenseMiddleware engelledi. Dosyaya yapıştırılan token tam ve tek satır olmalı." },
+                  ].map(r => (
+                    <div key={r.s} className="flex gap-2 text-xs">
+                      <span className="text-red-500 font-semibold shrink-0 w-40">{r.s}</span>
+                      <span className="text-red-700">{r.c}</span>
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            </div>
+
           </Section>
         </div>
       )}

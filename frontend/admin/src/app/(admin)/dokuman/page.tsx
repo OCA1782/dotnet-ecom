@@ -9,7 +9,7 @@ import {
   MapPin, FlaskConical, Settings, Calendar, Tag, Cpu,
   BarChart3, Palette, KeyRound, Bell, Globe, Code2,
   Warehouse, LayoutDashboard, FileText, AlertCircle, Clock,
-  Image as ImageIcon,
+  Image as ImageIcon, Eye,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -328,6 +328,141 @@ function SureclerTab() {
         </div>
         <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-700">
           5.000+ satır için aktarım RabbitMQ&apos;ya kuyruğa alınır (async), daha az satır için chunked senkron işlem yapılır. Her iki durumda da import log kaydedilir.
+        </div>
+      </DocSection>
+
+      {/* Lisans Yönetimi Rehberi */}
+      <DocSection title="Lisans Yönetimi — Başlangıç Rehberi" icon={KeyRound}>
+        <p className="text-xs text-slate-500 mb-4">
+          Uygulamanın çalışabilmesi için geçerli bir aktivasyon anahtarının (lisans) yapılandırılmış olması gerekir.
+          Bu rehber, lisansı hiç bilmeyen birinin süreci başından sonuna kadar takip edebilmesi için hazırlanmıştır.
+        </p>
+        <div className="space-y-5">
+
+          {/* Lisans nedir */}
+          <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl space-y-2">
+            <p className="text-xs font-bold text-teal-700 flex items-center gap-1.5"><Lock size={13} /> Lisans Nedir?</p>
+            <p className="text-xs text-teal-700 leading-relaxed">
+              Aktivasyon anahtarı, uygulamanın yalnızca yetkili ortamlarda çalışmasını sağlayan dijital bir imzadır.
+              Olmadan uygulama başlamaz, giriş yapılamaz ve hiçbir API isteği yanıt almaz.
+              Bir yapılandırma dosyasına tek satır olarak yazılır; başka bir kurulum gerektirmez.
+            </p>
+          </div>
+
+          {/* Durum kontrolü */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">1 — Lisans Durumunu Kontrol Et</p>
+            <p className="text-xs text-slate-500 mb-2">Admin panelinde <strong>Yönetim → Sistem → Aktivasyon Anahtarı</strong> bölümüne git. Karşılaşabileceğin durumlar:</p>
+            <div className="space-y-2">
+              {[
+                { badge: "Yapılandırılmış", color: "emerald" as const, desc: "Lisans config'de mevcut ve RSA imzası geçerli. Sistem normal çalışıyor." },
+                { badge: "Yapılandırılmamış", color: "amber" as const, desc: "Lisans config'de bulunamadı. Aşağıdaki adımları uygula." },
+                { badge: "Geçersiz İmza", color: "red" as const, desc: "Dosyadaki token bozulmuş veya yanlış yapıştırılmış. Token'ı doğru kopyalayıp tekrar dene." },
+              ].map(r => (
+                <div key={r.badge} className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  <Badge label={r.badge} color={r.color} />
+                  <p className="text-xs text-slate-600 leading-relaxed">{r.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Token'ı görüntüleme */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">2 — Token'ı Görüntüle ve Kopyala</p>
+            <FlowRow>
+              <FlowStep icon={Settings} label="Yönetim" color="teal" sub="Sol menü altında" />
+              <Arrow />
+              <FlowStep icon={Cpu} label="Sistem" color="teal" sub="Sekmeye tıkla" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="Aktivasyon Anahtarı" color="violet" sub="Bölümü bul" />
+              <Arrow />
+              <FlowStep icon={Eye} label="Görüntüle" color="amber" sub="Butona tıkla" />
+              <Arrow />
+              <FlowStep icon={Lock} label="Şifre Gir" color="amber" sub="Sistem yöneticisinden al" />
+              <Arrow />
+              <FlowStep icon={Code2} label="Kopyala" color="emerald" sub="Tam token görünür" />
+            </FlowRow>
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+              <strong>Görüntüleme şifresi</strong> sistem yöneticisinde saklanır. Şifreyi bilmiyorsan yöneticine danış. Şifre panelde hiçbir yerde gösterilmez.
+            </div>
+          </div>
+
+          {/* Token'ı yapılandırma */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">3 — Token'ı Yapılandır</p>
+            <div className="space-y-2">
+              {[
+                {
+                  env: "Geliştirme (Local)",
+                  color: "amber" as const,
+                  steps: [
+                    'backend/src/Ecom.API/appsettings.Development.json dosyasını aç',
+                    '"License" anahtarına kopyalanan token\'ı yapıştır',
+                    'Dosyayı kaydet — git\'e commit etme (gitignore\'da)',
+                    'Uygulamayı yeniden başlat: dotnet run --project src/Ecom.API',
+                  ],
+                },
+                {
+                  env: "Production (Sunucu)",
+                  color: "blue" as const,
+                  steps: [
+                    'Sunucuda ECOM_LICENSE ortam değişkenini oluştur',
+                    'Değer olarak kopyalanan token\'ı yapıştır',
+                    'Alternatif: appsettings.Production.json içinde "License" anahtarına yaz',
+                    'Uygulamayı yeniden başlat (systemd / Docker / IIS)',
+                  ],
+                },
+              ].map(e => (
+                <div key={e.env} className="border border-slate-200 rounded-xl p-3 space-y-2">
+                  <Badge label={e.env} color={e.color} />
+                  <ol className="space-y-1.5 pl-1">
+                    {e.steps.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                        <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">{i + 1}</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Doğrulama */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">4 — Doğrula</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { check: "Uygulama başladı mı?", ok: "Konsol/log'da hata yok, sunucu ayağa kalktı", fail: "\"License is invalid\" veya Exit(1) hatası → token'ı kontrol et" },
+                { check: "Giriş yapılıyor mu?", ok: "Admin paneline email/şifre ile giriş yapılabiliyor", fail: "401 hatası → JWT anahtarı lisanstan türetilir, token yanlış olabilir" },
+                { check: "Panel açılıyor mu?", ok: "Yönetim → Sistem → 'Yapılandırılmış' badge görünüyor", fail: "503 hatası → LicenseMiddleware engelledi, token eksik/bozuk" },
+              ].map(c => (
+                <div key={c.check} className="border border-slate-200 rounded-xl p-3 space-y-2 text-xs">
+                  <p className="font-semibold text-slate-700">{c.check}</p>
+                  <div className="flex items-start gap-1.5 text-emerald-700"><span className="font-bold shrink-0">✓</span>{c.ok}</div>
+                  <div className="flex items-start gap-1.5 text-red-600"><span className="font-bold shrink-0">✗</span>{c.fail}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SSS */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Sık Sorulan Sorular</p>
+            {[
+              { q: "Token çok uzun, doğru mu?", a: "Evet. Token ~400–500 karakter uzunluğundadır. Tamamını tek satır olarak yapıştır, boşluk veya satır sonu bırakma." },
+              { q: "Eski token silinirse ne olur?", a: "Uygulama bir sonraki başlatmada başlamayı reddeder. Token'ı yeniden yapıştırıp uygulamayı başlat." },
+              { q: "Token'ın süresi ne zaman dolar?", a: "2028-12-31. Dolmadan önce sistem yöneticisinden yeni lisans talep et." },
+              { q: "Token'ı başkasıyla paylaşabilir miyim?", a: "Hayır. Token uygulamaya özeldir; yanlış ellere geçerse yetkisiz kopyalar oluşturulabilir." },
+            ].map(f => (
+              <div key={f.q} className="text-xs space-y-0.5">
+                <p className="font-semibold text-slate-700">{f.q}</p>
+                <p className="text-slate-500 leading-relaxed">{f.a}</p>
+              </div>
+            ))}
+          </div>
+
         </div>
       </DocSection>
 
