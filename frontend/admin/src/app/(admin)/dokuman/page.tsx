@@ -553,6 +553,207 @@ function TeknikTab() {
         </div>
       </DocSection>
 
+      {/* Lisans Token — Sistem Mekanizması */}
+      <DocSection title="Lisans Token — Sistem Mekanizması" icon={Shield} defaultOpen={false}>
+        <p className="text-xs text-slate-500 mb-4">
+          Token'ın format, doğrulama akışı ve sistem üzerindeki etkileri. Token admin panelinden reveal edildikten sonra bu mekanizma devreye girer.
+        </p>
+        <div className="space-y-5">
+
+          {/* Token formatı */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Token Formatı</p>
+            <div className="p-3 bg-slate-900 rounded-xl font-mono text-xs text-slate-200 space-y-1 overflow-x-auto">
+              <p><span className="text-violet-400">{"{"}</span><span className="text-amber-300">Base64Url(payload)</span><span className="text-violet-400">{"}"}</span><span className="text-slate-500"> . </span><span className="text-violet-400">{"{"}</span><span className="text-teal-300">Base64Url(RSA-2048 imza)</span><span className="text-violet-400">{"}"}</span></p>
+              <p className="text-slate-400 mt-2">Payload (decode edilmiş):</p>
+              <p className="text-emerald-300">{'{"app":"Ecom","iss":"OCA1782","nbf":"2026-01-01","exp":"2028-12-31"}'}</p>
+            </div>
+            <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { field: "app",  desc: "Uygulama adı — başka uygulamaların tokenini geçersiz kılar" },
+                { field: "iss",  desc: "Lisans veren: OCA1782" },
+                { field: "nbf",  desc: "Geçerlilik başlangıcı: 2026-01-01" },
+                { field: "exp",  desc: "Son kullanma: 2028-12-31" },
+              ].map(f => (
+                <div key={f.field} className="p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                  <code className="font-bold text-violet-600">{f.field}</code>
+                  <p className="text-slate-500 mt-1 leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3 katman akışı */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">3 Bağımsız Doğrulama Katmanı</p>
+            <div className="space-y-2">
+              {[
+                {
+                  layer: "1",
+                  title: "Startup Doğrulaması",
+                  when: "Uygulama başlatılırken (Program.cs)",
+                  how: "LicenseValidator.Validate() — RSA public key gömülü, imza + nbf/exp kontrolü",
+                  fail: "Environment.Exit(1) — uygulama hiç ayağa kalkmaz",
+                  color: "red" as const,
+                },
+                {
+                  layer: "2",
+                  title: "JWT Anahtar Türetme",
+                  when: "AddJwtBearer ve JwtService yapılandırmasında (singleton)",
+                  how: "HMACSHA256(licensePayload, UTF8(salt)) → LicenseJwtKey. Config'deki Jwt:Key kullanılmaz.",
+                  fail: "Lisans geçersizse türetme başarısız → tüm login/auth istekleri 401",
+                  color: "amber" as const,
+                },
+                {
+                  layer: "3",
+                  title: "LicenseMiddleware",
+                  when: "Her HTTP isteğinde (1 dk önbellek ile)",
+                  how: "RSA doğrulama cache'den okunur. /health endpoint bypass edilir.",
+                  fail: "503 Service Unavailable — auth geçerli olsa bile erişim engellenir",
+                  color: "violet" as const,
+                },
+              ].map(l => (
+                <div key={l.layer} className="border border-slate-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[10px] font-bold shrink-0">{l.layer}</span>
+                    <span className="text-xs font-bold text-slate-700">{l.title}</span>
+                    <Badge label={l.color === "red" ? "Startup" : l.color === "amber" ? "Singleton" : "Per-request"} color={l.color} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs pl-7">
+                    <div><span className="text-slate-400 block">Ne zaman</span><span className="text-slate-700">{l.when}</span></div>
+                    <div><span className="text-slate-400 block">Nasıl</span><span className="text-slate-700">{l.how}</span></div>
+                    <div><span className="text-slate-400 block">Başarısız olursa</span><span className="text-red-600 font-medium">{l.fail}</span></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hata senaryoları */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Hata Senaryoları</p>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    {["Senaryo","Katman","HTTP Kodu","Davranış"].map(h => (
+                      <th key={h} className="text-left py-2 px-3 text-slate-500 font-semibold whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { s: "Token eksik (config'de yok)",    k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
+                    { s: "Token süresi dolmuş (exp geçti)", k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
+                    { s: "İmza geçersiz (sahte token)",     k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
+                    { s: "Lisans değiştiyse JWT uyuşmazlık",k: "2 — JWT Türetme",    http: "401", d: "Tüm login/auth başarısız" },
+                    { s: "Runtime'da token bozulursa",      k: "3 — Middleware",     http: "503", d: "Auth geçerli olsa bile engel" },
+                    { s: "Geçerli lisans + geçerli JWT",    k: "Tümü geçer",         http: "200", d: "Normal akış" },
+                    { s: "GET /health (izleme)",            k: "3 bypass edilir",    http: "200", d: "Lisans olmasa da yanıt verir" },
+                  ].map((r, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
+                      <td className="py-2 px-3 text-slate-700">{r.s}</td>
+                      <td className="py-2 px-3 text-slate-500">{r.k}</td>
+                      <td className="py-2 px-3">
+                        <code className={`px-1.5 py-0.5 rounded font-mono font-bold ${
+                          r.http === "200" ? "bg-emerald-100 text-emerald-700" :
+                          r.http === "401" ? "bg-amber-100 text-amber-700" :
+                          r.http === "503" ? "bg-red-100 text-red-700" :
+                          "bg-slate-100 text-slate-500"
+                        }`}>{r.http}</code>
+                      </td>
+                      <td className="py-2 px-3 text-slate-600">{r.d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </DocSection>
+
+      {/* Aktivasyon Anahtarı */}
+      <DocSection title="Aktivasyon Anahtarı — Kullanım Kılavuzu" icon={KeyRound}>
+        <p className="text-xs text-slate-500 mb-4">
+          Sistem lisansı RSA-2048 ile imzalanmış bir JWT tokenidir. Geçersiz veya süresi dolmuş lisansta tüm API istekleri <code className="bg-slate-100 px-1 rounded">503</code> döner.
+        </p>
+        <div className="space-y-4">
+
+          {/* Nerede saklanır */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Nerede Saklanır</p>
+            <div className="space-y-2">
+              {[
+                { env: "Development", where: "appsettings.Development.json → \"License\": \"eyJ...\"", color: "emerald" as const },
+                { env: "Production",  where: "Ortam değişkeni: ECOM_LICENSE veya appsettings.Production.json", color: "blue" as const },
+              ].map(r => (
+                <div key={r.env} className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                  <Badge label={r.env} color={r.color} />
+                  <code className="text-slate-600 leading-relaxed">{r.where}</code>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Nasıl görüntülenir */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Admin Panelinde Görüntüleme</p>
+            <FlowRow>
+              <FlowStep icon={Settings}  label="Yönetim"  color="teal" sub="Sol menü alt" />
+              <Arrow />
+              <FlowStep icon={Cpu}       label="Sistem"   color="teal" sub="Sekme" />
+              <Arrow />
+              <FlowStep icon={KeyRound}  label="Aktivasyon Anahtarı" color="violet" sub="Bölüm" />
+              <Arrow />
+              <FlowStep icon={Lock}      label="Şifre Gir" color="amber" sub="Reveal şifresi" />
+              <Arrow />
+              <FlowStep icon={Code2}     label="Token Görünür" color="teal" sub="Kopyala" />
+            </FlowRow>
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+              Reveal şifresi <code className="bg-amber-100 px-1 rounded font-mono">DevRevealPassword</code> config değerinden okunur.
+              Hash'i DB'ye <code className="bg-amber-100 px-1 rounded font-mono">RevealPasswordHash</code> key'i altında saklanır.
+              Şifre sadece SuperAdmin tarafından bilinmeli; kimseyle paylaşılmamalıdır.
+            </div>
+          </div>
+
+          {/* Deployment adımları */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">Deployment Adımları</p>
+            <div className="space-y-1.5">
+              {[
+                { step: "1", desc: "Admin paneli → Yönetim → Sistem → Aktivasyon Anahtarı → Görüntüle → Kopyala" },
+                { step: "2", desc: "Sunucuda ECOM_LICENSE ortam değişkenine yapıştır (veya appsettings.Production.json)" },
+                { step: "3", desc: "Uygulamayı yeniden başlat — startup'ta RSA doğrulaması yapılır, başarısızsa Exit(1)" },
+                { step: "4", desc: "Lisans geçerliliği: 2026-01-01 – 2028-12-31. Süre dolmadan yeni lisans üretilmeli." },
+              ].map(r => (
+                <div key={r.step} className="flex items-start gap-3 text-xs">
+                  <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{r.step}</span>
+                  <span className="text-slate-600 leading-relaxed">{r.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Güvenlik notları */}
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-red-400 mb-1">Güvenlik Notları</p>
+            {[
+              "Lisans token'ı repoya commit etme — appsettings.Development.json gitignore'da.",
+              "Private key sadece geliştiricide saklanır; yeni lisans üretmek için gerekir.",
+              "JWT imzalama anahtarı lisanstan türetilir — lisans olmadan tüm auth başarısız olur.",
+              "Her HTTP isteğinde LicenseMiddleware 1 dk cache ile doğrulama yapar.",
+            ].map((note, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs text-red-700">
+                <Shield size={11} className="text-red-400 shrink-0 mt-0.5" />
+                <span>{note}</span>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </DocSection>
+
     </div>
   );
 }
