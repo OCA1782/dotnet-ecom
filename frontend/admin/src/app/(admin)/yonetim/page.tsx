@@ -1591,18 +1591,28 @@ export default function YonetimPage() {
               {(() => {
                 const key = "AdminFaviconUrl";
                 const busy = uploadingKey === key;
+                const title = settings.AdminTitle || "Admin Panel";
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
                     <p className="text-[11px] text-slate-400">Admin paneli tarayıcı sekmesi ikonu.</p>
-                    <div className="h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                    {/* Büyük önizleme */}
+                    <div className="h-24 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="Favicon" className="w-10 h-10 object-contain" /> // eslint-disable-line
-                        : <Globe size={20} className="text-slate-300" />}
+                        ? <img src={settings[key]} alt="Favicon" className="w-20 h-20 object-contain" /> // eslint-disable-line
+                        : <Globe size={32} className="text-slate-300" />}
                     </div>
-                    <input ref={adminFaviconRef} type="file" accept="image/*,.ico" className="hidden"
+                    {/* Sekme simülasyonu */}
+                    {settings[key] && (
+                      <div className="flex items-center gap-1.5 bg-slate-200 rounded-t-lg px-2 py-1.5 w-fit max-w-full">
+                        <img src={settings[key]} alt="" className="w-3.5 h-3.5 object-contain shrink-0" /> {/* eslint-disable-line */}
+                        <span className="text-[10px] text-slate-600 truncate max-w-[100px]">{title}</span>
+                        <span className="text-slate-400 ml-0.5 text-[10px]">×</span>
+                      </div>
+                    )}
+                    <input ref={adminFaviconRef} type="file" accept="image/*,image/x-icon,image/vnd.microsoft.icon,.ico" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => adminFaviconRef.current?.click()} disabled={busy}
+                    <button type="button" onClick={() => adminFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                       {busy ? "Yükleniyor..." : "Yükle"}
@@ -1679,18 +1689,28 @@ export default function YonetimPage() {
               {(() => {
                 const key = "CustomerFaviconUrl";
                 const busy = uploadingKey === key;
+                const siteName = settings.SiteName || "Keyvora";
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
                     <p className="text-[11px] text-slate-400">Müşteri sitesi tarayıcı sekmesi ikonu.</p>
-                    <div className="h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                    {/* Büyük önizleme */}
+                    <div className="h-24 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="Favicon" className="w-10 h-10 object-contain" /> // eslint-disable-line
-                        : <Globe size={20} className="text-slate-300" />}
+                        ? <img src={settings[key]} alt="Favicon" className="w-20 h-20 object-contain" /> // eslint-disable-line
+                        : <Globe size={32} className="text-slate-300" />}
                     </div>
-                    <input ref={customerFaviconRef} type="file" accept="image/*,.ico" className="hidden"
+                    {/* Sekme simülasyonu */}
+                    {settings[key] && (
+                      <div className="flex items-center gap-1.5 bg-slate-200 rounded-t-lg px-2 py-1.5 w-fit max-w-full">
+                        <img src={settings[key]} alt="" className="w-3.5 h-3.5 object-contain shrink-0" /> {/* eslint-disable-line */}
+                        <span className="text-[10px] text-slate-600 truncate max-w-[100px]">{siteName}</span>
+                        <span className="text-slate-400 ml-0.5 text-[10px]">×</span>
+                      </div>
+                    )}
+                    <input ref={customerFaviconRef} type="file" accept="image/*,image/x-icon,image/vnd.microsoft.icon,.ico" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => customerFaviconRef.current?.click()} disabled={busy}
+                    <button type="button" onClick={() => customerFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                       {busy ? "Yükleniyor..." : "Yükle"}
