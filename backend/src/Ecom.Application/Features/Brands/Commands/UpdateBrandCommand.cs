@@ -33,7 +33,11 @@ public class UpdateBrandHandler(IApplicationDbContext db, IAuditService audit)
         var slugExists = await db.Brands.AnyAsync(b => b.Slug == request.Slug && b.Id != request.Id, cancellationToken);
         if (slugExists) return Result.Failure("Bu slug başka bir markada kullanılıyor.");
 
-        var old = brand.Name;
+        var changes = new List<string>();
+        if (brand.Name != request.Name) changes.Add($"Ad: {brand.Name} → {request.Name}");
+        if (brand.Slug != request.Slug) changes.Add($"Slug: {brand.Slug} → {request.Slug}");
+        if (brand.IsActive != request.IsActive) changes.Add($"Durum: {(brand.IsActive ? "Aktif" : "Pasif")} → {(request.IsActive ? "Aktif" : "Pasif")}");
+
         brand.Name = request.Name;
         brand.Slug = request.Slug;
         brand.LogoUrl = request.LogoUrl;
@@ -43,7 +47,8 @@ public class UpdateBrandHandler(IApplicationDbContext db, IAuditService audit)
         brand.MetaDescription = request.MetaDescription;
 
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("BrandUpdated", "Brand", brand.Id.ToString(), old, brand.Name, cancellationToken: cancellationToken);
+        var detail = changes.Count > 0 ? string.Join(" | ", changes) : null;
+        await audit.LogAsync("BrandUpdated", "Marka", brand.Id.ToString(), null, detail, cancellationToken: cancellationToken);
 
         return Result.Success();
     }

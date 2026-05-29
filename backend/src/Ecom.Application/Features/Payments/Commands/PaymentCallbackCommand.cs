@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Events;
 using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public class PaymentCallbackHandler(
     IApplicationDbContext db,
     IPaymentService paymentService,
     IStockService stockService,
-    IEmailService emailService
+    IEventPublisher eventPublisher
 ) : IRequestHandler<PaymentCallbackCommand, Result>
 {
     public async Task<Result> Handle(PaymentCallbackCommand request, CancellationToken cancellationToken)
@@ -65,12 +66,15 @@ public class PaymentCallbackHandler(
                     item.ProductId, item.ProductVariantId, item.Quantity, order.Id, cancellationToken);
             }
 
-            // Send payment success email
+            // Publish PaymentCompletedEvent via outbox
             try
             {
-                var (email, name) = await GetCustomerInfoAsync(order, cancellationToken);
-                if (!string.IsNullOrEmpty(email))
-                    await emailService.SendPaymentSuccessAsync(email, name, order.OrderNumber, order.GrandTotal, cancellationToken);
+                var (email, _) = await GetCustomerInfoAsync(order, cancellationToken);
+                await eventPublisher.PublishAsync(new PaymentCompletedEvent(
+                    order.Id, order.OrderNumber,
+                    string.IsNullOrEmpty(email) ? null : email,
+                    order.GrandTotal, payment.PaymentProvider,
+                    DateTime.UtcNow), cancellationToken);
             }
             catch { }
         }

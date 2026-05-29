@@ -5,8 +5,43 @@ import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate } from "@/lib/utils";
 import type { AdminUser, PaginatedList } from "@/types";
-import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
+
+interface AuditLog {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdDate: string;
+}
+
+const USER_ACTION_LABELS: Record<string, string> = {
+  CreateUser: "Oluşturuldu",
+  UpdateUser: "Güncellendi",
+  DeleteUser: "Silindi",
+  ActivateUser: "Aktive Edildi",
+  DeactivateUser: "Pasife Alındı",
+  Login: "Giriş",
+  LoginFailed: "Başarısız Giriş",
+  Register: "Kayıt",
+};
+
+const USER_ACTION_COLORS: Record<string, string> = {
+  CreateUser: "bg-green-100 text-green-700",
+  UpdateUser: "bg-blue-100 text-blue-700",
+  DeleteUser: "bg-red-100 text-red-700",
+  ActivateUser: "bg-emerald-100 text-emerald-700",
+  DeactivateUser: "bg-slate-100 text-slate-600",
+  Login: "bg-teal-100 text-teal-700",
+  LoginFailed: "bg-red-100 text-red-700",
+  Register: "bg-violet-100 text-violet-700",
+  "Oluşturuldu — Kullanıcı": "bg-green-100 text-green-700",
+  "Güncellendi — Kullanıcı": "bg-blue-100 text-blue-700",
+  "Silindi — Kullanıcı": "bg-red-100 text-red-700",
+};
 
 const ROLE_COLORS: Record<string, string> = {
   SuperAdmin: "bg-purple-100 text-purple-800",
@@ -28,7 +63,7 @@ const ALL_ROLES = [
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 interface NewUserForm { name: string; surname: string; email: string; password: string; role: string; }
-interface EditUserForm { id: string; name: string; surname: string; role: string; profileImageUrl: string; }
+interface EditUserForm { id: string; name: string; surname: string; email: string; phoneNumber: string; role: string; profileImageUrl: string; }
 const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: "", role: "Customer" };
 
 const PAGE_SIZES = [20, 50, 100];
@@ -50,7 +85,7 @@ export default function UsersPage() {
   const [formError, setFormError] = useState("");
 
   const [editModal, setEditModal] = useState(false);
-  const [editForm, setEditForm] = useState<EditUserForm>({ id: "", name: "", surname: "", role: "Customer", profileImageUrl: "" });
+  const [editForm, setEditForm] = useState<EditUserForm>({ id: "", name: "", surname: "", email: "", phoneNumber: "", role: "Customer", profileImageUrl: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -59,6 +94,32 @@ export default function UsersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [rolesTarget, setRolesTarget] = useState<AdminUser | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [rolesSaving, setRolesSaving] = useState(false);
+  const [rolesError, setRolesError] = useState("");
+
+  // Per-row history modal
+  const [historyTarget, setHistoryTarget] = useState<AdminUser | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadUserHistory = useCallback(async (userId: string) => {
+    setHistoryLoading(true);
+    setHistoryLogs([]);
+    try {
+      const data = await api.get<{ items: AuditLog[]; totalCount: number }>(`/api/admin/audit-logs/entity/${encodeURIComponent("Kullanıcı")}/${userId}`);
+      setHistoryLogs(data.items);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  function openHistory(u: AdminUser) {
+    setHistoryTarget(u);
+    loadUserHistory(u.id);
+  }
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -90,16 +151,24 @@ export default function UsersPage() {
   }
 
   function openEdit(u: AdminUser) {
-    setEditForm({ id: u.id, name: u.name, surname: u.surname, role: u.roles?.[0] ?? "Customer", profileImageUrl: "" });
+    setEditForm({ id: u.id, name: u.name, surname: u.surname, email: u.email, phoneNumber: u.phoneNumber ?? "", role: u.roles?.[0] ?? "Customer", profileImageUrl: "" });
     setEditError("");
     setEditModal(true);
   }
 
   async function handleEdit() {
     if (!editForm.name || !editForm.surname) { setEditError("Ad ve soyad zorunludur."); return; }
+    if (!editForm.email) { setEditError("E-posta zorunludur."); return; }
     setEditSaving(true); setEditError("");
     try {
-      await api.put(`/api/admin/users/${editForm.id}`, { id: editForm.id, name: editForm.name, surname: editForm.surname, role: editForm.role });
+      await api.put(`/api/admin/users/${editForm.id}`, {
+        id: editForm.id,
+        name: editForm.name,
+        surname: editForm.surname,
+        role: editForm.role,
+        email: editForm.email,
+        phoneNumber: editForm.phoneNumber || null,
+      });
       setMsg({ text: "Kullanıcı güncellendi.", ok: true });
       setEditModal(false);
       await fetchUsers();
@@ -132,10 +201,29 @@ export default function UsersPage() {
     } finally { setDeleting(false); }
   }
 
+  function openRoles(u: AdminUser) {
+    setRolesTarget(u);
+    setSelectedRoles(u.roles ?? []);
+    setRolesError("");
+  }
+
+  async function handleUpdateRoles() {
+    if (!rolesTarget || selectedRoles.length === 0) { setRolesError("En az bir rol seçin."); return; }
+    setRolesSaving(true); setRolesError("");
+    try {
+      await api.put(`/api/admin/users/${rolesTarget.id}/roles`, { roles: selectedRoles });
+      setMsg({ text: "Roller güncellendi.", ok: true });
+      setRolesTarget(null);
+      await fetchUsers();
+    } catch (e: unknown) { setRolesError(e instanceof Error ? e.message : "Hata"); }
+    finally { setRolesSaving(false); }
+  }
+
   function handleExport() {
     exportToExcel(
       users.map(u => ({
         "Ad": u.name, "Soyad": u.surname, "E-posta": u.email,
+        "Cep Telefonu": u.phoneNumber ?? "",
         "Roller": u.roles?.join(", ") ?? "", "Durum": u.isActive ? "Aktif" : "Pasif",
         "Kayıt Tarihi": formatDate(u.createdDate),
       })),
@@ -224,20 +312,21 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Kullanıcı", "E-posta", "Roller", "Durum", "Kayıt Tarihi", ""].map(h => (
+                {["Kullanıcı", "E-posta", "Cep Telefonu", "Roller", "Durum", "Kayıt Tarihi", ""].map(h => (
                   <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
                   <td className="px-5 py-3.5 font-medium text-slate-900 text-xs">{u.name} {u.surname}</td>
                   <td className="px-5 py-3.5 text-slate-500 text-xs">{u.email}</td>
+                  <td className="px-5 py-3.5 text-slate-500 text-xs">{u.phoneNumber ?? <span className="text-slate-300">—</span>}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex flex-wrap gap-1.5">
                       {u.roles?.map(role => (
@@ -255,6 +344,14 @@ export default function UsersPage() {
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{formatDate(u.createdDate)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
+                      <button onClick={() => openHistory(u)} title="Geçmiş"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <History size={16} />
+                      </button>
+                      <button onClick={() => openRoles(u)} title="Rolleri Düzenle"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-violet-50 text-violet-600 hover:bg-violet-500 hover:text-white shadow-sm hover:shadow-violet-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                        <ShieldCheck size={16} />
+                      </button>
                       <button onClick={() => openEdit(u)} title="Düzenle"
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
@@ -281,6 +378,67 @@ export default function UsersPage() {
           {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+        </div>
+      )}
+
+      {/* ── Kullanıcı Geçmişi Modalı ── */}
+      {historyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <History size={16} className="text-amber-500" /> Kullanıcı Geçmişi
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">{historyTarget.name} {historyTarget.surname} — {historyTarget.email}</p>
+              </div>
+              <button onClick={() => setHistoryTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {historyLoading ? (
+                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+              ) : historyLogs.length === 0 ? (
+                <p className="p-8 text-center text-slate-400">Bu kullanıcıya ait hareket kaydı bulunamadı.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>
+                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historyLogs.map(l => (
+                      <tr key={l.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                          {new Date(l.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 text-xs">{l.userEmail}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${USER_ACTION_COLORS[l.action] ?? "bg-slate-100 text-slate-600"}`}>
+                            {USER_ACTION_LABELS[l.action] ?? l.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {l.newValue
+                            ? l.newValue.split(" | ").map((part, i) => (
+                                <div key={i} className="text-xs text-slate-600">{part}</div>
+                              ))
+                            : l.oldValue
+                            ? <span className="text-xs text-slate-400">{l.oldValue}</span>
+                            : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -357,6 +515,48 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* Roles modal */}
+      {rolesTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2"><ShieldCheck size={16} className="text-violet-500" /> Rol Yönetimi</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{rolesTarget.name} {rolesTarget.surname}</p>
+              </div>
+              <button onClick={() => setRolesTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              {rolesError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{rolesError}</p>}
+              <p className="text-xs text-slate-500">Kullanıcının sahip olacağı rolleri seçin. En az bir rol zorunludur.</p>
+              <div className="space-y-2">
+                {ALL_ROLES.map(role => (
+                  <label key={role} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles.includes(role)}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedRoles(r => [...r, role]);
+                        else setSelectedRoles(r => r.filter(x => x !== role));
+                      }}
+                      className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+                    />
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[role] ?? "bg-slate-100 text-slate-600"}`}>{role}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button onClick={() => setRolesTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={handleUpdateRoles} disabled={rolesSaving}
+                  className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                  {rolesSaving ? "Kaydediliyor..." : "Rolleri Kaydet"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit modal */}
       {editModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -381,6 +581,14 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
                   <input className={INPUT} value={editForm.surname} onChange={e => setEditForm(f => ({ ...f, surname: e.target.value }))} />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
+                <input type="email" className={INPUT} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={editForm.phoneNumber} onChange={e => setEditForm(f => ({ ...f, phoneNumber: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>

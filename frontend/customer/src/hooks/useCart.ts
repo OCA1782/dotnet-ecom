@@ -1,24 +1,59 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { Cart } from "@/types";
 
+// ── Module-level shared state (same pattern as useAuth authListeners) ──────
+// All useCart() instances share the same cart data.
+let _cachedCart: Cart | null = null;
+const _stateListeners  = new Set<(cart: Cart | null) => void>();
+const _refetchTriggers = new Set<() => void>();
+
+function _broadcastState(cart: Cart | null) {
+  _cachedCart = cart;
+  _stateListeners.forEach(fn => fn(cart));
+}
+
+/** Called by useAuth on logout — immediately clears the badge for all instances. */
+export function clearCartState() {
+  _broadcastState(null);
+}
+
+/** Called by useAuth after login+merge — makes all mounted instances refetch. */
+export function triggerCartRefetch() {
+  _refetchTriggers.forEach(fn => fn());
+}
+
+// ── Hook ───────────────────────────────────────────────────────────────────
+
 export function useCart() {
-  const [cart, setCart] = useState<Cart | null>(null);
+  // Initialize from module cache so new instances show current cart instantly
+  const [cart, setCart]     = useState<Cart | null>(_cachedCart);
   const [loading, setLoading] = useState(false);
 
   const fetchCart = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.get<Cart>("/api/cart");
-      setCart(data);
+      _broadcastState(data);        // updates ALL instances, not just this one
     } catch {
-      setCart(null);
+      _broadcastState(null);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    // Subscribe this instance to shared state updates
+    _stateListeners.add(setCart);
+    // Register this instance's fetchCart for cross-instance refetch triggers
+    _refetchTriggers.add(fetchCart);
+    return () => {
+      _stateListeners.delete(setCart);
+      _refetchTriggers.delete(fetchCart);
+    };
+  }, [fetchCart]);
 
   const addToCart = useCallback(
     async (productId: string, quantity: number, variantId?: string) => {
@@ -44,9 +79,25 @@ export function useCart() {
     [fetchCart]
   );
 
+  const toggleSelection = useCallback(
+    async (cartItemId: string, isSelected: boolean) => {
+      // Optimistic update — broadcast immediately
+      const updated: Cart | null = _cachedCart
+        ? { ..._cachedCart, items: _cachedCart.items.map(i => i.cartItemId === cartItemId ? { ...i, isSelected } : i) }
+        : null;
+      _broadcastState(updated);
+      try {
+        await api.patch(`/api/cart/items/${cartItemId}/select`, { isSelected });
+      } catch {
+        await fetchCart(); // rollback on error
+      }
+    },
+    [fetchCart]
+  );
+
   const clearCart = useCallback(async () => {
     await api.delete("/api/cart/clear");
-    setCart(null);
+    _broadcastState(null);
   }, []);
 
   const applyCoupon = useCallback(
@@ -68,7 +119,13 @@ export function useCart() {
     await fetchCart();
   }, [fetchCart]);
 
-  const itemCount = cart?.items.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
+  const selectedCount = cart?.items.filter(i => i.isSelected).reduce((sum, i) => sum + i.quantity, 0) ?? 0;
+  const itemCount     = cart?.items.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
 
-  return { cart, loading, fetchCart, addToCart, updateItem, removeItem, clearCart, applyCoupon, removeCoupon, itemCount };
+  return {
+    cart, loading, fetchCart,
+    addToCart, updateItem, removeItem, toggleSelection, clearCart,
+    applyCoupon, removeCoupon,
+    itemCount, selectedCount,
+  };
 }

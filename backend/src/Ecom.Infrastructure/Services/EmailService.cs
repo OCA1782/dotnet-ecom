@@ -63,6 +63,39 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, "Yönetici", subject, body, ct);
     }
 
+    public async Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default)
+    {
+        var subject = $"Yorumunuz Hakkında Bilgi — {productName}";
+        var noteSection = string.IsNullOrWhiteSpace(note)
+            ? ""
+            : $"<div style=\"background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px\"><p style=\"margin:0;color:#b91c1c;font-size:13px\"><strong>Yönetici Notu:</strong> {note}</p></div>";
+        var body = $"""
+            <div style="font-family:sans-serif;max-width:480px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
+              <h2 style="color:#b91c1c">Yorumunuz Yayınlanamadı</h2>
+              <p>Merhaba {toName},</p>
+              <p><strong>{productName}</strong> ürünü için bıraktığınız yorum, yönetimimiz tarafından incelenerek yayınlanmamasına karar verildi.</p>
+              {noteSection}
+              <p style="color:#64748b;font-size:13px;margin-top:16px">Sorularınız için destek ekibimize ulaşabilirsiniz.</p>
+            </div>
+            """;
+        await SendAsync(toEmail, toName, subject, body, ct);
+    }
+
+    public async Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default)
+    {
+        var body = $"""
+            <div style="font-family:sans-serif;max-width:560px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
+              <h2 style="color:#0f766e">Yeni İletişim Formu Mesajı</h2>
+              <p><strong>Ad Soyad:</strong> {fromName}</p>
+              <p><strong>E-posta:</strong> <a href="mailto:{fromEmail}">{fromEmail}</a></p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
+              <p style="white-space:pre-wrap">{message}</p>
+              <p style="color:#94a3b8;font-size:12px;margin-top:24px">{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
+            </div>
+            """;
+        await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, ct);
+    }
+
     public async Task SendTestEmailAsync(string toEmail, CancellationToken ct = default)
     {
         var body = $"""

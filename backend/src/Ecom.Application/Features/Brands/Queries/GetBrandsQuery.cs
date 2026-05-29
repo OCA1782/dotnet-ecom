@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Brands.Queries;
 
-public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true)
+public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null)
     : IRequest<PaginatedList<BrandDto>>;
 
 public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null);
@@ -16,7 +16,9 @@ public class GetBrandsQueryHandler(IApplicationDbContext db) : IRequestHandler<G
     {
         var query = db.Brands.Where(b => !b.IsDeleted);
 
-        if (request.OnlyActive)
+        if (request.IsActive.HasValue)
+            query = query.Where(b => b.IsActive == request.IsActive.Value);
+        else if (request.OnlyActive)
             query = query.Where(b => b.IsActive);
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(b => b.Name.Contains(request.Search));

@@ -25,6 +25,25 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
 
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 
-    public string? IpAddress =>
-        httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+    public string? IpAddress
+    {
+        get
+        {
+            var ctx = httpContextAccessor.HttpContext;
+            if (ctx is null) return null;
+            var forwarded = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwarded))
+                return NormalizeIp(forwarded.Split(',')[0].Trim());
+            return NormalizeIp(ctx.Connection.RemoteIpAddress?.ToString());
+        }
+    }
+
+    private static string? NormalizeIp(string? ip) =>
+        ip is "::1" ? "127.0.0.1" : ip;
+
+    public string? SessionId =>
+        httpContextAccessor.HttpContext?.Request.Cookies["guest_session_id"];
+
+    public string? UserAgent =>
+        httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].FirstOrDefault();
 }

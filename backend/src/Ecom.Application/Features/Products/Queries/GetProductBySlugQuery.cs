@@ -25,6 +25,7 @@ public record ProductDetailDto(
     decimal TaxRate,
     bool IsActive,
     bool IsPublished,
+    bool IsFeatured,
     string? MetaTitle,
     string? MetaDescription,
     int AvailableStock,
@@ -40,10 +41,38 @@ public record ProductVariantDto(
     string AttributesJson, int AvailableStock
 );
 
-public class GetProductBySlugQueryHandler(IApplicationDbContext db)
+public class GetProductBySlugQueryHandler(IApplicationDbContext db, ICacheService cache)
     : IRequestHandler<GetProductBySlugQuery, ProductDetailDto?>
 {
     public async Task<ProductDetailDto?> Handle(GetProductBySlugQuery request, CancellationToken cancellationToken)
+    {
+        var cacheKey = $"product:slug:{request.Slug}";
+        var cached = await cache.GetAsync<ProductDetailDto>(cacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
+        var product = await db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Brand)
+            .Include(p => p.Images.OrderBy(i => i.SortOrder))
+            .Include(p => p.Variants.Where(v => v.IsActive))
+                .ThenInclude(v => v.Stock)
+            .Include(p => p.Stock)
+            .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.IsActive && p.IsPublished, cancellationToken);
+
+        if (product is null) return null;
+
+        var result = ProductMapper.ToDto(product);
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
+        return result;
+    }
+}
+
+public record GetProductByIdQuery(Guid Id) : IRequest<ProductDetailDto?>;
+
+public class GetProductByIdQueryHandler(IApplicationDbContext db)
+    : IRequestHandler<GetProductByIdQuery, ProductDetailDto?>
+{
+    public async Task<ProductDetailDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {
         var product = await db.Products
             .Include(p => p.Category)
@@ -52,26 +81,29 @@ public class GetProductBySlugQueryHandler(IApplicationDbContext db)
             .Include(p => p.Variants.Where(v => v.IsActive))
                 .ThenInclude(v => v.Stock)
             .Include(p => p.Stock)
-            .FirstOrDefaultAsync(p => p.Slug == request.Slug, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == request.Id && !p.IsDeleted, cancellationToken);
 
-        if (product is null) return null;
-
-        return new ProductDetailDto(
-            product.Id, product.Name, product.Slug,
-            product.Description, product.ShortDescription,
-            product.SKU, product.Barcode,
-            product.ProductType.ToString(),
-            product.CategoryId, product.Category.Name,
-            product.BrandId, product.Brand?.Name,
-            product.Price, product.DiscountPrice, product.Currency, product.TaxRate,
-            product.IsActive, product.IsPublished,
-            product.MetaTitle, product.MetaDescription,
-            product.Stock?.AvailableQuantity ?? 0,
-            product.Images.Select(i => new ProductImageDto(i.Id, i.ImageUrl, i.SortOrder, i.IsMain, i.AltText)).ToList(),
-            product.Variants.Select(v => new ProductVariantDto(
-                v.Id, v.VariantName, v.SKU,
-                v.Price, v.DiscountPrice, v.IsActive,
-                v.AttributesJson, v.Stock?.AvailableQuantity ?? 0)).ToList()
-        );
+        return product is null ? null : ProductMapper.ToDto(product);
     }
+}
+
+internal static class ProductMapper
+{
+    internal static ProductDetailDto ToDto(Ecom.Domain.Entities.Product p) => new(
+        p.Id, p.Name, p.Slug,
+        p.Description, p.ShortDescription,
+        p.SKU, p.Barcode,
+        p.ProductType.ToString(),
+        p.CategoryId, p.Category.Name,
+        p.BrandId, p.Brand?.Name,
+        p.Price, p.DiscountPrice, p.Currency, p.TaxRate,
+        p.IsActive, p.IsPublished, p.IsFeatured,
+        p.MetaTitle, p.MetaDescription,
+        p.Stock?.AvailableQuantity ?? 0,
+        p.Images.Select(i => new ProductImageDto(i.Id, i.ImageUrl, i.SortOrder, i.IsMain, i.AltText)).ToList(),
+        p.Variants.Select(v => new ProductVariantDto(
+            v.Id, v.VariantName, v.SKU,
+            v.Price, v.DiscountPrice, v.IsActive,
+            v.AttributesJson, v.Stock?.AvailableQuantity ?? 0)).ToList()
+    );
 }

@@ -22,7 +22,7 @@ public class ToggleUserActiveHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         var action = request.IsActive ? "ActivateUser" : "DeactivateUser";
-        await auditService.LogAsync(action, "User", request.UserId.ToString(),
+        await auditService.LogAsync(action, "Kullanıcı", request.UserId.ToString(),
             oldValue: (!request.IsActive).ToString(), newValue: request.IsActive.ToString(),
             userId: currentUser.UserId, cancellationToken: cancellationToken);
 

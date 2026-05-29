@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Features.Cart.Queries;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public class UpdateCartItemValidator : AbstractValidator<UpdateCartItemCommand>
     }
 }
 
-public class UpdateCartItemHandler(IApplicationDbContext db) : IRequestHandler<UpdateCartItemCommand, Result>
+public class UpdateCartItemHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<UpdateCartItemCommand, Result>
 {
     public async Task<Result> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
     {
@@ -40,6 +41,7 @@ public class UpdateCartItemHandler(IApplicationDbContext db) : IRequestHandler<U
 
         item.Quantity = request.Quantity;
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(GetCartQueryHandler.CacheKey(request.UserId, request.SessionId), cancellationToken);
         return Result.Success();
     }
 }

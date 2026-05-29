@@ -1,11 +1,13 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Events;
 using Ecom.Domain.Entities;
 using Ecom.Domain.Enums;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Ecom.Application.Features.Orders.Commands;
 
@@ -45,9 +47,10 @@ public class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
 public class CreateOrderHandler(
     IApplicationDbContext db,
     IStockService stockService,
-    IEmailService emailService
+    IEventPublisher eventPublisher
 ) : IRequestHandler<CreateOrderCommand, Result<OrderCreatedResult>>
 {
+    private static readonly JsonSerializerOptions CamelCase = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     public async Task<Result<OrderCreatedResult>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         // Load cart
@@ -60,6 +63,10 @@ public class CreateOrderHandler(
 
         if (cart is null || !cart.Items.Any())
             return Result<OrderCreatedResult>.Failure("Sepet boş veya bulunamadı.");
+
+        var selectedItems = cart.Items.Where(i => i.IsSelected).ToList();
+        if (!selectedItems.Any())
+            return Result<OrderCreatedResult>.Failure("Sipariş verilecek ürün seçilmedi.");
 
         // Build shipping address snapshot
         string shippingSnapshot;
@@ -74,7 +81,7 @@ public class CreateOrderHandler(
                 addr.AddressTitle, addr.FirstName, addr.LastName, addr.PhoneNumber,
                 addr.Country, addr.City, addr.District, addr.Neighborhood,
                 addr.FullAddress, addr.PostalCode
-            });
+            }, CamelCase);
         }
         else if (request.GuestShippingAddress is { } ga)
         {
@@ -88,7 +95,7 @@ public class CreateOrderHandler(
                 Neighborhood = "",
                 ga.FullAddress,
                 PostalCode = ga.PostalCode ?? ""
-            });
+            }, CamelCase);
         }
         else
         {
@@ -108,7 +115,7 @@ public class CreateOrderHandler(
                     bAddr.Country, bAddr.City, bAddr.District, bAddr.Neighborhood,
                     bAddr.FullAddress, bAddr.PostalCode, bAddr.InvoiceType, bAddr.TaxNumber,
                     bAddr.TaxOffice, bAddr.CompanyName
-                })
+                }, CamelCase)
                 : shippingSnapshot;
         }
         else
@@ -117,12 +124,12 @@ public class CreateOrderHandler(
         }
 
         // Load cart item products, variants and images
-        var productIds = cart.Items.Select(i => i.ProductId).Distinct().ToList();
+        var productIds = selectedItems.Select(i => i.ProductId).Distinct().ToList();
         var products = await db.Products
             .Where(p => productIds.Contains(p.Id))
             .ToListAsync(cancellationToken);
 
-        var variantIds = cart.Items.Where(i => i.ProductVariantId.HasValue)
+        var variantIds = selectedItems.Where(i => i.ProductVariantId.HasValue)
             .Select(i => i.ProductVariantId!.Value).Distinct().ToList();
         var variants = variantIds.Any()
             ? await db.ProductVariants.Where(v => variantIds.Contains(v.Id)).ToListAsync(cancellationToken)
@@ -133,7 +140,7 @@ public class CreateOrderHandler(
             .ToListAsync(cancellationToken);
 
         // Validate stock availability before reserving
-        foreach (var item in cart.Items)
+        foreach (var item in selectedItems)
         {
             var stock = await db.Stocks
                 .FirstOrDefaultAsync(s =>
@@ -169,7 +176,7 @@ public class CreateOrderHandler(
         decimal taxAmount = 0;
         var orderItems = new List<OrderItem>();
 
-        foreach (var cartItem in cart.Items)
+        foreach (var cartItem in selectedItems)
         {
             var product = products.First(p => p.Id == cartItem.ProductId);
             var variant = cartItem.ProductVariantId.HasValue
@@ -290,7 +297,7 @@ public class CreateOrderHandler(
         db.Orders.Add(order);
 
         // Reserve stock for all items
-        foreach (var item in cart.Items)
+        foreach (var item in selectedItems)
         {
             await stockService.ReserveAsync(item.ProductId, item.ProductVariantId, item.Quantity, order.Id, cancellationToken);
         }
@@ -308,30 +315,36 @@ public class CreateOrderHandler(
             });
         }
 
-        // Clear the cart
-        db.CartItems.RemoveRange(cart.Items);
-        db.Carts.Remove(cart);
+        // Remove only the ordered (selected) items; unselected items stay in cart
+        db.CartItems.RemoveRange(selectedItems);
+        var remainingItems = cart.Items.Except(selectedItems).ToList();
+        if (!remainingItems.Any())
+            db.Carts.Remove(cart);
 
         await db.SaveChangesAsync(cancellationToken);
 
-        // Send order confirmation email (fire-and-forget, don't fail order on email error)
+        // Resolve customer email for the event
+        string customerEmail = request.GuestEmail ?? string.Empty;
+        if (request.UserId.HasValue && string.IsNullOrEmpty(customerEmail))
+        {
+            var user = await db.Users.FindAsync([request.UserId.Value], cancellationToken);
+            if (user is not null) customerEmail = user.Email;
+        }
+
+        // Publish OrderCreatedEvent via outbox
         try
         {
-            string toEmail = request.GuestEmail ?? string.Empty;
-            string toName = "Değerli Müşteri";
-            if (request.UserId.HasValue)
-            {
-                var user = await db.Users.FindAsync([request.UserId.Value], cancellationToken);
-                if (user is not null)
-                {
-                    toEmail = user.Email;
-                    toName = $"{user.Name} {user.Surname}";
-                }
-            }
-            if (!string.IsNullOrEmpty(toEmail))
-                await emailService.SendOrderConfirmationAsync(toEmail, toName, order.OrderNumber, order.GrandTotal, cancellationToken);
+            await eventPublisher.PublishAsync(new OrderCreatedEvent(
+                order.Id,
+                order.OrderNumber,
+                request.UserId,
+                string.IsNullOrEmpty(customerEmail) ? null : customerEmail,
+                order.GrandTotal,
+                orderItems.Select(i => new OrderItemSnapshot(i.ProductId, i.ProductName, i.Quantity, i.UnitPrice)).ToList(),
+                DateTime.UtcNow
+            ), cancellationToken);
         }
-        catch { /* email failure should not affect order creation */ }
+        catch { /* outbox failure should not fail order creation */ }
 
         return Result<OrderCreatedResult>.Success(new OrderCreatedResult(order.OrderNumber, order.Id));
     }

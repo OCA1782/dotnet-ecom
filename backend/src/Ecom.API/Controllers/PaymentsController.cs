@@ -4,6 +4,7 @@ using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 
 namespace Ecom.API.Controllers;
@@ -26,7 +27,7 @@ public class PaymentsController(
         var result = await mediator.Send(new InitiatePaymentCommand(
             req.OrderId, currentUser.UserId, req.Method, callbackUrl, buyerIp), ct);
 
-        if (!result.Succeeded) return BadRequest(result.Error);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
 
         var data = result.Data!;
         return Ok(new
@@ -48,7 +49,7 @@ public class PaymentsController(
         var result = await mediator.Send(
             new PaymentCallbackCommand(req.TransactionId, req.Payload, req.IsSuccess), ct);
 
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? NoContent() : BadRequest(new { error = result.Error });
     }
 
     /// <summary>
@@ -84,6 +85,7 @@ public class PaymentsController(
 public class InitiatePaymentRequest
 {
     public Guid OrderId { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public PaymentMethod Method { get; set; } = PaymentMethod.CreditCard;
 }
 

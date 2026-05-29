@@ -30,13 +30,21 @@ public record CartItemDto(
     decimal UnitPrice,
     decimal TaxRate,
     decimal LineTotal,
-    int AvailableStock
+    int AvailableStock,
+    bool IsSelected
 );
 
-public class GetCartQueryHandler(IApplicationDbContext db) : IRequestHandler<GetCartQuery, CartDto?>
+public class GetCartQueryHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<GetCartQuery, CartDto?>
 {
+    public static string CacheKey(Guid? userId, string? sessionId) =>
+        userId.HasValue ? $"cart:user:{userId}" : $"cart:session:{sessionId}";
+
     public async Task<CartDto?> Handle(GetCartQuery request, CancellationToken cancellationToken)
     {
+        var cacheKey = CacheKey(request.UserId, request.SessionId);
+        var cached = await cache.GetAsync<CartDto>(cacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var cart = await db.Carts
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
@@ -65,12 +73,19 @@ public class GetCartQueryHandler(IApplicationDbContext db) : IRequestHandler<Get
                 i.ProductVariant?.VariantName,
                 i.ProductVariant?.SKU ?? i.Product.SKU,
                 image, i.Quantity, i.UnitPrice, i.Product.TaxRate,
-                i.UnitPrice * i.Quantity, availableStock);
+                i.UnitPrice * i.Quantity, availableStock, i.IsSelected);
         }).ToList();
 
         var subTotal = items.Sum(i => i.LineTotal);
         var tax = items.Sum(i => i.LineTotal * i.TaxRate / 100);
-        var shipping = subTotal >= 500 ? 0 : 29.90m;
+
+        var siteShippingCost = await db.SiteSettings
+            .Where(s => s.Key == "DefaultShippingCost").Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+        var siteShippingLimit = await db.SiteSettings
+            .Where(s => s.Key == "FreeShippingLimit").Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+        decimal shippingCost = decimal.TryParse(siteShippingCost, out var sc) ? sc : 29.90m;
+        decimal freeLimit = decimal.TryParse(siteShippingLimit, out var fl) ? fl : 500m;
+        var shipping = subTotal >= freeLimit ? 0 : shippingCost;
 
         // Apply coupon discount
         decimal discountAmount = 0;
@@ -114,6 +129,8 @@ public class GetCartQueryHandler(IApplicationDbContext db) : IRequestHandler<Get
 
         var grandTotal = Math.Max(0, subTotal + shipping - discountAmount);
 
-        return new CartDto(cart.Id, items, subTotal, tax, shipping, discountAmount, couponCode, grandTotal);
+        var result = new CartDto(cart.Id, items, subTotal, tax, shipping, discountAmount, couponCode, grandTotal);
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromSeconds(20), cancellationToken);
+        return result;
     }
 }

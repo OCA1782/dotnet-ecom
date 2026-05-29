@@ -6,7 +6,7 @@ namespace Ecom.Application.Features.Admin.Coupons;
 
 public record DeleteCouponCommand(Guid Id) : IRequest<Result>;
 
-public class DeleteCouponHandler(IApplicationDbContext db) : IRequestHandler<DeleteCouponCommand, Result>
+public class DeleteCouponHandler(IApplicationDbContext db, IAuditService audit) : IRequestHandler<DeleteCouponCommand, Result>
 {
     public async Task<Result> Handle(DeleteCouponCommand request, CancellationToken cancellationToken)
     {
@@ -16,6 +16,7 @@ public class DeleteCouponHandler(IApplicationDbContext db) : IRequestHandler<Del
         coupon.IsDeleted = true;
         coupon.IsActive = false;
         await db.SaveChangesAsync(cancellationToken);
+        await audit.LogAsync("KuponSilindi", "Kupon", coupon.Id.ToString(), oldValue: coupon.Code, cancellationToken: cancellationToken);
         return Result.Success();
     }
 }

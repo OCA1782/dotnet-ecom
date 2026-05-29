@@ -60,7 +60,7 @@ public class CreateAdminUserHandler(
         db.UserRoles.Add(new UserRole { UserId = user.Id, Role = role });
         await db.SaveChangesAsync(cancellationToken);
 
-        await auditService.LogAsync("CreateUser", "User", user.Id.ToString(),
+        await auditService.LogAsync("CreateUser", "Kullanıcı", user.Id.ToString(),
             newValue: $"{user.Name} {user.Surname} <{user.Email}> rol={request.Role}",
             userId: currentUser.UserId, cancellationToken: cancellationToken);
 

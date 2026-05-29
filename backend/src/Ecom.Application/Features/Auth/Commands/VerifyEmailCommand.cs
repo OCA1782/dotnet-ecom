@@ -33,7 +33,7 @@ public class VerifyEmailCommandHandler(
             return Result<VerifyResult>.Failure("Kullanıcı bulunamadı.");
 
         if (user.EmailConfirmed)
-            return Result<VerifyResult>.Success(new VerifyResult(true, user.PhoneConfirmed, user.PhoneConfirmed ? jwtService.GenerateToken(user, user.Roles.Select(r => r.Role.ToString()).ToArray()) : null, user.Id, user.Name, user.Surname, user.Email));
+            return Result<VerifyResult>.Success(new VerifyResult(true, user.PhoneConfirmed, jwtService.GenerateToken(user, user.Roles.Select(r => r.Role.ToString()).ToArray()), user.Id, user.Name, user.Surname, user.Email));
 
         if (user.EmailVerificationCode != request.Code || user.EmailVerificationCodeExpiry < DateTime.UtcNow)
             return Result<VerifyResult>.Failure("Kod geçersiz veya süresi dolmuş.");
@@ -45,9 +45,7 @@ public class VerifyEmailCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
         await auditService.LogAsync("VerifyEmail", "User", user.Id.ToString(), userId: user.Id, cancellationToken: cancellationToken);
 
-        string? token = null;
-        if (user.PhoneConfirmed)
-            token = jwtService.GenerateToken(user, user.Roles.Select(r => r.Role.ToString()).ToArray());
+        var token = jwtService.GenerateToken(user, user.Roles.Select(r => r.Role.ToString()).ToArray());
 
         return Result<VerifyResult>.Success(new VerifyResult(true, user.PhoneConfirmed, token, user.Id, user.Name, user.Surname, user.Email));
     }

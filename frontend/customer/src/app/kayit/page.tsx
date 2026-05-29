@@ -60,9 +60,7 @@ export default function RegisterPage() {
     try {
       const result = await verifyEmail(pending.userId, emailCode);
       setEmailConfirmed(result.emailConfirmed);
-      if (result.token) {
-        router.push("/");
-      }
+      // token is stored in auth state by verifyEmail hook — don't redirect yet, show Telegram option
     } catch (err: unknown) {
       setEmailError(err instanceof Error ? err.message : "Kod geçersiz");
     } finally {
@@ -239,10 +237,28 @@ export default function RegisterPage() {
           )}
         </div>
 
-        {(emailConfirmed || telegramConfirmed) && !(emailConfirmed && telegramConfirmed) && (
-          <p className="text-center text-sm text-slate-500">
-            Alışverişe başlamak için her iki doğrulamayı da tamamlayın.
-          </p>
+        {emailConfirmed && !telegramConfirmed && (
+          <div className="text-center space-y-3">
+            <p className="text-sm text-slate-500">
+              Telegram doğrulaması isteğe bağlıdır. Daha sonra hesabınızdan yapabilirsiniz.
+            </p>
+            <button
+              onClick={() => router.push("/")}
+              className="inline-block bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition"
+            >
+              Alışverişe Devam Et
+            </button>
+          </div>
+        )}
+        {telegramConfirmed && (
+          <div className="text-center">
+            <button
+              onClick={() => router.push("/")}
+              className="inline-block bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition"
+            >
+              Alışverişe Devam Et
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -17,7 +17,7 @@ public record OrderSummaryDto(
     DateTime CreatedDate
 );
 
-public record GetMyOrdersQuery(Guid UserId, int Page = 1, int PageSize = 10) : IRequest<PaginatedList<OrderSummaryDto>>;
+public record GetMyOrdersQuery(Guid UserId, int Page = 1, int PageSize = 10, List<OrderStatus>? Statuses = null) : IRequest<PaginatedList<OrderSummaryDto>>;
 
 public class GetMyOrdersHandler(IApplicationDbContext db) : IRequestHandler<GetMyOrdersQuery, PaginatedList<OrderSummaryDto>>
 {
@@ -26,6 +26,7 @@ public class GetMyOrdersHandler(IApplicationDbContext db) : IRequestHandler<GetM
         var query = db.Orders
             .Include(o => o.Items)
             .Where(o => o.UserId == request.UserId)
+            .Where(o => request.Statuses == null || request.Statuses.Contains(o.Status))
             .OrderByDescending(o => o.CreatedDate);
 
         var totalCount = await query.CountAsync(cancellationToken);

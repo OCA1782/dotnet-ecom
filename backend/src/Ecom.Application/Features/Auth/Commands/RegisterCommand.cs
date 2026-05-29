@@ -25,10 +25,14 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
     public RegisterCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.Surname).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(200);
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8).MaximumLength(100);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Ad zorunludur.").MaximumLength(100).WithMessage("Ad en fazla 100 karakter olabilir.");
+        RuleFor(x => x.Surname).NotEmpty().WithMessage("Soyad zorunludur.").MaximumLength(100).WithMessage("Soyad en fazla 100 karakter olabilir.");
+        RuleFor(x => x.Email).NotEmpty().WithMessage("E-posta zorunludur.")
+            .Matches(@"^[^@\s]+@[^@\s]+\.[^@\s]+$").WithMessage("Geçerli bir e-posta adresi giriniz.")
+            .MaximumLength(200).WithMessage("E-posta en fazla 200 karakter olabilir.");
+        RuleFor(x => x.Password).NotEmpty().WithMessage("Şifre zorunludur.")
+            .MinimumLength(8).WithMessage("Şifre en az 8 karakter olmalıdır.")
+            .MaximumLength(100).WithMessage("Şifre en fazla 100 karakter olabilir.");
         RuleFor(x => x.KvkkConsent).Equal(true).WithMessage("KVKK onayı zorunludur.");
     }
 }
@@ -43,7 +47,8 @@ public class RegisterCommandHandler(
 {
     public async Task<Result<RegisterResult>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var emailExists = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
+        var emailExists = await db.Users.IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == request.Email.ToLowerInvariant() && !u.IsDeleted, cancellationToken);
         if (emailExists)
             return Result<RegisterResult>.Failure("Bu e-posta adresi zaten kayıtlı.");
 

@@ -15,8 +15,8 @@ public class ValidationExceptionMiddleware(RequestDelegate next)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
-            var errors = ex.Errors.Select(e => e.ErrorMessage);
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new { errors }));
+            var error = string.Join(" ", ex.Errors.Select(e => e.ErrorMessage).Distinct());
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { error }));
         }
         catch (UnauthorizedAccessException)
         {

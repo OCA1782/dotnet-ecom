@@ -31,7 +31,7 @@ public class CreateCouponValidator : AbstractValidator<CreateCouponCommand>
     }
 }
 
-public class CreateCouponHandler(IApplicationDbContext db) : IRequestHandler<CreateCouponCommand, Result<Guid>>
+public class CreateCouponHandler(IApplicationDbContext db, IAuditService audit) : IRequestHandler<CreateCouponCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateCouponCommand request, CancellationToken cancellationToken)
     {
@@ -56,6 +56,7 @@ public class CreateCouponHandler(IApplicationDbContext db) : IRequestHandler<Cre
 
         db.Coupons.Add(coupon);
         await db.SaveChangesAsync(cancellationToken);
+        await audit.LogAsync("KuponOluşturuldu", "Kupon", coupon.Id.ToString(), newValue: code, cancellationToken: cancellationToken);
         return Result<Guid>.Success(coupon.Id);
     }
 }

@@ -24,7 +24,7 @@ public class AddProductImageValidator : AbstractValidator<AddProductImageCommand
     }
 }
 
-public class AddProductImageHandler(IApplicationDbContext db)
+public class AddProductImageHandler(IApplicationDbContext db, IAuditService audit)
     : IRequestHandler<AddProductImageCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(AddProductImageCommand request, CancellationToken cancellationToken)
@@ -52,6 +52,8 @@ public class AddProductImageHandler(IApplicationDbContext db)
 
         db.ProductImages.Add(image);
         await db.SaveChangesAsync(cancellationToken);
+        await audit.LogAsync("ProductImageAdded", "Product", request.ProductId.ToString(),
+            newValue: request.ImageUrl, cancellationToken: cancellationToken);
         return Result<Guid>.Success(image.Id);
     }
 }

@@ -42,6 +42,9 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
                 (s.Product != null && s.Product.SKU.Contains(request.Search)) ||
                 (s.ProductVariant != null && s.ProductVariant.SKU.Contains(request.Search)));
 
+        if (request.OnlyCritical)
+            query = query.Where(s => (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel);
+
         var total = await query.CountAsync(cancellationToken);
 
         var items = await query
@@ -63,7 +66,6 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
             ))
             .ToListAsync(cancellationToken);
 
-        var result = request.OnlyCritical ? items.Where(x => x.IsCritical).ToList() : items;
-        return PaginatedList<StockListItemDto>.Create(result, request.OnlyCritical ? result.Count : total, request.Page, request.PageSize);
+        return PaginatedList<StockListItemDto>.Create(items, total, request.Page, request.PageSize);
     }
 }

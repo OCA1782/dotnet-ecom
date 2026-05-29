@@ -94,11 +94,9 @@ export default function MarkalarPage() {
     try {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize), onlyActive: "false" });
       if (search) qs.set("search", search);
+      if (statusFilter) qs.set("isActive", statusFilter);
       const data = await api.get<{ items: Brand[]; totalPages: number; totalCount: number }>(`/api/brands?${qs}`);
-      let items = data.items;
-      if (statusFilter === "true") items = items.filter(b => b.isActive);
-      if (statusFilter === "false") items = items.filter(b => !b.isActive);
-      setBrands(items);
+      setBrands(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount ?? data.items.length);
     } catch { setBrands([]); }

@@ -27,9 +27,24 @@ public interface IApplicationDbContext
     DbSet<Coupon> Coupons { get; }
     DbSet<CouponUsage> CouponUsages { get; }
     DbSet<ProductReview> ProductReviews { get; }
+    DbSet<ReviewLike> ReviewLikes { get; }
+    DbSet<ReviewReply> ReviewReplies { get; }
+    DbSet<ReviewReport> ReviewReports { get; }
+    DbSet<License> Licenses { get; }
     DbSet<SalesGoal> SalesGoals { get; }
     DbSet<ErrorLog> ErrorLogs { get; }
     DbSet<WishlistItem> WishlistItems { get; }
+    DbSet<ExternalSource> ExternalSources { get; }
+    DbSet<ExternalSourceImportLog> ExternalSourceImportLogs { get; }
+    DbSet<ImportJob> ImportJobs { get; }
+    DbSet<VisitorLog> VisitorLogs { get; }
+    DbSet<OutboxMessage> OutboxMessages { get; }
+    DbSet<UserRefreshToken> UserRefreshTokens { get; }
+    DbSet<ShippingCarrier> ShippingCarriers { get; }
+    DbSet<Invoice> Invoices { get; }
+    DbSet<InvoiceItem> InvoiceItems { get; }
+    DbSet<Announcement> Announcements { get; }
 
+    void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

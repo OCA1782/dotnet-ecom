@@ -6,7 +6,7 @@ import type { PaginatedList } from "@/types";
 import {
   AlertTriangle, Info, AlertCircle, Search, Filter,
   Server, Monitor, Clock, ChevronDown, ChevronUp, X, Link2,
-  ExternalLink,
+  ExternalLink, Copy, Check,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -145,6 +145,14 @@ export default function TakipPage() {
   const [endDate, setEndDate] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [statDays, setStatDays] = useState(7);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyToClipboard = useCallback((text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    });
+  }, []);
 
   const fetchStats = useCallback(async (days: number) => {
     try {
@@ -187,52 +195,88 @@ export default function TakipPage() {
 
   const PIE_COLORS = ["#ef4444", "#f59e0b", "#38bdf8"];
 
+  const errorCount = stats?.totalError ?? logs.filter(l => l.level === "Error").length;
+
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Takip</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{totalCount} kayıt · sistem hata ve uyarı günlüğü</p>
+      {/* Distinctive header — red/system-monitoring theme */}
+      <div className="rounded-2xl overflow-hidden shadow-sm"
+        style={{ background: errorCount > 0
+          ? "linear-gradient(135deg, #b91c1c 0%, #dc2626 50%, #f97316 100%)"
+          : "linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%)" }}>
+        <div className="px-6 py-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shrink-0 shadow">
+              <AlertTriangle size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold text-white">Sistem Takibi</h1>
+              <p className="text-red-100 text-xs mt-0.5">
+                Backend &amp; frontend hataları, uyarılar ve bilgi mesajları — gerçek zamanlı izleme
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+            {stats && (
+              <>
+                {stats.totalError > 0 && (
+                  <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
+                    <AlertCircle size={13} className="text-red-200" />
+                    <span className="text-white text-xs font-bold">{stats.totalError} hata</span>
+                  </div>
+                )}
+                {stats.totalWarning > 0 && (
+                  <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
+                    <AlertTriangle size={13} className="text-amber-200" />
+                    <span className="text-white text-xs font-semibold">{stats.totalWarning} uyarı</span>
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
+              <span className="text-white/70 text-xs">{totalCount} kayıt</span>
+            </div>
+          </div>
         </div>
-        {/* Sağ üst bilgi kutuları */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-xs text-slate-500">Hata</span>
-            <span className="text-base font-bold text-red-600">{stats?.totalError ?? "—"}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-xs text-slate-500">Uyarı</span>
-            <span className="text-base font-bold text-amber-600">{stats?.totalWarning ?? "—"}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-sky-400" />
-            <span className="text-xs text-slate-500">Bilgi</span>
-            <span className="text-base font-bold text-sky-600">{stats?.totalInfo ?? "—"}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <Server size={12} className="text-violet-500" />
-            <span className="text-xs text-slate-500">Backend</span>
-            <span className="text-base font-bold text-violet-700">
-              {stats ? (stats.bySource.find(s => s.source === "Backend")?.error ?? 0) + (stats.bySource.find(s => s.source === "Backend")?.warning ?? 0) : "—"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <Monitor size={12} className="text-teal-500" />
-            <span className="text-xs text-slate-500">Frontend</span>
-            <span className="text-base font-bold text-teal-700">
-              {stats ? (stats.bySource.find(s => s.source === "Frontend")?.error ?? 0) + (stats.bySource.find(s => s.source === "Frontend")?.warning ?? 0) : "—"}
-            </span>
-          </div>
-          <select value={statDays} onChange={e => setStatDays(Number(e.target.value))}
-            className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 bg-white focus:outline-none shadow-sm">
-            <option value={7}>Son 7 gün</option>
-            <option value={14}>Son 14 gün</option>
-            <option value={30}>Son 30 gün</option>
-          </select>
+      </div>
+
+      {/* Stat cards row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="text-xs text-slate-500">Hata</span>
+          <span className="text-base font-bold text-red-600">{stats?.totalError ?? "—"}</span>
         </div>
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-amber-500" />
+          <span className="text-xs text-slate-500">Uyarı</span>
+          <span className="text-base font-bold text-amber-600">{stats?.totalWarning ?? "—"}</span>
+        </div>
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-sky-400" />
+          <span className="text-xs text-slate-500">Bilgi</span>
+          <span className="text-base font-bold text-sky-600">{stats?.totalInfo ?? "—"}</span>
+        </div>
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <Server size={12} className="text-violet-500" />
+          <span className="text-xs text-slate-500">Backend</span>
+          <span className="text-base font-bold text-violet-700">
+            {stats ? (stats.bySource.find(s => s.source === "Backend")?.error ?? 0) + (stats.bySource.find(s => s.source === "Backend")?.warning ?? 0) : "—"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <Monitor size={12} className="text-teal-500" />
+          <span className="text-xs text-slate-500">Frontend</span>
+          <span className="text-base font-bold text-teal-700">
+            {stats ? (stats.bySource.find(s => s.source === "Frontend")?.error ?? 0) + (stats.bySource.find(s => s.source === "Frontend")?.warning ?? 0) : "—"}
+          </span>
+        </div>
+        <select value={statDays} onChange={e => setStatDays(Number(e.target.value))}
+          className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 bg-white focus:outline-none shadow-sm ml-auto">
+          <option value={7}>Son 7 gün</option>
+          <option value={14}>Son 14 gün</option>
+          <option value={30}>Son 30 gün</option>
+        </select>
       </div>
 
       {/* Charts */}
@@ -471,11 +515,22 @@ export default function TakipPage() {
 
                   {isExpanded && (
                     <div className="px-5 pb-4 ml-7 space-y-3">
+                      <div className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                        <p className="text-sm text-slate-800 font-medium flex-1">{log.message}</p>
+                        <button onClick={() => copyToClipboard(log.message, `${log.id}-msg`)}
+                          title="Kopyala" className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded mt-0.5">
+                          {copiedKey === `${log.id}-msg` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
+                        </button>
+                      </div>
                       {displayUrl && (
                         <div>
                           <p className="text-xs font-semibold text-slate-500 mb-1">Tam URL</p>
                           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                             <p className="text-xs text-slate-700 font-mono break-all flex-1">{displayUrl}</p>
+                            <button onClick={() => copyToClipboard(displayUrl, `${log.id}-url`)}
+                              title="Kopyala" className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded">
+                              {copiedKey === `${log.id}-url` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
+                            </button>
                             <a href={displayUrl} target="_blank" rel="noopener noreferrer"
                               className="shrink-0 text-slate-400 hover:text-teal-600 transition" title="Aç">
                               <ExternalLink size={13} />
@@ -485,7 +540,14 @@ export default function TakipPage() {
                       )}
                       {log.stackTrace && (
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-1.5">Stack Trace</p>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-xs font-semibold text-slate-500">Stack Trace</p>
+                            <button onClick={() => copyToClipboard(log.stackTrace!, `${log.id}-stack`)}
+                              title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                              {copiedKey === `${log.id}-stack` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
+                              <span className="text-xs">{copiedKey === `${log.id}-stack` ? "Kopyalandı" : "Kopyala"}</span>
+                            </button>
+                          </div>
                           <pre className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
                             {log.stackTrace}
                           </pre>
@@ -518,7 +580,13 @@ export default function TakipPage() {
                         )}
                         <div>
                           <p className="text-xs text-slate-400 mb-0.5">ID</p>
-                          <p className="text-xs text-slate-400 font-mono">{log.id}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs text-slate-400 font-mono">{log.id}</p>
+                            <button onClick={() => copyToClipboard(log.id, `${log.id}-id`)}
+                              title="Kopyala" className="text-slate-300 hover:text-teal-600 transition p-0.5 rounded">
+                              {copiedKey === `${log.id}-id` ? <Check size={11} className="text-teal-500" /> : <Copy size={11} />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

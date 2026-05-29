@@ -10,8 +10,12 @@ namespace Ecom.API.Controllers.Admin;
 [EnableRateLimiting("upload")]
 public class UploadController(IWebHostEnvironment env) : ControllerBase
 {
-    private static readonly string[] AllowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-    private const long MaxSize = 5 * 1024 * 1024; // 5 MB
+    private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    private static readonly string[] AllowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"];
+    private static readonly string[] AllowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/ogg"];
+    private const long MaxImageSize = 5 * 1024 * 1024;   // 5 MB
+    private const long MaxVideoSize = 100 * 1024 * 1024; // 100 MB
+    private static long MaxSize => 100 * 1024 * 1024;
 
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file, CancellationToken ct)
@@ -20,10 +24,12 @@ public class UploadController(IWebHostEnvironment env) : ControllerBase
             return BadRequest(new { error = "Dosya bulunamadı." });
 
         if (!AllowedTypes.Contains(file.ContentType))
-            return BadRequest(new { error = "Sadece JPEG, PNG, GIF ve WebP desteklenmektedir." });
+            return BadRequest(new { error = "Desteklenen formatlar: JPEG, PNG, GIF, WebP, MP4, WebM." });
 
-        if (file.Length > MaxSize)
-            return BadRequest(new { error = "Dosya boyutu en fazla 5 MB olabilir." });
+        var isVideo = AllowedVideoTypes.Contains(file.ContentType);
+        var sizeLimit = isVideo ? MaxVideoSize : MaxImageSize;
+        if (file.Length > sizeLimit)
+            return BadRequest(new { error = isVideo ? "Video dosyası en fazla 100 MB olabilir." : "Görsel dosyası en fazla 5 MB olabilir." });
 
         var uploadsPath = Path.Combine(
             env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),

@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
+using Ecom.Infrastructure.Security;
 using Ecom.Application;
 using Ecom.Infrastructure;
 using Ecom.Infrastructure.Persistence;
@@ -11,9 +13,32 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Lisans doğrulama & JWT anahtar türetme ─────────────────────────────────
+// Lisans private key olmadan taklit edilemez (RSA-2048).
+// JWT imzalama anahtarı lisanstan türetilir: lisans geçersizse auth da çalışmaz.
+var licenseToken = builder.Configuration["License"]
+    ?? Environment.GetEnvironmentVariable("ECOM_LICENSE") ?? "";
+
+byte[] jwtKeyBytes;
+try
+{
+    var licInfo = LicenseValidator.Validate(licenseToken);
+    jwtKeyBytes = LicenseValidator.DeriveJwtKey(licInfo);
+}
+catch
+{
+    // Geçersiz lisans: rastgele anahtar → tüm auth işlemleri başarısız olur.
+    // Hard-fail startup scope'da gerçekleşir (aşağıda).
+    jwtKeyBytes = RandomNumberGenerator.GetBytes(32);
+}
+
+builder.Services.AddSingleton(new LicenseJwtKey(jwtKeyBytes));
+// ──────────────────────────────────────────────────────────────────────────
 
 builder.Services.AddScoped<AuditFilter>();
 builder.Services.AddControllers(options =>
@@ -39,8 +64,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes)
         };
     });
 
@@ -82,9 +106,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("EcomCors", policy =>
     {
-        policy.WithOrigins(
-                builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:3000", "http://localhost:3001"])
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+            ?? ["http://localhost:3000", "http://localhost:3001"];
+        var isDev = builder.Environment.IsDevelopment();
+
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+                if (isDev && uri.Host == "localhost") return true;
+                return allowedOrigins.Contains(origin);
+            })
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
@@ -93,12 +124,35 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Seed database on startup
+// Seed database and validate license
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var db     = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
     await DbInitializer.SeedAsync(db, config, app.Environment.ContentRootPath);
+
+    // ── RSA Lisans Doğrulama ──────────────────────────────────────────────
+    // Lisans RSA-2048 imzasıyla korunur. Private key olmadan geçerli lisans
+    // üretilemez. JWT anahtarı lisanstan türetildiğinden startup check
+    // kaldırılsa bile auth çalışmaz — bypass için her iki kontrolün de
+    // kaldırılması ve JWT anahtarının ayrıca hardcode edilmesi gerekir.
+    var token = config["License"] ?? Environment.GetEnvironmentVariable("ECOM_LICENSE") ?? "";
+    try
+    {
+        LicenseValidator.Validate(token);
+    }
+    catch (LicenseException ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Error.WriteLine("──────────────────────────────────────────────────────");
+        Console.Error.WriteLine($"  HATA: {ex.Message}");
+        Console.Error.WriteLine("  appsettings.Development.json → \"License\": \"<token>\"");
+        Console.Error.WriteLine("  veya ECOM_LICENSE ortam değişkeni tanımlanmalıdır.");
+        Console.Error.WriteLine("──────────────────────────────────────────────────────");
+        Console.ResetColor();
+        Environment.Exit(1);
+    }
+    // ─────────────────────────────────────────────────────────────────────
 }
 
 if (app.Environment.IsDevelopment())
@@ -108,6 +162,7 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<InputSanitizationMiddleware>();
 app.UseMiddleware<ValidationExceptionMiddleware>();
 app.UseCors("EcomCors");
+app.UseMiddleware<LicenseMiddleware>();
 app.UseMiddleware<ErrorLoggingMiddleware>();
 
 var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");

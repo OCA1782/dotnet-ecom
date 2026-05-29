@@ -30,7 +30,7 @@ public class UpdateCategoryValidator : AbstractValidator<UpdateCategoryCommand>
     }
 }
 
-public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit)
+public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit, ICacheService cache)
     : IRequestHandler<UpdateCategoryCommand, Result>
 {
     public async Task<Result> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
@@ -47,7 +47,13 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         if (request.ParentCategoryId == request.Id)
             return Result.Failure("Kategori kendisinin üst kategorisi olamaz.");
 
-        var old = $"{category.Name}|{category.IsActive}";
+        var changes = new List<string>();
+        if (category.Name != request.Name) changes.Add($"Ad: {category.Name} → {request.Name}");
+        if (category.Slug != request.Slug) changes.Add($"Slug: {category.Slug} → {request.Slug}");
+        if (category.IsActive != request.IsActive) changes.Add($"Durum: {(category.IsActive ? "Aktif" : "Pasif")} → {(request.IsActive ? "Aktif" : "Pasif")}");
+        if (category.ShowInMenu != request.ShowInMenu) changes.Add($"Menüde: {(category.ShowInMenu ? "Evet" : "Hayır")} → {(request.ShowInMenu ? "Evet" : "Hayır")}");
+        if (category.SortOrder != request.SortOrder) changes.Add($"Sıra: {category.SortOrder} → {request.SortOrder}");
+
         category.Name = request.Name;
         category.Slug = request.Slug;
         category.ParentCategoryId = request.ParentCategoryId;
@@ -60,7 +66,12 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         category.MetaDescription = request.MetaDescription;
 
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("CategoryUpdated", "Category", category.Id.ToString(), old, category.Name, cancellationToken: cancellationToken);
+        var detail = changes.Count > 0 ? string.Join(" | ", changes) : null;
+        await audit.LogAsync("CategoryUpdated", "Kategori", category.Id.ToString(), null, detail, cancellationToken: cancellationToken);
+        await cache.RemoveAsync("categories:True:False", cancellationToken);
+        await cache.RemoveAsync("categories:True:True", cancellationToken);
+        await cache.RemoveAsync("categories:False:False", cancellationToken);
+        await cache.RemoveAsync("categories:False:True", cancellationToken);
 
         return Result.Success();
     }

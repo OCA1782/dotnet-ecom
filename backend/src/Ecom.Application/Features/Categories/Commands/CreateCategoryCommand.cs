@@ -29,7 +29,7 @@ public class CreateCategoryValidator : AbstractValidator<CreateCategoryCommand>
     }
 }
 
-public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit, ICurrentUserService currentUser)
+public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit, ICurrentUserService currentUser, ICacheService cache)
     : IRequestHandler<CreateCategoryCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
@@ -60,7 +60,11 @@ public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit
 
         db.Categories.Add(category);
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("CategoryCreated", "Category", category.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.LogAsync("CategoryCreated", "Kategori", category.Id.ToString(), cancellationToken: cancellationToken);
+        await cache.RemoveAsync("categories:True:False", cancellationToken);
+        await cache.RemoveAsync("categories:True:True", cancellationToken);
+        await cache.RemoveAsync("categories:False:False", cancellationToken);
+        await cache.RemoveAsync("categories:False:True", cancellationToken);
 
         return Result<Guid>.Success(category.Id);
     }

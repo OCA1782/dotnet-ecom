@@ -7,7 +7,7 @@ namespace Ecom.Application.Features.Categories.Commands;
 
 public record DeleteCategoryCommand(Guid Id) : IRequest<Result>;
 
-public class DeleteCategoryHandler(IApplicationDbContext db, IAuditService audit)
+public class DeleteCategoryHandler(IApplicationDbContext db, IAuditService audit, ICacheService cache)
     : IRequestHandler<DeleteCategoryCommand, Result>
 {
     public async Task<Result> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
@@ -29,7 +29,11 @@ public class DeleteCategoryHandler(IApplicationDbContext db, IAuditService audit
         category.IsActive = false;
         category.IsDeleted = true;
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("CategoryDeleted", "Category", category.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.LogAsync("CategoryDeleted", "Kategori", category.Id.ToString(), cancellationToken: cancellationToken);
+        await cache.RemoveAsync("categories:True:False", cancellationToken);
+        await cache.RemoveAsync("categories:True:True", cancellationToken);
+        await cache.RemoveAsync("categories:False:False", cancellationToken);
+        await cache.RemoveAsync("categories:False:True", cancellationToken);
 
         return Result.Success();
     }

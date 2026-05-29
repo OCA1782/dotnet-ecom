@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Features.Cart.Queries;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +8,7 @@ namespace Ecom.Application.Features.Coupons.Commands;
 
 public record RemoveCouponCommand(Guid? UserId, string? SessionId) : IRequest<Result>;
 
-public class RemoveCouponHandler(IApplicationDbContext db) : IRequestHandler<RemoveCouponCommand, Result>
+public class RemoveCouponHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<RemoveCouponCommand, Result>
 {
     public async Task<Result> Handle(RemoveCouponCommand request, CancellationToken cancellationToken)
     {
@@ -20,6 +21,7 @@ public class RemoveCouponHandler(IApplicationDbContext db) : IRequestHandler<Rem
 
         cart.CouponCode = null;
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(GetCartQueryHandler.CacheKey(request.UserId, request.SessionId), cancellationToken);
         return Result.Success();
     }
 }

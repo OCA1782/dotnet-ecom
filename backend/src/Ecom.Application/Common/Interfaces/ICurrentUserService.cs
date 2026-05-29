@@ -7,4 +7,6 @@ public interface ICurrentUserService
     IEnumerable<string> Roles { get; }
     bool IsAuthenticated { get; }
     string? IpAddress { get; }
+    string? SessionId { get; }
+    string? UserAgent { get; }
 }

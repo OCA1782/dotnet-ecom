@@ -7,6 +7,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("admin@ecom.com");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAdminAuth();
@@ -17,7 +18,7 @@ export default function AdminLoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Giriş başarısız");
@@ -63,6 +64,18 @@ export default function AdminLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
+            </div>
+            <div className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer"
+              />
+              <label htmlFor="rememberMe" className="text-sm text-slate-600 cursor-pointer select-none">
+                Beni hatırla (30 gün)
+              </label>
             </div>
             <button
               type="submit"

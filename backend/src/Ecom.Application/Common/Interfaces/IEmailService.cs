@@ -9,4 +9,6 @@ public interface IEmailService
     Task SendEmailVerificationAsync(string toEmail, string toName, string code, CancellationToken ct = default);
     Task SendTestEmailAsync(string toEmail, CancellationToken ct = default);
     Task SendLowStockAlertAsync(string toEmail, string productName, int availableStock, int criticalLevel, CancellationToken ct = default);
+    Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default);
+    Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default);
 }

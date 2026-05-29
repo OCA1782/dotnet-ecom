@@ -19,6 +19,7 @@ public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<G
     {
         var query = db.Orders
             .Include(o => o.Items)
+            .Where(o => !o.IsDeleted)
             .AsQueryable();
 
         if (request.Status.HasValue)

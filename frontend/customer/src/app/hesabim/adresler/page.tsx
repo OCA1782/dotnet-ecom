@@ -128,11 +128,11 @@ export default function AddressesPage() {
   }
 
   if (authLoading || loading) {
-    return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">Yükleniyor...</div>;
+    return <div className="py-16 text-center text-slate-400">Yükleniyor...</div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Adreslerim</h1>
         <button

@@ -48,7 +48,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         var result = await mediator.Send(new AddToCartCommand(
             userId, sessionId, req.ProductId, req.VariantId, req.Quantity), ct);
 
-        return result.Succeeded ? Ok(new { cartId = result.Data }) : BadRequest(result.Error);
+        return result.Succeeded ? Ok(new { cartId = result.Data }) : BadRequest(new { error = result.Error });
     }
 
     [HttpPut("update")]
@@ -60,7 +60,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         var result = await mediator.Send(new UpdateCartItemCommand(
             req.CartItemId, userId, sessionId, req.Quantity), ct);
 
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
     [HttpDelete("remove/{cartItemId:guid}")]
@@ -70,7 +70,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         string? sessionId = userId.HasValue ? null : GetSessionId();
 
         var result = await mediator.Send(new RemoveFromCartCommand(cartItemId, userId, sessionId), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
     [HttpDelete("clear")]
@@ -80,7 +80,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         string? sessionId = userId.HasValue ? null : GetSessionId();
 
         var result = await mediator.Send(new ClearCartCommand(userId, sessionId), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("merge")]
@@ -93,7 +93,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         var result = await mediator.Send(new MergeGuestCartCommand(sessionId, currentUser.UserId!.Value), ct);
 
         Response.Cookies.Delete(SessionCookieName);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("apply-coupon")]
@@ -103,7 +103,7 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         string? sessionId = userId.HasValue ? null : GetSessionId();
 
         var result = await mediator.Send(new ApplyCouponCommand(req.Code, userId, sessionId), ct);
-        return result.Succeeded ? Ok(result.Data) : BadRequest(result.Error);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { error = result.Error });
     }
 
     [HttpDelete("remove-coupon")]
@@ -113,7 +113,14 @@ public class CartController(IMediator mediator, ICurrentUserService currentUser)
         string? sessionId = userId.HasValue ? null : GetSessionId();
 
         var result = await mediator.Send(new RemoveCouponCommand(userId, sessionId), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPatch("items/{cartItemId:guid}/select")]
+    public async Task<IActionResult> ToggleSelection(Guid cartItemId, [FromBody] ToggleSelectionRequest req, CancellationToken ct)
+    {
+        await mediator.Send(new ToggleCartItemSelectionCommand(cartItemId, req.IsSelected), ct);
+        return Ok();
     }
 
     private string? GetSessionId() =>
@@ -131,6 +138,11 @@ public class UpdateCartItemRequest
 {
     public Guid CartItemId { get; set; }
     public int Quantity { get; set; }
+}
+
+public class ToggleSelectionRequest
+{
+    public bool IsSelected { get; set; }
 }
 
 public class ApplyCouponRequest

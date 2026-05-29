@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ecom.API.Controllers;
 
+public class RefreshTokenRequest { public string RefreshToken { get; set; } = string.Empty; }
+
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("auth")]
@@ -41,6 +43,15 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginCommand command, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded)
+            return Unauthorized(new { error = result.Error });
+        return Ok(result.Data);
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest req, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new RefreshTokenCommand(req.RefreshToken), cancellationToken);
         if (!result.Succeeded)
             return Unauthorized(new { error = result.Error });
         return Ok(result.Data);

@@ -9,6 +9,7 @@ import {
   MapPin, FlaskConical, Settings, Calendar, Tag, Cpu,
   BarChart3, Palette, KeyRound, Bell, Globe, Code2,
   Warehouse, LayoutDashboard, FileText, AlertCircle, Clock,
+  Image as ImageIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -346,8 +347,8 @@ function TeknikTab() {
           {[
             { layer: "Domain",         desc: "Entities, Enums, Value Objects. Dış bağımlılık yok.", color: "red" as const },
             { layer: "Application",    desc: "Commands/Queries (CQRS via MediatR), FluentValidation, Interface tanımları.", color: "amber" as const },
-            { layer: "Infrastructure", desc: "EF Core, Redis, MassTransit/RabbitMQ, MailKit, Telegram, ClosedXML (Excel), GeoIP, Dapper.", color: "blue" as const },
-            { layer: "API",            desc: "Controllers, Middleware (Auth, ErrorLogging, SecurityHeaders, InputSanitization, RateLimit), JWT.", color: "violet" as const },
+            { layer: "Infrastructure", desc: "EF Core, Redis, MassTransit/RabbitMQ, MailKit, Telegram, ClosedXML (Excel), GeoIP, Dapper. LicenseValidator (RSA-2048), LicenseJwtKey (türetilmiş JWT anahtarı), CryptoHelper (AES-256/SHA-256).", color: "blue" as const },
+            { layer: "API",            desc: "Controllers, Middleware (LicenseMiddleware, Auth, ErrorLogging, SecurityHeaders, InputSanitization, RateLimit), JWT (lisanstan türetilir). Startup: RSA lisans doğrulama + Environment.Exit(1).", color: "violet" as const },
           ].map(l => (
             <div key={l.layer} className="border rounded-xl p-3 space-y-2">
               <Badge label={l.layer} color={l.color} />
@@ -435,7 +436,9 @@ function TeknikTab() {
             { group: "/api/admin/external-sources", desc: "Dış kaynak CRUD, Excel yükleme/indirme, REST test-fetch, aktarım, async import job takibi", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/shipping-carriers", desc: "Kargo firması CRUD — fiyat, eşik, tahmini gün, ağırlık fiyatlandırma", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/invoices", desc: "e-Arşiv / e-Fatura / e-İrsaliye oluşturma ve durum güncelleme", badge: "Admin", color: "violet" as const },
-            { group: "/api/admin/settings", desc: "Site ayarları, RBAC matrisi, tema renkleri, mesaj şablonları, chatbot config", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/settings", desc: "Site ayarları GET/PUT. PUT: SettingsVersion (Unix ms) otomatik güncellenir → favicon/logo cache-bust. Admin ve Customer için ayrı 6 logo/favicon slot (AdminLogoNamed, AdminLogoIcon, AdminFaviconUrl, CustomerLogoNamed, CustomerLogoIcon, CustomerFaviconUrl).", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/dev-key", desc: "Aktivasyon anahtarı: GET → maskelenmiş lisans token durumu (isConfigured, isValid, maskedKey). POST /reveal → görüntüleme şifresiyle tam token. License config'den okunur, RevealPasswordHash DB'de.", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/services", desc: "Arka plan servisleri: GET tümü (isPaused, isRunning, lastRunAt, uptime). POST /{name}/pause, POST /{name}/resume, POST /{name}/trigger — IServiceStateManager singleton.", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/health", desc: "Servis sağlık kontrolü (API/DB/Redis/RabbitMQ/Email) — meta + latency", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/docs", desc: "Git log, docs .md dosya listesi/içeriği, canlı aktivite feed'i", badge: "Admin", color: "violet" as const },
           ].map(ep => (
@@ -530,6 +533,23 @@ function TeknikTab() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl space-y-2">
+          <p className="text-xs font-bold text-red-700 flex items-center gap-1.5"><Shield size={13} /> RSA Lisans Zorunluluğu — Tüm Ortamlar</p>
+          <div className="space-y-1.5">
+            {[
+              { label: "License token", desc: "appsettings.Development.json (git-ignored) → \"License\": \"eyJ...\" veya ECOM_LICENSE env var" },
+              { label: "JWT anahtarı", desc: "Config'deki Jwt:Key artık kullanılmıyor — JWT imzalama anahtarı lisanstan HMACSHA256 ile türetilir" },
+              { label: "LicenseMiddleware", desc: "Her HTTP isteğinde (1 dk cache) doğrulama — geçersiz lisansta 503 döner, /health bypass" },
+              { label: "Private key", desc: "Sadece geliştiricide saklanır, repoya GİRMEZ — yeni lisans üretmek için gerekir (geçerlilik süresi: 2026–2028)" },
+              { label: "DevRevealPassword", desc: "Admin panelinde lisansı görüntülemek için ayrı şifre — SHA256 hash DB'de (RevealPasswordHash key)" },
+            ].map(r => (
+              <div key={r.label} className="flex gap-2 text-xs">
+                <span className="text-red-500 font-semibold shrink-0 w-36">{r.label}</span>
+                <span className="text-red-700">{r.desc}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </DocSection>
 
@@ -870,9 +890,108 @@ const TYPE_META: Record<ChangeType, { label: string; bg: string; text: string; d
 
 const CHANGELOG: DayLog[] = [
   {
+    date: "29 Mayıs 2026",
+    label: "RSA Lisans Sistemi / Logo & Favicon Yönetimi / Servis Yönetimi UI",
+    defaultOpen: true,
+    changes: [
+      {
+        type: "guvenik", icon: KeyRound, title: "RSA-2048 Lisans Sistemi — Bypass Dayanıklı Aktivasyon",
+        items: [
+          "Eski SHA256 hash yaklaşımı kaldırıldı (tek satır yorum ile atlanabiliyordu)",
+          "LicenseValidator.cs: RSA-2048 public key gömülü — imzayı doğrular, payload'ı ayrıştırır (app, iss, nbf, exp)",
+          "Private key repoya girmez; yalnızca geliştiricide saklanır — private key olmadan geçerli lisans üretilemez",
+          "Startup: RSA doğrulama başarısız → çarpıcı hata + Environment.Exit(1)",
+          "Lisans formatı: Base64Url(payload).Base64Url(RSA-SHA256 imzası) — JSON Web Token benzeri",
+          "Geçerlilik tarihi kontrolü: nbf (notBefore) ve exp (expiry) — süresi dolmuş lisans başlatmayı engeller",
+          "LicenseJwtKey.cs: DI üzerinden paylaşılan wrapper — hem AddJwtBearer hem JwtService aynı anahtarı görür",
+          "LicenseException özel exception tipi — startup ve middleware hata mesajlarını ayrıştırır",
+        ],
+      },
+      {
+        type: "guvenik", icon: Lock, title: "JWT Anahtarı Lisanstan Türetilir — İkinci Savunma Katmanı",
+        items: [
+          "JwtService.cs: configuration['Jwt:Key'] artık kullanılmıyor — LicenseJwtKey'den HMACSHA256 türetilir",
+          "AddJwtBearer token doğrulama: aynı türetilmiş anahtar — oluşturma ile doğrulama senkron",
+          "Startup lisans check kaldırılsa dahi: jwtKeyBytes = RandomNumberGenerator.GetBytes(32) → tüm token'lar geçersiz → login çalışmaz",
+          "Hem startup check hem JWT derivation hem middleware kaldırılıp JWT hardcode edilmediği sürece sistem işlevsel değil",
+          "Program.cs: LicenseJwtKey singleton DI'ya AddJwtBearer kurulumundan önce kaydedilir",
+        ],
+      },
+      {
+        type: "guvenik", icon: Shield, title: "LicenseMiddleware — Her İstekte Runtime Doğrulama",
+        items: [
+          "LicenseMiddleware.cs: pipeline'a UseCors'tan sonra, UseAuthentication'dan önce eklendi",
+          "Her HTTP isteğinde lisans doğrulanır (sonuç 1 dakika cache — thread-safe lock ile)",
+          "Geçersiz lisansta 503 Service Unavailable döner, hata mesajı JSON formatında",
+          "/health ve /openapi path'leri bypass — Docker/K8s health probe'ları engellenmiyor",
+          "Startup check'ten bağımsız: Program.cs değiştirilse bile middleware etkin kalmaya devam eder",
+        ],
+      },
+      {
+        type: "frontend", icon: KeyRound, title: "Admin Panel — Aktivasyon Anahtarı Bölümü",
+        items: [
+          "Yönetim > Sistem sekmesi sonuna 'Aktivasyon Anahtarı' Section eklendi",
+          "Maskelenmiş token gösterimi: ilk 10 karakter + '···' + '***' — tam token görünmez",
+          "isValid / isConfigured / revealPasswordSet durumları badge ile gösterilir",
+          "'Görüntüle' butonu → modal: ayrı şifre girişi (admin şifresinden bağımsız)",
+          "Doğru şifrede tam lisans token'ı teal kartta gösterilir — 'Kopyala' butonu ile panoya",
+          "Modal kapanınca token bellekten silinir — tekrar açmak için şifre yeniden girilmeli",
+          "DevKeyController.cs: License artık config'den okunur (DB'den değil) — RevealPasswordHash DB'de",
+          "DbInitializer: SeedDevKey → SeedRevealPassword olarak güncellendi, DevKeyEncrypted artık seed edilmiyor",
+        ],
+      },
+      {
+        type: "ozellik", icon: ImageIcon, title: "6 Slot Logo & Favicon Sistemi — Admin + Müşteri Ayrı",
+        items: [
+          "Admin Panel Görselleri: İsimli Logo (sidebar genişken), İsimsiz Logo (sidebar daraltılmışken), Favicon (tarayıcı sekmesi)",
+          "Müşteri Sitesi Görselleri: İsimli Logo (header full brand), İsimsiz Logo (header icon-only), Favicon",
+          "Yönetim > Görünüm sekmesinde 2 ayrı 3-sütun upload bölümü — aynı sıralama (İsimli → İsimsiz → Favicon)",
+          "SiteSettings key'leri: AdminLogoNamed, AdminLogoIcon, AdminFaviconUrl, CustomerLogoNamed, CustomerLogoIcon, CustomerFaviconUrl",
+          "Admin sidebar: daraltılmış → AdminLogoIcon, genişletilmiş + named set → AdminLogoNamed, named yok → icon + metin",
+          "Müşteri Header: logoUrl prop (named), logoIconUrl prop (icon) — sunucu bileşeninden geçirilir",
+          "uploadFor(file, settingKey) helper: PUT /api/admin/settings/upload — hangi slot için yüklendiği belirli",
+        ],
+      },
+      {
+        type: "frontend", icon: RefreshCw, title: "Logo & Favicon Tarayıcı Cache Sorunu Çözümü",
+        items: [
+          "Sorun: Ayarlar kaydedilince admin sidebar logosu güncellenmiyordu, favicon eski kalıyordu",
+          "CustomEvent çözümü: save() sonrası window.dispatchEvent(new CustomEvent('ecom:settings-updated', { detail: settings }))",
+          "Admin layout.tsx: 'ecom:settings-updated' dinler → logoUrl ve logoNamedUrl state'leri anında güncellenir",
+          "SettingsVersion: PUT /api/admin/settings her çağrıda Unix ms timestamp yazar (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())",
+          "Favicon cache-bust: generateMetadata() → favicon URL'sine ?v={SettingsVersion} query param eklenir",
+          "Admin root layout.tsx ve Customer layout.tsx her ikisi de SettingsVersion parametresini favicon URL'sine ekler",
+          "Customer Header: logoUrl ve logoIconUrl server component'tan prop olarak geçirilir (no-store fetch)",
+        ],
+      },
+      {
+        type: "ozellik", icon: Activity, title: "Servis Yönetimi UI — Yönetim > Sistem Sekmesi",
+        items: [
+          "IServiceStateManager singleton: pause/resume/trigger durumu ve meta bilgileri tutar",
+          "DependencyInjection.cs: AddSingleton<IServiceStateManager, ServiceStateManager> — AddHostedService'lerden önce kaydedilir",
+          "Yönetim > Sistem > Servis Yönetimi: her servis kart olarak listelenir (isPaused, isRunning, uptime, runCount)",
+          "Duraklatıldı → amber kart / Çalışıyor → teal pulse kart / Bekliyor → gri kart",
+          "Butonlar: Duraklat (amber) / Devam Ettir (emerald) / Tetikle (teal) — işlem sırasında Loader2 spin",
+          "10 saniyede bir otomatik yenileme (useEffect setInterval, tab ayrılınca clearInterval)",
+          "Manuel Yenile butonu: RefreshCw + spin animasyonu",
+        ],
+      },
+      {
+        type: "altyapi", icon: Globe, title: "3 Ortam × 3 Servis URL Tablosu",
+        items: [
+          "Yönetim > Sistem > Ortam URL Konfigürasyonu: Admin Panel, Müşteri Sitesi, API — Development / Staging / Production",
+          "Her hücre düzenlenebilir input — SiteSettings'e ApiBaseUrl_dev/_staging/_prod vb. olarak kaydedilir",
+          "'Aktif Et' butonu: ilgili ortam URL'lerini aktif (ApiBaseUrl, CustomerBaseUrl, AdminBaseUrl) key'lerine kopyalar",
+          "Aktif ortam badge'i (dev=emerald/staging=blue/prod=red) tablo başlığında gösterilir",
+          "AppEnvironment SiteSettings key'i ile seçili ortam takip edilir",
+        ],
+      },
+    ],
+  },
+  {
     date: "25 Mayıs 2026",
     label: "Dış Kaynaklar — Kaynak Takibi / Excel İndirme / REST Fetch Modal / Bug Fix",
-    defaultOpen: true,
+    defaultOpen: false,
     changes: [
       {
         type: "ozellik", icon: Database, title: "Dış Kaynaklar — Kaynak Takibi (Source Tracking)",

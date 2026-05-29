@@ -55,7 +55,6 @@ public class CreateVariantHandler(IApplicationDbContext db, IAuditService audit)
         var stock = new Stock
         {
             ProductVariantId = variant.Id,
-            ProductId = request.ProductId,
             Quantity = request.InitialStock
         };
 

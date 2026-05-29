@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { AdminOrderSummary, PaginatedList } from "@/types";
 import { ORDER_STATUS, ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
-import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw } from "lucide-react";
+import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw, CheckCircle2, Trash2, Activity, ShoppingCart } from "lucide-react";
 import { exportToExcel } from "@/lib/excel";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -27,14 +27,55 @@ function getOrderWarning(status: number): OrderWarning {
   }
 }
 
+interface AuditLog {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdDate: string;
+}
+
+const ORDER_ACTION_COLORS: Record<string, string> = {
+  "DurumGüncellendi": "bg-blue-100 text-blue-700",
+  "AdresGüncellendi": "bg-teal-100 text-teal-700",
+  "OrderDeleted": "bg-red-100 text-red-700",
+};
+
+const APPROVABLE = new Set([1]);
 const CANCELLABLE = new Set([1, 2, 3, 4]);
 const HOLDABLE = new Set([1, 2, 3, 4, 5]);
+const DELETABLE = new Set([7, 8, 10, 11]); // Completed, Cancelled, Refunded, Failed
 
 const PAGE_SIZES = [15, 30, 50, 100];
 
 type ModalTarget = { orderId: string; orderNumber: string };
 
 export default function OrdersPage() {
+  const [activeTab, setActiveTab] = useState<"siparisler" | "hareketler">("siparisler");
+
+  // Hareketler
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const logsPageSize = 30;
+
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(logsPage), pageSize: String(logsPageSize), entityName: "Sipariş" });
+      const data = await api.get<{ items: AuditLog[]; totalCount: number }>(`/api/admin/audit-logs?${params}`);
+      setLogs(data.items);
+      setLogsTotal(data.totalCount);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [logsPage, logsPageSize]);
+
+  useEffect(() => { if (activeTab === "hareketler") loadLogs(); }, [activeTab, loadLogs]);
+
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -45,8 +86,11 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [approveModal, setApproveModal] = useState<ModalTarget | null>(null);
   const [holdModal, setHoldModal] = useState<ModalTarget | null>(null);
   const [cancelModal, setCancelModal] = useState<ModalTarget | null>(null);
+  const [deleteModal, setDeleteModal] = useState<ModalTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -66,6 +110,19 @@ export default function OrdersPage() {
   }, [page, pageSize, search, statusFilter]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  async function confirmApprove() {
+    if (!approveModal) return;
+    const { orderId } = approveModal;
+    setApproveModal(null);
+    try {
+      await api.put(`/api/orders/admin/${orderId}/status`, { status: 4 });
+      setMsg({ text: "Sipariş onaylandı, hazırlanmaya başlandı.", ok: true });
+      fetchOrders();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Onaylama başarısız.", ok: false });
+    }
+  }
 
   async function confirmHold() {
     if (!holdModal) return;
@@ -90,6 +147,22 @@ export default function OrdersPage() {
       fetchOrders();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "İptal başarısız.", ok: false });
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal) return;
+    const { orderId, orderNumber } = deleteModal;
+    setDeleteModal(null);
+    setDeleting(true);
+    try {
+      await api.delete(`/api/orders/admin/${orderId}`);
+      setMsg({ text: `${orderNumber} silindi.`, ok: true });
+      fetchOrders();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silme başarısız.", ok: false });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -141,6 +214,26 @@ export default function OrdersPage() {
         </div>
       </div>
 
+      {/* Sekme */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab("siparisler")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+            activeTab === "siparisler" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <ShoppingCart size={14} /> Siparişler
+        </button>
+        <button
+          onClick={() => setActiveTab("hareketler")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+            activeTab === "hareketler" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <Activity size={14} /> Hareketler
+        </button>
+      </div>
+
       {msg && (
         <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
           {msg.text}
@@ -148,6 +241,7 @@ export default function OrdersPage() {
         </div>
       )}
 
+      {activeTab === "siparisler" && <>
       <div className="flex flex-wrap gap-3 items-center">
         <form onSubmit={e => { e.preventDefault(); setPage(1); setSearch(searchInput); }} className="flex gap-2">
           <div className="relative">
@@ -265,6 +359,13 @@ export default function OrdersPage() {
                         <td className="px-5 py-3.5 text-right text-slate-400 text-xs">{formatDate(order.createdDate)}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5 justify-end">
+                            {APPROVABLE.has(order.status) && (
+                              <button onClick={() => setApproveModal({ orderId: order.id, orderNumber: order.orderNumber })}
+                                title="Onayla"
+                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-sm hover:shadow-emerald-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                                <CheckCircle2 size={18} />
+                              </button>
+                            )}
                             <Link href={`/siparisler/${order.orderNumber}`}
                               title="Detay"
                               className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
@@ -282,6 +383,13 @@ export default function OrdersPage() {
                                 title="İptal Et"
                                 className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                                 <XCircle size={18} />
+                              </button>
+                            )}
+                            {DELETABLE.has(order.status) && (
+                              <button onClick={() => setDeleteModal({ orderId: order.id, orderNumber: order.orderNumber })}
+                                title="Sil"
+                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-600 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
+                                <Trash2 size={17} />
                               </button>
                             )}
                           </div>
@@ -317,6 +425,72 @@ export default function OrdersPage() {
           {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
         </div>
       )}
+      </>}
+
+      {/* ── Hareketler Sekmesi ── */}
+      {activeTab === "hareketler" && (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-400">Sipariş durum değişiklikleri, adres güncellemeleri ve silme işlemleri.</p>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            {logsLoading ? (
+              <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    {["Tarih", "İşlemi Yapan", "Aksiyon", "Sipariş ID", "Detay"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {logs.length === 0 ? (
+                    <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">Hareket bulunamadı</td></tr>
+                  ) : logs.map(l => (
+                    <tr key={l.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                        {new Date(l.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 text-xs">{l.userEmail}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ORDER_ACTION_COLORS[l.action] ?? "bg-slate-100 text-slate-600"}`}>
+                          {l.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                        {l.entityId ? l.entityId.slice(0, 8) + "…" : "-"}
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {l.oldValue && <span className="text-xs text-slate-500 line-through mr-1">{l.oldValue}</span>}
+                        {l.newValue && <span className="text-xs text-slate-700">{l.newValue}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {Math.ceil(logsTotal / logsPageSize) > 1 && (
+            <div className="flex justify-center gap-2">
+              {logsPage > 1 && <button onClick={() => setLogsPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>}
+              <span className="px-4 py-2 text-sm text-slate-500">{logsPage} / {Math.ceil(logsTotal / logsPageSize)}</span>
+              {logsPage < Math.ceil(logsTotal / logsPageSize) && <button onClick={() => setLogsPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {approveModal && (
+        <ConfirmModal
+          title="Siparişi Onayla"
+          message={`${approveModal.orderNumber} numaralı sipariş onaylanacak ve hazırlanmaya başlanacak. Müşteriye bildirim gönderilecektir.`}
+          confirmLabel="Onayla"
+          cancelLabel="Vazgeç"
+          icon={<span className="w-8 h-8 flex items-center justify-center rounded-xl bg-emerald-100 text-emerald-600"><CheckCircle2 size={18} /></span>}
+          onConfirm={confirmApprove}
+          onCancel={() => setApproveModal(null)}
+        />
+      )}
 
       {holdModal && (
         <ConfirmModal
@@ -340,6 +514,19 @@ export default function OrdersPage() {
           icon={<span className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-100 text-red-600"><XCircle size={18} /></span>}
           onConfirm={confirmCancel}
           onCancel={() => setCancelModal(null)}
+        />
+      )}
+
+      {deleteModal && (
+        <ConfirmModal
+          title="Siparişi Sil"
+          message={`${deleteModal.orderNumber} numaralı sipariş kalıcı olarak silinecek. Silinen siparişler listede görünmez. Bu işlem geri alınamaz.`}
+          confirmLabel={deleting ? "Siliniyor..." : "Evet, Sil"}
+          cancelLabel="Vazgeç"
+          danger
+          icon={<span className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600"><Trash2 size={18} /></span>}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteModal(null)}
         />
       )}
     </div>

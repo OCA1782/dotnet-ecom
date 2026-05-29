@@ -39,7 +39,7 @@ public record RecentOrderDto(string Id, string OrderNumber, string CustomerName,
 
 public record GetDashboardQuery : IRequest<DashboardDto>;
 
-public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<GetDashboardQuery, DashboardDto>
+public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService dapper, ICacheService cache) : IRequestHandler<GetDashboardQuery, DashboardDto>
 {
     private static readonly string[] DAY_LABELS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 
@@ -59,6 +59,10 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
 
     public async Task<DashboardDto> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
     {
+        const string cacheKey = "dashboard:stats";
+        var cached = await cache.GetAsync<DashboardDto>(cacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -66,6 +70,20 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
         var twelveMonthsAgo = new DateTime(now.Year, now.Month, 1).AddMonths(-11);
         var sevenDaysAgo = todayStart.AddDays(-6);
         var oneHourAgo = now.AddHours(-1);
+
+        // Dapper: today & month aggregate (faster than EF for aggregates)
+        var todaySales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
+            "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+            new { from = todayStart }, cancellationToken) ?? 0m;
+        var todayOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
+            "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+            new { from = todayStart }, cancellationToken);
+        var monthSales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
+            "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+            new { from = monthStart }, cancellationToken) ?? 0m;
+        var monthOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
+            "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+            new { from = monthStart }, cancellationToken);
 
         var todayOrders = await db.Orders
             .Where(o => o.CreatedDate >= todayStart
@@ -203,15 +221,15 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             ))
             .ToListAsync(cancellationToken);
 
-        return new DashboardDto(
-            TodaySales: todayOrders.Sum(o => o.GrandTotal),
-            TodayOrderCount: todayOrders.Count,
+        var result = new DashboardDto(
+            TodaySales: todaySales,
+            TodayOrderCount: todayOrderCount,
             PendingOrderCount: pendingCount,
             CriticalStockCount: criticalStockCount,
             OutOfStockCount: outOfStockCount,
             TotalProductCount: totalProductCount,
-            MonthSales: monthOrders.Sum(o => o.GrandTotal),
-            MonthOrderCount: monthOrders.Count,
+            MonthSales: monthSales,
+            MonthOrderCount: monthOrderCount,
             TotalCustomerCount: totalCustomers,
             NewCustomerCount: newCustomers,
             ActiveCustomerCount: activeCustomerCount,
@@ -227,5 +245,8 @@ public class GetDashboardHandler(IApplicationDbContext db) : IRequestHandler<Get
             MonthTargetRevenue: currentGoal?.TargetRevenue,
             MonthTargetOrderCount: currentGoal?.TargetOrderCount
         );
+
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(1), cancellationToken);
+        return result;
     }
 }

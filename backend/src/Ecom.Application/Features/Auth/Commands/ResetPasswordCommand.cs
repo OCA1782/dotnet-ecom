@@ -20,7 +20,8 @@ public class ResetPasswordValidator : AbstractValidator<ResetPasswordCommand>
 
 public class ResetPasswordHandler(
     IApplicationDbContext db,
-    IPasswordService passwordService
+    IPasswordService passwordService,
+    IAuditService auditService
 ) : IRequestHandler<ResetPasswordCommand, Result>
 {
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
@@ -42,6 +43,11 @@ public class ResetPasswordHandler(
         user.PasswordResetTokenExpiry = null;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await auditService.LogAsync("PasswordReset", "User", user.Id.ToString(),
+            newValue: "Şifre sıfırlama bağlantısı ile değiştirildi",
+            userId: user.Id, cancellationToken: cancellationToken);
+
         return Result.Success();
     }
 }

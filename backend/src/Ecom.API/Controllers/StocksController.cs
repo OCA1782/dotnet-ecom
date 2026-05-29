@@ -23,6 +23,18 @@ public class StocksController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("movements")]
+    public async Task<IActionResult> GetAllMovements(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        [FromQuery] string? movementType = null,
+        [FromQuery] Guid? productId = null,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetAllStockMovementsQuery(page, pageSize, movementType, productId), ct);
+        return Ok(result);
+    }
+
     [HttpGet("{productId:guid}/movements")]
     public async Task<IActionResult> GetMovements(
         Guid productId,
@@ -41,5 +53,13 @@ public class StocksController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return Ok(new { message = "Stok güncellendi." });
+    }
+
+    [HttpDelete("{productId:guid}")]
+    public async Task<IActionResult> Delete(Guid productId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteStockCommand(productId), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Stok kaydı silindi." });
     }
 }

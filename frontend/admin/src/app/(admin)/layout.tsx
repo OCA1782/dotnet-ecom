@@ -1,63 +1,243 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse, Users,
-  LogOut, ChevronRight, Ticket, MessageSquare, Tag, Layers,
-  Activity, Target, ShieldAlert, Settings,
+  LogOut, ChevronRight, ChevronDown, Ticket, MessageSquare, Tag, Layers,
+  Activity, Target, ShieldAlert, Settings, Database, MapPin,
+  PanelLeftClose, PanelLeftOpen, FlaskConical, BarChart3,
+  HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
+  Truck, FileText, Megaphone,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
 import NotificationsPanel from "@/components/NotificationsPanel";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
 
-const ALL_NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/siparisler", label: "Siparişler", icon: ShoppingCart },
-  { href: "/urunler", label: "Ürünler", icon: Package },
-  { href: "/kategoriler", label: "Kategoriler", icon: Layers },
-  { href: "/markalar", label: "Markalar", icon: Tag },
-  { href: "/stok", label: "Stok", icon: Warehouse },
-  { href: "/kullanicilar", label: "Kullanıcılar", icon: Users },
-  { href: "/kuponlar", label: "Kuponlar", icon: Ticket },
-  { href: "/yorumlar", label: "Yorumlar", icon: MessageSquare },
-  { href: "/hareketler", label: "Hareketler", icon: Activity },
-  { href: "/hedefler", label: "Hedefler", icon: Target },
-  { href: "/takip", label: "Takip", icon: ShieldAlert },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  allowedRoles?: string[]; // undefined = all admin roles
+  group: "genel" | "katalog" | "satis" | "kullanici" | "sistem";
+};
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  // Genel
+  { href: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard, group: "genel" },
+  { href: "/raporlar",     label: "Analiz",        icon: BarChart3,       group: "genel", allowedRoles: ["SuperAdmin","Admin","FinanceUser"] },
+  { href: "/hedefler",     label: "Hedefler",      icon: Target,          group: "genel", allowedRoles: ["SuperAdmin","Admin","FinanceUser"] },
+  // Katalog
+  { href: "/urunler",      label: "Ürünler",       icon: Package,         group: "katalog", allowedRoles: ["SuperAdmin","Admin","ProductManager"] },
+  { href: "/kategoriler",  label: "Kategoriler",   icon: Layers,          group: "katalog", allowedRoles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
+  { href: "/markalar",     label: "Markalar",      icon: Tag,             group: "katalog", allowedRoles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
+  { href: "/stok",         label: "Stok",          icon: Warehouse,       group: "katalog", allowedRoles: ["SuperAdmin","Admin","StockManager","ProductManager"] },
+  { href: "/yorumlar",     label: "Yorumlar",      icon: MessageSquare,   group: "katalog", allowedRoles: ["SuperAdmin","Admin","CustomerSupport","ContentManager"] },
+  { href: "/duyurular",   label: "Duyurular",     icon: Megaphone,       group: "katalog", allowedRoles: ["SuperAdmin","Admin","ContentManager"] },
+  // Satış
+  { href: "/siparisler",   label: "Siparişler",    icon: ShoppingCart,    group: "satis",   allowedRoles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { href: "/odemeler",     label: "Ödemeler",      icon: CreditCard,      group: "satis",   allowedRoles: ["SuperAdmin","Admin","FinanceUser"] },
+  { href: "/iade",         label: "İadeler",       icon: RotateCcw,       group: "satis",   allowedRoles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { href: "/kuponlar",     label: "Kuponlar",      icon: Ticket,          group: "satis",   allowedRoles: ["SuperAdmin","Admin","FinanceUser"] },
+  { href: "/kargo",        label: "Kargo",         icon: Truck,           group: "satis",   allowedRoles: ["SuperAdmin","Admin","OrderManager"] },
+  { href: "/faturalar",    label: "Faturalar",     icon: FileText,        group: "satis",   allowedRoles: ["SuperAdmin","Admin","FinanceUser"] },
+  // Kullanıcı
+  { href: "/kullanicilar", label: "Kullanıcılar",  icon: Users,           group: "kullanici", allowedRoles: ["SuperAdmin","Admin","CustomerSupport"] },
+  { href: "/ziyaretciler", label: "Ziyaretçiler",  icon: MapPin,          group: "kullanici", allowedRoles: ["SuperAdmin","Admin"] },
+  // Sistem
+  { href: "/hareketler",   label: "Hareketler",    icon: Activity,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/takip",        label: "Takip",         icon: ShieldAlert,     group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/dis-kaynaklar",label: "Dış Kaynaklar", icon: Database,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/servisler",    label: "Servisler",     icon: HeartPulse,      group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/kuyruklar",    label: "Kuyruklar",     icon: Inbox,           group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/dokuman",      label: "Dokümanlar",    icon: BookOpen,        group: "sistem" },
 ];
 
-const SETTINGS_ITEM = { href: "/yonetim", label: "Yönetim", icon: Settings };
+type NavGroup = { id: NavItem["group"]; label: string; iconName?: string };
 
-function reorder(items: typeof ALL_NAV_ITEMS, order: string[]): typeof ALL_NAV_ITEMS {
+const NAV_GROUPS: NavGroup[] = [
+  { id: "genel",    label: "Genel",     iconName: "LayoutDashboard" },
+  { id: "katalog",  label: "Katalog",   iconName: "Package" },
+  { id: "satis",    label: "Satış",     iconName: "ShoppingCart" },
+  { id: "kullanici",label: "Kullanıcı", iconName: "Users" },
+  { id: "sistem",   label: "Sistem",    iconName: "Settings" },
+];
+
+const GROUP_ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  LayoutDashboard, Package, ShoppingCart, Users, Settings,
+  Database, Activity, Layers, Tag, BarChart3, Inbox, BookOpen, Target, Warehouse, MessageSquare,
+};
+
+function filterByRole(items: NavItem[], roles: string[]): NavItem[] {
+  const isSuperAdmin = roles.includes("SuperAdmin") || roles.includes("Admin");
+  return items.filter(item =>
+    !item.allowedRoles || item.allowedRoles.some(r => roles.includes(r)) || isSuperAdmin
+  );
+}
+
+const SETTINGS_ITEM = { href: "/yonetim", label: "Yönetim", icon: Settings };
+const TEST_ITEM = { href: "/test", label: "Test", icon: FlaskConical };
+
+function reorder(items: NavItem[], order: string[]): NavItem[] {
   if (!order.length) return items;
   const map = new Map(items.map(i => [i.href, i]));
-  const sorted = order.map(h => map.get(h)).filter(Boolean) as typeof ALL_NAV_ITEMS;
+  const sorted = order.map(h => map.get(h)).filter(Boolean) as NavItem[];
   const rest = items.filter(i => !order.includes(i.href));
   return [...sorted, ...rest];
 }
 
+function EnvBadge() {
+  const env = process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV;
+  if (env === "production") return null;
+  const styles: Record<string, string> = {
+    development: "bg-amber-100 text-amber-700 border-amber-200",
+    staging: "bg-blue-100 text-blue-700 border-blue-200",
+    test: "bg-purple-100 text-purple-700 border-purple-200",
+  };
+  const cls = styles[env ?? "development"] ?? styles.development;
+  return (
+    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${cls}`}>
+      {env}
+    </span>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAdminAuth();
+  const { user, loading, logout, refreshSession } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const [siteTitle, setSiteTitle] = useState("Keyvora");
   const [logoUrl, setLogoUrl] = useState("/logo-icon.png");
-  const [navItems, setNavItems] = useState(ALL_NAV_ITEMS);
+  const [logoNamedUrl, setLogoNamedUrl] = useState("");
+  const userRoles = user?.roles ?? [];
+  const visibleItems = filterByRole(ALL_NAV_ITEMS, userRoles);
+  const [navItems, setNavItems] = useState<NavItem[]>(visibleItems);
+  const [navGroups, setNavGroups] = useState<NavGroup[]>(NAV_GROUPS);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebar_collapsed") === "1";
+    }
+    return false;
+  });
+  const [navSearch, setNavSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("sidebar_open_groups");
+        if (saved) {
+          const parsed = new Set(JSON.parse(saved) as string[]);
+          // Ensure all groups exist (handles cases where new groups were added)
+          NAV_GROUPS.forEach(g => parsed.add(g.id));
+          return parsed;
+        }
+      } catch { }
+    }
+    return new Set(NAV_GROUPS.map(g => g.id));
+  });
+
+  function toggleGroup(id: string) {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      localStorage.setItem("sidebar_open_groups", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function toggleSidebar() {
+    setCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    function onSettingsUpdated(e: Event) {
+      const s = (e as CustomEvent<Record<string, string>>).detail;
+      if (s.AdminTitle) setSiteTitle(s.AdminTitle);
+      setLogoUrl(s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png");
+      setLogoNamedUrl(s.AdminLogoNamed || "");
+    }
+    window.addEventListener("ecom:settings-updated", onSettingsUpdated);
+    return () => window.removeEventListener("ecom:settings-updated", onSettingsUpdated);
+  }, []);
 
   useEffect(() => {
     api.get<Record<string, string>>("/api/admin/settings").then(s => {
       if (s.AdminTitle) setSiteTitle(s.AdminTitle);
-      if (s.LogoUrl) setLogoUrl(s.LogoUrl);
+      setLogoUrl(s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png");
+      setLogoNamedUrl(s.AdminLogoNamed || "");
+      const filtered = filterByRole(ALL_NAV_ITEMS, userRoles);
+
+      // Apply group overrides from AdminMenuConfig
+      let itemsToOrder = filtered;
+      if (s.AdminMenuConfig) {
+        try {
+          const gc = JSON.parse(s.AdminMenuConfig) as {
+            groupOrder?: string[];
+            groupLabels?: Record<string, string>;
+            groupIcons?: Record<string, string>;
+            itemGroups?: Record<string, string>;
+          };
+          if (gc.itemGroups) {
+            itemsToOrder = filtered.map(item => ({
+              ...item,
+              group: (gc.itemGroups![item.href] as NavItem["group"]) ?? item.group,
+            }));
+          }
+          if (gc.groupOrder?.length) {
+            const newGroups = gc.groupOrder
+              .map(id => {
+                const base = NAV_GROUPS.find(g => g.id === id);
+                if (!base) return null;
+                return {
+                  ...base,
+                  label: gc.groupLabels?.[id] ?? base.label,
+                  iconName: gc.groupIcons?.[id] ?? base.iconName,
+                } as NavGroup;
+              })
+              .filter(Boolean) as NavGroup[];
+            if (newGroups.length) setNavGroups(newGroups);
+          } else if (gc.groupLabels || gc.groupIcons) {
+            setNavGroups(prev => prev.map(g => ({
+              ...g,
+              label: gc.groupLabels?.[g.id] ?? g.label,
+              iconName: gc.groupIcons?.[g.id] ?? g.iconName,
+            })));
+          }
+        } catch { }
+      }
+
+      if (s.AdminRbacMatrix) {
+        try {
+          const matrix = JSON.parse(s.AdminRbacMatrix) as Record<string, string[]>;
+          itemsToOrder = itemsToOrder.map(item => {
+            // Match nav item label to matrix module name (labels match module names directly)
+            const roles = matrix[item.label];
+            if (roles) return { ...item, allowedRoles: roles };
+            return item;
+          });
+        } catch { }
+      }
+
       if (s.AdminMenuOrder) {
         try {
           const order: string[] = JSON.parse(s.AdminMenuOrder);
-          setNavItems(reorder(ALL_NAV_ITEMS, order));
-        } catch { }
+          setNavItems(reorder(itemsToOrder, order));
+        } catch { setNavItems(itemsToOrder); }
+      } else {
+        setNavItems(itemsToOrder);
       }
     }).catch(() => { });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/giris");
@@ -71,70 +251,239 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  const sidebarWidth = collapsed ? "w-16" : "w-60";
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className="w-60 bg-[#1c2044] flex flex-col shrink-0">
-        <div className="px-5 py-4 border-b border-white/10">
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+      <aside className={`${sidebarWidth} bg-[#1c2044] flex flex-col shrink-0 transition-all duration-200`}>
+        {/* Logo / Header */}
+        <div className={`border-b border-white/10 ${collapsed ? "px-3 py-4 flex justify-center" : "px-5 py-4"}`}>
+          {collapsed ? (
+            /* Daraltılmış: isimsiz ikon */
+            <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
                 onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
             </div>
-            <span className="text-white font-bold text-base">{siteTitle}</span>
-          </div>
-          <p className="text-slate-400 text-xs truncate">{user.email}</p>
+          ) : logoNamedUrl ? (
+            /* Genişletilmiş: isimli logo görsel olarak */
+            <>
+              <div className="mb-1 h-10 flex items-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoNamedUrl} alt={siteTitle} className="max-h-full max-w-full object-contain"
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
+              <p className="text-slate-400 text-xs truncate">{user.email}</p>
+            </>
+          ) : (
+            /* Genişletilmiş: isimsiz ikon + metin */
+            <>
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
+                    onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
+                </div>
+                <span className="text-white font-bold text-base truncate">{siteTitle}</span>
+              </div>
+              <p className="text-slate-400 text-xs truncate">{user.email}</p>
+            </>
+          )}
         </div>
 
-        <nav className="flex-1 py-4 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link key={href} href={href}
-                className={`flex items-center gap-3 px-6 py-2.5 text-sm font-medium transition border-l-2 ${
-                  active
-                    ? "bg-white/10 text-white border-teal-400"
-                    : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
-                }`}>
-                <Icon size={17} />
-                {label}
-                {active && <ChevronRight size={14} className="ml-auto opacity-60" />}
-              </Link>
-            );
-          })}
+        {/* Arama */}
+        {!collapsed && (
+          <div className="px-3 py-2 border-b border-white/10">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-2 text-slate-500 pointer-events-none" />
+              <input
+                ref={searchRef}
+                value={navSearch}
+                onChange={e => setNavSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === "Escape") setNavSearch(""); }}
+                placeholder="Sayfa ara..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-7 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:bg-white/10 transition"
+              />
+              {navSearch && (
+                <button onClick={() => setNavSearch("")}
+                  className="absolute right-2 top-1.5 text-slate-500 hover:text-slate-300 transition">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Nav */}
+        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
+          {navSearch.trim() ? (
+            /* Arama sonuçları — düz liste, grup yok */
+            (() => {
+              const q = navSearch.toLowerCase();
+              const allSearchable = [
+                ...navItems,
+                { href: "/yonetim", label: "Yönetim", icon: Settings, group: "sistem" as const },
+                { href: "/test", label: "Test", icon: FlaskConical, group: "sistem" as const },
+              ];
+              const results = allSearchable.filter(i => i.label.toLowerCase().includes(q));
+              return results.length === 0 ? (
+                <p className="px-5 py-4 text-xs text-slate-500">Sonuç bulunamadı.</p>
+              ) : (
+                <div className="pt-1">
+                  {results.map(({ href, label, icon: Icon }) => {
+                    const active = pathname === href || pathname.startsWith(href + "/");
+                    return (
+                      <Link key={href} href={href} onClick={() => setNavSearch("")}
+                        className={`flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition border-l-2 ${
+                          active
+                            ? "bg-white/10 text-white border-teal-400"
+                            : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
+                        }`}>
+                        <Icon size={17} className="shrink-0" />
+                        <span className="truncate">{label}</span>
+                        {active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          ) : (
+            /* Normal gruplu görünüm */
+            navGroups.map(group => {
+              const groupItems = navItems.filter(i => i.group === group.id);
+              if (groupItems.length === 0) return null;
+              const GroupIcon = group.iconName ? GROUP_ICON_MAP[group.iconName] : null;
+              const hasActiveItem = groupItems.some(i => pathname === i.href || pathname.startsWith(i.href + "/"));
+              const isOpen = collapsed || openGroups.has(group.id) || hasActiveItem;
+              return (
+                <div key={group.id} className="mb-1">
+                  {!collapsed && (
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className="w-full px-4 pt-3 pb-1 flex items-center gap-1.5 text-left hover:text-slate-400 transition group/grp"
+                    >
+                      {GroupIcon && <GroupIcon size={9} className="opacity-70 shrink-0 text-slate-600" />}
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 select-none flex-1">
+                        {group.label}
+                      </span>
+                      {hasActiveItem && !isOpen && (
+                        <span className="w-1 h-1 rounded-full bg-teal-400 mr-1" />
+                      )}
+                      <ChevronDown
+                        size={10}
+                        className={`text-slate-600 opacity-60 transition-transform duration-200 ${isOpen ? "" : "-rotate-90"}`}
+                      />
+                    </button>
+                  )}
+                  {collapsed && <div className="mx-3 my-1.5 border-t border-white/10" />}
+                  {isOpen && groupItems.map(({ href, label, icon: Icon }) => {
+                    const active = pathname === href || pathname.startsWith(href + "/");
+                    return (
+                      <Link key={href} href={href} title={collapsed ? label : undefined}
+                        className={`flex items-center gap-3 py-2.5 text-sm font-medium transition border-l-2 ${
+                          collapsed ? "px-0 justify-center" : "px-6"
+                        } ${
+                          active
+                            ? "bg-white/10 text-white border-teal-400"
+                            : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
+                        }`}>
+                        <Icon size={17} className="shrink-0" />
+                        {!collapsed && <span className="truncate">{label}</span>}
+                        {!collapsed && active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
         </nav>
 
+        {/* Bottom: Settings, Test, Collapse, Logout */}
         <div className="border-t border-white/10">
-          <Link href={SETTINGS_ITEM.href}
-            className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition border-l-2 ${
+          {/* Test */}
+          <Link href={TEST_ITEM.href} title={collapsed ? TEST_ITEM.label : undefined}
+            className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
+              collapsed ? "px-0 justify-center" : "px-6"
+            } ${
+              pathname === TEST_ITEM.href
+                ? "bg-white/10 text-white border-teal-400"
+                : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
+            }`}>
+            <FlaskConical size={17} className="shrink-0" />
+            {!collapsed && <span>Test</span>}
+          </Link>
+
+          {/* Settings */}
+          <Link href={SETTINGS_ITEM.href} title={collapsed ? SETTINGS_ITEM.label : undefined}
+            className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
+              collapsed ? "px-0 justify-center" : "px-6"
+            } ${
               pathname === SETTINGS_ITEM.href
                 ? "bg-white/10 text-white border-teal-400"
                 : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
             }`}>
-            <Settings size={17} />
-            {SETTINGS_ITEM.label}
-            {pathname === SETTINGS_ITEM.href && <ChevronRight size={14} className="ml-auto opacity-60" />}
+            <Settings size={17} className="shrink-0" />
+            {!collapsed && <span>{SETTINGS_ITEM.label}</span>}
+            {!collapsed && pathname === SETTINGS_ITEM.href && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
           </Link>
-          <div className="px-4 pb-4">
-            <button onClick={() => { logout(); router.push("/giris"); }}
-              className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition w-full px-2 py-1.5">
+
+          {/* Logout + Collapse Toggle */}
+          <div className={`pb-3 pt-1 flex items-center ${collapsed ? "flex-col gap-1 px-0" : "justify-between px-4"}`}>
+            <button onClick={() => { logout(); router.push("/giris"); }} title="Çıkış Yap"
+              className={`flex items-center gap-2 text-slate-400 hover:text-white text-sm transition ${collapsed ? "py-1.5 justify-center" : "px-2 py-1.5"}`}>
               <LogOut size={16} />
-              Çıkış Yap
+              {!collapsed && <span>Çıkış Yap</span>}
+            </button>
+            <button onClick={toggleSidebar} title={collapsed ? "Genişlet" : "Daralt"}
+              className="text-slate-500 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10">
+              {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
           </div>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        <style>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            body::after {
+              content: "Bu sayfa yazdırılamaz.";
+              visibility: visible !important;
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              font-size: 24px;
+              font-weight: bold;
+              color: #64748b;
+            }
+          }
+          .no-screenshot img { pointer-events: none; -webkit-user-drag: none; }
+          .no-screenshot { -webkit-user-select: text; user-select: text; }
+        `}</style>
         <header className="h-12 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
             {navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))?.label
-              ?? (pathname === SETTINGS_ITEM.href ? SETTINGS_ITEM.label : "")}
+              ?? (pathname === SETTINGS_ITEM.href ? SETTINGS_ITEM.label
+                : pathname === TEST_ITEM.href ? TEST_ITEM.label : "")}
           </span>
-          <NotificationsPanel />
+          <div className="flex items-center gap-3">
+            <EnvBadge />
+            <NotificationsPanel />
+          </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-8 no-screenshot"
+          onContextMenu={e => { e.preventDefault(); }}
+        >
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
       </div>
+      <SessionTimeoutWarning
+        onRefresh={refreshSession}
+        onLogout={() => { logout(); router.push("/giris"); }}
+      />
     </div>
   );
 }

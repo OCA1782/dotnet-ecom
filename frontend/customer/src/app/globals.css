@@ -3,6 +3,12 @@
 :root {
   --background: #F7FAFA;
   --foreground: #1c2044;
+  --color-primary: #0d9488;
+  --color-accent: #7c3aed;
+  --font-customer: "Inter", sans-serif;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #E3EFEE;
+  --tmpl-header-shadow: 0 2px 12px rgba(18,48,74,0.07);
 }
 
 @theme inline {
@@ -17,3 +23,592 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+header[data-tmpl-header] {
+  background-color: var(--tmpl-header-bg, #ffffff);
+  border-bottom-color: var(--tmpl-header-border, #E3EFEE);
+  box-shadow: var(--tmpl-header-shadow, 0 2px 12px rgba(18,48,74,0.07));
+}
+
+/* ═══════════════════════════════════════════════════════
+   1. MODERN — varsayılan, 4 sütun, teal, yuvarlak
+══════════════════════════════════════════════════════ */
+/* default — override yok */
+
+/* ═══════════════════════════════════════════════════════
+   2. MINIMAL — saf beyaz, gölgesiz, Apple-esintili
+══════════════════════════════════════════════════════ */
+html[data-template="minimal"] {
+  --background: #ffffff;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #f0f0f0;
+  --tmpl-header-shadow: 0 1px 0 #f0f0f0;
+}
+html[data-template="minimal"] body { background: #ffffff; }
+html[data-template="minimal"] [class*="shadow"] { box-shadow: none !important; }
+html[data-template="minimal"] .product-card,
+html[data-template="minimal"] [data-product-grid] > * {
+  border-color: #ebebeb !important;
+  border-radius: 0.5rem !important;
+  transition: border-color 0.2s !important;
+}
+html[data-template="minimal"] .product-card:hover,
+html[data-template="minimal"] [data-product-grid] > *:hover { border-color: #0d9488 !important; }
+html[data-template="minimal"] [class*="rounded-full"] { border-radius: 0.25rem !important; }
+html[data-template="minimal"] [data-header-inner] { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+
+/* ═══════════════════════════════════════════════════════
+   3. BOLD — renkli başlık, pill şekiller, enerjik
+══════════════════════════════════════════════════════ */
+html[data-template="bold"] {
+  --tmpl-header-bg: var(--color-primary, #0d9488);
+  --tmpl-header-border: transparent;
+  --tmpl-header-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+html[data-template="bold"] header[data-tmpl-header] a,
+html[data-template="bold"] header[data-tmpl-header] button,
+html[data-template="bold"] header[data-tmpl-header] span { color: #ffffff !important; }
+html[data-template="bold"] header[data-tmpl-header] .text-slate-700,
+html[data-template="bold"] header[data-tmpl-header] .text-slate-900 { color: #ffffff !important; }
+html[data-template="bold"] header[data-tmpl-header] input {
+  background: rgba(255,255,255,0.2) !important;
+  border-color: rgba(255,255,255,0.4) !important;
+  color: #ffffff !important;
+}
+html[data-template="bold"] header[data-tmpl-header] input::placeholder { color: rgba(255,255,255,0.65) !important; }
+html[data-template="bold"] header[data-tmpl-header] .bg-teal-500 { background: rgba(255,255,255,0.25) !important; }
+html[data-template="bold"] [class*="rounded-2xl"],
+html[data-template="bold"] [class*="rounded-xl"] { border-radius: 1.5rem !important; }
+html[data-template="bold"] [class*="rounded-full"] { border-radius: 9999px !important; }
+
+/* ═══════════════════════════════════════════════════════
+   4. DARK — gece modu, tam koyu tema
+══════════════════════════════════════════════════════ */
+html[data-template="dark"] {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --color-primary: #38bdf8;
+  --tmpl-header-bg: #1e293b;
+  --tmpl-header-border: #334155;
+  --tmpl-header-shadow: 0 2px 16px rgba(0,0,0,0.5);
+}
+html[data-template="dark"] body { background-color: #0f172a; color: #f1f5f9; }
+html[data-template="dark"] header[data-tmpl-header] a,
+html[data-template="dark"] header[data-tmpl-header] button { color: #f1f5f9 !important; }
+html[data-template="dark"] header[data-tmpl-header] .text-slate-700 { color: #cbd5e1 !important; }
+html[data-template="dark"] header[data-tmpl-header] input {
+  background: #0f172a !important; border-color: #334155 !important; color: #f1f5f9 !important;
+}
+html[data-template="dark"] header[data-tmpl-header] input::placeholder { color: #475569 !important; }
+html[data-template="dark"] header[data-tmpl-header] .bg-teal-500 { background: #0369a1 !important; }
+html[data-template="dark"] .bg-white { background-color: #1e293b !important; }
+html[data-template="dark"] .bg-slate-50, html[data-template="dark"] .bg-gray-50 { background-color: #0f172a !important; }
+html[data-template="dark"] .bg-teal-50 { background-color: #0c1a2e !important; }
+html[data-template="dark"] .text-slate-900, html[data-template="dark"] .text-slate-800 { color: #f1f5f9 !important; }
+html[data-template="dark"] .text-slate-700, html[data-template="dark"] .text-slate-600 { color: #94a3b8 !important; }
+html[data-template="dark"] .text-slate-500, html[data-template="dark"] .text-slate-400 { color: #64748b !important; }
+html[data-template="dark"] .border-slate-200, html[data-template="dark"] .border-slate-100,
+html[data-template="dark"] .border-gray-200 { border-color: #334155 !important; }
+html[data-template="dark"] .border-teal-100, html[data-template="dark"] .border-teal-200 { border-color: #1e3a5f !important; }
+html[data-template="dark"] footer { background-color: #0a0f1e !important; }
+
+/* ═══════════════════════════════════════════════════════
+   5. SHOWCASE — 2 sütun, çok uzun görseller, premium
+══════════════════════════════════════════════════════ */
+html[data-template="showcase"] {
+  --background: #fafaf9;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #e7e5e0;
+  --tmpl-header-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+html[data-template="showcase"] [data-product-grid] {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 2rem !important;
+}
+html[data-template="showcase"] .product-card,
+html[data-template="showcase"] [data-product-grid] > * { border-radius: 1.25rem !important; }
+html[data-template="showcase"] .product-card > a > div,
+html[data-template="showcase"] [data-product-grid] > * > div:first-child {
+  height: 22rem !important;
+  min-height: 22rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   6. LUXE — 3 sütun, 2 satırlı ortalanmış başlık, altın
+══════════════════════════════════════════════════════ */
+html[data-template="luxe"] {
+  --background: #faf9f6;
+  --tmpl-header-bg: #fffef9;
+  --tmpl-header-border: #e8e0d0;
+  --tmpl-header-shadow: 0 2px 12px rgba(101,67,33,0.07);
+}
+html[data-template="luxe"] body { background-color: #faf9f6; }
+html[data-template="luxe"] [data-header-inner] {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  position: relative !important;
+}
+html[data-template="luxe"] [data-slot="logo"] { order: -1; }
+html[data-template="luxe"] [data-slot="search"] {
+  display: flex !important;
+  width: 100% !important;
+  max-width: 540px !important;
+  order: 1;
+}
+html[data-template="luxe"] [data-slot="search"] input {
+  border-color: #c8b89a !important;
+  background: #fffef9 !important;
+  border-radius: 0.75rem !important;
+}
+html[data-template="luxe"] [data-slot="search"] button { background: #92400e !important; }
+html[data-template="luxe"] [data-slot="actions"] {
+  position: absolute !important; right: 0 !important; top: 0.75rem !important;
+}
+html[data-template="luxe"] [data-product-grid] { grid-template-columns: repeat(3, 1fr) !important; }
+html[data-template="luxe"] .product-card,
+html[data-template="luxe"] [data-product-grid] > * {
+  border-radius: 0.75rem !important;
+  border-color: #e8e0d0 !important;
+  background-color: #fffef9 !important;
+}
+html[data-template="luxe"] .bg-teal-500 { background-color: #92400e !important; }
+html[data-template="luxe"] .bg-\[\#12304A\] { background-color: #78350f !important; }
+html[data-template="luxe"] .text-teal-500, html[data-template="luxe"] .text-teal-600 { color: #92400e !important; }
+html[data-template="luxe"] .hover\:bg-\[\#FF7A45\]:hover { background-color: #d97706 !important; }
+
+/* ═══════════════════════════════════════════════════════
+   7. SPORT — 5 sütun, tam genişlik koyu başlık, turuncu
+══════════════════════════════════════════════════════ */
+html[data-template="sport"] {
+  --background: #f1f5f9;
+  --tmpl-header-bg: #0f172a;
+  --tmpl-header-border: #1e293b;
+  --tmpl-header-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+html[data-template="sport"] body { background-color: #f1f5f9; }
+html[data-template="sport"] header[data-tmpl-header] > div {
+  max-width: 100% !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important;
+}
+html[data-template="sport"] header[data-tmpl-header] a,
+html[data-template="sport"] header[data-tmpl-header] button,
+html[data-template="sport"] header[data-tmpl-header] .text-slate-700,
+html[data-template="sport"] header[data-tmpl-header] .text-slate-900 { color: #f1f5f9 !important; }
+html[data-template="sport"] header[data-tmpl-header] input {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  color: #f1f5f9 !important;
+}
+html[data-template="sport"] header[data-tmpl-header] input::placeholder { color: rgba(255,255,255,0.4) !important; }
+html[data-template="sport"] header[data-tmpl-header] .bg-teal-500 { background: #f97316 !important; }
+html[data-template="sport"] [data-product-grid] {
+  grid-template-columns: repeat(5, 1fr) !important; gap: 0.75rem !important;
+}
+html[data-template="sport"] [class*="rounded-2xl"],
+html[data-template="sport"] [class*="rounded-xl"] { border-radius: 0.5rem !important; }
+html[data-template="sport"] .bg-teal-500 { background-color: #f97316 !important; }
+html[data-template="sport"] .bg-\[\#12304A\] { background-color: #0f172a !important; }
+html[data-template="sport"] .hover\:bg-\[\#FF7A45\]:hover { background-color: #ea580c !important; }
+html[data-template="sport"] .text-teal-500, html[data-template="sport"] .text-teal-600 { color: #ea580c !important; }
+
+/* ═══════════════════════════════════════════════════════
+   8. RETRO — 2 sütun, sıcak sarı, kalın kenarlık, vintage
+══════════════════════════════════════════════════════ */
+html[data-template="retro"] {
+  --background: #fef9ef;
+  --tmpl-header-bg: #fef3c7;
+  --tmpl-header-border: #d97706;
+  --tmpl-header-shadow: 0 3px 0 #d97706;
+}
+html[data-template="retro"] body { background-color: #fef9ef; }
+html[data-template="retro"] header[data-tmpl-header] { border-bottom-width: 3px !important; }
+html[data-template="retro"] header[data-tmpl-header] input {
+  background: #fffbeb !important; border-color: #d97706 !important; color: #78350f !important;
+}
+html[data-template="retro"] header[data-tmpl-header] input::placeholder { color: rgba(146,64,14,0.5) !important; }
+html[data-template="retro"] header[data-tmpl-header] .bg-teal-500 { background: #d97706 !important; }
+html[data-template="retro"] header[data-tmpl-header] .text-slate-700,
+html[data-template="retro"] header[data-tmpl-header] a { color: #78350f !important; }
+html[data-template="retro"] [data-product-grid] {
+  grid-template-columns: repeat(2, 1fr) !important; gap: 1rem !important;
+}
+html[data-template="retro"] [class*="rounded-2xl"], html[data-template="retro"] [class*="rounded-xl"],
+html[data-template="retro"] [class*="rounded-lg"], html[data-template="retro"] [class*="rounded-full"] { border-radius: 0.25rem !important; }
+html[data-template="retro"] [class*="shadow-xl"],
+html[data-template="retro"] [class*="shadow-lg"] { box-shadow: 3px 3px 0 #92400e !important; }
+html[data-template="retro"] .product-card,
+html[data-template="retro"] [data-product-grid] > * {
+  border-width: 2px !important; border-color: #92400e !important; background-color: #fffbeb !important;
+}
+html[data-template="retro"] .bg-teal-500 { background-color: #d97706 !important; }
+html[data-template="retro"] .bg-\[\#12304A\] { background-color: #92400e !important; }
+html[data-template="retro"] .hover\:bg-\[\#FF7A45\]:hover { background-color: #d97706 !important; }
+html[data-template="retro"] .text-teal-500, html[data-template="retro"] .text-teal-600,
+html[data-template="retro"] .text-\[\#008F86\] { color: #92400e !important; }
+html[data-template="retro"] .bg-gradient-to-b, html[data-template="retro"] .bg-gradient-to-br { background: #fde68a !important; }
+
+/* ═══════════════════════════════════════════════════════
+   9. INSTAGRAM — kare ızgara, metin hover overlay
+══════════════════════════════════════════════════════ */
+html[data-template="instagram"] {
+  --background: #fafafa;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #dbdbdb;
+  --tmpl-header-shadow: none;
+}
+html[data-template="instagram"] body { background: #fafafa; }
+html[data-template="instagram"] [data-product-grid] {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 3px !important;
+}
+/* Kartlar: çerçevesiz, köşesiz, kare */
+html[data-template="instagram"] .product-card,
+html[data-template="instagram"] [data-product-grid] > * {
+  position: relative !important;
+  border-radius: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+/* Kare görsel alanı */
+html[data-template="instagram"] .product-card > a,
+html[data-template="instagram"] [data-product-grid] > * > a:first-child {
+  display: block !important;
+}
+html[data-template="instagram"] .product-card > a > div,
+html[data-template="instagram"] [data-product-grid] > * > div:first-child {
+  aspect-ratio: 1 / 1 !important;
+  height: auto !important;
+  min-height: unset !important;
+  background: #e8e8e8 !important;
+}
+/* Metin bölümü: hover'da overlay */
+html[data-template="instagram"] .product-card > div.p-4,
+html[data-template="instagram"] [data-product-grid] > * > div:nth-child(2) {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0,0,0,0) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.25rem !important;
+  opacity: 0 !important;
+  transition: opacity 0.22s, background 0.22s !important;
+  text-align: center !important;
+}
+html[data-template="instagram"] .product-card:hover > div.p-4,
+html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) {
+  opacity: 1 !important;
+  background: rgba(0,0,0,0.62) !important;
+}
+/* Overlay metin renkleri */
+html[data-template="instagram"] .product-card:hover > div.p-4 *,
+html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) * { color: #ffffff !important; }
+html[data-template="instagram"] .product-card:hover > div.p-4 .text-teal-500,
+html[data-template="instagram"] .product-card:hover > div.p-4 .text-\[\#008F86\] { color: #5eead4 !important; }
+/* Sepet butonu */
+html[data-template="instagram"] .product-card:hover > div.p-4 button {
+  background: rgba(255,255,255,0.95) !important;
+  color: #0d9488 !important;
+  border-radius: 9999px !important;
+  margin-top: 0.5rem !important;
+}
+/* urunler sayfası link kartları için marka/fiyat */
+html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) .text-slate-800,
+html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) .text-slate-700 { color: #fff !important; }
+
+/* ═══════════════════════════════════════════════════════
+   10. MASONRY — Pinterest tarzı değişken yükseklik
+══════════════════════════════════════════════════════ */
+html[data-template="masonry"] {
+  --background: #f8f7f4;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #e2e0da;
+  --tmpl-header-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+html[data-template="masonry"] body { background: #f8f7f4; }
+/* CSS columns — gerçek masonry */
+html[data-template="masonry"] [data-product-grid] {
+  display: block !important;
+  columns: 3 !important;
+  column-gap: 1rem !important;
+}
+html[data-template="masonry"] [data-product-grid] > * {
+  break-inside: avoid !important;
+  margin-bottom: 1rem !important;
+  display: block !important;
+  width: 100% !important;
+  border-radius: 1rem !important;
+}
+/* Değişken görsel yükseklikleri — gerçek masonry hissi */
+html[data-template="masonry"] [data-product-grid] > *:nth-child(5n+1) > div:first-child { height: 280px !important; }
+html[data-template="masonry"] [data-product-grid] > *:nth-child(5n+2) > div:first-child { height: 180px !important; }
+html[data-template="masonry"] [data-product-grid] > *:nth-child(5n+3) > div:first-child { height: 240px !important; }
+html[data-template="masonry"] [data-product-grid] > *:nth-child(5n+4) > div:first-child { height: 200px !important; }
+html[data-template="masonry"] [data-product-grid] > *:nth-child(5n+5) > div:first-child { height: 260px !important; }
+/* ProductCard.tsx masonry görsel yükseklikleri */
+html[data-template="masonry"] .product-card:nth-child(5n+1) > a > div { height: 280px !important; }
+html[data-template="masonry"] .product-card:nth-child(5n+2) > a > div { height: 180px !important; }
+html[data-template="masonry"] .product-card:nth-child(5n+3) > a > div { height: 240px !important; }
+html[data-template="masonry"] .product-card:nth-child(5n+4) > a > div { height: 200px !important; }
+html[data-template="masonry"] .product-card:nth-child(5n+5) > a > div { height: 260px !important; }
+
+/* ═══════════════════════════════════════════════════════
+   11. BRUTALIST — kalın kenarlık, offset gölge, ham
+══════════════════════════════════════════════════════ */
+html[data-template="brutalist"] {
+  --background: #f5f5f5;
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #000000;
+  --tmpl-header-shadow: 0 3px 0 #000000;
+}
+html[data-template="brutalist"] body { background: #f5f5f5; }
+html[data-template="brutalist"] header[data-tmpl-header] { border-bottom-width: 3px !important; }
+html[data-template="brutalist"] [class*="rounded"] { border-radius: 0 !important; }
+html[data-template="brutalist"] [data-product-grid] {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1.5rem !important;
+}
+html[data-template="brutalist"] .product-card,
+html[data-template="brutalist"] [data-product-grid] > * {
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 5px 5px 0 #000 !important;
+  background: #fff !important;
+  transition: transform 0.12s, box-shadow 0.12s !important;
+}
+html[data-template="brutalist"] .product-card:hover,
+html[data-template="brutalist"] [data-product-grid] > *:hover {
+  transform: translate(-3px, -3px) !important;
+  box-shadow: 8px 8px 0 #000 !important;
+}
+html[data-template="brutalist"] .bg-teal-500,
+html[data-template="brutalist"] .bg-\[\#12304A\] {
+  background: #000 !important;
+  border-radius: 0 !important;
+}
+html[data-template="brutalist"] .hover\:bg-\[\#FF7A45\]:hover { background: #333 !important; }
+html[data-template="brutalist"] header[data-tmpl-header] input {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}
+html[data-template="brutalist"] header[data-tmpl-header] .bg-teal-500 {
+  background: #000 !important; border-radius: 0 !important;
+}
+html[data-template="brutalist"] .text-teal-500,
+html[data-template="brutalist"] .text-teal-600,
+html[data-template="brutalist"] .text-\[\#008F86\] { color: #000 !important; font-weight: 800 !important; }
+
+/* ═══════════════════════════════════════════════════════
+   12. GLASSMORPHISM — mor gradient arka plan, buzlu cam
+══════════════════════════════════════════════════════ */
+html[data-template="glassmorphism"] {
+  --tmpl-header-bg: rgba(255,255,255,0.12);
+  --tmpl-header-border: rgba(255,255,255,0.25);
+  --tmpl-header-shadow: 0 4px 30px rgba(0,0,0,0.12);
+}
+html[data-template="glassmorphism"] body {
+  background: linear-gradient(135deg, #1a0533 0%, #3d0066 35%, #0f2460 70%, #001a4d 100%) fixed !important;
+  min-height: 100vh !important;
+}
+html[data-template="glassmorphism"] header[data-tmpl-header] {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+html[data-template="glassmorphism"] header[data-tmpl-header] a,
+html[data-template="glassmorphism"] header[data-tmpl-header] button,
+html[data-template="glassmorphism"] header[data-tmpl-header] .text-slate-700,
+html[data-template="glassmorphism"] header[data-tmpl-header] .text-slate-900 { color: #ffffff !important; }
+html[data-template="glassmorphism"] header[data-tmpl-header] input {
+  background: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255,255,255,0.3) !important;
+  color: #fff !important;
+}
+html[data-template="glassmorphism"] header[data-tmpl-header] input::placeholder { color: rgba(255,255,255,0.55) !important; }
+html[data-template="glassmorphism"] header[data-tmpl-header] .bg-teal-500 { background: rgba(255,255,255,0.25) !important; }
+html[data-template="glassmorphism"] [data-product-grid] { grid-template-columns: repeat(4, 1fr) !important; }
+html[data-template="glassmorphism"] .product-card,
+html[data-template="glassmorphism"] [data-product-grid] > * {
+  background: rgba(255,255,255,0.13) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25) !important;
+  border-radius: 1.25rem !important;
+}
+html[data-template="glassmorphism"] .product-card:hover,
+html[data-template="glassmorphism"] [data-product-grid] > *:hover {
+  background: rgba(255,255,255,0.2) !important;
+  border-color: rgba(255,255,255,0.45) !important;
+}
+html[data-template="glassmorphism"] .text-slate-900,
+html[data-template="glassmorphism"] .text-slate-800,
+html[data-template="glassmorphism"] .text-slate-700 { color: #ffffff !important; }
+html[data-template="glassmorphism"] .text-slate-500,
+html[data-template="glassmorphism"] .text-slate-400 { color: rgba(255,255,255,0.6) !important; }
+html[data-template="glassmorphism"] .text-teal-500,
+html[data-template="glassmorphism"] .text-\[\#008F86\] { color: #a78bfa !important; }
+html[data-template="glassmorphism"] .text-teal-600 { color: #c4b5fd !important; }
+html[data-template="glassmorphism"] .bg-gradient-to-b,
+html[data-template="glassmorphism"] .bg-gradient-to-br { background: rgba(255,255,255,0.08) !important; }
+html[data-template="glassmorphism"] .bg-\[\#FF7A45\] { background: #a78bfa !important; }
+html[data-template="glassmorphism"] .bg-teal-500 { background: rgba(167,139,250,0.8) !important; }
+html[data-template="glassmorphism"] .bg-\[\#12304A\] { background: rgba(167,139,250,0.9) !important; }
+html[data-template="glassmorphism"] footer { background: rgba(0,0,0,0.3) !important; }
+
+/* ═══════════════════════════════════════════════════════
+   13. NEON — siber punk, mor/magenta ışıltı, siyah arka plan
+══════════════════════════════════════════════════════ */
+html[data-template="neon"] {
+  --background: #050010;
+  --foreground: #f0e6ff;
+  --tmpl-header-bg: #0a0020;
+  --tmpl-header-border: #cc00ff;
+  --tmpl-header-shadow: 0 0 24px rgba(204,0,255,0.35);
+}
+html[data-template="neon"] body { background: #050010; color: #f0e6ff; }
+html[data-template="neon"] header[data-tmpl-header] { border-bottom-width: 1px !important; }
+html[data-template="neon"] header[data-tmpl-header] a,
+html[data-template="neon"] header[data-tmpl-header] button,
+html[data-template="neon"] header[data-tmpl-header] .text-slate-700 { color: #e879f9 !important; }
+html[data-template="neon"] header[data-tmpl-header] input {
+  background: #1a003a !important;
+  border-color: #cc00ff !important;
+  color: #f0e6ff !important;
+  box-shadow: 0 0 8px rgba(204,0,255,0.2) inset !important;
+}
+html[data-template="neon"] header[data-tmpl-header] input::placeholder { color: #9933cc !important; }
+html[data-template="neon"] header[data-tmpl-header] .bg-teal-500 { background: #cc00ff !important; }
+html[data-template="neon"] [data-product-grid] { grid-template-columns: repeat(4, 1fr) !important; }
+html[data-template="neon"] .product-card,
+html[data-template="neon"] [data-product-grid] > * {
+  background: #0d0025 !important;
+  border: 1px solid #cc00ff !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 0 12px rgba(204,0,255,0.25), inset 0 0 12px rgba(204,0,255,0.04) !important;
+  transition: box-shadow 0.3s !important;
+}
+html[data-template="neon"] .product-card:hover,
+html[data-template="neon"] [data-product-grid] > *:hover {
+  box-shadow: 0 0 28px rgba(204,0,255,0.65), inset 0 0 16px rgba(204,0,255,0.08) !important;
+  transform: none !important;
+}
+html[data-template="neon"] .text-slate-900, html[data-template="neon"] .text-slate-800 { color: #f0e6ff !important; }
+html[data-template="neon"] .text-slate-700, html[data-template="neon"] .text-slate-600 { color: #cc99ff !important; }
+html[data-template="neon"] .text-slate-500, html[data-template="neon"] .text-slate-400 { color: #7744aa !important; }
+html[data-template="neon"] .text-teal-500, html[data-template="neon"] .text-teal-600,
+html[data-template="neon"] .text-\[\#008F86\] { color: #00ffff !important; }
+html[data-template="neon"] .bg-gradient-to-b, html[data-template="neon"] .bg-gradient-to-br { background: #1a003a !important; }
+html[data-template="neon"] .bg-teal-500 { background: #cc00ff !important; }
+html[data-template="neon"] .bg-\[\#12304A\] { background: #cc00ff !important; }
+html[data-template="neon"] .hover\:bg-\[\#FF7A45\]:hover { background: #aa00dd !important; }
+html[data-template="neon"] .border-teal-100, html[data-template="neon"] .border-teal-200,
+html[data-template="neon"] .border-\[#E3EFEE\] { border-color: #3a006a !important; }
+html[data-template="neon"] footer { background: #0a0020 !important; }
+
+/* ═══════════════════════════════════════════════════════
+   14. PASTEL — her kart farklı renk, pill şekiller
+══════════════════════════════════════════════════════ */
+html[data-template="pastel"] {
+  --background: #fdf4ff;
+  --tmpl-header-bg: #fce7f3;
+  --tmpl-header-border: #f9a8d4;
+  --tmpl-header-shadow: 0 2px 8px rgba(219,39,119,0.08);
+}
+html[data-template="pastel"] body { background: #fdf4ff; }
+html[data-template="pastel"] [class*="rounded-2xl"],
+html[data-template="pastel"] [class*="rounded-xl"],
+html[data-template="pastel"] [class*="rounded-full"] { border-radius: 1.5rem !important; }
+html[data-template="pastel"] [data-product-grid] {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 1rem !important;
+}
+/* Her kart farklı pastel arka plan */
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+1),
+html[data-template="pastel"] .product-card:nth-child(8n+1) { background: #fce7f3 !important; border-color: #f9a8d4 !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+2),
+html[data-template="pastel"] .product-card:nth-child(8n+2) { background: #ecfdf5 !important; border-color: #6ee7b7 !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+3),
+html[data-template="pastel"] .product-card:nth-child(8n+3) { background: #eff6ff !important; border-color: #93c5fd !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+4),
+html[data-template="pastel"] .product-card:nth-child(8n+4) { background: #fefce8 !important; border-color: #fde047 !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+5),
+html[data-template="pastel"] .product-card:nth-child(8n+5) { background: #fff7ed !important; border-color: #fdba74 !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+6),
+html[data-template="pastel"] .product-card:nth-child(8n+6) { background: #f5f3ff !important; border-color: #c4b5fd !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+7),
+html[data-template="pastel"] .product-card:nth-child(8n+7) { background: #fdf4ff !important; border-color: #e879f9 !important; }
+html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+8),
+html[data-template="pastel"] .product-card:nth-child(8n+8) { background: #f0fdfa !important; border-color: #5eead4 !important; }
+html[data-template="pastel"] [class*="shadow-xl"],
+html[data-template="pastel"] [class*="shadow-lg"] { box-shadow: 0 4px 12px rgba(219,39,119,0.12) !important; }
+html[data-template="pastel"] .bg-gradient-to-b,
+html[data-template="pastel"] .bg-gradient-to-br { background: rgba(255,255,255,0.5) !important; }
+html[data-template="pastel"] .bg-teal-500 { background: #ec4899 !important; }
+html[data-template="pastel"] .bg-\[\#12304A\] { background: #be185d !important; }
+html[data-template="pastel"] .hover\:bg-\[\#FF7A45\]:hover { background: #f472b6 !important; }
+html[data-template="pastel"] .text-teal-500, html[data-template="pastel"] .text-teal-600,
+html[data-template="pastel"] .text-\[\#008F86\] { color: #db2777 !important; }
+
+/* ═══════════════════════════════════════════════════════
+   15. CATALOG — Amazon tarzı, koyu başlık, sarı arama
+══════════════════════════════════════════════════════ */
+html[data-template="catalog"] {
+  --background: #eaeded;
+  --tmpl-header-bg: #131921;
+  --tmpl-header-border: #232f3e;
+  --tmpl-header-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+html[data-template="catalog"] body { background: #eaeded; }
+html[data-template="catalog"] header[data-tmpl-header] > div {
+  max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important;
+}
+html[data-template="catalog"] [data-header-inner] {
+  padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
+}
+html[data-template="catalog"] header[data-tmpl-header] a,
+html[data-template="catalog"] header[data-tmpl-header] button,
+html[data-template="catalog"] header[data-tmpl-header] .text-slate-700,
+html[data-template="catalog"] header[data-tmpl-header] .text-slate-900 { color: #ffffff !important; }
+html[data-template="catalog"] header[data-tmpl-header] input {
+  background: #ffffff !important;
+  border: 2px solid #febd69 !important;
+  border-radius: 0 !important;
+  color: #131921 !important;
+}
+html[data-template="catalog"] header[data-tmpl-header] input::placeholder { color: #888 !important; }
+html[data-template="catalog"] header[data-tmpl-header] .bg-teal-500 {
+  background: #febd69 !important;
+  color: #131921 !important;
+  border-radius: 0 !important;
+}
+html[data-template="catalog"] [data-product-grid] {
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 0.75rem !important;
+}
+html[data-template="catalog"] [class*="rounded-2xl"],
+html[data-template="catalog"] [class*="rounded-xl"],
+html[data-template="catalog"] [class*="rounded-full"] { border-radius: 0.25rem !important; }
+html[data-template="catalog"] .product-card,
+html[data-template="catalog"] [data-product-grid] > * {
+  background: #fff !important;
+  border-radius: 0.25rem !important;
+  border-color: #ddd !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  transition: box-shadow 0.15s !important;
+}
+html[data-template="catalog"] .product-card:hover,
+html[data-template="catalog"] [data-product-grid] > *:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18) !important;
+  transform: none !important;
+}
+html[data-template="catalog"] .bg-teal-500 { background: #febd69 !important; color: #131921 !important; }
+html[data-template="catalog"] .bg-\[\#12304A\] { background: #232f3e !important; }
+html[data-template="catalog"] .hover\:bg-\[\#FF7A45\]:hover { background: #f3a847 !important; }
+html[data-template="catalog"] .text-teal-500, html[data-template="catalog"] .text-teal-600,
+html[data-template="catalog"] .text-\[\#008F86\] { color: #007185 !important; }

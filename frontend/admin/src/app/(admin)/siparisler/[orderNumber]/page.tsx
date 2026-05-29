@@ -15,7 +15,7 @@ import {
 import ConfirmModal from "@/components/ConfirmModal";
 
 const ALLOWED_TRANSITIONS: Record<number, number[]> = {
-  1:  [2, 8, 11, 12],
+  1:  [2, 4, 8, 11, 12],
   2:  [3, 8, 11, 12],
   3:  [4, 8, 12],
   4:  [5, 8, 12],
@@ -85,10 +85,20 @@ interface ParsedAddress {
   invoiceType?: number;
 }
 
+function parseAddrJson(json: string): ParsedAddress {
+  try {
+    const raw = JSON.parse(json) as Record<string, unknown>;
+    // Normalize PascalCase keys (legacy DB rows) → camelCase
+    const normalized = Object.fromEntries(
+      Object.entries(raw).map(([k, v]) => [k.charAt(0).toLowerCase() + k.slice(1), v])
+    );
+    return normalized as ParsedAddress;
+  } catch { return {}; }
+}
+
 function AddressBlock({ json, title, icon: Icon }: { json: string; title: string; icon: React.ElementType }) {
-  let addr: ParsedAddress = {};
-  try { addr = JSON.parse(json); } catch {}
-  if (!Object.keys(addr).length) return null;
+  const addr = parseAddrJson(json);
+  if (!addr.firstName && !addr.fullAddress) return null;
   return (
     <Section title={title} icon={Icon} iconColor="bg-indigo-500">
       <div className="p-5 space-y-1.5 text-sm">
@@ -263,6 +273,13 @@ export default function AdminOrderDetailPage() {
           <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${SHIPMENT_STATUS_COLORS[order.shipmentStatus] ?? "bg-slate-100 text-slate-500"}`}>
             {SHIPMENT_STATUS[order.shipmentStatus] ?? "Kargo Yok"}
           </span>
+          {order.status === 1 && (
+            <button
+              onClick={() => { setNewStatus(4); setShowStatusConfirm(true); }}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 shadow transition-all active:scale-95">
+              <CheckCircle2 size={13} /> Onayla
+            </button>
+          )}
         </div>
       </div>
 
@@ -519,28 +536,47 @@ export default function AdminOrderDetailPage() {
             <Section title="Durum Geçmişi" icon={Clock} iconColor="bg-slate-500">
               <div className="p-5">
                 <div className="relative">
-                  <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-100" />
-                  <div className="space-y-4 pl-8">
-                    {[...order.statusHistory].reverse().map((h, i) => (
-                      <div key={i} className="relative">
-                        <span className="absolute -left-5 top-0.5 w-2.5 h-2.5 rounded-full border-2 border-white bg-slate-300 ring-1 ring-slate-200" />
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {h.fromStatus > 0 && (
-                            <>
-                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ORDER_STATUS_COLORS[h.fromStatus] ?? "bg-slate-100 text-slate-500"}`}>
-                                {ORDER_STATUS[h.fromStatus] ?? "—"}
+                  <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-gradient-to-b from-slate-200 via-slate-100 to-transparent" />
+                  <div className="space-y-0">
+                    {[...order.statusHistory].reverse().map((h, i) => {
+                      const isFirst = i === 0;
+                      const dotColor =
+                        h.toStatus === 7 ? "bg-emerald-500 ring-emerald-200" :
+                        h.toStatus === 8 ? "bg-red-500 ring-red-200" :
+                        h.toStatus === 9 ? "bg-orange-500 ring-orange-200" :
+                        h.toStatus === 4 ? "bg-indigo-500 ring-indigo-200" :
+                        h.toStatus === 5 || h.toStatus === 6 ? "bg-purple-500 ring-purple-200" :
+                        isFirst ? "bg-teal-500 ring-teal-200" : "bg-slate-300 ring-slate-100";
+                      return (
+                        <div key={i} className="relative flex gap-4 pb-5 last:pb-0">
+                          <div className="relative z-10 shrink-0 mt-0.5">
+                            <span className={`w-[9px] h-[9px] rounded-full border-2 border-white ring-2 block ${dotColor}`} />
+                          </div>
+                          <div className={`flex-1 min-w-0 rounded-xl px-3 py-2.5 border transition-colors ${
+                            isFirst ? "bg-teal-50 border-teal-100" : "bg-white border-slate-100"
+                          }`}>
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              {h.fromStatus > 0 && (
+                                <>
+                                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${ORDER_STATUS_COLORS[h.fromStatus] ?? "bg-slate-100 text-slate-500"}`}>
+                                    {ORDER_STATUS[h.fromStatus] ?? "—"}
+                                  </span>
+                                  <ChevronRight size={10} className="text-slate-300 shrink-0" />
+                                </>
+                              )}
+                              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${ORDER_STATUS_COLORS[h.toStatus] ?? "bg-slate-100 text-slate-500"}`}>
+                                {ORDER_STATUS[h.toStatus] ?? "—"}
                               </span>
-                              <ChevronRight size={10} className="text-slate-300" />
-                            </>
-                          )}
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ORDER_STATUS_COLORS[h.toStatus] ?? "bg-slate-100 text-slate-500"}`}>
-                            {ORDER_STATUS[h.toStatus] ?? "—"}
-                          </span>
+                              {isFirst && (
+                                <span className="ml-auto text-[10px] font-bold text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full">Son</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400">{formatDate(h.changedAt)}</p>
+                            {h.note && <p className="text-[11px] text-slate-500 italic mt-0.5">"{h.note}"</p>}
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{formatDate(h.changedAt)}</p>
-                        {h.note && <p className="text-xs text-slate-500 italic mt-0.5">"{h.note}"</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

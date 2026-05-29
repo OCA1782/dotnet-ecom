@@ -16,4 +16,5 @@ public class ProductReview : BaseEntity
 
     public bool IsVerifiedPurchase { get; set; } = false;
     public bool IsApproved { get; set; } = false;
+    public string? RejectionNote { get; set; }
 }

@@ -23,12 +23,12 @@ public class UpdateOrderStatusValidator : AbstractValidator<UpdateOrderStatusCom
     }
 }
 
-public class UpdateOrderStatusHandler(IApplicationDbContext db) : IRequestHandler<UpdateOrderStatusCommand, Result>
+public class UpdateOrderStatusHandler(IApplicationDbContext db, IAuditService auditService) : IRequestHandler<UpdateOrderStatusCommand, Result>
 {
     // Hangi statüden hangi statülere geçilebileceği
     private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedTransitions = new()
     {
-        [OrderStatus.Created]          = [OrderStatus.PaymentPending, OrderStatus.Cancelled, OrderStatus.Failed, OrderStatus.OnHold],
+        [OrderStatus.Created]          = [OrderStatus.PaymentPending, OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.Failed, OrderStatus.OnHold],
         [OrderStatus.PaymentPending]   = [OrderStatus.PaymentCompleted, OrderStatus.Cancelled, OrderStatus.Failed, OrderStatus.OnHold],
         [OrderStatus.PaymentCompleted] = [OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.OnHold],
         [OrderStatus.Preparing]        = [OrderStatus.Shipped, OrderStatus.Cancelled, OrderStatus.OnHold],
@@ -68,6 +68,14 @@ public class UpdateOrderStatusHandler(IApplicationDbContext db) : IRequestHandle
         });
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await auditService.LogAsync(
+            "DurumGüncellendi", "Sipariş", order.Id.ToString(),
+            oldValue: previousStatus.ToString(),
+            newValue: request.NewStatus.ToString(),
+            userId: request.ChangedByUserId,
+            cancellationToken: cancellationToken);
+
         return Result.Success();
     }
 }

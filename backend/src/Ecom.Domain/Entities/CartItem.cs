@@ -12,6 +12,7 @@ public class CartItem : BaseEntity
     public ProductVariant? ProductVariant { get; set; }
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
+    public bool IsSelected { get; set; } = true;
 
     public decimal TotalPrice => UnitPrice * Quantity;
 }

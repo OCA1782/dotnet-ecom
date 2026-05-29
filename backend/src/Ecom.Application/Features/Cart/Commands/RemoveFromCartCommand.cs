@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Features.Cart.Queries;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +8,7 @@ namespace Ecom.Application.Features.Cart.Commands;
 
 public record RemoveFromCartCommand(Guid CartItemId, Guid? UserId, string? SessionId) : IRequest<Result>;
 
-public class RemoveFromCartHandler(IApplicationDbContext db) : IRequestHandler<RemoveFromCartCommand, Result>
+public class RemoveFromCartHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<RemoveFromCartCommand, Result>
 {
     public async Task<Result> Handle(RemoveFromCartCommand request, CancellationToken cancellationToken)
     {
@@ -24,6 +25,7 @@ public class RemoveFromCartHandler(IApplicationDbContext db) : IRequestHandler<R
 
         db.CartItems.Remove(item);
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(GetCartQueryHandler.CacheKey(request.UserId, request.SessionId), cancellationToken);
         return Result.Success();
     }
 }

@@ -47,7 +47,7 @@ public class CreateBrandHandler(IApplicationDbContext db, IAuditService audit)
 
         db.Brands.Add(brand);
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("BrandCreated", "Brand", brand.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.LogAsync("BrandCreated", "Marka", brand.Id.ToString(), cancellationToken: cancellationToken);
 
         return Result<Guid>.Success(brand.Id);
     }

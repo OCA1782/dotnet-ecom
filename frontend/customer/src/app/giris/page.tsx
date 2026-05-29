@@ -10,6 +10,7 @@ const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -20,7 +21,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       router.push("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Giriş başarısız");
@@ -41,23 +42,23 @@ export default function LoginPage() {
           )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">E-posta</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={INPUT}
-            />
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={INPUT} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Şifre</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={INPUT} />
+          </div>
+          <div className="flex items-center gap-2.5">
             <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={INPUT}
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer"
             />
+            <label htmlFor="rememberMe" className="text-sm text-slate-600 cursor-pointer select-none">
+              Beni hatırla (30 gün)
+            </label>
           </div>
           <button
             type="submit"
@@ -70,9 +71,7 @@ export default function LoginPage() {
         <div className="mt-4 flex flex-col items-center gap-2">
           <p className="text-sm text-slate-600">
             Hesabın yok mu?{" "}
-            <Link href="/kayit" className="text-teal-600 font-medium hover:underline">
-              Kayıt Ol
-            </Link>
+            <Link href="/kayit" className="text-teal-600 font-medium hover:underline">Kayıt Ol</Link>
           </p>
           <Link href="/sifre-sifirla" className="text-sm text-slate-400 hover:text-slate-700 transition">
             Şifremi Unuttum

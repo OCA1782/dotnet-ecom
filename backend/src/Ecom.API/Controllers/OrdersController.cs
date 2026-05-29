@@ -24,7 +24,7 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
 
         return result.Succeeded
             ? Ok(new { orderNumber = result.Data!.OrderNumber, id = result.Data.OrderId })
-            : BadRequest(result.Error);
+            : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("guest")]
@@ -43,16 +43,27 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
 
         return result.Succeeded
             ? Ok(new { orderNumber = result.Data!.OrderNumber, id = result.Data.OrderId })
-            : BadRequest(result.Error);
+            : BadRequest(new { error = result.Error });
     }
 
     [HttpGet("my")]
     [Authorize]
     public async Task<IActionResult> GetMy(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+        [FromQuery] string? statuses = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetMyOrdersQuery(currentUser.UserId!.Value, page, pageSize), ct);
+        List<OrderStatus>? statusList = null;
+        if (!string.IsNullOrEmpty(statuses))
+        {
+            statusList = statuses
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s.Trim(), out var v) ? (OrderStatus?)v : null)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+        }
+        var result = await mediator.Send(new GetMyOrdersQuery(currentUser.UserId!.Value, page, pageSize, statusList), ct);
         return Ok(result);
     }
 
@@ -64,12 +75,48 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
         return result.Succeeded ? Ok(result.Data) : NotFound(result.Error);
     }
 
+    [HttpPatch("{id:guid}/address")]
+    [Authorize]
+    public async Task<IActionResult> UpdateAddress(Guid id, [FromBody] UpdateOrderAddressRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UpdateOrderAddressCommand(
+            id, currentUser.UserId!.Value,
+            req.ShippingAddressId,
+            req.FirstName, req.LastName, req.Phone,
+            req.City, req.District, req.FullAddress, req.PostalCode,
+            req.BillingAddressId,
+            req.BillingFirstName, req.BillingLastName, req.BillingPhone,
+            req.BillingCity, req.BillingDistrict, req.BillingFullAddress, req.BillingPostalCode), ct);
+        return result.Succeeded ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
     [HttpPost("{id:guid}/cancel")]
     [Authorize]
     public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelOrderRequest? req, CancellationToken ct)
     {
         var result = await mediator.Send(new CancelOrderCommand(id, currentUser.UserId, req?.Reason), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    [HttpGet("track")]
+    public async Task<IActionResult> Track(
+        [FromQuery] string orderNumber,
+        [FromQuery] string email,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber) || string.IsNullOrWhiteSpace(email))
+            return BadRequest(new { error = "Sipariş numarası ve e-posta zorunludur." });
+
+        var result = await mediator.Send(new GetOrderQuery(orderNumber), ct);
+        if (!result.Succeeded) return NotFound(new { error = result.Error });
+
+        var order = result.Data!;
+        var emailMatch = (order.GuestEmail ?? "").Equals(email, StringComparison.OrdinalIgnoreCase);
+
+        if (!emailMatch)
+            return NotFound(new { error = "Sipariş bulunamadı veya e-posta eşleşmiyor." });
+
+        return Ok(result.Data);
     }
 
     // Admin endpoints
@@ -99,7 +146,7 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
     public async Task<IActionResult> AdminCancel(Guid id, [FromBody] CancelOrderRequest? req, CancellationToken ct)
     {
         var result = await mediator.Send(new CancelOrderCommand(id, null, req?.Reason), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
     [HttpPut("admin/{id:guid}/status")]
@@ -108,7 +155,16 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
     {
         var result = await mediator.Send(new UpdateOrderStatusCommand(
             id, req.Status, currentUser.UserId, req.Note), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
+
+    [HttpDelete("admin/{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> AdminDelete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteOrderCommand(id), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
     }
 
     [HttpGet("admin/export")]
@@ -160,6 +216,28 @@ public class CreateGuestOrderRequest
     public string FullAddress { get; set; } = "";
     public string? PostalCode { get; set; }
     public string? Note { get; set; }
+}
+
+public class UpdateOrderAddressRequest
+{
+    // Shipping: saved address OR inline
+    public Guid? ShippingAddressId { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? Phone { get; set; }
+    public string? City { get; set; }
+    public string? District { get; set; }
+    public string? FullAddress { get; set; }
+    public string? PostalCode { get; set; }
+    // Billing: saved address OR inline (null = same as shipping)
+    public Guid? BillingAddressId { get; set; }
+    public string? BillingFirstName { get; set; }
+    public string? BillingLastName { get; set; }
+    public string? BillingPhone { get; set; }
+    public string? BillingCity { get; set; }
+    public string? BillingDistrict { get; set; }
+    public string? BillingFullAddress { get; set; }
+    public string? BillingPostalCode { get; set; }
 }
 
 public class CancelOrderRequest

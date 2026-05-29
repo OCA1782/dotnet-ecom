@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
+using Ecom.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Ecom.API.Filters;
@@ -19,6 +20,8 @@ public class AuditFilter(IApplicationDbContext db, ICurrentUserService currentUs
 
         var statusCode = executed.HttpContext.Response.StatusCode;
         if (statusCode < 200 || statusCode >= 300) return;
+
+        if (executed.HttpContext.Items.ContainsKey(AuditService.AuditLoggedKey)) return;
 
         var path = context.HttpContext.Request.Path.Value ?? "";
         if (!TrackedPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))) return;

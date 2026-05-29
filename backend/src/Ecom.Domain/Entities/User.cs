@@ -17,8 +17,13 @@ public class User : BaseEntity
     public bool CommercialConsent { get; set; } = false;
     public DateTime? KvkkConsentDate { get; set; }
 
+    public string? AvatarUrl { get; set; }
+
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
+
+    public int FailedLoginCount { get; set; } = 0;
+    public DateTime? LockoutUntil { get; set; }
 
     public string? EmailVerificationCode { get; set; }
     public DateTime? EmailVerificationCodeExpiry { get; set; }

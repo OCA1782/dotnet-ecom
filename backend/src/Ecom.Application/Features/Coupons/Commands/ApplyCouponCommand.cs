@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Features.Cart.Queries;
 using Ecom.Domain.Enums;
 using FluentValidation;
 using MediatR;
@@ -28,7 +29,7 @@ public class ApplyCouponValidator : AbstractValidator<ApplyCouponCommand>
     }
 }
 
-public class ApplyCouponHandler(IApplicationDbContext db) : IRequestHandler<ApplyCouponCommand, Result<CouponValidationResult>>
+public class ApplyCouponHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<ApplyCouponCommand, Result<CouponValidationResult>>
 {
     public async Task<Result<CouponValidationResult>> Handle(ApplyCouponCommand request, CancellationToken cancellationToken)
     {
@@ -85,6 +86,7 @@ public class ApplyCouponHandler(IApplicationDbContext db) : IRequestHandler<Appl
 
         cart.CouponCode = code;
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(GetCartQueryHandler.CacheKey(request.UserId, request.SessionId), cancellationToken);
 
         return Result<CouponValidationResult>.Success(
             new CouponValidationResult(coupon.Code, coupon.Type, coupon.Value, discountAmount));

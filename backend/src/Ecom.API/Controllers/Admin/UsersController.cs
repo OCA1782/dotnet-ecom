@@ -55,6 +55,14 @@ public class UsersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id:guid}/roles")]
+    public async Task<IActionResult> UpdateRoles(Guid id, [FromBody] UpdateUserRolesRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UpdateUserRolesCommand(id, req.Roles), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
@@ -62,4 +70,9 @@ public class UsersController(IMediator mediator) : ControllerBase
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+}
+
+public class UpdateUserRolesRequest
+{
+    public IEnumerable<string> Roles { get; set; } = [];
 }

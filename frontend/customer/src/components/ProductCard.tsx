@@ -18,6 +18,7 @@ export default function ProductCard({ product, initialLiked = false }: {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [liked, setLiked] = useState(initialLiked);
   const [liking, setLiking] = useState(false);
 
@@ -47,15 +48,17 @@ export default function ProductCard({ product, initialLiked = false }: {
       await addToCart(product.id, 1);
       setAdded(true);
       setTimeout(() => setAdded(false), 1800);
-    } catch {
-      // silent
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Sepete eklenemedi.";
+      setCartError(msg);
+      setTimeout(() => setCartError(null), 3000);
     } finally {
       setAdding(false);
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E3EFEE] overflow-hidden hover:shadow-xl hover:shadow-[#12304A]/10 hover:-translate-y-1 transition-all duration-200 group flex flex-col">
+    <div className="product-card bg-white rounded-2xl border border-[#E3EFEE] overflow-hidden hover:shadow-xl hover:shadow-[#12304A]/10 hover:-translate-y-1 transition-all duration-200 group flex flex-col">
       <Link href={`/urun/${product.slug}`} className="block relative">
         {product.discountPrice && (
           <span className="absolute top-2 left-2 z-10 bg-[#FF7A45] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
@@ -104,8 +107,11 @@ export default function ProductCard({ product, initialLiked = false }: {
           )}
         </div>
 
-        {product.availableStock > 0 && (
+        {product.availableStock > 0 && product.price >= 500 && (
           <p className="text-xs text-teal-600 font-semibold mt-2">✓ Ücretsiz kargo</p>
+        )}
+        {cartError && (
+          <p className="text-xs text-red-500 mt-2 leading-tight">{cartError}</p>
         )}
         {product.availableStock === 0 ? (
           <p className="text-xs text-red-500 mt-3 font-medium">Stokta Yok</p>
@@ -116,10 +122,12 @@ export default function ProductCard({ product, initialLiked = false }: {
             className={`mt-3 w-full text-white text-xs font-semibold py-2.5 rounded-xl transition ${
               added
                 ? "bg-green-600 hover:bg-green-700"
+                : cartError
+                ? "bg-red-500 hover:bg-red-600"
                 : "bg-[#12304A] hover:bg-[#FF7A45]"
             } disabled:opacity-60`}
           >
-            {adding ? "Ekleniyor..." : added ? "✓ Eklendi" : "Sepete Ekle"}
+            {adding ? "Ekleniyor..." : added ? "✓ Eklendi" : cartError ? "Tekrar Dene" : "Sepete Ekle"}
           </button>
         )}
       </div>

@@ -1,22 +1,66 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { Category } from "@/types";
+import { useState, useEffect } from "react";
+import type { Brand, Category } from "@/types";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
 interface Props {
   categories: Category[];
+  brands: Brand[];
   activeCategory?: string;
   minFiyat?: string;
   maxFiyat?: string;
   searchTerm?: string;
+  activeBrandIds: string[];
+  activeRating?: number;
+  activeSiralama?: string;
+  activeIndirimli?: boolean;
+  activeNitelikler?: string;
+  categorySlug?: string;
 }
 
-export default function ProductFilters({ categories, activeCategory, minFiyat, maxFiyat, searchTerm }: Props) {
+const SORT_OPTIONS = [
+  { value: "",             label: "Varsayılan" },
+  { value: "yeni",         label: "En Yeni" },
+  { value: "cok-satan",    label: "Çok Satan" },
+  { value: "fiyat-artan",  label: "Fiyat ↑" },
+  { value: "fiyat-azalan", label: "Fiyat ↓" },
+];
+
+const RATINGS = [4, 3, 2, 1];
+
+export default function ProductFilters({
+  categories, brands, activeCategory, minFiyat, maxFiyat, searchTerm,
+  activeBrandIds, activeRating, activeSiralama, activeIndirimli,
+  activeNitelikler, categorySlug,
+}: Props) {
   const router = useRouter();
   const [search, setSearch] = useState(searchTerm ?? "");
   const [min, setMin] = useState(minFiyat ?? "");
   const [max, setMax] = useState(maxFiyat ?? "");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(activeBrandIds);
+  const [attributes, setAttributes] = useState<Record<string, string[]>>({});
+
+  // Parse active attribute pairs: "Renk:Kırmızı,Beden:M" → [{key,value}]
+  const activeAttrPairs: { key: string; value: string }[] = (activeNitelikler ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map(p => {
+      const idx = p.indexOf(":");
+      if (idx < 0) return null;
+      return { key: p.slice(0, idx), value: p.slice(idx + 1) };
+    })
+    .filter((x): x is { key: string; value: string } => x !== null);
+
+  useEffect(() => {
+    const url = `${API_BASE}/api/products/attributes${categorySlug ? `?categorySlug=${encodeURIComponent(categorySlug)}` : ""}`;
+    fetch(url)
+      .then(r => r.ok ? r.json() : {})
+      .then((data: Record<string, string[]>) => setAttributes(data))
+      .catch(() => {});
+  }, [categorySlug]);
 
   function buildUrl(overrides: Record<string, string | undefined>) {
     const qs = new URLSearchParams();
@@ -24,32 +68,58 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
     const kat = overrides.kategori !== undefined ? overrides.kategori : activeCategory;
     const mn = overrides.minFiyat !== undefined ? overrides.minFiyat : min;
     const mx = overrides.maxFiyat !== undefined ? overrides.maxFiyat : max;
+    const bnds = overrides.markalar !== undefined ? overrides.markalar : selectedBrands.join(",");
+    const puan = overrides.puan !== undefined ? overrides.puan : (activeRating ? String(activeRating) : "");
+    const sira = overrides.siralama !== undefined ? overrides.siralama : activeSiralama;
+    const indr = overrides.indirimli !== undefined ? overrides.indirimli : (activeIndirimli ? "true" : "");
+    const nit = overrides.nitelikler !== undefined ? overrides.nitelikler : activeNitelikler;
     if (s) qs.set("s", s);
     if (kat) qs.set("kategori", kat);
     if (mn) qs.set("minFiyat", mn);
     if (mx) qs.set("maxFiyat", mx);
+    if (bnds) qs.set("markalar", bnds);
+    if (puan) qs.set("puan", puan);
+    if (sira) qs.set("siralama", sira);
+    if (indr) qs.set("indirimli", indr);
+    if (nit) qs.set("nitelikler", nit);
     return `/urunler${qs.toString() ? `?${qs}` : ""}`;
   }
 
-  function applyPriceFilter() {
-    router.push(buildUrl({}));
+  function toggleBrand(id: string) {
+    const next = selectedBrands.includes(id)
+      ? selectedBrands.filter(b => b !== id)
+      : [...selectedBrands, id];
+    setSelectedBrands(next);
+    router.push(buildUrl({ markalar: next.join(",") || undefined, sayfa: "1" }));
   }
 
+  function toggleAttr(key: string, value: string) {
+    const isActive = activeAttrPairs.some(p => p.key === key && p.value === value);
+    const next = isActive
+      ? activeAttrPairs.filter(p => !(p.key === key && p.value === value))
+      : [...activeAttrPairs, { key, value }];
+    const nit = next.map(p => `${p.key}:${p.value}`).join(",") || undefined;
+    router.push(buildUrl({ nitelikler: nit, sayfa: "1" }));
+  }
+
+  const hasAnyFilter = !!(activeCategory || min || max || search || selectedBrands.length
+    || activeRating || activeSiralama || activeIndirimli || activeNitelikler);
+
   return (
-    <div className="bg-white rounded-2xl border border-teal-100 p-5 space-y-6 shadow-sm">
+    <div className="bg-white rounded-2xl border border-teal-100 p-5 space-y-6 shadow-sm sticky top-4">
       {/* Search */}
       <div>
-        <h3 className="text-sm font-bold text-slate-800 mb-2">Arama</h3>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Arama</h3>
         <div className="flex gap-1">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && router.push(buildUrl({ s: search }))}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && router.push(buildUrl({ s: search, sayfa: "1" }))}
             placeholder="Ürün ara..."
             className="flex-1 border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
           <button
-            onClick={() => router.push(buildUrl({ s: search }))}
+            onClick={() => router.push(buildUrl({ s: search, sayfa: "1" }))}
             className="px-3 py-1.5 bg-teal-600 text-white rounded-xl text-sm hover:bg-teal-700 transition"
           >
             Git
@@ -57,35 +127,67 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
         </div>
       </div>
 
+      {/* Sort */}
+      <div>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sıralama</h3>
+        <div className="space-y-1">
+          {SORT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => router.push(buildUrl({ siralama: opt.value || undefined, sayfa: "1" }))}
+              className={`w-full text-left text-sm px-3 py-1.5 rounded-xl transition ${
+                (activeSiralama ?? "") === opt.value
+                  ? "bg-teal-100 text-teal-700 font-semibold"
+                  : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Categories */}
       {categories.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Kategoriler</h3>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</h3>
           <ul className="space-y-1">
             <li>
               <button
-                onClick={() => router.push(buildUrl({ kategori: "" }))}
+                onClick={() => router.push(buildUrl({ kategori: "", sayfa: "1" }))}
                 className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                  !activeCategory
-                    ? "bg-teal-100 text-teal-700 font-semibold"
-                    : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                  !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
                 }`}
               >
                 Tümü
               </button>
             </li>
-            {categories.map((cat) => (
+            {categories.map(cat => (
               <li key={cat.id}>
                 <button
-                  onClick={() => router.push(buildUrl({ kategori: cat.slug }))}
-                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                    activeCategory === cat.slug
-                      ? "bg-teal-100 text-teal-700 font-semibold"
-                      : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                  onClick={() => router.push(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
+                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
+                    activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
                   }`}
                 >
                   {cat.name}
                 </button>
+                {cat.subCategories?.length > 0 && (
+                  <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
+                    {cat.subCategories.map(sub => (
+                      <li key={sub.id}>
+                        <button
+                          onClick={() => router.push(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
+                          className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
+                            activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
+                          }`}
+                        >
+                          {sub.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -94,39 +196,117 @@ export default function ProductFilters({ categories, activeCategory, minFiyat, m
 
       {/* Price range */}
       <div>
-        <h3 className="text-sm font-bold text-slate-800 mb-2">Fiyat Aralığı</h3>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fiyat Aralığı</h3>
         <div className="flex gap-2 items-center">
           <input
             type="number"
-            placeholder="Min"
+            placeholder="Min ₺"
             value={min}
-            onChange={(e) => setMin(e.target.value)}
+            onChange={e => setMin(e.target.value)}
             className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
-          <span className="text-slate-400 text-sm">–</span>
+          <span className="text-slate-400 text-sm shrink-0">–</span>
           <input
             type="number"
-            placeholder="Max"
+            placeholder="Max ₺"
             value={max}
-            onChange={(e) => setMax(e.target.value)}
+            onChange={e => setMax(e.target.value)}
             className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
         </div>
         <button
-          onClick={applyPriceFilter}
+          onClick={() => router.push(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
           className="mt-2 w-full py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium text-sm rounded-xl transition"
         >
           Uygula
         </button>
       </div>
 
-      {/* Clear all */}
-      {(activeCategory || min || max || search) && (
+      {/* Brands */}
+      {brands.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Marka</h3>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {brands.map(brand => (
+              <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={selectedBrands.includes(brand.id)}
+                  onChange={() => toggleBrand(brand.id)}
+                  className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
+                />
+                <span className="text-sm text-slate-600 group-hover:text-teal-700 transition">{brand.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Attribute filters */}
+      {Object.entries(attributes).map(([key, values]) => (
+        <div key={key}>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{key}</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {values.map(val => {
+              const isActive = activeAttrPairs.some(p => p.key === key && p.value === val);
+              return (
+                <button
+                  key={val}
+                  onClick={() => toggleAttr(key, val)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition font-medium ${
+                    isActive
+                      ? "bg-teal-600 text-white border-teal-600"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-teal-400 hover:text-teal-700"
+                  }`}
+                >
+                  {val}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Rating filter */}
+      <div>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Müşteri Puanı</h3>
+        <div className="space-y-1">
+          {RATINGS.map(r => (
+            <button
+              key={r}
+              onClick={() => router.push(buildUrl({ puan: activeRating === r ? undefined : String(r), sayfa: "1" }))}
+              className={`w-full text-left flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl transition ${
+                activeRating === r ? "bg-amber-100 text-amber-700 font-semibold" : "text-slate-600 hover:bg-amber-50 hover:text-amber-600"
+              }`}
+            >
+              <span className="text-amber-400 tracking-tight">{"★".repeat(r)}{"☆".repeat(5 - r)}</span>
+              <span>ve üzeri</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* İndirimli toggle */}
+      <div>
         <button
-          onClick={() => router.push("/urunler")}
+          onClick={() => router.push(buildUrl({ indirimli: activeIndirimli ? undefined : "true", sayfa: "1" }))}
+          className={`w-full py-2 rounded-xl text-sm font-semibold transition ${
+            activeIndirimli
+              ? "bg-orange-500 text-white hover:bg-orange-600"
+              : "bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200"
+          }`}
+        >
+          {activeIndirimli ? "✓ İndirimli Ürünler" : "🏷️ Sadece İndirimli"}
+        </button>
+      </div>
+
+      {/* Clear all */}
+      {hasAnyFilter && (
+        <button
+          onClick={() => { setMin(""); setMax(""); setSearch(""); setSelectedBrands([]); router.push("/urunler"); }}
           className="w-full py-1.5 border border-red-200 text-red-500 text-sm rounded-xl hover:bg-red-50 transition font-medium"
         >
-          Filtreleri Temizle
+          Tüm Filtreleri Temizle
         </button>
       )}
     </div>

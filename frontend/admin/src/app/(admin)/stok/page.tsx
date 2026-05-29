@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
-import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX } from "lucide-react";
+import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX, History, Package, Trash2 } from "lucide-react";
 
 const MOVEMENT_TYPES = [
   { value: "StockIn", label: "Stok Girişi" },
@@ -15,7 +15,49 @@ const MOVEMENT_TYPES = [
 
 interface ProductOption { id: string; name: string; sku: string; }
 
+interface StockMovementRow {
+  id: string; productId: string; productName: string; sku: string;
+  movementType: string; quantity: number; quantityBefore: number; quantityAfter: number;
+  orderId?: string; note?: string; createdDate: string;
+}
+
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  StockIn: "Stok Girişi", StockOut: "Stok Çıkışı",
+  Adjustment: "Düzeltme", Return: "İade",
+};
+
 export default function StockPage() {
+  const [tab, setTab] = useState<"stok" | "hareketler">("stok");
+
+  // Per-row item history
+  const [itemHistoryTarget, setItemHistoryTarget] = useState<StockItem | null>(null);
+  const [itemMovements, setItemMovements] = useState<StockMovementRow[]>([]);
+  const [itemMovementsLoading, setItemMovementsLoading] = useState(false);
+
+  const loadItemMovements = useCallback(async (productId: string) => {
+    setItemMovementsLoading(true);
+    setItemMovements([]);
+    try {
+      const qs = new URLSearchParams({ page: "1", pageSize: "50", productId });
+      const data = await api.get<PaginatedList<StockMovementRow>>(`/api/admin/stocks/movements?${qs}`);
+      setItemMovements(data.items);
+    } finally {
+      setItemMovementsLoading(false);
+    }
+  }, []);
+
+  function openItemHistory(s: StockItem) {
+    setItemHistoryTarget(s);
+    loadItemMovements(s.productId);
+  }
+
+  // Movement history
+  const [movements, setMovements] = useState<StockMovementRow[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [movementsTotalPages, setMovementsTotalPages] = useState(1);
+  const [movementsTypeFilter, setMovementsTypeFilter] = useState("");
+
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -38,6 +80,26 @@ export default function StockPage() {
   const [newForm, setNewForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
   const [newSaving, setNewSaving] = useState(false);
 
+  // Delete stock entry
+  const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteStock() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/admin/stocks/${deleteTarget.productId}`);
+      setMsg({ text: `"${deleteTarget.productName}" stok kaydı silindi.`, ok: true });
+      setDeleteTarget(null);
+      await fetchStocks();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silme hatası", ok: false });
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Excel import
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -56,6 +118,20 @@ export default function StockPage() {
   }, [page, criticalOnly, stockSearch]);
 
   useEffect(() => { fetchStocks(); }, [fetchStocks]);
+
+  const fetchMovements = useCallback(async () => {
+    setMovementsLoading(true);
+    try {
+      const qs = new URLSearchParams({ page: String(movementsPage), pageSize: "30" });
+      if (movementsTypeFilter) qs.set("movementType", movementsTypeFilter);
+      const data = await api.get<PaginatedList<StockMovementRow>>(`/api/admin/stocks/movements?${qs}`);
+      setMovements(data.items);
+      setMovementsTotalPages(data.totalPages);
+    } catch { setMovements([]); }
+    finally { setMovementsLoading(false); }
+  }, [movementsPage, movementsTypeFilter]);
+
+  useEffect(() => { if (tab === "hareketler") fetchMovements(); }, [tab, fetchMovements]);
 
   // Search products for new stock entry
   useEffect(() => {
@@ -155,7 +231,9 @@ export default function StockPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Stok Yönetimi</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-bold text-slate-900">Stok Yönetimi</h1>
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ürün ID", "Miktar", "Tip", "Not"], "stok")}
             className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
@@ -174,6 +252,97 @@ export default function StockPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200">
+        <button onClick={() => setTab("stok")}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${tab === "stok" ? "border-teal-600 text-teal-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+          <Package size={14} /> Stok Listesi
+        </button>
+        <button onClick={() => setTab("hareketler")}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${tab === "hareketler" ? "border-teal-600 text-teal-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+          <History size={14} /> Tüm Hareketler
+        </button>
+      </div>
+
+      {tab === "hareketler" && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex items-center gap-3">
+            <select value={movementsTypeFilter} onChange={e => { setMovementsTypeFilter(e.target.value); setMovementsPage(1); }}
+              className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+              <option value="">Tüm Hareket Tipleri</option>
+              {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            {movementsTypeFilter && (
+              <button onClick={() => { setMovementsTypeFilter(""); setMovementsPage(1); }}
+                className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Tarih</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Ürün</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">SKU</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Tip</th>
+                    <th className="text-right px-4 py-3 text-slate-500 font-medium text-xs">Miktar</th>
+                    <th className="text-right px-4 py-3 text-slate-500 font-medium text-xs">Önceki</th>
+                    <th className="text-right px-4 py-3 text-slate-500 font-medium text-xs">Sonraki</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Not</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {movementsLoading ? (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                  ) : movements.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">Hareket kaydı bulunamadı</td></tr>
+                  ) : movements.map(m => {
+                    const typeColor = m.movementType === "StockIn" || m.movementType === "Return"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : m.movementType === "StockOut"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700";
+                    const qtySign = (m.movementType === "StockIn" || m.movementType === "Return") ? "+" : "-";
+                    return (
+                      <tr key={m.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                          {new Date(m.createdDate).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-medium text-slate-800 max-w-[180px] truncate">{m.productName}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{m.sku}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
+                            {MOVEMENT_TYPE_LABELS[m.movementType] ?? m.movementType}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs font-bold ${m.movementType === "StockOut" ? "text-red-600" : "text-emerald-600"}`}>
+                          {m.movementType === "Adjustment" ? m.quantity : `${qtySign}${m.quantity}`}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-400">{m.quantityBefore}</td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-700 font-medium">{m.quantityAfter}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400 max-w-[140px] truncate">{m.note ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {movementsTotalPages > 1 && (
+            <div className="flex justify-center gap-2">
+              {movementsPage > 1 && <button onClick={() => setMovementsPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
+              <span className="px-4 py-2 text-sm text-slate-500">{movementsPage} / {movementsTotalPages}</span>
+              {movementsPage < movementsTotalPages && <button onClick={() => setMovementsPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "stok" && <>
       <div className="flex flex-wrap items-center gap-3">
         <form onSubmit={e => { e.preventDefault(); setPage(1); setStockSearch(stockSearchInput); }} className="flex gap-2">
           <div className="relative">
@@ -415,11 +584,19 @@ export default function StockPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-1.5">
+                        <button onClick={() => openItemHistory(s)} title="Stok Geçmişi"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <History size={16} />
+                        </button>
                         <button onClick={() => { setAdjustTarget(s); setAdjustForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: String(s.criticalStockLevel) }); }}
                           title="Stok Güncelle"
                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                           <Pencil size={18} />
+                        </button>
+                        <button onClick={() => setDeleteTarget(s)} title="Stok Kaydını Sil"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -461,6 +638,100 @@ export default function StockPage() {
           {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+        </div>
+      )}
+      </>}
+
+      {/* Item Stock History Modal */}
+      {itemHistoryTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <History size={16} className="text-amber-500" /> Stok Geçmişi
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">{itemHistoryTarget.productName} · {itemHistoryTarget.sku}</p>
+              </div>
+              <button onClick={() => setItemHistoryTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {itemMovementsLoading ? (
+                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+              ) : itemMovements.length === 0 ? (
+                <p className="p-8 text-center text-slate-400">Bu ürüne ait stok hareketi bulunamadı.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>
+                      {["Tarih", "Tip", "Miktar", "Önceki", "Sonraki", "Not"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {itemMovements.map(m => {
+                      const typeColor = m.movementType === "StockIn" || m.movementType === "Return"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : m.movementType === "StockOut"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700";
+                      return (
+                        <tr key={m.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                            {new Date(m.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
+                              {MOVEMENT_TYPE_LABELS[m.movementType] ?? m.movementType}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 text-xs font-bold ${m.movementType === "StockOut" ? "text-red-600" : "text-emerald-600"}`}>
+                            {m.movementType === "StockOut" ? `-${m.quantity}` : m.movementType === "Adjustment" ? m.quantity : `+${m.quantity}`}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{m.quantityBefore}</td>
+                          <td className="px-4 py-3 text-xs text-slate-700 font-medium">{m.quantityAfter}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400 max-w-[160px] truncate">{m.note ?? "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
+              <button onClick={() => setItemHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete stock confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Stok Kaydını Sil</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  <span className="font-medium text-slate-700">{deleteTarget.productName}</span> ürününe ait stok kaydı silinecek. Bu işlem geri alınamaz.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting}
+                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition disabled:opacity-50">
+                İptal
+              </button>
+              <button onClick={handleDeleteStock} disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
+                {deleting ? "Siliniyor..." : "Sil"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

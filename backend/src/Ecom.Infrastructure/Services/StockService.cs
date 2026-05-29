@@ -125,12 +125,15 @@ public class StockService(IApplicationDbContext db, IEmailService emailService, 
 
         var before = stock.Quantity;
 
+        if ((type == StockMovementType.StockOut || type == StockMovementType.Damage) && quantity > stock.Quantity)
+            return Result.Failure($"Yetersiz stok. Mevcut: {stock.Quantity}, İstenen: {quantity}");
+
         stock.Quantity = type switch
         {
             StockMovementType.StockIn => stock.Quantity + quantity,
-            StockMovementType.StockOut => Math.Max(0, stock.Quantity - quantity),
+            StockMovementType.StockOut => stock.Quantity - quantity,
             StockMovementType.Adjustment => quantity,
-            StockMovementType.Damage => Math.Max(0, stock.Quantity - quantity),
+            StockMovementType.Damage => stock.Quantity - quantity,
             _ => stock.Quantity
         };
 

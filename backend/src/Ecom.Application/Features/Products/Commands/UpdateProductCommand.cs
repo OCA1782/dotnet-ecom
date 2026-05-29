@@ -39,7 +39,7 @@ public class UpdateProductValidator : AbstractValidator<UpdateProductCommand>
     }
 }
 
-public class UpdateProductHandler(IApplicationDbContext db, IAuditService audit)
+public class UpdateProductHandler(IApplicationDbContext db, IAuditService audit, ICacheService cache)
     : IRequestHandler<UpdateProductCommand, Result>
 {
     public async Task<Result> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
@@ -72,6 +72,7 @@ public class UpdateProductHandler(IApplicationDbContext db, IAuditService audit)
         product.MetaDescription = request.MetaDescription;
 
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync($"product:slug:{request.Slug}", cancellationToken);
 
         if (oldPrice != request.Price)
             await audit.LogAsync("ProductPriceChanged", "Product", product.Id.ToString(),

@@ -7,7 +7,7 @@ namespace Ecom.API.Controllers.Admin;
 
 [ApiController]
 [Route("api/admin/coupons")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "SuperAdmin,Admin,FinanceUser")]
 public class CouponsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -43,5 +43,25 @@ public class CouponsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new DeleteCouponCommand(id), ct);
         return result.Succeeded ? Ok() : BadRequest(result.Error);
+    }
+
+    [HttpGet("usages")]
+    public async Task<IActionResult> GetUsages(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetCouponUsagesQuery(null, page, pageSize), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/usages")]
+    public async Task<IActionResult> GetCouponUsages(Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetCouponUsagesQuery(id, page, pageSize), ct);
+        return Ok(result);
     }
 }

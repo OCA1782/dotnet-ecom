@@ -1,0 +1,89 @@
+# Ecom Platform — TODO
+
+Son güncelleme: 2026-05-22 (v3)
+
+---
+
+## ✅ Tamamlananlar (Bu Session)
+
+- [x] **BUG FIX** — Satır bazlı geçmiş: EntityName filtresi `Contains` → `==` (tam eşleşme)
+- [x] **BUG FIX** — Admin > Stok satır geçmişi: client-side filtre kaldırıldı, `productId` backend'e parametre olarak gönderildi
+- [x] **BUG FIX** — EntityName tutarsızlığı düzeltildi: command handler'lar artık AuditFilter ile aynı Türkçe isimleri kullanıyor (Kategori/Marka/Kullanıcı)
+
+- [x] Admin > Yorumlar > Hareketler tab (ApproveReview + DeleteReview audit log)
+- [x] Admin > Kullanıcılar > Hareketler tab (CreateUser/UpdateUser/DeleteUser/Activate/Deactivate audit log)
+- [x] Admin > Siparişler > Hareketler tab (DurumGüncellendi + AdresGüncellendi audit log)
+- [x] Backend: UpdateOrderStatusCommand → IAuditService LogAsync
+- [x] Backend: UpdateOrderAddressCommand → IAuditService LogAsync
+- [x] Backend: GetAuditLogsQuery → EntityId filtre parametresi
+- [x] Customer > Ödeme sayfası tam yeniden yazım (fatura adresi, ödeme yöntemleri)
+- [x] Customer > Sipariş detay → adres bölümü, iptal modal
+- [x] Admin > Sipariş detay → adres bölümü düzeltme
+
+- [x] Admin > Kullanıcılar: Hareketler tab kaldırıldı (zaten yok), satır bazlı Geçmiş butonu eklendi
+- [x] Admin > Kullanıcılar: Düzenleme modalında e-posta ve cep telefonu alanları mevcut
+- [x] Admin > Yorumlar: Hareketler tab kaldırıldı (zaten yok), satır bazlı Geçmiş butonu eklendi
+- [x] Admin > Kategoriler: Satır bazlı Geçmiş butonu + backend audit log (entityName=Kategori)
+- [x] Admin > Markalar: Satır bazlı Geçmiş butonu + backend audit log (entityName=Marka)
+- [x] Admin > Stok: Satır bazlı Geçmiş butonu (productId server-side filtre)
+- [x] Admin > Kuponlar: Satır bazlı kullanım geçmişi + Tüm Hareketler sekmesi
+
+---
+
+## 🔴 Öncelikli (Aktif)
+
+### 9 — Admin > Stok
+- [ ] Satır bazlı audit log geçmişi (stok hareketine ek olarak audit log da göster)
+
+### 10 — Admin > İadeler
+- [ ] Örnek iade kayıtları oluştur (seed veya UI üzerinden)
+- [ ] İade onay / ret akışının tam çalıştığını doğrula
+- [ ] Silme işlemi korunacak
+
+### 11 — Admin > Dış Kaynaklar
+- [ ] Test: REST servisten veri çek ve listede göster
+- [ ] Test: Excel dosyasından veri çek ve listede göster
+- [ ] İçe al butonu: alınan veriyi Marka / Kategori / Ürün / Stok olarak import et
+
+### 12 — Admin > Faturalar
+- [ ] Örnek fatura oluştur (sipariş bazlı mock)
+- [ ] Fatura listeleme, detay, durum güncelleme akışını doğrula
+- [ ] Silme korunacak
+
+### 13 — Admin > Kuponlar
+- [x] Tüm kupon hareketlerini gösteren genel görünüm
+- [x] Satır bazlı kupon geçmiş modalı
+
+### 10 — Admin > İadeler
+- [ ] Örnek iade kayıtları oluştur (seed veya UI üzerinden)
+- [ ] İade onay / ret akışının tam çalıştığını doğrula
+- [ ] Silme işlemi korunacak
+
+### 11 — Admin > Dış Kaynaklar
+- [ ] Test: REST servisten veri çek ve listede göster
+- [ ] Test: Excel dosyasından veri çek ve listede göster
+- [ ] İçe al butonu: alınan veriyi Marka / Kategori / Ürün / Stok olarak import et
+
+### 12 — Admin > Faturalar
+- [ ] Örnek fatura oluştur (sipariş bazlı mock)
+- [ ] Fatura listeleme, detay, durum güncelleme akışını doğrula
+- [ ] Silme korunacak
+
+### 13 — Admin > Kuponlar
+- [ ] Tüm kupon hareketlerini gösteren genel görünüm (hangi sipariş, kim, ne zaman kullandı)
+- [ ] Satır bazlı kupon geçmiş modalı
+
+### 14 — Tüm Ekranlar Listesi (ALL_PAGES.md)
+- [x] Customer ve Admin tüm ekranları eksiksiz listele
+- [x] DOCS repo'suna (dotnet-ecom-docs) ALL_PAGES.md olarak kaydet
+
+### 15 — Test Senaryoları (TEST_SCENARIO.md)
+- [x] ALL_PAGES.md baz alınarak kapsamlı test senaryoları çıkar
+- [x] DOCS repo'suna TEST_SCENARIO.md olarak kaydet
+
+---
+
+## 🟡 Orta Öncelik
+
+- [ ] İyzico sandbox test (ngrok + ApiKey/SecretKey credentials gerektirir)
+- [ ] Admin > Siparişler > Hareketler tabı — DurumGüncellendi/AdresGüncellendi şu an boş çünkü geçmiş veri yok; yeni işlemlerden sonra dolacak

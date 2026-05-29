@@ -22,6 +22,7 @@ public class SettingsController(IMediator mediator) : ControllerBase
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] Dictionary<string, string> settings, CancellationToken ct)
     {
+        settings["SettingsVersion"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
         await mediator.Send(new UpdateSettingsCommand(settings), ct);
         return NoContent();
     }

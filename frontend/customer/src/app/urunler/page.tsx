@@ -1,9 +1,10 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { Category, ProductListItem, PaginatedList } from "@/types";
+import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import ProductFilters from "./ProductFilters";
+import { getSettings } from "@/lib/settings";
 
 type SearchParams = Promise<{
   s?: string;
@@ -13,14 +14,20 @@ type SearchParams = Promise<{
   sayfa?: string;
   ozellik?: string;
   indirimli?: string;
+  siralama?: string;   // yeni | cok-satan | fiyat-artan | fiyat-azalan
+  markalar?: string;   // comma-sep brand IDs
+  puan?: string;       // min rating 1-5
+  nitelikler?: string; // comma-sep key:value pairs, e.g. "Renk:Kırmızı,Beden:M"
 }>;
 
 async function getCategories(): Promise<Category[]> {
-  try {
-    return await api.get<Category[]>("/api/categories");
-  } catch {
-    return [];
-  }
+  try { return await api.get<Category[]>("/api/categories"); }
+  catch { return []; }
+}
+
+async function getBrands(): Promise<Brand[]> {
+  try { return await api.get<Brand[]>("/api/brands"); }
+  catch { return []; }
 }
 
 async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList<ProductListItem>> {
@@ -34,6 +41,13 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     if (params.maxFiyat) qs.set("maxPrice", params.maxFiyat);
     if (params.ozellik === "featured") qs.set("featured", "true");
     if (params.indirimli === "true") qs.set("onSale", "true");
+    if (params.markalar) qs.set("brandIds", params.markalar);
+    if (params.puan) qs.set("minRating", params.puan);
+    if (params.nitelikler) qs.set("attributes", params.nitelikler);
+    if (params.siralama === "yeni") qs.set("sortBy", "newest");
+    else if (params.siralama === "cok-satan") qs.set("sortBy", "bestseller");
+    else if (params.siralama === "fiyat-artan") qs.set("sortBy", "price-asc");
+    else if (params.siralama === "fiyat-azalan") qs.set("sortBy", "price-desc");
     return await api.get<PaginatedList<ProductListItem>>(`/api/products?${qs}`);
   } catch {
     return { items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false, hasPreviousPage: false };
@@ -41,25 +55,26 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
 }
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
-  const params = await searchParams;
+  const [params, settings] = await Promise.all([searchParams, getSettings()]);
+  const siteName = settings.SiteName || "Keyvora";
   const title = params.s
     ? `"${params.s}" için Arama Sonuçları`
-    : params.ozellik === "featured"
-    ? "Öne Çıkan Ürünler"
-    : params.indirimli === "true"
-    ? "İndirimli Ürünler"
+    : params.siralama === "yeni"     ? "Yeni Sezon Ürünleri"
+    : params.siralama === "cok-satan" ? "Çok Satanlar"
+    : params.ozellik === "featured"  ? "Öne Çıkan Ürünler"
+    : params.indirimli === "true"    ? "İndirimli Ürünler"
     : params.kategori
     ? `${params.kategori.charAt(0).toUpperCase() + params.kategori.slice(1)} Ürünleri`
     : "Tüm Ürünler";
   return {
     title,
-    description: `Keyvora'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`,
+    description: `${siteName}'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`,
   };
 }
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [categories, products] = await Promise.all([getCategories(), getProducts(params)]);
+  const [categories, brands, products] = await Promise.all([getCategories(), getBrands(), getProducts(params)]);
 
   const currentPage = Number(params.sayfa ?? 1);
 
@@ -72,60 +87,111 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     if (merged.maxFiyat) qs.set("maxFiyat", merged.maxFiyat);
     if (merged.ozellik) qs.set("ozellik", merged.ozellik);
     if (merged.indirimli) qs.set("indirimli", merged.indirimli);
+    if (merged.siralama) qs.set("siralama", merged.siralama);
+    if (merged.markalar) qs.set("markalar", merged.markalar);
+    if (merged.puan) qs.set("puan", merged.puan);
+    if (merged.nitelikler) qs.set("nitelikler", merged.nitelikler);
     if (merged.sayfa && merged.sayfa !== "1") qs.set("sayfa", merged.sayfa);
     const q = qs.toString();
     return `/urunler${q ? `?${q}` : ""}`;
   }
 
+  const activeBrandIds = params.markalar?.split(",").filter(Boolean) ?? [];
+  const activeBrandNames = activeBrandIds
+    .map(id => brands.find(b => b.id === id)?.name)
+    .filter(Boolean) as string[];
+
+  const activeAttrPairs = params.nitelikler
+    ? params.nitelikler.split(",").filter(Boolean).map(p => {
+        const idx = p.indexOf(":");
+        if (idx < 0) return null;
+        return { key: p.slice(0, idx), value: p.slice(idx + 1) };
+      }).filter((x): x is { key: string; value: string } => x !== null)
+    : [];
+
+  const hasFilters = !!(params.s || params.kategori || params.ozellik || params.indirimli
+    || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex gap-8">
         {/* Sidebar Filters */}
-        <aside className="hidden lg:block w-56 shrink-0">
+        <aside className="hidden lg:block w-64 shrink-0">
           <ProductFilters
             categories={categories}
+            brands={brands}
             activeCategory={params.kategori}
             minFiyat={params.minFiyat}
             maxFiyat={params.maxFiyat}
             searchTerm={params.s}
+            activeBrandIds={activeBrandIds}
+            activeRating={params.puan ? Number(params.puan) : undefined}
+            activeSiralama={params.siralama}
+            activeIndirimli={params.indirimli === "true"}
+            activeNitelikler={params.nitelikler}
+            categorySlug={params.kategori}
           />
         </aside>
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm text-teal-400 font-medium">
-                <span className="text-teal-700 font-bold">{products.totalCount}</span> ürün bulundu
+                <span className="text-teal-700 font-bold">{products.totalCount}</span> ürün
               </p>
               {params.s && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                  🔍 &quot;{params.s}&quot;
-                  <Link href={buildUrl({ s: undefined, sayfa: "1" })} className="ml-1 hover:text-blue-900">×</Link>
-                </span>
+                <FilterBadge label={`"${params.s}"`} href={buildUrl({ s: undefined, sayfa: "1" })} />
               )}
               {params.kategori && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-teal-100 text-teal-700 px-3 py-1 rounded-full">
-                  📂 {categories.find(c => c.slug === params.kategori)?.name ?? params.kategori}
-                  <Link href={buildUrl({ kategori: undefined, sayfa: "1" })} className="ml-1 hover:text-teal-900">×</Link>
-                </span>
-              )}
-              {params.ozellik === "featured" && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
-                  ★ Öne Çıkan Ürünler
-                  <Link href={buildUrl({ ozellik: undefined, sayfa: "1" })} className="ml-1 hover:text-amber-900">×</Link>
-                </span>
+                <FilterBadge label={categories.find(c => c.slug === params.kategori)?.name ?? params.kategori} href={buildUrl({ kategori: undefined, sayfa: "1" })} color="teal" />
               )}
               {params.indirimli === "true" && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
-                  🏷️ İndirimli Ürünler
-                  <Link href={buildUrl({ indirimli: undefined, sayfa: "1" })} className="ml-1 hover:text-orange-900">×</Link>
-                </span>
+                <FilterBadge label="İndirimli" href={buildUrl({ indirimli: undefined, sayfa: "1" })} color="orange" />
+              )}
+              {params.ozellik === "featured" && (
+                <FilterBadge label="Öne Çıkan" href={buildUrl({ ozellik: undefined, sayfa: "1" })} color="amber" />
+              )}
+              {(params.minFiyat || params.maxFiyat) && (
+                <FilterBadge
+                  label={`${params.minFiyat ?? "0"} – ${params.maxFiyat ?? "∞"} ₺`}
+                  href={buildUrl({ minFiyat: undefined, maxFiyat: undefined, sayfa: "1" })}
+                  color="violet"
+                />
+              )}
+              {activeBrandNames.map(name => (
+                <FilterBadge key={name} label={name} href={buildUrl({
+                  markalar: activeBrandIds.filter(id => brands.find(b => b.id === id)?.name !== name).join(",") || undefined,
+                  sayfa: "1",
+                })} color="blue" />
+              ))}
+              {params.puan && (
+                <FilterBadge label={`${params.puan}+ Yıldız`} href={buildUrl({ puan: undefined, sayfa: "1" })} color="amber" />
+              )}
+              {activeAttrPairs.map(({ key, value }) => (
+                <FilterBadge
+                  key={`${key}:${value}`}
+                  label={`${key}: ${value}`}
+                  color="teal"
+                  href={buildUrl({
+                    nitelikler: activeAttrPairs
+                      .filter(p => !(p.key === key && p.value === value))
+                      .map(p => `${p.key}:${p.value}`)
+                      .join(",") || undefined,
+                    sayfa: "1",
+                  })}
+                />
+              ))}
+              {params.siralama && (
+                <FilterBadge
+                  label={{ yeni: "Yeni Sezon", "cok-satan": "Çok Satanlar", "fiyat-artan": "Fiyat ↑", "fiyat-azalan": "Fiyat ↓" }[params.siralama] ?? params.siralama}
+                  href={buildUrl({ siralama: undefined, sayfa: "1" })}
+                />
               )}
             </div>
-            {(params.s || params.kategori || params.ozellik || params.indirimli || params.minFiyat || params.maxFiyat) && (
-              <Link href="/urunler" className="text-xs text-slate-400 hover:text-red-500 transition">
-                Tümünü temizle
+            {hasFilters && (
+              <Link href="/urunler" className="text-xs text-slate-400 hover:text-red-500 transition font-medium">
+                Tümünü temizle ×
               </Link>
             )}
           </div>
@@ -139,7 +205,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div data-product-grid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {products.items.map((product) => (
                 <Link
                   key={product.id}
@@ -154,11 +220,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     )}
                     {product.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="object-contain w-full h-full p-4"
-                      />
+                      <img src={product.imageUrl} alt={product.name} className="object-contain w-full h-full p-4" />
                     ) : (
                       <span className="text-4xl">📦</span>
                     )}
@@ -191,10 +253,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           {products.totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-10">
               {products.hasPreviousPage && (
-                <Link
-                  href={buildUrl({ sayfa: String(currentPage - 1) })}
-                  className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium"
-                >
+                <Link href={buildUrl({ sayfa: String(currentPage - 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
                   ← Önceki
                 </Link>
               )}
@@ -214,10 +273,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                   </Link>
                 ))}
               {products.hasNextPage && (
-                <Link
-                  href={buildUrl({ sayfa: String(currentPage + 1) })}
-                  className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium"
-                >
+                <Link href={buildUrl({ sayfa: String(currentPage + 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
                   Sonraki →
                 </Link>
               )}
@@ -226,5 +282,22 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         </div>
       </div>
     </div>
+  );
+}
+
+function FilterBadge({ label, href, color = "slate" }: { label: string; href: string; color?: string }) {
+  const colors: Record<string, string> = {
+    slate:  "bg-slate-100 text-slate-600",
+    teal:   "bg-teal-100 text-teal-700",
+    orange: "bg-orange-100 text-orange-700",
+    amber:  "bg-amber-100 text-amber-700",
+    violet: "bg-violet-100 text-violet-700",
+    blue:   "bg-blue-100 text-blue-700",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${colors[color] ?? colors.slate}`}>
+      {label}
+      <Link href={href} className="ml-0.5 opacity-60 hover:opacity-100">×</Link>
+    </span>
   );
 }

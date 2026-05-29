@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
+using Ecom.Infrastructure.Messaging.Sagas;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Infrastructure.Persistence;
@@ -29,15 +30,33 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<CouponUsage> CouponUsages => Set<CouponUsage>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+    public DbSet<ReviewLike> ReviewLikes => Set<ReviewLike>();
+    public DbSet<ReviewReply> ReviewReplies => Set<ReviewReply>();
+    public DbSet<ReviewReport> ReviewReports => Set<ReviewReport>();
+    public DbSet<License> Licenses => Set<License>();
     public DbSet<SalesGoal> SalesGoals => Set<SalesGoal>();
     public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
     public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
+    public DbSet<ExternalSource> ExternalSources => Set<ExternalSource>();
+    public DbSet<ExternalSourceImportLog> ExternalSourceImportLogs => Set<ExternalSourceImportLog>();
+    public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+    public DbSet<VisitorLog> VisitorLogs => Set<VisitorLog>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
+    public DbSet<OrderSagaState> OrderSagaStates => Set<OrderSagaState>();
+    public DbSet<ShippingCarrier> ShippingCarriers => Set<ShippingCarrier>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
+
+    public void ClearChangeTracker() => ChangeTracker.Clear();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

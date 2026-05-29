@@ -59,7 +59,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
                     : "border-slate-300 hover:border-slate-500"
                 }`}
               >
-                {v.attributesJson ? JSON.parse(v.attributesJson)?.name ?? v.sku : v.sku}
+                {(() => { try { return JSON.parse(v.attributesJson ?? "")?.name ?? v.sku; } catch { return v.sku; } })()}
               </button>
             ))}
           </div>

@@ -19,20 +19,17 @@ public class DeleteUserHandler(
             return Result.Failure("Kendi hesabınızı silemezsiniz.");
 
         var user = await db.Users
-            .Include(u => u.Roles)
-            .Include(u => u.Addresses)
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
         if (user is null) return Result.Failure("Kullanıcı bulunamadı.");
 
         var summary = $"{user.Name} {user.Surname} <{user.Email}>";
 
-        db.UserRoles.RemoveRange(user.Roles);
-        db.UserAddresses.RemoveRange(user.Addresses);
-        db.Users.Remove(user);
+        user.IsDeleted = true;
+        user.IsActive = false;
         await db.SaveChangesAsync(cancellationToken);
 
-        await auditService.LogAsync("DeleteUser", "User", request.UserId.ToString(),
+        await auditService.LogAsync("DeleteUser", "Kullanıcı", request.UserId.ToString(),
             oldValue: summary, userId: currentUser.UserId, cancellationToken: cancellationToken);
 
         return Result.Success();

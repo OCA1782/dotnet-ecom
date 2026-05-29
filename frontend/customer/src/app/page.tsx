@@ -3,16 +3,23 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Category, ProductListItem, PaginatedList } from "@/types";
 import ProductCard from "@/components/ProductCard";
+import { type AnnouncementItem } from "@/components/AnnouncementsSection";
+import HeroSlider from "@/components/HeroSlider";
+import { getSettings } from "@/lib/settings";
 
-export const metadata: Metadata = {
-  title: "Ana Sayfa | Keyvora",
-  description: "Keyifli alışverişin yeni adresi. Binlerce ürün, güvenli ödeme, hızlı teslimat.",
-  openGraph: {
-    title: "Keyvora — Keyifli Alışverişin Yeni Adresi",
-    description: "Sevdiğin ürünleri keşfet, güvenle satın al, hızlı teslimatla kapına gelsin.",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSettings();
+  const siteName = settings.SiteName || "Keyvora";
+  return {
+    title: "Ana Sayfa",
+    description: "Keyifli alışverişin yeni adresi. Binlerce ürün, güvenli ödeme, hızlı teslimat.",
+    openGraph: {
+      title: `${siteName} — Keyifli Alışverişin Yeni Adresi`,
+      description: "Sevdiğin ürünleri keşfet, güvenle satın al, hızlı teslimatla kapına gelsin.",
+      type: "website",
+    },
+  };
+}
 
 const CATEGORY_STYLES = [
   { card: "bg-teal-50   border-teal-100   hover:border-teal-300",   icon: "bg-teal-100   text-teal-600",   text: "group-hover:text-teal-700"   },
@@ -53,55 +60,24 @@ async function getDiscountProducts(): Promise<ProductListItem[]> {
   } catch { return []; }
 }
 
+async function getAnnouncements(): Promise<AnnouncementItem[]> {
+  try {
+    const data = await api.get<{ items: AnnouncementItem[] }>("/api/announcements?pageSize=20");
+    return data.items;
+  } catch { return []; }
+}
+
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts] = await Promise.all([getCategories(), getFeaturedProducts(), getDiscountProducts()]);
+  const [categoriesRaw, products, discountProducts, announcements] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(),
+  ]);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
 
   return (
     <div>
 
-      {/* ── Hero ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <section className="relative bg-gradient-to-br from-[#19B7B1] via-[#0c9e98] to-[#12304A] rounded-3xl text-white overflow-hidden">
-          {/* Dekoratif arka plan */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-20 -right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-[#FF7A45]/15 rounded-full blur-3xl" />
-          </div>
-          {/* Watermark logo sağda */}
-          <div className="absolute right-8 bottom-4 w-72 h-72 pointer-events-none hidden lg:block opacity-[0.07]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-icon.png" alt="" className="w-full h-full object-contain" style={{ filter: "brightness(100)" }} />
-          </div>
-
-          <div className="relative px-8 py-16 lg:px-16 lg:py-20">
-            <span className="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6 backdrop-blur-sm border border-white/20">
-              🎉 Yeni Sezon İndirimleri Başladı
-            </span>
-            <h1 className="text-4xl lg:text-6xl font-extrabold mb-5 tracking-tight leading-tight max-w-2xl">
-              Keyifli Alışverişin<br />
-              <span className="text-[#FF7A45]">Yeni Adresi</span>
-            </h1>
-            <p className="text-teal-100 text-lg lg:text-xl mb-10 max-w-lg leading-relaxed">
-              Sevdiğin ürünleri keşfet, güvenle satın al,<br className="hidden lg:block" /> hızlı teslimatla kapına gelsin.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/urunler"
-                className="inline-flex items-center gap-2 bg-[#FF7A45] hover:bg-[#e86c3a] hover:-translate-y-0.5 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/20 text-base"
-              >
-                Alışverişe Başla →
-              </Link>
-              <Link
-                href="/urunler"
-                className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold px-8 py-4 rounded-2xl backdrop-blur-sm transition border border-white/30 text-base"
-              >
-                Kampanyaları Gör
-              </Link>
-            </div>
-          </div>
-        </section>
-      </div>
+      {/* ── Hero Slider ── */}
+      <HeroSlider announcements={announcements} />
 
       {/* ── Avantajlar — lacivert şerit ── */}
       <div className="bg-[#12304A] mt-0">
@@ -231,7 +207,7 @@ export default async function HomePage() {
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">∞</div>
               <p className="text-sm font-semibold opacity-80 mb-2">500 TL Üzeri</p>
               <h3 className="text-3xl font-extrabold mb-4">Ücretsiz Kargo</h3>
-              <Link href="/urunler" className="inline-block bg-white text-[#19B7B1] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-teal-50 transition">
+              <Link href="/urunler?minFiyat=500" className="inline-block bg-white text-[#19B7B1] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-teal-50 transition">
                 Alışverişe Başla →
               </Link>
             </div>
@@ -240,7 +216,7 @@ export default async function HomePage() {
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">★</div>
               <p className="text-sm font-semibold opacity-80 mb-2">Yeni Gelenler</p>
               <h3 className="text-3xl font-extrabold mb-4">Yeni Sezon Ürünleri</h3>
-              <Link href="/urunler?ozellik=featured" className="inline-block bg-white text-[#12304A] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-slate-50 transition">
+              <Link href="/urunler?siralama=yeni" className="inline-block bg-white text-[#12304A] font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-slate-50 transition">
                 Keşfet →
               </Link>
             </div>
@@ -249,7 +225,7 @@ export default async function HomePage() {
               <div className="absolute right-4 bottom-0 text-[110px] font-black text-white/15 leading-none select-none">#1</div>
               <p className="text-sm font-semibold opacity-80 mb-2">En Çok Tercih Edilen</p>
               <h3 className="text-3xl font-extrabold mb-4">Çok Satanlar</h3>
-              <Link href="/urunler?ozellik=featured" className="inline-block bg-white text-amber-600 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-amber-50 transition">
+              <Link href="/urunler?siralama=cok-satan" className="inline-block bg-white text-amber-600 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-amber-50 transition">
                 Hepsini Gör →
               </Link>
             </div>

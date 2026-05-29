@@ -1,7 +1,13 @@
 using Ecom.Application.Common.Interfaces;
+using Ecom.Application.Features.Admin;
+using Ecom.Infrastructure.Messaging;
+using Ecom.Infrastructure.Messaging.Consumers;
+using Ecom.Infrastructure.Messaging.Sagas;
 using Ecom.Infrastructure.Persistence;
 using Ecom.Infrastructure.Services;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,8 +17,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var connStr = configuration.GetConnectionString("DefaultConnection") ?? "";
+        var dbProvider = configuration["Database:Provider"] ?? "SqlServer";
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        {
+            if (dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+                options.UseNpgsql(connStr);
+            else
+                options.UseSqlServer(connStr);
+        });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IPasswordService, PasswordService>();
@@ -30,9 +43,68 @@ public static class DependencyInjection
         {
             services.AddScoped<IPaymentService, MockPaymentService>();
         }
+        services.AddScoped<IInvoiceService, MockInvoiceService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddHttpClient<ITelegramService, TelegramService>();
+        services.AddHttpClient<IGeoIpService, GeoIpService>();
+        services.AddHttpClient();
+        services.AddHttpClient("github", c =>
+        {
+            c.BaseAddress = new Uri("https://api.github.com/");
+            c.DefaultRequestHeaders.Add("User-Agent", "Ecom-Admin/1.0");
+            c.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
+            c.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+            c.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<IExternalSourceFetcher, ExternalSourceFetcher>();
+        services.AddHostedService<ScheduledSourceFetchService>();
         services.AddHttpContextAccessor();
+        services.AddScoped<IEventPublisher, OutboxEventPublisher>();
+        services.AddScoped<ImportBatchProcessor>();
+        services.AddScoped<ICacheService, CacheService>();
+        services.AddScoped<ILicenseService, LicenseService>();
+        services.AddScoped<IDapperQueryService, DapperQueryService>();
+        services.AddSingleton<IServiceStateManager, ServiceStateManager>();
+
+        var redisConn = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisConn))
+            services.AddStackExchangeRedisCache(o => o.Configuration = redisConn);
+        else
+            services.AddDistributedMemoryCache();
+
+        var rabbitHost = configuration["RabbitMQ:Host"];
+        services.AddMassTransit(x =>
+        {
+            x.AddConsumer<OrderCreatedConsumer>();
+            x.AddConsumer<PaymentCompletedConsumer>();
+            x.AddConsumer<OrderStatusChangedConsumer>();
+            x.AddConsumer<ImportJobConsumer>();
+
+            x.AddSagaStateMachine<OrderProcessingStateMachine, Ecom.Infrastructure.Messaging.Sagas.OrderSagaState>()
+                .EntityFrameworkRepository(r =>
+                {
+                    r.ExistingDbContext<ApplicationDbContext>();
+                });
+
+            if (!string.IsNullOrWhiteSpace(rabbitHost))
+            {
+                x.UsingRabbitMq((ctx, cfg) =>
+                {
+                    cfg.Host(rabbitHost, h =>
+                    {
+                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                    });
+                    cfg.ConfigureEndpoints(ctx);
+                });
+            }
+            else
+            {
+                x.UsingInMemory((ctx, cfg) => cfg.ConfigureEndpoints(ctx));
+            }
+        });
+
+        services.AddHostedService<OutboxProcessor>();
 
         return services;
     }

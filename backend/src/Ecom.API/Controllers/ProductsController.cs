@@ -23,11 +23,24 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] bool? inStock = null,
         [FromQuery] bool? featured = null,
         [FromQuery] bool? onSale = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? brandIds = null,
+        [FromQuery] int? minRating = null,
+        [FromQuery] string? attributes = null,
+        [FromQuery] bool? onlyActive = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale), ct);
+            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetProductByIdQuery(id), ct);
+        if (result is null) return NotFound();
         return Ok(result);
     }
 
@@ -58,12 +71,27 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("attributes")]
+    public async Task<IActionResult> GetAttributes([FromQuery] string? categorySlug = null, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetProductAttributesQuery(categorySlug), ct);
+        return Ok(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
-    public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var result = await mediator.Send(new DeactivateProductCommand(id), ct);
+        var result = await mediator.Send(new DeleteProductCommand(id), ct);
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
+    }
+
+    [HttpGet("{id:guid}/history")]
+    [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
+    public async Task<IActionResult> GetHistory(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetProductHistoryQuery(id), ct);
+        return Ok(result);
     }
 }

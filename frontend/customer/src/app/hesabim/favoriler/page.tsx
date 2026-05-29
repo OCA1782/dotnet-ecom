@@ -19,7 +19,7 @@ export default function FavorilerPage() {
   if (authLoading || (!user && !authLoading)) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Favorilerim</h1>

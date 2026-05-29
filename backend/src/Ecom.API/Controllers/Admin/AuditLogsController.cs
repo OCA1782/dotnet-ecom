@@ -19,9 +19,22 @@ public class AuditLogsController(IMediator mediator) : ControllerBase
         [FromQuery] string? userEmail = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
+        [FromQuery] string? entityId = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetAuditLogsQuery(page, pageSize, entityName, action, userEmail, startDate, endDate), ct);
+        var result = await mediator.Send(new GetAuditLogsQuery(page, pageSize, entityName, action, userEmail, startDate, endDate, entityId), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("entity/{entityName}/{entityId}")]
+    public async Task<IActionResult> GetByEntity(
+        string entityName,
+        string entityId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetAuditLogsQuery(page, pageSize, EntityName: entityName, EntityId: entityId), ct);
         return Ok(result);
     }
 }

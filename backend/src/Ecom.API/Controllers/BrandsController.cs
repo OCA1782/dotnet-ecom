@@ -16,9 +16,10 @@ public class BrandsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] bool onlyActive = true,
+        [FromQuery] bool? isActive = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetBrandsQuery(page, pageSize, search, onlyActive), ct);
+        var result = await mediator.Send(new GetBrandsQuery(page, pageSize, search, onlyActive, isActive), ct);
         return Ok(result);
     }
 
@@ -37,6 +38,15 @@ public class BrandsController(IMediator mediator) : ControllerBase
     {
         if (id != command.Id) return BadRequest("ID uyuşmazlığı.");
         var result = await mediator.Send(command, ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteBrandCommand(id), ct);
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
     }

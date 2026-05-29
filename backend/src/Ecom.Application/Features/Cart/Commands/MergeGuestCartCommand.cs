@@ -41,7 +41,7 @@ public class MergeGuestCartHandler(IApplicationDbContext db) : IRequestHandler<M
                 if (existing is not null)
                     existing.Quantity += guestItem.Quantity;
                 else
-                    userCart.Items.Add(new Domain.Entities.CartItem
+                    db.CartItems.Add(new Domain.Entities.CartItem
                     {
                         CartId = userCart.Id,
                         ProductId = guestItem.ProductId,

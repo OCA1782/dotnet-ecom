@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using Ecom.Domain.Entities;
+using Ecom.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -16,7 +17,25 @@ public static class DbInitializer
 
         await SeedAdminUser(db, config);
         await SeedSiteSettings(db);
+        await SeedRevealPassword(db, config);
         await SeedTestExternalSources(db, contentRootPath);
+    }
+
+    private static async Task SeedRevealPassword(ApplicationDbContext db, IConfiguration config)
+    {
+        var alreadySeeded = await db.SiteSettings.AnyAsync(s => s.Key == "RevealPasswordHash");
+        if (alreadySeeded) return;
+
+        var revealPw = config["DevRevealPassword"] ?? "";
+        if (string.IsNullOrWhiteSpace(revealPw)) return;
+
+        db.SiteSettings.Add(new SiteSetting
+        {
+            Key   = "RevealPasswordHash",
+            Value = CryptoHelper.Hash(revealPw),
+            Group = "Security"
+        });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedAdminUser(ApplicationDbContext db, IConfiguration config)

@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Application.Features.Cart.Queries;
 using Ecom.Domain.Entities;
 using FluentValidation;
 using MediatR;
@@ -26,7 +27,7 @@ public class AddToCartValidator : AbstractValidator<AddToCartCommand>
     }
 }
 
-public class AddToCartHandler(IApplicationDbContext db) : IRequestHandler<AddToCartCommand, Result<Guid>>
+public class AddToCartHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<AddToCartCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
     {
@@ -84,7 +85,7 @@ public class AddToCartHandler(IApplicationDbContext db) : IRequestHandler<AddToC
         }
         else
         {
-            cart.Items.Add(new CartItem
+            db.CartItems.Add(new CartItem
             {
                 CartId = cart.Id,
                 ProductId = request.ProductId,
@@ -95,6 +96,7 @@ public class AddToCartHandler(IApplicationDbContext db) : IRequestHandler<AddToC
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        try { await cache.RemoveAsync(GetCartQueryHandler.CacheKey(request.UserId, request.SessionId), cancellationToken); } catch { /* non-critical */ }
         return Result<Guid>.Success(cart.Id);
     }
 }
