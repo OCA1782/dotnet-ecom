@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse, Users,
@@ -9,7 +10,7 @@ import {
   Activity, Target, ShieldAlert, Settings, Database, MapPin,
   PanelLeftClose, PanelLeftOpen, FlaskConical, BarChart3,
   HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
-  Truck, FileText, Megaphone,
+  Truck, FileText, Megaphone, User, KeyRound, Shield,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
@@ -125,6 +126,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   });
   const [navSearch, setNavSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userMenuPos, setUserMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const userBtnRef = useRef<HTMLButtonElement>(null);
+  const userDropRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const t = e.target as Node;
+      if (!userBtnRef.current?.contains(t) && !userDropRef.current?.contains(t)) setUserMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+  const openUserMenu = useCallback(() => {
+    if (userBtnRef.current) {
+      const r = userBtnRef.current.getBoundingClientRect();
+      setUserMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    }
+    setUserMenuOpen(o => !o);
+  }, []);
+  const roleLabel = (role: string) => {
+    if (role === "SuperAdmin") return "Süper Admin";
+    if (role === "Admin") return "Admin";
+    if (role === "Manager") return "Yönetici";
+    if (role === "Support") return "Destek";
+    return role;
+  };
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -260,7 +289,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className={`border-b border-white/10 ${collapsed ? "px-3 py-4 flex justify-center" : "px-5 py-4"}`}>
           {collapsed ? (
             /* Daraltılmış: isimsiz ikon */
-            <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center">
+            <div className="w-12 h-12 bg-white rounded-xl overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
                 onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
@@ -268,7 +297,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ) : logoNamedUrl ? (
             /* Genişletilmiş: isimli logo görsel olarak */
             <>
-              <div className="mb-1 h-10 flex items-center">
+              <div className="mb-1 h-16 flex items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoNamedUrl} alt={siteTitle} className="max-h-full max-w-full object-contain"
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -278,8 +307,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ) : (
             /* Genişletilmiş: isimsiz ikon + metin */
             <>
-              <div className="flex items-center gap-2.5 mb-1">
-                <div className="w-8 h-8 bg-white rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-12 h-12 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
                     onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
@@ -463,7 +492,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           .no-screenshot img { pointer-events: none; -webkit-user-drag: none; }
           .no-screenshot { -webkit-user-select: text; user-select: text; }
         `}</style>
-        <header className="h-12 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+        <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
             {navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))?.label
               ?? (pathname === SETTINGS_ITEM.href ? SETTINGS_ITEM.label
@@ -472,8 +501,94 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-3">
             <EnvBadge />
             <NotificationsPanel />
+            {user && (
+              <button
+                ref={userBtnRef}
+                onClick={openUserMenu}
+                className="flex items-center gap-2 pl-3 border-l border-slate-200 hover:bg-slate-50 rounded-xl px-2 py-1.5 transition"
+              >
+                <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}
+                </div>
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs font-semibold text-slate-800 leading-tight">{user.name} {user.surname}</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">{user.roles?.[0] ? roleLabel(user.roles[0]) : "Admin"}</p>
+                </div>
+                <ChevronDown size={13} className="text-slate-400 hidden sm:block" />
+              </button>
+            )}
           </div>
         </header>
+        {userMenuOpen && userMenuPos && mounted && user && createPortal(
+          <div
+            ref={userDropRef}
+            style={{ position: "fixed", top: userMenuPos.top, right: userMenuPos.right, zIndex: 99999,
+              backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "0.875rem",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.14)", width: "15rem", overflow: "hidden" }}
+          >
+            {/* Kullanıcı bilgi kartı */}
+            <div style={{ padding: "1rem", borderBottom: "1px solid #f1f5f9", background: "linear-gradient(135deg,#f0fdfa,#f8fafc)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: "#0d9488",
+                  display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>
+                  {user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: "0.875rem", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {user.name} {user.surname}
+                  </p>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              <div style={{ marginTop: "0.625rem", display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
+                {user.roles?.map(r => (
+                  <span key={r} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem",
+                    fontSize: "0.65rem", fontWeight: 600, padding: "0.15rem 0.5rem",
+                    borderRadius: "999px", background: "#ccfbf1", color: "#0f766e" }}>
+                    <Shield size={9} />
+                    {roleLabel(r)}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {/* Menü öğeleri */}
+            <Link href="/kullanicilar"
+              onClick={() => setUserMenuOpen(false)}
+              style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem 1rem",
+                fontSize: "0.8125rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f8fafc")}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              <User size={14} style={{ color: "#64748b" }} />
+              Kullanıcı Yönetimi
+            </Link>
+            <Link href="/yonetim?tab=sistem"
+              onClick={() => setUserMenuOpen(false)}
+              style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem 1rem",
+                fontSize: "0.8125rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f8fafc")}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              <KeyRound size={14} style={{ color: "#64748b" }} />
+              Şifre / API Anahtarı
+            </Link>
+            <div style={{ height: "1px", backgroundColor: "#f1f5f9" }} />
+            <button
+              onClick={() => { setUserMenuOpen(false); logout(); router.push("/giris"); }}
+              style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", textAlign: "left",
+                padding: "0.625rem 1rem", fontSize: "0.8125rem", color: "#ef4444",
+                background: "none", border: "none", cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#fef2f2")}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              <LogOut size={14} />
+              Çıkış Yap
+            </button>
+          </div>,
+          document.body
+        )}
         <main className="flex-1 overflow-y-auto p-8 no-screenshot"
           onContextMenu={e => { e.preventDefault(); }}
         >

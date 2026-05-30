@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import {
   Settings, Globe, Palette, Truck, Menu, Shield, FileText,
@@ -1141,8 +1142,14 @@ function CarrierManager() {
 }
 
 /* ─── Ana sayfa ─────────────────────────────────────────────────────── */
+const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","sistem"];
+
 export default function YonetimPage() {
-  const [tab, setTab]             = useState<Tab>("genel");
+  const searchParams = useSearchParams();
+  const initialTab = (VALID_TABS as string[]).includes(searchParams.get("tab") ?? "")
+    ? searchParams.get("tab") as Tab
+    : "genel";
+  const [tab, setTab]             = useState<Tab>(initialTab);
   const [contentSub, setContentSub] = useState<ContentSub>("sss");
   const [settings, setSettings]   = useState<SiteSettings>(DEFAULTS);
   const [menuOrder, setMenuOrder] = useState<string[]>(ALL_MENU_ITEMS.map(i => i.href));
@@ -1569,7 +1576,7 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
                     <p className="text-[11px] text-slate-400">Marka adı içeren tam logo (sidebar genişken).</p>
-                    <div className="h-16 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden px-2">
+                    <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
                         : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
@@ -1596,9 +1603,9 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
                     <p className="text-[11px] text-slate-400">Sadece ikon (sidebar daraltılmışken).</p>
-                    <div className="h-16 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden">
+                    <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimsiz Logo" className="w-10 h-10 object-contain" /> // eslint-disable-line
+                        ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
                         : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
                     </div>
                     <input ref={adminLogoIconRef} type="file" accept="image/*" className="hidden"
@@ -1625,10 +1632,10 @@ export default function YonetimPage() {
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
                     <p className="text-[11px] text-slate-400">Admin paneli tarayıcı sekmesi ikonu.</p>
                     {/* Büyük önizleme */}
-                    <div className="h-24 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                    <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="Favicon" className="w-20 h-20 object-contain" /> // eslint-disable-line
-                        : <Globe size={32} className="text-slate-300" />}
+                        ? <img src={settings[key]} alt="Favicon" className="w-32 h-32 object-contain" /> // eslint-disable-line
+                        : <Globe size={48} className="text-slate-300" />}
                     </div>
                     {/* Sekme simülasyonu */}
                     {settings[key] && (
@@ -1667,7 +1674,7 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
                     <p className="text-[11px] text-slate-400">Marka adı dahil tam logo (header'da öncelikli).</p>
-                    <div className="h-16 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden px-2">
+                    <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
                         : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
@@ -1694,9 +1701,9 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
                     <p className="text-[11px] text-slate-400">Sadece marka ikonu / sembolü.</p>
-                    <div className="h-16 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
+                    <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimsiz Logo" className="max-h-full max-w-full object-contain p-1" /> // eslint-disable-line
+                        ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
                         : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
                     </div>
                     <input ref={customerLogoIconRef} type="file" accept="image/*" className="hidden"
@@ -1723,10 +1730,10 @@ export default function YonetimPage() {
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
                     <p className="text-[11px] text-slate-400">Müşteri sitesi tarayıcı sekmesi ikonu.</p>
                     {/* Büyük önizleme */}
-                    <div className="h-24 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                    <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="Favicon" className="w-20 h-20 object-contain" /> // eslint-disable-line
-                        : <Globe size={32} className="text-slate-300" />}
+                        ? <img src={settings[key]} alt="Favicon" className="w-32 h-32 object-contain" /> // eslint-disable-line
+                        : <Globe size={48} className="text-slate-300" />}
                     </div>
                     {/* Sekme simülasyonu */}
                     {settings[key] && (
