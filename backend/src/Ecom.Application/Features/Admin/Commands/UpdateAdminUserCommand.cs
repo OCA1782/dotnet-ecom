@@ -13,7 +13,8 @@ public record UpdateAdminUserCommand(
     string Surname,
     string Role,
     string? Email = null,
-    string? PhoneNumber = null
+    string? PhoneNumber = null,
+    string? AvatarUrl = null
 ) : IRequest<Result<bool>>;
 
 public class UpdateAdminUserHandler(
@@ -43,6 +44,8 @@ public class UpdateAdminUserHandler(
             changes.Add($"E-posta: {user.Email} → {request.Email}");
         if (request.PhoneNumber is not null && request.PhoneNumber != user.PhoneNumber)
             changes.Add($"Telefon: {user.PhoneNumber ?? "—"} → {(string.IsNullOrWhiteSpace(request.PhoneNumber) ? "—" : request.PhoneNumber)}");
+        if (request.AvatarUrl is not null && request.AvatarUrl != user.AvatarUrl)
+            changes.Add("Profil resmi güncellendi");
 
         user.Name = request.Name;
         user.Surname = request.Surname;
@@ -50,6 +53,8 @@ public class UpdateAdminUserHandler(
             user.Email = request.Email;
         if (request.PhoneNumber is not null)
             user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber;
+        if (request.AvatarUrl is not null)
+            user.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl;
 
         var existingRoles = await db.UserRoles
             .Where(r => r.UserId == request.Id)

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   CheckCircle2, XCircle, Circle, ChevronDown, ChevronRight, RefreshCw,
   FlaskConical, ExternalLink, Play, Zap, Shield, Eye, Activity,
   Gauge, Code2, GitMerge, Wind, Layers, AlertTriangle, Search,
   RotateCcw, Database, User, Package, Tag, ChevronUp, Server,
+  Factory, Hash, Loader2, ShoppingBag, Star, Ticket, UserPlus,
+  CheckCircle, XCircle as XCircleIcon, Minus,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -724,6 +726,220 @@ const MODEL_COLOR_HEADER: Record<string, string> = {
   slate:  "bg-slate-50 border-slate-200 text-slate-700",
 };
 
+// ── Seed Data Tab ─────────────────────────────────────────────────────────
+
+type SeedEntity = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  color: string;
+  description: string;
+  hint?: string;
+  requires?: string;
+};
+
+const SEED_ENTITIES: SeedEntity[] = [
+  { id: "category", label: "Kategoriler",  icon: Layers,      color: "teal",   description: "Türkçe rastgele kategori adları ile kök kategoriler oluşturur." },
+  { id: "brand",    label: "Markalar",     icon: Tag,         color: "violet", description: "Türkçe marka adları ile yeni marka kayıtları oluşturur." },
+  { id: "product",  label: "Ürünler",      icon: Package,     color: "blue",   description: "Rastgele fiyat, stok ve SKU ile ürün + stok kaydı oluşturur.", requires: "Kategori", hint: "Önce en az 1 kategori gerekli" },
+  { id: "user",     label: "Kullanıcılar", icon: UserPlus,    color: "emerald",description: "Customer rolünde Türkçe ad/soyadlı kullanıcılar oluşturur. Şifre: Test1234!" },
+  { id: "order",    label: "Siparişler",   icon: ShoppingBag, color: "orange", description: "Mevcut ürün/kullanıcıları kullanarak farklı statülerde sipariş oluşturur.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
+  { id: "review",   label: "Yorumlar",     icon: Star,        color: "amber",  description: "Mevcut ürün ve kullanıcılara Türkçe yorumlar ekler.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
+  { id: "coupon",   label: "Kuponlar",     icon: Ticket,      color: "pink",   description: "Rastgele kod ve indirim değerleriyle test kuponları oluşturur." },
+];
+
+const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> = {
+  teal:    { card: "border-teal-200 bg-teal-50/40",    btn: "bg-teal-600 hover:bg-teal-700",    badge: "bg-teal-100 text-teal-700" },
+  violet:  { card: "border-violet-200 bg-violet-50/40", btn: "bg-violet-600 hover:bg-violet-700", badge: "bg-violet-100 text-violet-700" },
+  blue:    { card: "border-blue-200 bg-blue-50/40",    btn: "bg-blue-600 hover:bg-blue-700",    badge: "bg-blue-100 text-blue-700" },
+  emerald: { card: "border-emerald-200 bg-emerald-50/40", btn: "bg-emerald-600 hover:bg-emerald-700", badge: "bg-emerald-100 text-emerald-700" },
+  orange:  { card: "border-orange-200 bg-orange-50/40", btn: "bg-orange-600 hover:bg-orange-700", badge: "bg-orange-100 text-orange-700" },
+  amber:   { card: "border-amber-200 bg-amber-50/40",  btn: "bg-amber-600 hover:bg-amber-700",  badge: "bg-amber-100 text-amber-700" },
+  pink:    { card: "border-pink-200 bg-pink-50/40",    btn: "bg-pink-600 hover:bg-pink-700",    badge: "bg-pink-100 text-pink-700" },
+};
+
+type LogEntry = { text: string; type: "info" | "ok" | "error" | "warn" };
+
+function SeedDataTab() {
+  const [counts, setCounts] = useState<Record<string, number>>(
+    Object.fromEntries(SEED_ENTITIES.map(e => [e.id, 10]))
+  );
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [progress, setProgress] = useState<Record<string, { done: number; total: number } | null>>({});
+  const logRef = useRef<HTMLDivElement>(null);
+
+  function addLog(text: string, type: LogEntry["type"] = "info") {
+    setLogs(prev => {
+      const next = [...prev, { text, type }];
+      return next.slice(-200); // max 200 lines
+    });
+    setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" }), 50);
+  }
+
+  async function generate(entity: SeedEntity) {
+    const count = counts[entity.id] ?? 10;
+    if (count < 1 || count > 500) { addLog(`Geçersiz adet: ${count} (1–500 arası olmalı)`, "warn"); return; }
+
+    setLoading(l => ({ ...l, [entity.id]: true }));
+    setProgress(p => ({ ...p, [entity.id]: { done: 0, total: count } }));
+    addLog(`▶ ${entity.label} — ${count} kayıt oluşturuluyor...`, "info");
+
+    try {
+      const res = await api.post<{ entity: string; created: number; items: { id: string }[] }>(
+        "/api/admin/seed/bulk",
+        { entity: entity.id, count }
+      );
+      setProgress(p => ({ ...p, [entity.id]: { done: res.created, total: count } }));
+      addLog(`✓ ${entity.label}: ${res.created} kayıt oluşturuldu.`, "ok");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      addLog(`✗ ${entity.label}: ${msg}`, "error");
+      setProgress(p => ({ ...p, [entity.id]: null }));
+    } finally {
+      setLoading(l => ({ ...l, [entity.id]: false }));
+    }
+  }
+
+  async function generateAll() {
+    for (const entity of SEED_ENTITIES) {
+      if (!loading[entity.id]) await generate(entity);
+    }
+  }
+
+  function clearLogs() { setLogs([]); setProgress({}); }
+
+  return (
+    <div className="space-y-5">
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 flex items-start gap-3">
+        <Factory size={18} className="text-blue-500 shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-800">
+          <span className="font-bold">Test Verisi Üretici</span>
+          {" — "}Seçtiğiniz varlık türü için belirlediğiniz sayıda <strong>kalıcı</strong> test kaydı oluşturur.
+          Oluşturulan veriler silinmez; tüm ekranlarda (Ürünler, Siparişler vb.) görünür ve kullanılabilir.
+          <span className="ml-1 text-blue-600 font-medium">Şifre: Test1234!</span>
+        </div>
+      </div>
+
+      {/* Entity grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {SEED_ENTITIES.map(entity => {
+          const colors = SEED_COLOR[entity.color] ?? SEED_COLOR.teal;
+          const isLoading = loading[entity.id];
+          const prog = progress[entity.id];
+
+          return (
+            <div key={entity.id} className={`rounded-2xl border p-4 flex flex-col gap-3 ${colors.card}`}>
+              {/* Header */}
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colors.badge}`}>
+                  <entity.icon size={15} />
+                </div>
+                <span className="font-bold text-sm text-slate-800">{entity.label}</span>
+                {entity.requires && (
+                  <span className="ml-auto text-[10px] bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    {entity.requires}
+                  </span>
+                )}
+              </div>
+
+              {/* Description */}
+              <p className="text-xs text-slate-500 leading-relaxed">{entity.description}</p>
+              {entity.hint && <p className="text-[11px] text-amber-600 font-medium">⚠ {entity.hint}</p>}
+
+              {/* Count input */}
+              <div className="flex items-center gap-2">
+                <Hash size={12} className="text-slate-400 shrink-0" />
+                <span className="text-xs text-slate-500 shrink-0">Adet:</span>
+                <div className="flex items-center gap-1 flex-1">
+                  <button
+                    onClick={() => setCounts(c => ({ ...c, [entity.id]: Math.max(1, (c[entity.id] ?? 10) - 5) }))}
+                    className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-xs transition"
+                  ><Minus size={10} /></button>
+                  <input
+                    type="number" min={1} max={500}
+                    value={counts[entity.id] ?? 10}
+                    onChange={e => setCounts(c => ({ ...c, [entity.id]: Math.max(1, Math.min(500, parseInt(e.target.value) || 1)) }))}
+                    className="flex-1 min-w-0 text-center text-sm font-bold border border-slate-200 rounded-lg py-1 bg-white focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  />
+                  <button
+                    onClick={() => setCounts(c => ({ ...c, [entity.id]: Math.min(500, (c[entity.id] ?? 10) + 5) }))}
+                    className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-xs transition"
+                  >+</button>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {prog && (
+                <div className="space-y-1">
+                  <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden border border-slate-200">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${prog.total > 0 ? (prog.done / prog.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 text-right">{prog.done}/{prog.total}</p>
+                </div>
+              )}
+
+              {/* Button */}
+              <button
+                onClick={() => generate(entity)}
+                disabled={isLoading}
+                className={`flex items-center justify-center gap-1.5 text-white text-sm font-bold py-2 px-3 rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed ${colors.btn}`}
+              >
+                {isLoading
+                  ? <><Loader2 size={14} className="animate-spin" /> Oluşturuluyor...</>
+                  : <><Factory size={14} /> {counts[entity.id] ?? 10} Kayıt Oluştur</>
+                }
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* All at once */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={generateAll}
+          disabled={Object.values(loading).some(Boolean)}
+          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 shadow"
+        >
+          <Factory size={15} />
+          Tüm Varlıkları Oluştur
+        </button>
+        <button onClick={clearLogs} className="text-xs text-slate-400 hover:text-slate-600 transition px-2 py-1.5">
+          Logları Temizle
+        </button>
+      </div>
+
+      {/* Log output */}
+      {logs.length > 0 && (
+        <div
+          ref={logRef}
+          className="bg-slate-900 rounded-2xl p-4 font-mono text-xs space-y-1 max-h-64 overflow-y-auto"
+        >
+          {logs.map((log, i) => (
+            <div key={i} className={`flex items-start gap-2 ${
+              log.type === "ok" ? "text-emerald-400" :
+              log.type === "error" ? "text-red-400" :
+              log.type === "warn" ? "text-amber-400" :
+              "text-slate-300"
+            }`}>
+              {log.type === "ok"    && <CheckCircle size={12} className="shrink-0 mt-0.5" />}
+              {log.type === "error" && <XCircleIcon size={12} className="shrink-0 mt-0.5" />}
+              {log.type === "warn"  && <AlertTriangle size={12} className="shrink-0 mt-0.5" />}
+              {log.type === "info"  && <span className="w-3 shrink-0" />}
+              <span>{log.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TestModelPanel() {
   const [open, setOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("users");
@@ -781,7 +997,10 @@ function TestModelPanel() {
   );
 }
 
+type MainTab = "scenarios" | "seed";
+
 export default function TestPage() {
+  const [mainTab, setMainTab] = useState<MainTab>("scenarios");
   const [results, setResults] = useState<Record<string, { status: Status; note: string }>>(loadResults);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(TEST_GROUPS.map(g => [g.id, g.id === "smoke"]))
@@ -951,6 +1170,32 @@ export default function TestPage() {
         </div>
       </div>
 
+      {/* ── Main Tab Switcher ── */}
+      <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 self-start w-fit shadow-sm">
+        <button
+          onClick={() => setMainTab("scenarios")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+            mainTab === "scenarios" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+          }`}
+        >
+          <FlaskConical size={14} /> Test Senaryoları
+        </button>
+        <button
+          onClick={() => setMainTab("seed")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+            mainTab === "seed" ? "bg-teal-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+          }`}
+        >
+          <Factory size={14} /> Test Verisi Üret
+        </button>
+      </div>
+
+      {/* ── Seed Data Tab ── */}
+      {mainTab === "seed" && <SeedDataTab />}
+
+      {/* ── Scenarios Tab ── */}
+      {mainTab === "scenarios" && <>
+
       {/* ── Test Model Reference ── */}
       <TestModelPanel />
 
@@ -997,6 +1242,7 @@ export default function TestPage() {
         </div>
       )}
 
+      {/* filteredGroups rendered below — inside scenarios tab */}
       {filteredGroups.map(group => {
         const allGroupCases = TEST_GROUPS.find(g => g.id === group.id)!.cases;
         const gPass     = allGroupCases.filter(c => results[c.id]?.status === "pass").length;
@@ -1209,6 +1455,8 @@ export default function TestPage() {
           </div>
         );
       })}
+
+      </> /* end scenarios tab */}
     </div>
   );
 }

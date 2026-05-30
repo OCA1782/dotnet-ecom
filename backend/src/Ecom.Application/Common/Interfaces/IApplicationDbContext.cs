@@ -44,6 +44,8 @@ public interface IApplicationDbContext
     DbSet<Invoice> Invoices { get; }
     DbSet<InvoiceItem> InvoiceItems { get; }
     DbSet<Announcement> Announcements { get; }
+    DbSet<DeployServer> DeployServers { get; }
+    DbSet<DeployLog> DeployLogs { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -46,6 +46,6 @@ public class RefreshTokenHandler(
 
         return Result<LoginResult>.Success(new LoginResult(
             stored.User.Id, stored.User.Name, stored.User.Surname, stored.User.Email,
-            accessToken, roles, newToken.Token));
+            accessToken, roles, newToken.Token, stored.User.AvatarUrl));
     }
 }

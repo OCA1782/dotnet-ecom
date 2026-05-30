@@ -1,27 +1,47 @@
-name: Deploy to Fly.io
+name: Deploy to Hetzner
 
 on:
   push:
     branches: [main]
     paths:
       - 'backend/**'
-      - 'fly.toml'
+      - 'frontend/admin/**'
+      - 'frontend/customer/**'
+      - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
 
 jobs:
   deploy:
-    name: Deploy API
+    name: Deploy to Hetzner Dev Server
     runs-on: ubuntu-latest
     concurrency:
-      group: deploy-production
+      group: deploy-hetzner
       cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.HETZNER_PASSWORD }}
+          script: |
+            set -e
+            cd /opt/ecom
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+            echo "→ Pulling latest changes..."
+            git fetch origin main
+            git reset --hard origin/main
 
-      - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+            echo "→ Building and restarting containers..."
+            docker compose build --no-cache
+            docker compose up -d
+
+            echo "→ Removing unused images..."
+            docker image prune -f
+
+            echo "→ Verifying health..."
+            sleep 10
+            curl -sf http://localhost:5124/health || (echo "API health check failed" && exit 1)
+
+            echo "✓ Deploy completed successfully"

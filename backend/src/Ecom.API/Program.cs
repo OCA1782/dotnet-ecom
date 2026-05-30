@@ -175,7 +175,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment()) app.UseHttpsRedirection();
 app.MapControllers().RequireRateLimiting("api");
 app.MapHealthChecks("/health");
 

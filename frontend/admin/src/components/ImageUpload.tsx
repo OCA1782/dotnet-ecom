@@ -9,16 +9,17 @@ interface Props {
   onChange: (url: string) => void;
   label?: string;
   previewSize?: "sm" | "md";
+  shape?: "square" | "circle";
 }
 
-export default function ImageUpload({ value, onChange, label, previewSize = "md" }: Props) {
+export default function ImageUpload({ value, onChange, label, previewSize = "md", shape = "square" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const previewCls = previewSize === "sm"
-    ? "w-16 h-16"
-    : "w-24 h-24";
+  const sizeCls = previewSize === "sm" ? "w-16 h-16" : "w-24 h-24";
+  const shapeCls = shape === "circle" ? "rounded-full" : "rounded-xl";
+  const previewCls = `${sizeCls} ${shapeCls}`;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -41,7 +42,7 @@ export default function ImageUpload({ value, onChange, label, previewSize = "md"
       {label && <p className="text-xs font-semibold text-slate-600">{label}</p>}
       <div className="flex items-center gap-3">
         {/* Preview */}
-        <div className={`${previewCls} rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0`}>
+        <div className={`${previewCls} border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0`}>
           {value
             ? <img src={value} alt="" className="object-contain w-full h-full p-1" /> // eslint-disable-line @next/next/no-img-element
             : <ImagePlus size={20} className="text-slate-300" />

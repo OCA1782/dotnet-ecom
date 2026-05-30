@@ -48,6 +48,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<DeployServer> DeployServers => Set<DeployServer>();
+    public DbSet<DeployLog> DeployLogs => Set<DeployLog>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

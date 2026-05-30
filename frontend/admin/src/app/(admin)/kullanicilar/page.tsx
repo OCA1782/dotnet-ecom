@@ -62,9 +62,9 @@ const ALL_ROLES = [
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
-interface NewUserForm { name: string; surname: string; email: string; password: string; role: string; }
+interface NewUserForm { name: string; surname: string; email: string; password: string; role: string; phone: string; avatarUrl: string; }
 interface EditUserForm { id: string; name: string; surname: string; email: string; phoneNumber: string; role: string; profileImageUrl: string; }
-const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: "", role: "Customer" };
+const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: "", role: "Customer", phone: "", avatarUrl: "" };
 
 const PAGE_SIZES = [20, 50, 100];
 
@@ -142,7 +142,15 @@ export default function UsersPage() {
     }
     setSaving(true); setFormError("");
     try {
-      await api.post("/api/admin/users", form);
+      await api.post("/api/admin/users", {
+        name: form.name,
+        surname: form.surname,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        phone: form.phone || null,
+        avatarUrl: form.avatarUrl || null,
+      });
       setMsg({ text: "Kullanıcı oluşturuldu.", ok: true });
       setShowModal(false); setForm(EMPTY_USER);
       await fetchUsers();
@@ -151,7 +159,7 @@ export default function UsersPage() {
   }
 
   function openEdit(u: AdminUser) {
-    setEditForm({ id: u.id, name: u.name, surname: u.surname, email: u.email, phoneNumber: u.phoneNumber ?? "", role: u.roles?.[0] ?? "Customer", profileImageUrl: "" });
+    setEditForm({ id: u.id, name: u.name, surname: u.surname, email: u.email, phoneNumber: u.phoneNumber ?? "", role: u.roles?.[0] ?? "Customer", profileImageUrl: u.avatarUrl ?? "" });
     setEditError("");
     setEditModal(true);
   }
@@ -168,6 +176,7 @@ export default function UsersPage() {
         role: editForm.role,
         email: editForm.email,
         phoneNumber: editForm.phoneNumber || null,
+        avatarUrl: editForm.profileImageUrl || null,
       });
       setMsg({ text: "Kullanıcı güncellendi.", ok: true });
       setEditModal(false);
@@ -324,7 +333,17 @@ export default function UsersPage() {
                 <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
-                  <td className="px-5 py-3.5 font-medium text-slate-900 text-xs">{u.name} {u.surname}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                        {u.avatarUrl
+                          ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" /> // eslint-disable-line @next/next/no-img-element
+                          : <span className="text-xs font-bold text-slate-400">{u.name[0]}{u.surname[0]}</span>
+                        }
+                      </div>
+                      <span className="font-medium text-slate-900 text-xs">{u.name} {u.surname}</span>
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5 text-slate-500 text-xs">{u.email}</td>
                   <td className="px-5 py-3.5 text-slate-500 text-xs">{u.phoneNumber ?? <span className="text-slate-300">—</span>}</td>
                   <td className="px-5 py-3.5">
@@ -445,13 +464,19 @@ export default function UsersPage() {
       {/* Create modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h2 className="font-bold text-slate-800">Yeni Kullanıcı</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
               {formError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>}
+              <ImageUpload
+                value={form.avatarUrl}
+                onChange={url => setForm(f => ({ ...f, avatarUrl: url }))}
+                label="Profil Fotoğrafı"
+                shape="circle"
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
@@ -466,9 +491,15 @@ export default function UsersPage() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
                 <input type="email" className={INPUT} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Şifre *</label>
-                <input type="password" className={INPUT} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Şifre *</label>
+                  <input type="password" className={INPUT} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                  <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
@@ -571,6 +602,7 @@ export default function UsersPage() {
                 value={editForm.profileImageUrl}
                 onChange={url => setEditForm(f => ({ ...f, profileImageUrl: url }))}
                 label="Profil Fotoğrafı"
+                shape="circle"
               />
               <div className="grid grid-cols-2 gap-3">
                 <div>

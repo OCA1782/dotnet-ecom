@@ -10,7 +10,7 @@ import {
   Activity, Target, ShieldAlert, Settings, Database, MapPin,
   PanelLeftClose, PanelLeftOpen, FlaskConical, BarChart3,
   HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
-  Truck, FileText, Megaphone, User, KeyRound, Shield,
+  Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
@@ -55,6 +55,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/servisler",    label: "Servisler",     icon: HeartPulse,      group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/kuyruklar",    label: "Kuyruklar",     icon: Inbox,           group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/dokuman",      label: "Dokümanlar",    icon: BookOpen,        group: "sistem" },
+  { href: "/deploy",       label: "Deploy",        icon: Rocket,          group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
 ];
 
 type NavGroup = { id: NavItem["group"]; label: string; iconName?: string };
@@ -507,8 +508,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onClick={openUserMenu}
                 className="flex items-center gap-2 pl-3 border-l border-slate-200 hover:bg-slate-50 rounded-xl px-2 py-1.5 transition"
               >
-                <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-teal-600 overflow-hidden flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {user.avatarUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    : <>{user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}</>
+                  }
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className="text-xs font-semibold text-slate-800 leading-tight">{user.name} {user.surname}</p>
@@ -530,8 +535,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div style={{ padding: "1rem", borderBottom: "1px solid #f1f5f9", background: "linear-gradient(135deg,#f0fdfa,#f8fafc)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: "#0d9488",
-                  display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>
-                  {user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}
+                  display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0, overflow: "hidden" }}>
+                  {user.avatarUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={user.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <>{user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}</>
+                  }
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ margin: 0, fontWeight: 700, fontSize: "0.875rem", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

@@ -16,6 +16,7 @@ interface LoginResult {
   token: string;
   roles: string[];
   refreshToken?: string;
+  avatarUrl?: string;
 }
 
 export function useAdminAuth() {
@@ -40,7 +41,7 @@ export function useAdminAuth() {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
     localStorage.setItem(TOKEN_KEY, data.token);
     const authUser: AuthUser = {
-      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles,
+      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles, avatarUrl: data.avatarUrl,
     };
     localStorage.setItem(USER_KEY, JSON.stringify(authUser));
     if (data.refreshToken) {
@@ -59,7 +60,7 @@ export function useAdminAuth() {
       const data = await api.post<LoginResult>("/api/auth/refresh", { refreshToken });
       localStorage.setItem(TOKEN_KEY, data.token);
       const authUser: AuthUser = {
-        userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles,
+        userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles, avatarUrl: data.avatarUrl,
       };
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));
       if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);

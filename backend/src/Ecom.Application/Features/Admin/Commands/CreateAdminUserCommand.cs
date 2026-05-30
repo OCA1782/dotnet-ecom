@@ -14,7 +14,9 @@ public record CreateAdminUserCommand(
     string Surname,
     string Email,
     string Password,
-    string Role
+    string Role,
+    string? Phone = null,
+    string? AvatarUrl = null
 ) : IRequest<Result<Guid>>;
 
 public class CreateAdminUserValidator : AbstractValidator<CreateAdminUserCommand>
@@ -50,6 +52,8 @@ public class CreateAdminUserHandler(
             Surname = request.Surname,
             Email = request.Email,
             PasswordHash = passwordService.Hash(request.Password),
+            PhoneNumber = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone,
+            AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl,
             IsActive = true,
             EmailConfirmed = true,
         };

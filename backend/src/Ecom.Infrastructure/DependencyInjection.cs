@@ -65,6 +65,9 @@ public static class DependencyInjection
         services.AddScoped<ILicenseService, LicenseService>();
         services.AddScoped<IDapperQueryService, DapperQueryService>();
         services.AddSingleton<IServiceStateManager, ServiceStateManager>();
+        services.AddSingleton<IDeployStreamHub, DeployStreamHub>();
+        services.AddScoped<IDeployService, DeployService>();
+        services.AddDataProtection();
 
         var redisConn = configuration.GetConnectionString("Redis");
         if (!string.IsNullOrWhiteSpace(redisConn))

@@ -8,7 +8,7 @@ namespace Ecom.Application.Features.Auth.Commands;
 
 public record LoginCommand(string Email, string Password, bool RememberMe = false) : IRequest<Result<LoginResult>>;
 
-public record LoginResult(Guid UserId, string Name, string Surname, string Email, string Token, IEnumerable<string> Roles, string? RefreshToken = null);
+public record LoginResult(Guid UserId, string Name, string Surname, string Email, string Token, IEnumerable<string> Roles, string? RefreshToken = null, string? AvatarUrl = null);
 
 public class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
@@ -98,6 +98,6 @@ public class LoginCommandHandler(
         await auditService.LogAsync("Login", "User", user.Id.ToString(), userId: user.Id, cancellationToken: cancellationToken);
 
         var token = jwtService.GenerateToken(user, roles);
-        return Result<LoginResult>.Success(new LoginResult(user.Id, user.Name, user.Surname, user.Email, token, roles, refreshTokenValue));
+        return Result<LoginResult>.Success(new LoginResult(user.Id, user.Name, user.Surname, user.Email, token, roles, refreshTokenValue, user.AvatarUrl));
     }
 }

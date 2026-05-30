@@ -66,5 +66,15 @@ dev.log
 .env
 docker-compose.override.yml
 
+# Claude Code memory / session files
+.claude/
+
+# Uploaded files (runtime)
+backend/src/Ecom.API/uploads/
+
+# Temp files accidentally created in wrong path
+frontend/admin/C:*
+frontend/customer/C:*
+
 # Design reference assets
 logo/

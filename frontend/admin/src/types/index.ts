@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   token: string;
   roles: string[];
+  avatarUrl?: string;
 }
 
 export interface PaginatedList<T> {
@@ -178,6 +179,7 @@ export interface AdminUser {
   surname: string;
   email: string;
   phoneNumber?: string;
+  avatarUrl?: string;
   isActive: boolean;
   createdDate: string;
   roles: string[];

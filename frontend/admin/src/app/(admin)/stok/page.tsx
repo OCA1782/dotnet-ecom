@@ -21,6 +21,17 @@ interface StockMovementRow {
   orderId?: string; note?: string; createdDate: string;
 }
 
+interface AuditLog {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityId?: string;
+  oldValue?: string;
+  newValue?: string;
+  ipAddress?: string;
+  createdDate: string;
+}
+
 const MOVEMENT_TYPE_LABELS: Record<string, string> = {
   StockIn: "Stok Girişi", StockOut: "Stok Çıkışı",
   Adjustment: "Düzeltme", Return: "İade",
@@ -31,8 +42,11 @@ export default function StockPage() {
 
   // Per-row item history
   const [itemHistoryTarget, setItemHistoryTarget] = useState<StockItem | null>(null);
+  const [itemHistoryTab, setItemHistoryTab] = useState<"hareketler" | "audit">("hareketler");
   const [itemMovements, setItemMovements] = useState<StockMovementRow[]>([]);
   const [itemMovementsLoading, setItemMovementsLoading] = useState(false);
+  const [itemAuditLogs, setItemAuditLogs] = useState<AuditLog[]>([]);
+  const [itemAuditLoading, setItemAuditLoading] = useState(false);
 
   const loadItemMovements = useCallback(async (productId: string) => {
     setItemMovementsLoading(true);
@@ -46,9 +60,23 @@ export default function StockPage() {
     }
   }, []);
 
+  const loadItemAuditLogs = useCallback(async (productId: string) => {
+    setItemAuditLoading(true);
+    setItemAuditLogs([]);
+    try {
+      const data = await api.get<{ items: AuditLog[]; totalCount: number }>(
+        `/api/admin/audit-logs/entity/Stok/${productId}`
+      );
+      setItemAuditLogs(data.items);
+    } catch { setItemAuditLogs([]); }
+    finally { setItemAuditLoading(false); }
+  }, []);
+
   function openItemHistory(s: StockItem) {
     setItemHistoryTarget(s);
+    setItemHistoryTab("hareketler");
     loadItemMovements(s.productId);
+    loadItemAuditLogs(s.productId);
   }
 
   // Movement history
@@ -655,48 +683,95 @@ export default function StockPage() {
               </div>
               <button onClick={() => setItemHistoryTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
             </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 px-6 pt-3 pb-0 shrink-0 border-b border-slate-100">
+              {(["hareketler", "audit"] as const).map(t => (
+                <button key={t} onClick={() => setItemHistoryTab(t)}
+                  className={`px-4 py-2 text-xs font-medium rounded-t-lg transition-colors ${itemHistoryTab === t ? "bg-white border border-b-white border-slate-200 text-slate-800 -mb-px" : "text-slate-500 hover:text-slate-700"}`}>
+                  {t === "hareketler" ? "Stok Hareketleri" : "Audit Log"}
+                </button>
+              ))}
+            </div>
+
             <div className="overflow-y-auto flex-1">
-              {itemMovementsLoading ? (
-                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
-              ) : itemMovements.length === 0 ? (
-                <p className="p-8 text-center text-slate-400">Bu ürüne ait stok hareketi bulunamadı.</p>
+              {itemHistoryTab === "hareketler" ? (
+                itemMovementsLoading ? (
+                  <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                ) : itemMovements.length === 0 ? (
+                  <p className="p-8 text-center text-slate-400">Bu ürüne ait stok hareketi bulunamadı.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                      <tr>
+                        {["Tarih", "Tip", "Miktar", "Önceki", "Sonraki", "Not"].map(h => (
+                          <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {itemMovements.map(m => {
+                        const typeColor = m.movementType === "StockIn" || m.movementType === "Return"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : m.movementType === "StockOut"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700";
+                        return (
+                          <tr key={m.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                              {new Date(m.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
+                                {MOVEMENT_TYPE_LABELS[m.movementType] ?? m.movementType}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 text-xs font-bold ${m.movementType === "StockOut" ? "text-red-600" : "text-emerald-600"}`}>
+                              {m.movementType === "StockOut" ? `-${m.quantity}` : m.movementType === "Adjustment" ? m.quantity : `+${m.quantity}`}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{m.quantityBefore}</td>
+                            <td className="px-4 py-3 text-xs text-slate-700 font-medium">{m.quantityAfter}</td>
+                            <td className="px-4 py-3 text-xs text-slate-400 max-w-[160px] truncate">{m.note ?? "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )
               ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                    <tr>
-                      {["Tarih", "Tip", "Miktar", "Önceki", "Sonraki", "Not"].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {itemMovements.map(m => {
-                      const typeColor = m.movementType === "StockIn" || m.movementType === "Return"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : m.movementType === "StockOut"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700";
-                      return (
-                        <tr key={m.id} className="hover:bg-slate-50">
+                itemAuditLoading ? (
+                  <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                ) : itemAuditLogs.length === 0 ? (
+                  <p className="p-8 text-center text-slate-400">Bu ürüne ait audit kaydı bulunamadı.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                      <tr>
+                        {["Tarih", "İşlem", "Kullanıcı", "Detay"].map(h => (
+                          <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {itemAuditLogs.map(log => (
+                        <tr key={log.id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                            {new Date(m.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                            {new Date(log.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
-                              {MOVEMENT_TYPE_LABELS[m.movementType] ?? m.movementType}
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                              {log.action}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 text-xs font-bold ${m.movementType === "StockOut" ? "text-red-600" : "text-emerald-600"}`}>
-                            {m.movementType === "StockOut" ? `-${m.quantity}` : m.movementType === "Adjustment" ? m.quantity : `+${m.quantity}`}
+                          <td className="px-4 py-3 text-xs text-slate-600">{log.userEmail}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400 max-w-[200px] truncate">
+                            {log.newValue ?? log.oldValue ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-400">{m.quantityBefore}</td>
-                          <td className="px-4 py-3 text-xs text-slate-700 font-medium">{m.quantityAfter}</td>
-                          <td className="px-4 py-3 text-xs text-slate-400 max-w-[160px] truncate">{m.note ?? "—"}</td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                )
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
