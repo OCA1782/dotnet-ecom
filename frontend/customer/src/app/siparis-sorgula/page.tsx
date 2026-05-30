@@ -132,7 +132,7 @@ export default function SiparisSorgulaPage() {
               </div>
               {(() => { const st = orderStatusStyle(order.status); return (
                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${st.cls}`}>{st.label}</span>
-              );})()
+              );})()}
             </div>
 
             {/* Items */}
