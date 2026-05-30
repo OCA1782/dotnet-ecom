@@ -13,8 +13,6 @@ obj/
 *.tmp
 TestResults/
 
-# EF migrations designer files
-Migrations/
 
 # Sensitive config — create appsettings.Development.json locally
 appsettings.Development.json
