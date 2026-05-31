@@ -93,6 +93,12 @@ public class JobsController(
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
         Response.Headers.Connection = "keep-alive";
+        Response.Headers.Append("X-Accel-Buffering", "no"); // nginx proxy için SSE buffer kapatma
+
+        // Job henüz başlamadıysa kısa süre bekle (tetikleme → scheduler döngüsü arasındaki gecikme)
+        var deadline = DateTime.UtcNow.AddSeconds(6);
+        while (!hub.IsActive(name) && DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
+            await Task.Delay(250, ct);
 
         if (!hub.IsActive(name))
         {

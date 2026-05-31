@@ -110,37 +110,58 @@ function TerminalModal({ jobName, onClose }: { jobName: string; onClose: () => v
   const [done, setDone] = useState(false);
   const [finalStatus, setFinalStatus] = useState<"success" | "failed" | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
 
   useEffect(() => {
-    const url = `${API}/api/admin/jobs/${encodeURIComponent(jobName)}/stream`;
-    const es = new EventSource(`${url}?token=${token}`);
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const abortCtrl = new AbortController();
 
-    es.onmessage = (e) => {
-      const data = e.data as string;
-      if (data === "__NOTRUNNING__") {
-        setLines(["⚠ Job şu anda çalışmıyor. Tetiklemek için 'Çalıştır' butonunu kullanın."]);
-        setDone(true);
-        es.close();
-        return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/api/admin/jobs/${encodeURIComponent(jobName)}/stream`,
+          { headers: { Authorization: `Bearer ${token ?? ""}` }, signal: abortCtrl.signal }
+        );
+        if (!res.body) {
+          setLines(["⚠ Stream başlatılamadı."]);
+          setDone(true);
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done: streamDone, value } = await reader.read();
+          if (streamDone) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split("\n\n");
+          buf = parts.pop() ?? "";
+          for (const part of parts) {
+            const line = part.startsWith("data: ") ? part.slice(6) : part;
+            if (!line.trim()) continue;
+            if (line === "__NOTRUNNING__") {
+              setLines(["⚠ Job şu anda çalışmıyor. 'Çalıştır' butonuna tıklayın."]);
+              setDone(true);
+              return;
+            }
+            if (line.startsWith("__DONE__")) {
+              const st = line.slice(8) as "success" | "failed";
+              setFinalStatus(st);
+              setDone(true);
+              return;
+            }
+            setLines(prev => [...prev, line.replace(/\\n/g, "\n")]);
+          }
+        }
+      } catch (err) {
+        if (!abortCtrl.signal.aborted) {
+          setLines(prev => [...prev, "⚠ Bağlantı kesildi."]);
+          setDone(true);
+        }
       }
-      if (data.startsWith("__DONE__")) {
-        const st = data.slice(8) as "success" | "failed";
-        setFinalStatus(st);
-        setDone(true);
-        es.close();
-        return;
-      }
-      setLines(prev => [...prev, data.replace(/\\n/g, "\n")]);
-    };
-    es.onerror = () => {
-      setLines(prev => [...prev, "⚠ Bağlantı kesildi."]);
-      setDone(true);
-      es.close();
-    };
+    })();
 
-    return () => es.close();
-  }, [jobName, token]);
+    return () => abortCtrl.abort();
+  }, [jobName]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
