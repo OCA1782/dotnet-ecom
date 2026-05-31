@@ -69,6 +69,8 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
       - ConnectionStrings__Redis=redis:6379
       - ECOM_LICENSE=${ECOM_LICENSE:-}
+      - FrontendUrls__CustomerUrl=http://customer:3000
+      - FrontendUrls__AdminUrl=http://admin:3001
     depends_on:
       db:
         condition: service_healthy

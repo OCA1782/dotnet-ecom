@@ -18,10 +18,8 @@ public class FrontendHealthJob(IHttpClientFactory httpFactory, IMemoryCache cach
     {
         await log("Frontend servis sağlık kontrolleri...");
 
-        var apiUrl = config["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5124";
-        var baseHost = ExtractHost(apiUrl);
-        var customerUrl = $"http://{baseHost}:3000";
-        var adminUrl = $"http://{baseHost}:3001";
+        var customerUrl = config["FrontendUrls:CustomerUrl"] ?? "http://localhost:3000";
+        var adminUrl    = config["FrontendUrls:AdminUrl"]    ?? "http://localhost:3001";
 
         var customerTask = CheckAsync(customerUrl, ct);
         var adminTask = CheckAsync(adminUrl, ct);
@@ -54,12 +52,6 @@ public class FrontendHealthJob(IHttpClientFactory httpFactory, IMemoryCache cach
             sw.Stop();
             return new FrontendServiceHealth(url, "Unhealthy", null, sw.ElapsedMilliseconds, ex.Message);
         }
-    }
-
-    private static string ExtractHost(string url)
-    {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var u)) return u.Host;
-        return "localhost";
     }
 
     private static string FormatHealth(FrontendServiceHealth h) =>
