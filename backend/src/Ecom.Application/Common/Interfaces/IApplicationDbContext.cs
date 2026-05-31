@@ -46,6 +46,7 @@ public interface IApplicationDbContext
     DbSet<Announcement> Announcements { get; }
     DbSet<DeployServer> DeployServers { get; }
     DbSet<DeployLog> DeployLogs { get; }
+    DbSet<JobLog> JobLogs { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

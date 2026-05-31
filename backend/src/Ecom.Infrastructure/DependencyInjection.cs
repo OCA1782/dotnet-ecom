@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Features.Admin;
+using Ecom.Infrastructure.Jobs;
 using Ecom.Infrastructure.Messaging;
 using Ecom.Infrastructure.Messaging.Consumers;
 using Ecom.Infrastructure.Messaging.Sagas;
@@ -108,6 +109,27 @@ public static class DependencyInjection
         });
 
         services.AddHostedService<OutboxProcessor>();
+
+        // Background jobs
+        services.AddSingleton<IJobStreamHub, JobStreamHub>();
+        services.AddSingleton<IJobRunner, DocsRefreshJob>();
+        services.AddSingleton<IJobRunner, TestSyncJob>();
+        services.AddSingleton<IJobRunner, SystemHealthJob>();
+        services.AddSingleton<IJobRunner, QueueMonitorJob>();
+        services.AddSingleton<IJobRunner, FrontendHealthJob>();
+        services.AddSingleton<IJobRunner, StockAlertJob>();
+        services.AddSingleton<IJobRunner, OutboxRetryJob>();
+        services.AddSingleton<IJobRunner, SessionCleanupJob>();
+        services.AddSingleton<IJobRunner, TokenCleanupJob>();
+        services.AddSingleton<IJobRunner, ErrorLogRetentionJob>();
+        services.AddSingleton<IJobRunner, AuditLogRetentionJob>();
+        services.AddSingleton<IJobRunner, VisitorLogRetentionJob>();
+        services.AddSingleton<IJobRunner, ChangelogDocsJob>();
+        services.AddSingleton<IJobRunner, WorkNotesDocsJob>();
+        services.AddSingleton<IJobRunner, BusinessProcessDocsJob>();
+        services.AddSingleton<IJobRunner, TechAnalysisDocsJob>();
+        services.AddSingleton<JobScheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
 
         return services;
     }

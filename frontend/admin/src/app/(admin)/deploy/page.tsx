@@ -638,18 +638,63 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
   const [done, setDone] = useState(false);
   const [status, setStatus] = useState<"running" | "success" | "failed">("running");
   const [currentStep, setCurrentStep] = useState(0);
+  const [visualPercent, setVisualPercent] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const startRef = useRef(Date.now());
+  const currentStepRef = useRef(0);
+  const doneRef = useRef(false);
 
   // Elapsed timer
   useEffect(() => {
     if (done) return;
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
     return () => clearInterval(id);
+  }, [done]);
+
+  // Keep refs in sync for smooth animation
+  useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
+  useEffect(() => { doneRef.current = done; }, [done]);
+
+  // Smooth progress bar animation
+  useEffect(() => {
+    if (done) { setVisualPercent(100); return; }
+
+    let frameId: number;
+    let lastTime = performance.now();
+
+    function tick(now: number) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      setVisualPercent(prev => {
+        if (doneRef.current) return 100;
+        const step = currentStepRef.current;
+        // Real floor: position of current step
+        const realFloor = (step / 6) * 100;
+        // Cap: never show more than 92% of next step unless real step arrives
+        const cap = ((step + 0.92) / 6) * 100;
+
+        if (prev < realFloor) {
+          // Snap up to real floor quickly
+          return Math.min(realFloor, prev + 15 * dt);
+        }
+        if (prev >= cap) return prev;
+
+        // Slow creep toward cap: starts fast, decelerates
+        const remaining = cap - prev;
+        const speed = Math.max(0.3, remaining * 0.08); // 8% of remaining per second
+        return Math.min(cap, prev + speed * dt);
+      });
+
+      frameId = requestAnimationFrame(tick);
+    }
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
   }, [done]);
 
   // SSE stream
@@ -722,8 +767,6 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
     });
   }
 
-  const stepProgress = done ? 6 : currentStep;
-
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-[#0d1117] rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl max-h-[90vh] sm:max-h-[85vh] flex flex-col border border-white/5">
@@ -772,30 +815,45 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
             </div>
           </div>
 
-          {/* Step progress bar */}
-          <div className="flex items-center gap-1">
-            {DEPLOY_STEPS.map((step, i) => {
-              const n = i + 1;
-              const active = n === stepProgress && !done;
-              const done_ = n < stepProgress || done;
-              const failed_ = done && status === "failed" && n === stepProgress;
-              return (
-                <div key={step} className="flex-1 flex flex-col items-center gap-1">
-                  <div className={`h-1 w-full rounded-full transition-all duration-500 ${
-                    failed_     ? "bg-red-500" :
-                    done_       ? "bg-teal-500" :
-                    active      ? "bg-teal-400 animate-pulse" :
-                    "bg-white/10"
-                  }`} />
-                  <span className={`text-[9px] font-medium transition-colors hidden sm:block ${
-                    failed_ ? "text-red-400" :
-                    done_   ? "text-teal-500" :
-                    active  ? "text-teal-300" :
-                    "text-slate-700"
-                  }`}>{step}</span>
-                </div>
-              );
-            })}
+          {/* Smooth continuous progress bar with step markers */}
+          <div className="flex flex-col gap-1.5">
+            {/* Bar */}
+            <div className="relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={`absolute inset-y-0 left-0 rounded-full transition-[width] ${
+                  done && status === "failed" ? "bg-red-500" :
+                  done ? "bg-teal-400" :
+                  "bg-gradient-to-r from-teal-600 to-teal-400"
+                }`}
+                style={{ width: `${visualPercent.toFixed(1)}%` }}
+              />
+              {/* Step marker lines */}
+              {DEPLOY_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute inset-y-0 w-px bg-black/30"
+                  style={{ left: `${((i + 1) / DEPLOY_STEPS.length) * 100}%` }}
+                />
+              ))}
+            </div>
+            {/* Step labels */}
+            <div className="hidden sm:flex items-center">
+              {DEPLOY_STEPS.map((step, i) => {
+                const stepPct = ((i + 1) / DEPLOY_STEPS.length) * 100;
+                const isReached = visualPercent >= stepPct - 0.5;
+                const isCurrent = currentStep === i + 1 && !done;
+                return (
+                  <div key={step} className="flex-1 text-center">
+                    <span className={`text-[9px] font-medium transition-colors ${
+                      done && status === "failed" && currentStep === i + 1 ? "text-red-400" :
+                      isReached ? "text-teal-400" :
+                      isCurrent ? "text-teal-300" :
+                      "text-slate-700"
+                    }`}>{step}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

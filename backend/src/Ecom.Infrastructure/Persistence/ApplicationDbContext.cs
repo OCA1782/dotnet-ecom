@@ -50,7 +50,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<DeployServer> DeployServers => Set<DeployServer>();
     public DbSet<DeployLog> DeployLogs => Set<DeployLog>();
-
+    public DbSet<JobLog> JobLogs => Set<JobLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
