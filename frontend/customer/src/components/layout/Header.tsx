@@ -153,11 +153,15 @@ export default function Header({ logoUrl, logoIconUrl, siteName }: { logoUrl?: s
             <Link href="/" data-slot="logo" className="flex-shrink-0 flex items-center gap-2">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt={siteName ?? "Mağaza"} style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }} />
+                <img src={logoUrl} alt={siteName ?? "Mağaza"}
+                  style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               ) : logoIconUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoIconUrl} alt={siteName ?? "Mağaza"} style={{ height: "64px", width: "auto", objectFit: "contain" }} />
+                  <img src={logoIconUrl} alt={siteName ?? "Mağaza"}
+                    style={{ height: "64px", width: "auto", objectFit: "contain" }}
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   {siteName && <span className="text-base font-bold text-teal-700 tracking-tight hidden sm:inline">{siteName}</span>}
                 </>
               ) : (
