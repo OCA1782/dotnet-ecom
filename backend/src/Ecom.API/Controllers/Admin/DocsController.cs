@@ -77,7 +77,7 @@ public class DocsController(
                 try
                 {
                     using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts2.CancelAfter(TimeSpan.FromSeconds(8));
+                    cts2.CancelAfter(TimeSpan.FromSeconds(25));
                     ghFiles = await GhListFilesAsync(gh, cts2.Token);
                     if (ghFiles.Length > 0)
                         cache.Set(ck, ghFiles, TimeSpan.FromSeconds(60));
@@ -179,8 +179,9 @@ public class DocsController(
 
         var mdFiles = items.Where(i => i.Type == "file" && i.Name.EndsWith(".md")).ToArray();
 
-        // Fetch last-commit date per file in parallel (cached 5 min each)
-        var dates = await Task.WhenAll(mdFiles.Select(f => GhLastModifiedAsync(gh, f.Name, http, ct)));
+        // Fetch last-commit date per file in parallel; use independent CTS so date timeouts don't cancel file listing
+        using var dateCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var dates = await Task.WhenAll(mdFiles.Select(f => GhLastModifiedAsync(gh, f.Name, http, dateCts.Token)));
 
         return mdFiles.Zip(dates)
             .Select(p => (object)new
@@ -246,9 +247,7 @@ public class DocsController(
     {
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        req.Headers.Add("User-Agent", "Ecom-Admin/1.0");
-        req.Headers.Add("Accept", "application/vnd.github+json");
-        req.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+        // User-Agent, Accept, X-GitHub-Api-Version already set on the named "github" HttpClient's DefaultRequestHeaders
         return req;
     }
 
