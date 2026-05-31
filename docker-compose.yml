@@ -72,6 +72,10 @@ services:
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
       - Docs__LocalPath=/app/docs
+      - GitHub__Token=${GITHUB_TOKEN:-REDACTED_GITHUB_TOKEN}
+      - GitHub__Owner=OCA1782
+      - GitHub__Repo=dotnet-ecom-docs
+      - GitHub__DocsPath=
     volumes:
       - uploads:/app/wwwroot/uploads
       - docs:/app/docs
