@@ -71,6 +71,11 @@ services:
       - ECOM_LICENSE=${ECOM_LICENSE:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
+      - Docs__LocalPath=/app/docs
+    volumes:
+      - uploads:/app/wwwroot/uploads
+      - docs:/app/docs
+      - /opt/ecom/.git:/app/.git:ro
     depends_on:
       db:
         condition: service_healthy
@@ -111,3 +116,5 @@ services:
 
 volumes:
   sqldata:
+  uploads:
+  docs:
