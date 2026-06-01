@@ -1,3 +1,4 @@
+using Ecom.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -8,14 +9,13 @@ namespace Ecom.API.Controllers.Admin;
 [Route("api/admin/upload")]
 [Authorize(Roles = "SuperAdmin,Admin,ProductManager,ContentManager")]
 [EnableRateLimiting("upload")]
-public class UploadController(IWebHostEnvironment env) : ControllerBase
+public class UploadController(IStorageService storage) : ControllerBase
 {
     private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     private static readonly string[] AllowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"];
-    private static readonly string[] AllowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/ogg"];
-    private const long MaxImageSize = 5 * 1024 * 1024;   // 5 MB
-    private const long MaxVideoSize = 100 * 1024 * 1024; // 100 MB
-    private static long MaxSize => 100 * 1024 * 1024;
+    private static readonly string[] AllowedTypes = [.. AllowedImageTypes, .. AllowedVideoTypes];
+    private const long MaxImageSize = 5 * 1024 * 1024;
+    private const long MaxVideoSize = 100 * 1024 * 1024;
 
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file, CancellationToken ct)
@@ -31,20 +31,11 @@ public class UploadController(IWebHostEnvironment env) : ControllerBase
         if (file.Length > sizeLimit)
             return BadRequest(new { error = isVideo ? "Video dosyası en fazla 100 MB olabilir." : "Görsel dosyası en fazla 5 MB olabilir." });
 
-        var uploadsPath = Path.Combine(
-            env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),
-            "uploads");
-
-        Directory.CreateDirectory(uploadsPath);
-
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         var fileName = $"{Guid.NewGuid()}{ext}";
-        var filePath = Path.Combine(uploadsPath, fileName);
 
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream, ct);
-
-        var url = $"{Request.Scheme}://{Request.Host}/uploads/{fileName}";
+        await using var stream = file.OpenReadStream();
+        var url = await storage.UploadAsync(stream, fileName, file.ContentType, ct);
         return Ok(new { url });
     }
 }

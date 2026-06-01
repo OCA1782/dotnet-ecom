@@ -69,6 +69,7 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
       - ConnectionStrings__Redis=redis:6379
       - ECOM_LICENSE=${ECOM_LICENSE:-}
+      - Cloudinary__Url=${CLOUDINARY_URL:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
       - Docs__LocalPath=/app/docs
@@ -99,6 +100,7 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
+      - INTERNAL_API_URL=http://api:8080
     depends_on:
       - api
     restart: unless-stopped
@@ -114,6 +116,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - PORT=3001
+      - INTERNAL_API_URL=http://api:8080
     depends_on:
       - api
     restart: unless-stopped

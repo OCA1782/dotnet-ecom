@@ -1,12 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
+using CloudinaryDotNet;
 using Ecom.Infrastructure.Security;
 using Ecom.Application;
 using Ecom.Infrastructure;
 using Ecom.Infrastructure.Persistence;
 using Ecom.API.Middleware;
 using Ecom.API.Filters;
+using Ecom.API.Services;
 using Ecom.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -52,6 +54,18 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddHttpContextAccessor();
+var cloudinaryUrl = builder.Configuration["Cloudinary:Url"];
+if (!string.IsNullOrWhiteSpace(cloudinaryUrl))
+{
+    builder.Services.AddSingleton(new Cloudinary(cloudinaryUrl) { Api = { Secure = true } });
+    builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
+}
+else
+{
+    builder.Services.AddScoped<IStorageService, LocalStorageService>();
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
