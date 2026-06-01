@@ -94,4 +94,12 @@ public class ProductsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetProductHistoryQuery(id), ct);
         return Ok(result);
     }
+
+    [HttpPost("bulk")]
+    [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
+    public async Task<IActionResult> Bulk([FromBody] BulkProductsCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+        return Ok(result);
+    }
 }

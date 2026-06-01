@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 
@@ -151,6 +151,12 @@ export default function AdminProductsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
+  // Bulk selection state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [priceAdjustModal, setPriceAdjustModal] = useState(false);
+  const [priceAdjustPercent, setPriceAdjustPercent] = useState("");
+
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
@@ -181,7 +187,7 @@ export default function AdminProductsPage() {
     finally { setLoading(false); }
   }, [page, pageSize, search, showInactive, filterCategoryId, filterBrandId, sortField, sortDir]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); setSelected(new Set()); }, [fetchProducts]);
 
   useEffect(() => {
     api.get<Category[]>("/api/categories?onlyActive=false").then(data => setCategories(flattenCategories(data))).catch(() => {});
@@ -208,6 +214,46 @@ export default function AdminProductsPage() {
   function clearAllFilters() {
     setSearchInput(""); setSearch(""); setFilterCategoryId(""); setFilterBrandId("");
     setShowInactive(false); setSortField(null); setPage(1);
+  }
+
+  // Bulk selection helpers
+  const allPageIds = products.map(p => p.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selected.has(id));
+  const someSelected = allPageIds.some(id => selected.has(id)) && !allSelected;
+
+  function toggleSelectAll() {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allSelected) allPageIds.forEach(id => next.delete(id));
+      else allPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkAction(action: string, pricePercent?: number) {
+    if (selected.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const body: Record<string, unknown> = { productIds: [...selected], action };
+      if (pricePercent !== undefined) body.priceAdjustPercent = pricePercent;
+      const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
+      const msg = `${r.affected} ürün güncellendi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`;
+      setMsg({ text: msg, ok: true });
+      setSelected(new Set());
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız", ok: false });
+    } finally {
+      setBulkLoading(false);
+    }
   }
 
   // Toggle sort: same field → flip direction; different field → set asc
@@ -586,12 +632,63 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="bg-teal-700 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
+          <span className="text-sm font-semibold shrink-0">
+            {selected.size} ürün seçili
+          </span>
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <button
+              onClick={() => handleBulkAction("activate")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleRight size={14} />}
+              Etkinleştir
+            </button>
+            <button
+              onClick={() => handleBulkAction("deactivate")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <ToggleLeft size={14} /> Devre Dışı
+            </button>
+            <button
+              onClick={() => setPriceAdjustModal(true)}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <Percent size={12} /> Fiyat Ayarla
+            </button>
+            <button
+              onClick={() => handleBulkAction("delete")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50"
+            >
+              <Trash2 size={12} /> Sil
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-teal-600 transition">
+                    {allSelected ? <CheckSquare size={16} className="text-teal-600" /> : someSelected ? <CheckSquare size={16} className="text-slate-400 opacity-60" /> : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">
                   <button onClick={() => handleSort("name")}
                     className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">
@@ -619,11 +716,16 @@ export default function AdminProductsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
               ) : products.map((p) => (
-                <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-50" : ""}`}>
+                <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-60" : ""} ${selected.has(p.id) ? "bg-teal-50/50" : ""}`}>
+                  <td className="px-4 py-3 w-10">
+                    <button onClick={() => toggleSelect(p.id)} className="text-slate-400 hover:text-teal-600 transition">
+                      {selected.has(p.id) ? <CheckSquare size={15} className="text-teal-600" /> : <Square size={15} />}
+                    </button>
+                  </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
@@ -769,6 +871,61 @@ export default function AdminProductsPage() {
               <button type="submit" className="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition">→</button>
             </form>
           )}
+        </div>
+      )}
+
+      {priceAdjustModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+                <Percent size={20} className="text-teal-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">Toplu Fiyat Ayarla</h2>
+                <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Değişim Oranı (%)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Örn: 10 (artış) veya -5 (indirim)"
+                  value={priceAdjustPercent}
+                  onChange={e => setPriceAdjustPercent(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 pr-8"
+                  autoFocus
+                />
+                <span className="absolute right-3 top-2.5 text-slate-400 text-sm">%</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">
+                Pozitif = fiyat artışı, negatif = fiyat indirimi. İndirimli fiyatlar da orantılı güncellenir.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                onClick={() => { setPriceAdjustModal(false); setPriceAdjustPercent(""); }}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={async () => {
+                  const v = parseFloat(priceAdjustPercent);
+                  if (isNaN(v) || v === 0) return;
+                  setPriceAdjustModal(false);
+                  setPriceAdjustPercent("");
+                  await handleBulkAction("price-adjust", v);
+                }}
+                disabled={!priceAdjustPercent || isNaN(parseFloat(priceAdjustPercent)) || parseFloat(priceAdjustPercent) === 0}
+                className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50"
+              >
+                Uygula
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
