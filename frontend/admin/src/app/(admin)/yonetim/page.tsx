@@ -12,7 +12,7 @@ import {
   Users, KeyRound, Database, Wifi, Activity,
   LayoutDashboard, Package, ShoppingCart, Layers, Tag, BarChart3,
   Inbox, BookOpen, Target, Warehouse, MessageSquare, Eye,
-  ExternalLink, Play, Pause, RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -22,12 +22,6 @@ type LicenseDto = {
   id: string; module: string; licenseKey: string; description?: string;
   expiresAt: string; isActive: boolean; notes?: string;
   isExpired: boolean; daysRemaining: number;
-};
-type ServiceState = {
-  name: string; description: string; type: string;
-  isPaused: boolean; isRunning: boolean;
-  lastRunAt: string | null; lastRunResult: string | null; lastRunSuccess: boolean | null;
-  runCount: number; uptimeSeconds: number;
 };
 
 const DEFAULTS: SiteSettings = {
@@ -1189,9 +1183,7 @@ export default function YonetimPage() {
   const [renewMonths, setRenewMonths] = useState(12);
   const [renewing, setRenewing] = useState(false);
   const [renewError, setRenewError] = useState("");
-  const [services, setServices] = useState<ServiceState[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(false);
-  const [serviceAction, setServiceAction] = useState<string | null>(null);
+
   const [devKeyStatus, setDevKeyStatus] = useState<{ isConfigured: boolean; maskedKey: string | null; revealPasswordSet: boolean } | null>(null);
   const [devKeyLoading, setDevKeyLoading] = useState(false);
   const [revealModal, setRevealModal] = useState(false);
@@ -1272,19 +1264,6 @@ export default function YonetimPage() {
     if (tab === "lisans") loadLicenses();
   }, [tab]);
 
-  useEffect(() => {
-    if (tab !== "sistem") return;
-    const fetchServices = () => {
-      setServicesLoading(true);
-      api.get<ServiceState[]>("/api/admin/services")
-        .then(setServices)
-        .catch(() => {})
-        .finally(() => setServicesLoading(false));
-    };
-    fetchServices();
-    const id = setInterval(fetchServices, 10_000);
-    return () => clearInterval(id);
-  }, [tab]);
 
   useEffect(() => {
     if (tab !== "sistem") return;
@@ -1431,23 +1410,6 @@ export default function YonetimPage() {
     }
   }
 
-  async function pauseService(name: string) {
-    setServiceAction(`${name}_pause`);
-    try { await api.post(`/api/admin/services/${encodeURIComponent(name)}/pause`, {}); }
-    catch { } finally { setServiceAction(null); }
-  }
-
-  async function resumeService(name: string) {
-    setServiceAction(`${name}_resume`);
-    try { await api.post(`/api/admin/services/${encodeURIComponent(name)}/resume`, {}); }
-    catch { } finally { setServiceAction(null); }
-  }
-
-  async function triggerService(name: string) {
-    setServiceAction(`${name}_trigger`);
-    try { await api.post(`/api/admin/services/${encodeURIComponent(name)}/trigger`, {}); }
-    catch { } finally { setServiceAction(null); }
-  }
 
   function activateEnv(env: "dev" | "staging" | "prod") {
     set("AppEnvironment", env === "dev" ? "development" : env === "staging" ? "staging" : "production");
@@ -2938,89 +2900,6 @@ export default function YonetimPage() {
                 </div>
               )}
             </div>
-          </Section>
-
-          <Section title="Servis Yönetimi" icon={<Activity size={16} />}
-            subtitle="Arka planda çalışan sistem servislerini izleyin, durdurun veya tetikleyin. Her 10 saniyede otomatik yenilenir.">
-            {servicesLoading && services.length === 0 ? (
-              <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
-                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
-              </div>
-            ) : services.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
-                Kayıtlı servis bulunamadı.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {services.map(svc => {
-                  const isActing = serviceAction?.startsWith(svc.name);
-                  const uptime = svc.uptimeSeconds;
-                  const uptimeStr = uptime < 60 ? `${uptime}s` : uptime < 3600 ? `${Math.floor(uptime/60)}dk` : `${Math.floor(uptime/3600)}sa`;
-                  return (
-                    <div key={svc.name} className={`border rounded-xl p-4 transition ${svc.isPaused ? "border-amber-200 bg-amber-50/40" : svc.isRunning ? "border-teal-300 bg-teal-50/30" : "border-slate-200 bg-white"}`}>
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-slate-800">{svc.name}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                              svc.isPaused ? "bg-amber-100 text-amber-700" :
-                              svc.isRunning ? "bg-teal-100 text-teal-700 animate-pulse" :
-                              "bg-slate-100 text-slate-600"
-                            }`}>
-                              {svc.isPaused ? "⏸ Duraklatıldı" : svc.isRunning ? "● Çalışıyor" : "○ Bekliyor"}
-                            </span>
-                            <span className="text-[10px] text-slate-400">↑ {uptimeStr}</span>
-                            <span className="text-[10px] text-slate-400">{svc.runCount} çalışma</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5">{svc.description}</p>
-                          {svc.lastRunAt && (
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${svc.lastRunSuccess ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                                {svc.lastRunSuccess ? "✓" : "✗"} {svc.lastRunResult ?? "—"}
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                {new Date(svc.lastRunAt).toLocaleTimeString("tr-TR")}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {svc.isPaused ? (
-                            <button onClick={() => resumeService(svc.name)} disabled={!!isActing}
-                              title="Devam Ettir"
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-50">
-                              {isActing ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                              Devam
-                            </button>
-                          ) : (
-                            <button onClick={() => pauseService(svc.name)} disabled={!!isActing}
-                              title="Duraklat"
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition disabled:opacity-50">
-                              {isActing ? <Loader2 size={12} className="animate-spin" /> : <Pause size={12} />}
-                              Duraklat
-                            </button>
-                          )}
-                          <button onClick={() => triggerService(svc.name)} disabled={!!isActing || svc.isRunning}
-                            title="Manuel Tetikle"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-50">
-                            {isActing ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-                            Tetikle
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-end">
-                  <button onClick={() => {
-                    setServicesLoading(true);
-                    api.get<ServiceState[]>("/api/admin/services").then(setServices).catch(() => {}).finally(() => setServicesLoading(false));
-                  }} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-700 transition">
-                    <RefreshCw size={12} className={servicesLoading ? "animate-spin" : ""} /> Yenile
-                  </button>
-                </div>
-              </div>
-            )}
           </Section>
 
           <Section title="Ortam & Konfigürasyon" icon={<Settings size={16} />}
