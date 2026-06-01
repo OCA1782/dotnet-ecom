@@ -26,11 +26,14 @@ public interface IServiceStateManager
     bool ShouldTrigger(string name);
     void RecordRunStart(string name);
     void RecordRunEnd(string name, bool success, string? result = null);
+    void SetIntervalOverride(string name, int minutes);
+    int GetEffectiveInterval(string name, int defaultMinutes);
 }
 
 public class ServiceStateManager : IServiceStateManager
 {
     private readonly Dictionary<string, ServiceState> _states = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _intervalOverrides = new(StringComparer.OrdinalIgnoreCase);
 
     public void Register(string name, string description, string type = "BackgroundService")
     {
@@ -82,4 +85,10 @@ public class ServiceStateManager : IServiceStateManager
             s.RunCount++;
         }
     }
+
+    public void SetIntervalOverride(string name, int minutes) =>
+        _intervalOverrides[name] = minutes;
+
+    public int GetEffectiveInterval(string name, int defaultMinutes) =>
+        _intervalOverrides.TryGetValue(name, out var v) ? v : defaultMinutes;
 }

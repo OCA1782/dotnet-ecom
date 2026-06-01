@@ -38,7 +38,8 @@ public class JobScheduler(
                 var lastRun = _lastRuns.GetValueOrDefault(job.Name, DateTime.MinValue);
                 var elapsed = (DateTime.UtcNow - lastRun).TotalMinutes;
                 var isManual = stateManager.ShouldTrigger(job.Name);
-                var shouldRun = isManual || elapsed >= job.IntervalMinutes;
+                var effectiveInterval = stateManager.GetEffectiveInterval(job.Name, job.IntervalMinutes);
+                var shouldRun = isManual || elapsed >= effectiveInterval;
 
                 if (shouldRun)
                     _ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);

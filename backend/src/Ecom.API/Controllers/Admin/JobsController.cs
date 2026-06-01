@@ -27,11 +27,40 @@ public class JobsController(
             {
                 j.Name,
                 j.Description,
-                j.IntervalMinutes,
+                IntervalMinutes = stateManager.GetEffectiveInterval(j.Name, j.IntervalMinutes),
+                DefaultIntervalMinutes = j.IntervalMinutes,
                 State = state,
             };
         });
         return Ok(result);
+    }
+
+    [HttpPost("trigger-all")]
+    public IActionResult TriggerAll()
+    {
+        var triggered = new List<string>();
+        var skipped = new List<string>();
+
+        foreach (var job in jobs)
+        {
+            if (stateManager.IsPaused(job.Name)) { skipped.Add(job.Name); continue; }
+            try { scheduler.QueueManualTrigger(job.Name); triggered.Add(job.Name); }
+            catch { skipped.Add(job.Name); }
+        }
+
+        return Accepted(new { triggered, skipped });
+    }
+
+    [HttpPut("{name}")]
+    public IActionResult UpdateInterval(string name, [FromBody] UpdateJobRequest req)
+    {
+        var job = jobs.FirstOrDefault(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (job == null) return NotFound(new { error = "Job bulunamadı" });
+        if (req.IntervalMinutes < 1 || req.IntervalMinutes > 10080)
+            return BadRequest(new { error = "Aralık 1–10080 dakika arasında olmalıdır" });
+
+        stateManager.SetIntervalOverride(name, req.IntervalMinutes);
+        return Ok(new { name, intervalMinutes = req.IntervalMinutes });
     }
 
     [HttpPost("{name}/trigger")]
@@ -86,6 +115,8 @@ public class JobsController(
 
         return log == null ? NotFound() : Ok(log);
     }
+
+    public record UpdateJobRequest(int IntervalMinutes);
 
     [HttpGet("{name}/stream")]
     public async Task Stream(string name, CancellationToken ct)

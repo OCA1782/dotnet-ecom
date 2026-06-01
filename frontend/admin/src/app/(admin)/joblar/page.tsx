@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import {
   Clock, Play, Pause, RefreshCw, Terminal, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, AlertTriangle, Loader2, History, X,
-  Timer, RotateCcw, Activity, Zap,
+  Timer, RotateCcw, Activity, Zap, Pencil, Check,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ interface Job {
   name: string;
   description: string;
   intervalMinutes: number;
+  defaultIntervalMinutes: number;
   state: JobState | null;
 }
 
@@ -379,18 +380,29 @@ function HistoryModal({ job, onClose }: { job: Job; onClose: () => void }) {
 
 // ── Job Card ─────────────────────────────────────────────────────────────────
 
-function JobCard({ job, onTrigger, onToggle, onOpenTerminal, onOpenHistory }: {
+function JobCard({ job, onTrigger, onToggle, onOpenTerminal, onOpenHistory, onUpdateInterval }: {
   job: Job;
   onTrigger: () => void;
   onToggle: () => void;
   onOpenTerminal: () => void;
   onOpenHistory: () => void;
+  onUpdateInterval: (minutes: number) => Promise<void>;
 }) {
   const { state } = job;
   const isRunning = state?.isRunning ?? false;
   const isPaused = state?.isPaused ?? false;
   const lastSuccess = state?.lastRunSuccess;
   const [triggering, setTriggering] = useState(false);
+  const [editingInterval, setEditingInterval] = useState(false);
+  const [intervalInput, setIntervalInput] = useState(String(job.intervalMinutes));
+  const [savingInterval, setSavingInterval] = useState(false);
+
+  async function saveInterval() {
+    const v = parseInt(intervalInput, 10);
+    if (isNaN(v) || v < 1 || v > 10080) { setIntervalInput(String(job.intervalMinutes)); setEditingInterval(false); return; }
+    setSavingInterval(true);
+    try { await onUpdateInterval(v); } finally { setSavingInterval(false); setEditingInterval(false); }
+  }
 
   async function handleTrigger() {
     setTriggering(true);
@@ -429,10 +441,42 @@ function JobCard({ job, onTrigger, onToggle, onOpenTerminal, onOpenHistory }: {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-              <Timer size={10} />
-              {intervalLabel(job.intervalMinutes)}
-            </span>
+            {editingInterval ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  type="number"
+                  min={1}
+                  max={10080}
+                  value={intervalInput}
+                  onChange={e => setIntervalInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") saveInterval(); if (e.key === "Escape") { setEditingInterval(false); setIntervalInput(String(job.intervalMinutes)); } }}
+                  className="w-16 text-[11px] border border-teal-400 rounded-lg px-1.5 py-0.5 focus:outline-none text-center"
+                />
+                <span className="text-[10px] text-slate-400">dk</span>
+                <button onClick={saveInterval} disabled={savingInterval}
+                  className="p-0.5 text-emerald-600 hover:text-emerald-800 transition">
+                  {savingInterval ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                </button>
+                <button onClick={() => { setEditingInterval(false); setIntervalInput(String(job.intervalMinutes)); }}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 transition">
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setEditingInterval(true); setIntervalInput(String(job.intervalMinutes)); }}
+                title="Aralığı düzenle"
+                className="group inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded-full border border-slate-200 transition-colors"
+              >
+                <Timer size={10} />
+                {intervalLabel(job.intervalMinutes)}
+                {job.intervalMinutes !== job.defaultIntervalMinutes && (
+                  <span className="text-[9px] text-teal-600 font-bold">*</span>
+                )}
+                <Pencil size={8} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -574,6 +618,7 @@ export default function JoblarPage() {
   const [historyJob, setHistoryJob] = useState<Job | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [confirmToggle, setConfirmToggle] = useState<Job | null>(null);
+  const [confirmTriggerAll, setConfirmTriggerAll] = useState(false);
   const [filter, setFilter] = useState<"all" | "running" | "paused" | "failed">("all");
   const [search, setSearch] = useState("");
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -611,6 +656,23 @@ export default function JoblarPage() {
       showToast(msg, "error");
       throw e;
     }
+  }
+
+  async function handleTriggerAll() {
+    setConfirmTriggerAll(false);
+    try {
+      const r = await api.post<{ triggered: string[]; skipped: string[] }>("/api/admin/jobs/trigger-all", {});
+      showToast(`${r.triggered.length} job kuyruğa alındı${r.skipped.length ? `, ${r.skipped.length} atlandı` : ""}`, "info");
+      setTimeout(loadJobs, 1000);
+    } catch {
+      showToast("İşlem başarısız", "error");
+    }
+  }
+
+  async function handleUpdateInterval(job: Job, minutes: number) {
+    await api.put(`/api/admin/jobs/${encodeURIComponent(job.name)}`, { intervalMinutes: minutes });
+    showToast(`${job.name} aralığı ${intervalLabel(minutes)} olarak güncellendi`, "success");
+    await loadJobs();
   }
 
   async function handleToggle(job: Job) {
@@ -668,12 +730,20 @@ export default function JoblarPage() {
             {failedCount > 0 && <> · <span className="text-red-600 font-medium">{failedCount} hatalı</span></>}
           </p>
         </div>
-        <button
-          onClick={loadJobs}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          <RefreshCw size={14} /> Yenile
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setConfirmTriggerAll(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors shadow-sm"
+          >
+            <Zap size={14} /> Hepsini Çalıştır
+          </button>
+          <button
+            onClick={loadJobs}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            <RefreshCw size={14} /> Yenile
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -716,6 +786,7 @@ export default function JoblarPage() {
               onToggle={() => setConfirmToggle(job)}
               onOpenTerminal={() => setTerminalJob(job.name)}
               onOpenHistory={() => setHistoryJob(job)}
+              onUpdateInterval={minutes => handleUpdateInterval(job, minutes)}
             />
           ))}
         </div>
@@ -727,6 +798,16 @@ export default function JoblarPage() {
       )}
       {historyJob && (
         <HistoryModal job={historyJob} onClose={() => setHistoryJob(null)} />
+      )}
+      {confirmTriggerAll && (
+        <ConfirmModal
+          title="Hepsini Çalıştır"
+          message={`Duraklatılmış ve zaten çalışan joblar hariç tüm joblar kuyruğa alınacak (${jobs.filter(j => !j.state?.isPaused && !j.state?.isRunning).length} job). Devam?`}
+          confirmLabel="Tümünü Çalıştır"
+          confirmClass="bg-teal-600 hover:bg-teal-700 text-white"
+          onConfirm={handleTriggerAll}
+          onCancel={() => setConfirmTriggerAll(false)}
+        />
       )}
       {confirmToggle && (
         <ConfirmModal
