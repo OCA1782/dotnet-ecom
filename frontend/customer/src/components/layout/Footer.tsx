@@ -39,7 +39,7 @@ export default async function Footer() {
   const settings = await getSettings();
 
   const siteName = settings.SiteName || "Keyvora";
-  const logoUrl = settings.LogoUrl || "/logo-icon.png";
+  const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || settings.LogoUrl || "/logo-icon.png";
   const tagline = settings.Footer_Tagline || "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.";
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
@@ -62,7 +62,8 @@ export default async function Footer() {
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain p-0.5" />
+                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain p-0.5"
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               </div>
               <span className="text-white font-bold text-xl">{siteName}</span>
             </div>
