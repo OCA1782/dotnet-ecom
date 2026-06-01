@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using CloudinaryDotNet;
+using Serilog;
 using Ecom.Infrastructure.Security;
 using Ecom.Application;
 using Ecom.Infrastructure;
@@ -40,6 +41,18 @@ catch
 }
 
 builder.Services.AddSingleton(new LicenseJwtKey(jwtKeyBytes));
+// ──────────────────────────────────────────────────────────────────────────
+
+// ── Serilog merkezi loglama ────────────────────────────────────────────────
+var seqUrl = builder.Configuration["Seq:Url"];
+var loggerConfig = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+if (!string.IsNullOrWhiteSpace(seqUrl))
+    loggerConfig = loggerConfig.WriteTo.Seq(seqUrl);
+Log.Logger = loggerConfig.CreateLogger();
+builder.Host.UseSerilog();
 // ──────────────────────────────────────────────────────────────────────────
 
 builder.Services.AddScoped<AuditFilter>();
