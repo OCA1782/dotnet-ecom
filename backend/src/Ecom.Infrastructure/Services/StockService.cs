@@ -3,13 +3,11 @@ using Ecom.Application.Common.Models;
 using Ecom.Domain.Entities;
 using Ecom.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Ecom.Infrastructure.Services;
 
-public class StockService(IApplicationDbContext db, IEmailService emailService, IConfiguration configuration) : IStockService
+public class StockService(IApplicationDbContext db) : IStockService
 {
-    private readonly string _alertEmail = configuration["Seed:AdminEmail"] ?? "";
     public async Task<Result> ReserveAsync(Guid productId, Guid? variantId, int quantity, Guid orderId, CancellationToken ct = default)
     {
         var stock = await GetStockAsync(productId, variantId, ct);
@@ -58,14 +56,7 @@ public class StockService(IApplicationDbContext db, IEmailService emailService, 
 
         await db.SaveChangesAsync(ct);
 
-        // Stok kritik eşiğin altına düştüyse admin'e uyarı e-postası gönder
-        var available = stock.Quantity - stock.ReservedQuantity;
-        if (available <= stock.CriticalStockLevel && !string.IsNullOrEmpty(_alertEmail))
-        {
-            var productName = stock.Product?.Name ?? stock.ProductVariant?.SKU ?? "Bilinmeyen Ürün";
-            try { await emailService.SendLowStockAlertAsync(_alertEmail, productName, available, stock.CriticalStockLevel, ct); }
-            catch { }
-        }
+        // Stok kritik e-posta uyarısı StockAlertJob tarafından toplu gönderilir (5 dk'da bir).
 
         return Result.Success();
     }

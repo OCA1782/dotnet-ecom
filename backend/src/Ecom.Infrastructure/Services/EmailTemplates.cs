@@ -82,6 +82,40 @@ internal static class EmailTemplates
             <p style="color:#71717a;font-size:13px;line-height:1.6;">Bu bağlantı 24 saat geçerlidir. Eğer bu talebi siz yapmadıysanız bu e-postayı dikkate almayınız.</p>
         """);
 
+    public static string LowStockAlertBatch(IReadOnlyList<(string ProductName, int Available, int Critical)> products)
+    {
+        var rows = string.Join("\n", products.Select((p, i) => $"""
+              <tr style="background:{(i % 2 == 0 ? "#fff" : "#fafafa")};">
+                <td style="padding:10px 14px;font-size:13px;color:#18181b;border-bottom:1px solid #f0f0f0;">{System.Net.WebUtility.HtmlEncode(p.ProductName)}</td>
+                <td style="padding:10px 14px;text-align:center;font-size:13px;font-weight:bold;color:#b91c1c;border-bottom:1px solid #f0f0f0;">{p.Available}</td>
+                <td style="padding:10px 14px;text-align:center;font-size:13px;color:#71717a;border-bottom:1px solid #f0f0f0;">{p.Critical}</td>
+              </tr>
+            """));
+
+        return Wrap("Kritik Stok Uyarısı", $"""
+            <h2 style="color:#b91c1c;margin:0 0 8px;">⚠ Kritik Stok Uyarısı</h2>
+            <p style="color:#3f3f46;line-height:1.6;margin:0 0 20px;">
+              Aşağıdaki <strong>{products.Count}</strong> ürünün stoku kritik eşiğin altına düştü.
+              Lütfen stok yenileme işlemini gerçekleştirin.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;font-size:13px;">
+              <thead>
+                <tr style="background:#fef2f2;">
+                  <th style="padding:10px 14px;text-align:left;font-size:12px;color:#71717a;font-weight:600;border-bottom:1px solid #e4e4e7;">ÜRÜN ADI</th>
+                  <th style="padding:10px 14px;text-align:center;font-size:12px;color:#71717a;font-weight:600;border-bottom:1px solid #e4e4e7;">MEVCUT STOK</th>
+                  <th style="padding:10px 14px;text-align:center;font-size:12px;color:#71717a;font-weight:600;border-bottom:1px solid #e4e4e7;">KRİTİK EŞİK</th>
+                </tr>
+              </thead>
+              <tbody>
+            {rows}
+              </tbody>
+            </table>
+            <p style="color:#71717a;font-size:12px;margin:16px 0 0;">
+              Bu uyarı otomatik olarak oluşturulmuştur. Yeni ürünler kritik eşiği aştığında tekrar bildirim alacaksınız.
+            </p>
+            """);
+    }
+
     public static string LowStockAlert(string productName, int availableStock, int criticalLevel) =>
         Wrap("Kritik Stok Uyarısı", $"""
             <h2 style="color:#b91c1c;margin:0 0 16px;">⚠ Kritik Stok Uyarısı</h2>

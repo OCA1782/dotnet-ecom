@@ -63,6 +63,13 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, "Yönetici", subject, body, ct);
     }
 
+    public async Task SendLowStockAlertBatchAsync(string toEmail, IReadOnlyList<(string ProductName, int Available, int Critical)> products, CancellationToken ct = default)
+    {
+        var subject = $"⚠ Kritik Stok Uyarısı — {products.Count} ürün";
+        var body = EmailTemplates.LowStockAlertBatch(products);
+        await SendAsync(toEmail, "Yönetici", subject, body, ct);
+    }
+
     public async Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default)
     {
         var subject = $"Yorumunuz Hakkında Bilgi — {productName}";
