@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompare } from "@/contexts/CompareContext";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { ProductListItem } from "@/types";
@@ -15,7 +16,9 @@ export default function ProductCard({ product, initialLiked = false }: {
 }) {
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const { isComparing, addProduct, removeProduct, isFull } = useCompare();
   const router = useRouter();
+  const comparing = isComparing(product.id);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
@@ -65,6 +68,15 @@ export default function ProductCard({ product, initialLiked = false }: {
             İndirim
           </span>
         )}
+        <button
+          onClick={e => { e.preventDefault(); comparing ? removeProduct(product.id) : addProduct(product); }}
+          disabled={!comparing && isFull}
+          className={`absolute bottom-2 left-2 z-10 w-7 h-7 flex items-center justify-center rounded-full shadow transition-all text-xs font-bold ${
+            comparing ? "bg-teal-500 text-white" : isFull ? "bg-white/50 text-slate-300 cursor-not-allowed" : "bg-white/80 text-slate-400 hover:bg-teal-100 hover:text-teal-600"
+          } backdrop-blur-sm`}
+          title={comparing ? "Karşılaştırmadan çıkar" : isFull ? "Karşılaştırma listesi dolu" : "Karşılaştırmaya ekle"}>
+          ⇄
+        </button>
         <button
           onClick={handleToggleWishlist}
           disabled={liking}

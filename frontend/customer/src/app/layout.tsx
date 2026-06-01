@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 import ChatWidget from "@/components/ChatWidget";
 import LocationPermissionBanner from "@/components/LocationPermissionBanner";
 import ThemeProvider from "@/components/ThemeProvider";
+import CompareBar from "@/components/CompareBar";
+import { CompareProvider } from "@/contexts/CompareContext";
 import { getSettings } from "@/lib/settings";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -59,16 +61,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="tr" className={`${geist.variable} h-full antialiased`} data-template={template}>
       <body className="min-h-full flex flex-col">
-        <Header
-          logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || settings.LogoUrl || undefined}
-          logoIconUrl={settings.CustomerLogoIcon || settings.LogoUrl || undefined}
-          siteName={settings.SiteName || undefined}
-        />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <ChatWidget />
-        <LocationPermissionBanner />
-        <ThemeProvider />
+        <CompareProvider>
+          <Header
+            logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || settings.LogoUrl || undefined}
+            logoIconUrl={settings.CustomerLogoIcon || settings.LogoUrl || undefined}
+            siteName={settings.SiteName || undefined}
+          />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <ChatWidget />
+          <LocationPermissionBanner />
+          <ThemeProvider />
+          <CompareBar />
+        </CompareProvider>
       </body>
     </html>
   );
