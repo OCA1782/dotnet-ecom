@@ -8,6 +8,7 @@ import {
   RotateCcw, Database, User, Package, Tag, ChevronUp, Server,
   Factory, Hash, Loader2, ShoppingBag, Star, Ticket, UserPlus,
   CheckCircle, XCircle as XCircleIcon, Minus,
+  Megaphone, FileText, Truck, CreditCard,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -739,13 +740,18 @@ type SeedEntity = {
 };
 
 const SEED_ENTITIES: SeedEntity[] = [
-  { id: "category", label: "Kategoriler",  icon: Layers,      color: "teal",   description: "Türkçe rastgele kategori adları ile kök kategoriler oluşturur." },
-  { id: "brand",    label: "Markalar",     icon: Tag,         color: "violet", description: "Türkçe marka adları ile yeni marka kayıtları oluşturur." },
-  { id: "product",  label: "Ürünler",      icon: Package,     color: "blue",   description: "Rastgele fiyat, stok ve SKU ile ürün + stok kaydı oluşturur.", requires: "Kategori", hint: "Önce en az 1 kategori gerekli" },
-  { id: "user",     label: "Kullanıcılar", icon: UserPlus,    color: "emerald",description: "Customer rolünde Türkçe ad/soyadlı kullanıcılar oluşturur. Şifre: Test1234!" },
-  { id: "order",    label: "Siparişler",   icon: ShoppingBag, color: "orange", description: "Mevcut ürün/kullanıcıları kullanarak farklı statülerde sipariş oluşturur.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
-  { id: "review",   label: "Yorumlar",     icon: Star,        color: "amber",  description: "Mevcut ürün ve kullanıcılara Türkçe yorumlar ekler.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
-  { id: "coupon",   label: "Kuponlar",     icon: Ticket,      color: "pink",   description: "Rastgele kod ve indirim değerleriyle test kuponları oluşturur." },
+  { id: "category",     label: "Kategoriler",  icon: Layers,      color: "teal",   description: "Türkçe rastgele kategori adları ile kök kategoriler oluşturur. Görsel eklenir." },
+  { id: "brand",        label: "Markalar",     icon: Tag,         color: "violet", description: "Türkçe marka adları ile yeni marka kayıtları oluşturur. Logo eklenir." },
+  { id: "product",      label: "Ürünler",      icon: Package,     color: "blue",   description: "Rastgele fiyat, stok ve SKU ile ürün + stok + görsel oluşturur.", requires: "Kategori", hint: "Önce en az 1 kategori gerekli" },
+  { id: "user",         label: "Kullanıcılar", icon: UserPlus,    color: "emerald",description: "Customer rolünde Türkçe ad/soyadlı kullanıcılar oluşturur. Avatar eklenir. Şifre: Test1234!" },
+  { id: "order",        label: "Siparişler",   icon: ShoppingBag, color: "orange", description: "Mevcut ürün/kullanıcıları kullanarak farklı statülerde sipariş oluşturur.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
+  { id: "review",       label: "Yorumlar",     icon: Star,        color: "amber",  description: "Mevcut ürün ve kullanıcılara Türkçe yorumlar ekler.", requires: "Ürün + Kullanıcı", hint: "Önce ürün ve kullanıcı gerekli" },
+  { id: "coupon",       label: "Kuponlar",     icon: Ticket,      color: "pink",   description: "Rastgele kod ve indirim değerleriyle test kuponları oluşturur." },
+  { id: "announcement", label: "Duyurular",    icon: Megaphone,   color: "sky",    description: "Türkçe duyuru başlıkları, açıklamalar ve medya (görsel/video) ile duyurular oluşturur." },
+  { id: "invoice",      label: "Faturalar",    icon: FileText,    color: "indigo", description: "eArchive/eInvoice tipinde test faturaları ve ilişkili sipariş kaydı oluşturur." },
+  { id: "return",       label: "İadeler",      icon: RotateCcw,   color: "red",    description: "RefundRequested statüsünde test iade siparişleri oluşturur." },
+  { id: "shipment",     label: "Kargolar",     icon: Truck,       color: "teal",   description: "Mevcut siparişler için kargo takip kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
+  { id: "payment",      label: "Ödemeler",     icon: CreditCard,  color: "emerald",description: "Mevcut siparişler için ödeme kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
 ];
 
 const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> = {
@@ -756,6 +762,9 @@ const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> =
   orange:  { card: "border-orange-200 bg-orange-50/40", btn: "bg-orange-600 hover:bg-orange-700", badge: "bg-orange-100 text-orange-700" },
   amber:   { card: "border-amber-200 bg-amber-50/40",  btn: "bg-amber-600 hover:bg-amber-700",  badge: "bg-amber-100 text-amber-700" },
   pink:    { card: "border-pink-200 bg-pink-50/40",    btn: "bg-pink-600 hover:bg-pink-700",    badge: "bg-pink-100 text-pink-700" },
+  sky:     { card: "border-sky-200 bg-sky-50/40",      btn: "bg-sky-600 hover:bg-sky-700",      badge: "bg-sky-100 text-sky-700" },
+  indigo:  { card: "border-indigo-200 bg-indigo-50/40", btn: "bg-indigo-600 hover:bg-indigo-700", badge: "bg-indigo-100 text-indigo-700" },
+  red:     { card: "border-red-200 bg-red-50/40",      btn: "bg-red-600 hover:bg-red-700",      badge: "bg-red-100 text-red-700" },
 };
 
 type LogEntry = { text: string; type: "info" | "ok" | "error" | "warn" };

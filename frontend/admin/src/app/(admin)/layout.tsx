@@ -113,9 +113,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
 
-  const [siteTitle, setSiteTitle] = useState("Keyvora");
-  const [logoUrl, setLogoUrl] = useState("/logo-icon.png");
-  const [logoNamedUrl, setLogoNamedUrl] = useState("");
+  const [siteTitle, setSiteTitle] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("admin:siteTitle") || "Keyvora") : "Keyvora"
+  );
+  const [logoUrl, setLogoUrl] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("admin:logoUrl") || "/logo-icon.png") : "/logo-icon.png"
+  );
+  const [logoNamedUrl, setLogoNamedUrl] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("admin:logoNamedUrl") || "") : ""
+  );
   const userRoles = user?.roles ?? [];
   const visibleItems = filterByRole(ALL_NAV_ITEMS, userRoles);
   const [navItems, setNavItems] = useState<NavItem[]>(visibleItems);
@@ -192,9 +198,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     function onSettingsUpdated(e: Event) {
       const s = (e as CustomEvent<Record<string, string>>).detail;
-      if (s.AdminTitle) setSiteTitle(s.AdminTitle);
-      setLogoUrl(s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png");
-      setLogoNamedUrl(s.AdminLogoNamed || "");
+      if (s.AdminTitle) { setSiteTitle(s.AdminTitle); localStorage.setItem("admin:siteTitle", s.AdminTitle); }
+      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png";
+      const logoNamed = s.AdminLogoNamed || "";
+      setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
+      setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
     }
     window.addEventListener("ecom:settings-updated", onSettingsUpdated);
     return () => window.removeEventListener("ecom:settings-updated", onSettingsUpdated);
@@ -202,9 +210,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     api.get<Record<string, string>>("/api/admin/settings").then(s => {
-      if (s.AdminTitle) setSiteTitle(s.AdminTitle);
-      setLogoUrl(s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png");
-      setLogoNamedUrl(s.AdminLogoNamed || "");
+      if (s.AdminTitle) { setSiteTitle(s.AdminTitle); localStorage.setItem("admin:siteTitle", s.AdminTitle); }
+      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png";
+      const logoNamed = s.AdminLogoNamed || "";
+      setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
+      setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
       const filtered = filterByRole(ALL_NAV_ITEMS, userRoles);
 
       // Apply group overrides from AdminMenuConfig

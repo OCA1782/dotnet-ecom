@@ -110,7 +110,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                     var slug = Slugify(name);
                     if (existing.Contains(slug)) slug += $"-{_rng.Next(100, 999)}";
                     existing.Add(slug);
-                    var cat = new Category { Name = name, Slug = slug, IsActive = true, ShowInMenu = true };
+                    var cat = new Category { Name = name, Slug = slug, IsActive = true, ShowInMenu = true, ImageUrl = $"https://picsum.photos/seed/{slug}/600/400" };
                     db.Categories.Add(cat);
                     created.Add(new { cat.Id, cat.Name, cat.Slug });
                 }
@@ -126,7 +126,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                     var slug = Slugify(name);
                     if (existing.Contains(slug)) slug += $"-{_rng.Next(100, 999)}";
                     existing.Add(slug);
-                    var brand = new Brand { Name = name, Slug = slug, IsActive = true };
+                    var brand = new Brand { Name = name, Slug = slug, IsActive = true, LogoUrl = $"https://picsum.photos/seed/{slug}/200/200" };
                     db.Brands.Add(brand);
                     created.Add(new { brand.Id, brand.Name, brand.Slug });
                 }
@@ -178,6 +178,10 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                     };
                     db.Stocks.Add(stock);
 
+                    var imgCount = _rng.Next(1, 4);
+                    for (var j = 0; j < imgCount; j++)
+                        product.Images.Add(new ProductImage { ImageUrl = $"https://picsum.photos/seed/{slug}-img{j}/600/600", IsMain = j == 0, SortOrder = j, AltText = name });
+
                     created.Add(new { product.Id, product.Name, product.SKU, product.Price });
                 }
                 break;
@@ -206,6 +210,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         KvkkConsent = true,
                         KvkkConsentDate = now,
                         PhoneNumber = $"05{_rng.Next(10, 60):D2}{_rng.Next(1000000, 9999999)}",
+                        AvatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(firstName + "+" + lastName)}&background=0d9488&color=fff&size=200",
                     };
                     user.Roles.Add(new Ecom.Domain.Entities.UserRole { UserId = user.Id, Role = Ecom.Domain.Enums.UserRole.Customer });
                     db.Users.Add(user);
@@ -314,8 +319,166 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 break;
             }
 
+            case "announcement":
+            {
+                var annCategories = new[] { "duyuru", "kampanya", "bilgilendirme", "etkinlik" };
+                var annTitles = new[] { "Yeni Sezon Geliyor", "Büyük Kampanya Başladı", "Ücretsiz Kargo Fırsatı", "Özel İndirimler", "Flash Sale", "Sınırlı Stok", "Son Fırsat", "Hafta Sonu İndirimi" };
+                var annMediaTypes = new[] { "image", "image", "image", "video", "none" };
+                for (int i = 0; i < count; i++)
+                {
+                    var title = $"{Pick(annTitles)} #{_rng.Next(100, 999)}";
+                    var mediaType = Pick(annMediaTypes);
+                    var aSlug = Slugify(title);
+                    string? mediaUrl = mediaType switch
+                    {
+                        "image" => $"https://picsum.photos/seed/{aSlug}/1200/400",
+                        "video" => "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                        _ => null,
+                    };
+                    var announcement = new Announcement
+                    {
+                        Title = title,
+                        Summary = $"Test duyurusu — {title}",
+                        Content = $"Bu duyuru test amaçlı oluşturulmuştur. {title} hakkında detaylar burada yer alır.",
+                        Category = Pick(annCategories),
+                        MediaUrl = mediaUrl,
+                        MediaType = mediaType,
+                        IsActive = true,
+                        StartsAt = now.AddDays(-_rng.Next(0, 7)),
+                        EndsAt = now.AddDays(_rng.Next(7, 60)),
+                        DisplayOrder = i,
+                    };
+                    db.Announcements.Add(announcement);
+                    created.Add(new { announcement.Id, announcement.Title, announcement.Category, announcement.MediaType });
+                }
+                break;
+            }
+
+            case "invoice":
+            {
+                var invoiceAddr = """{"addressTitle":"Fatura Adresi","firstName":"Test","lastName":"Müşteri","phoneNumber":"05001234567","country":"TR","city":"İstanbul","district":"Şişli","neighborhood":"Nişantaşı","fullAddress":"Test Cad. No:5","postalCode":"34367"}""";
+                var docTypes = new[] { EInvoiceDocType.eArchive, EInvoiceDocType.eInvoice };
+                var invStatuses = new[] { InvoiceStatus.Draft, InvoiceStatus.Pending, InvoiceStatus.Sent };
+                for (int i = 0; i < count; i++)
+                {
+                    var amt = 200m * (i + 1);
+                    var tax = Math.Round(amt * 0.18m, 2);
+                    var ord = new Order
+                    {
+                        OrderNumber = $"TST-INV-{now:yyyyMMdd}-{i + 1:D4}",
+                        Status = OrderStatus.Completed, PaymentStatus = PaymentStatus.Paid,
+                        ShipmentStatus = ShipmentStatus.Delivered,
+                        TotalProductAmount = amt, TaxAmount = tax, GrandTotal = amt + tax,
+                        ShippingAddressSnapshot = invoiceAddr, BillingAddressSnapshot = invoiceAddr,
+                    };
+                    ord.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = $"Fatura Kalemi {i + 1}", SKU = $"INV-{i + 1:D4}", Quantity = 1, UnitPrice = amt, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
+                    db.Orders.Add(ord);
+                    var invStatus = Pick(invStatuses);
+                    var invoice = new Invoice
+                    {
+                        InvoiceNumber = $"FT-{now:yyyyMMdd}-{i + 1:D4}",
+                        OrderId = ord.Id,
+                        DocType = Pick(docTypes),
+                        Status = invStatus,
+                        SubTotal = amt, TaxAmount = tax, TotalAmount = amt + tax,
+                        BillingAddressSnapshot = invoiceAddr,
+                        SentDate = invStatus == InvoiceStatus.Sent ? now.AddDays(-1) : null,
+                    };
+                    invoice.Items.Add(new InvoiceItem { ProductName = $"Fatura Kalemi {i + 1}", SKU = $"INV-{i + 1:D4}", Quantity = 1, UnitPrice = amt, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
+                    db.Invoices.Add(invoice);
+                    created.Add(new { invoice.Id, invoice.InvoiceNumber, invoice.DocType, invoice.Status });
+                }
+                break;
+            }
+
+            case "return":
+            {
+                var retAddr = """{"addressTitle":"Test Adres","firstName":"Test","lastName":"Müşteri","phoneNumber":"05001234567","country":"TR","city":"İstanbul","district":"Kadıköy","neighborhood":"Moda","fullAddress":"Test Sokak No:1","postalCode":"34710"}""";
+                for (int i = 0; i < count; i++)
+                {
+                    var amt = 100m * (i + 1);
+                    var tax = 18m * (i + 1);
+                    var order = new Order
+                    {
+                        OrderNumber = $"TST-RET-{now:yyyyMMdd}-{i + 1:D4}",
+                        Status = OrderStatus.RefundRequested,
+                        PaymentStatus = PaymentStatus.Paid,
+                        ShipmentStatus = ShipmentStatus.Delivered,
+                        TotalProductAmount = amt, TaxAmount = tax, GrandTotal = amt + tax,
+                        ShippingAddressSnapshot = retAddr, BillingAddressSnapshot = retAddr,
+                        Note = $"Test iade talebi #{i + 1}",
+                    };
+                    order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = $"Test Ürün {i + 1}", SKU = $"RET-{i + 1:D3}", Quantity = i + 1, UnitPrice = 100m, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
+                    db.Orders.Add(order);
+                    created.Add(new { order.Id, order.OrderNumber, order.Status });
+                }
+                break;
+            }
+
+            case "shipment":
+            {
+                var shipped = await db.Shipments.Select(s => s.OrderId).ToHashSetAsync(ct);
+                var shipOrders = (await db.Orders
+                    .Where(o => (int)o.Status >= (int)OrderStatus.PaymentCompleted)
+                    .Take(count * 3).ToListAsync(ct))
+                    .Where(o => !shipped.Contains(o.Id)).Take(count).ToList();
+                if (shipOrders.Count == 0)
+                    return BadRequest(new { error = "Kargo için uygun sipariş bulunamadı. Önce sipariş oluşturun." });
+                var cargoCompanies = new[] { "Aras Kargo", "Yurtiçi Kargo", "MNG Kargo", "PTT Kargo", "Sürat Kargo" };
+                var shipStatuses = new[] { ShipmentStatus.Preparing, ShipmentStatus.Shipped, ShipmentStatus.InTransit, ShipmentStatus.Delivered };
+                foreach (var ord in shipOrders)
+                {
+                    var status = Pick(shipStatuses);
+                    var trackNum = $"TR{_rng.Next(100000000, 999999999)}";
+                    var shipment = new Shipment
+                    {
+                        OrderId = ord.Id,
+                        CargoCompany = Pick(cargoCompanies),
+                        TrackingNumber = trackNum,
+                        TrackingUrl = $"https://kargo.example.com/track?no={trackNum}",
+                        ShippingCost = (decimal)_rng.Next(25, 50),
+                        Status = status,
+                        ShippedDate = status >= ShipmentStatus.Shipped ? now.AddDays(-_rng.Next(1, 5)) : null,
+                        DeliveredDate = status == ShipmentStatus.Delivered ? now.AddDays(-_rng.Next(0, 2)) : null,
+                    };
+                    db.Shipments.Add(shipment);
+                    created.Add(new { shipment.Id, ord.OrderNumber, shipment.CargoCompany, shipment.TrackingNumber, shipment.Status });
+                }
+                break;
+            }
+
+            case "payment":
+            {
+                var paidOrders = await db.Payments.Select(p => p.OrderId).ToHashSetAsync(ct);
+                var payOrders = (await db.Orders.Take(count * 3).ToListAsync(ct))
+                    .Where(o => !paidOrders.Contains(o.Id)).Take(count).ToList();
+                if (payOrders.Count == 0)
+                    return BadRequest(new { error = "Ödeme için uygun sipariş bulunamadı. Önce sipariş oluşturun." });
+                var providers = new[] { "IyziCo", "PayTR", "Stripe", "Sipay", "PayU" };
+                var payMethods = new[] { PaymentMethod.CreditCard, PaymentMethod.CreditCard, PaymentMethod.DebitCard, PaymentMethod.BankTransfer, PaymentMethod.CashOnDelivery };
+                var payStatuses = new[] { PaymentStatus.Paid, PaymentStatus.Paid, PaymentStatus.Paid, PaymentStatus.Pending, PaymentStatus.Failed };
+                foreach (var ord in payOrders)
+                {
+                    var status = Pick(payStatuses);
+                    var payment = new Payment
+                    {
+                        OrderId = ord.Id,
+                        PaymentProvider = Pick(providers),
+                        PaymentMethod = Pick(payMethods),
+                        TransactionId = $"TXN-{_rng.Next(100000000, 999999999)}",
+                        Amount = ord.GrandTotal,
+                        Currency = "TRY",
+                        Status = status,
+                        PaidDate = status == PaymentStatus.Paid ? now.AddDays(-_rng.Next(0, 30)) : null,
+                    };
+                    db.Payments.Add(payment);
+                    created.Add(new { payment.Id, ord.OrderNumber, payment.PaymentMethod, payment.Amount, payment.Status });
+                }
+                break;
+            }
+
             default:
-                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon" });
+                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon, announcement, invoice, return, shipment, payment" });
         }
 
         await db.SaveChangesAsync(ct);
