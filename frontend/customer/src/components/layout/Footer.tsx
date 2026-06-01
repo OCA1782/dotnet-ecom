@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
+import FooterLogoImg from "./FooterLogoImg";
 
 function IconInstagram() {
   return (
@@ -61,9 +62,7 @@ export default async function Footer() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain p-0.5"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                <FooterLogoImg src={logoUrl} alt={siteName} />
               </div>
               <span className="text-white font-bold text-xl">{siteName}</span>
             </div>
