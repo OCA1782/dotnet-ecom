@@ -58,7 +58,7 @@ export default async function Footer() {
   const settings = await getSettings();
 
   const siteName = settings.SiteName || "Keyvora";
-  const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || settings.LogoUrl || "/logo-icon.png";
+  const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || undefined;
   const tagline = settings.Footer_Tagline || "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.";
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
@@ -79,9 +79,11 @@ export default async function Footer() {
           {/* Marka */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
-                <FooterLogoImg src={logoUrl} alt={siteName} />
-              </div>
+              {logoUrl && (
+                <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                  <FooterLogoImg src={logoUrl} alt={siteName} />
+                </div>
+              )}
               <FooterBrandName name={siteName} />
             </div>
             <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
