@@ -41,8 +41,8 @@ Son güncelleme: 2026-05-22 (v3)
 - [x] IEmailService.SendAlertAsync — çoklu alıcıya uyarı maili
 - [x] DbInitializer.EnsureAlertSettings — Alert:Enabled + Alert:Emails seed
 
-### 9 — Admin > Stok
-- [ ] Satır bazlı audit log geçmişi (stok hareketine ek olarak audit log da göster)
+### 9 — Admin > Stok ✅ (Adım 48)
+- [x] Satır bazlı audit log geçmişi — modal'da "Stok Hareketleri" + "Audit Log" tabları; backend entityName "Stock"→"Stok" ve entityId stock.Id→productId düzeltildi
 
 ### 10 — Admin > İadeler ✅ (Adım 46)
 - [x] Örnek iade kayıtları oluştur (seed: DataSource=test, benzersiz sipariş no)
@@ -50,10 +50,11 @@ Son güncelleme: 2026-05-22 (v3)
 - [x] Silme işlemi korunacak (DeleteOrderCommand: RefundRequested silinemez)
 - [x] Red modalına not alanı eklendi (UX iyileştirme)
 
-### 11 — Admin > Dış Kaynaklar
-- [ ] Test: REST servisten veri çek ve listede göster
-- [ ] Test: Excel dosyasından veri çek ve listede göster
-- [ ] İçe al butonu: alınan veriyi Marka / Kategori / Ürün / Stok olarak import et
+### 11 — Admin > Dış Kaynaklar ✅ (Adım 48)
+- [x] Test: REST servisten veri çek ve listede göster (DummyJSON: 30 satır, önizleme tablosunda gösteriliyor)
+- [x] Test: Excel dosyasından veri çek ve listede göster (EXCEL1: 40.721 satır, önizleme tablosunda gösteriliyor)
+- [x] İçe al butonu: alınan veriyi Marka / Kategori / Ürün / Stok olarak import et (Marka import+update doğrulandı)
+- [x] autoMap Türkçe sütun adları düzeltildi (URUN_ADI→Name, URUN_KODU→SKU, MİKTAR→Quantity, FİYAT→Price)
 
 ### 12 — Admin > Faturalar ✅ (Adım 46)
 - [x] Örnek fatura oluştur (sipariş bazlı mock: seed + manuel oluşturma)

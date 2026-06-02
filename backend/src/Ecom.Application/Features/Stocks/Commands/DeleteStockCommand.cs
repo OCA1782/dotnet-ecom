@@ -39,7 +39,7 @@ public class DeleteStockHandler(IApplicationDbContext db, IAuditService audit)
 
         db.Stocks.Remove(stock);
         await db.SaveChangesAsync(cancellationToken);
-        await audit.LogAsync("StockDeleted", "Stock", stock.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.LogAsync("StockDeleted", "Stok", request.ProductId.ToString(), cancellationToken: cancellationToken);
 
         return Result.Success();
     }

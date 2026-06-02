@@ -79,20 +79,34 @@ const SCHEDULE_LABELS: Record<string, string> = {
 };
 
 const FIELD_SYNONYMS: Record<string, Record<string, string[]>> = {
-  Product:  { Name: ["name","ad","ürün adı","urun"], SKU: ["sku","kod","barkod"], Price: ["price","fiyat","tutar"], Description: ["description","açıklama"], Category: ["category","kategori"], Brand: ["brand","marka"] },
+  Product:  { Name: ["name","ad","urun adi","urun adı","ürün adi","ürün adı","urun"], SKU: ["sku","kod","barkod","urun kodu","ürün kodu","urun kod","ürün kod"], Price: ["price","fiyat","tutar","birim fiyat"], Description: ["description","açıklama"], Category: ["category","kategori"], Brand: ["brand","marka"] },
   Category: { Name: ["name","ad","kategori"], Slug: ["slug"], Description: ["description","açıklama"] },
   Brand:    { Name: ["name","ad","marka"], Description: ["description","açıklama"] },
-  Stock:    { SKU: ["sku","kod","barkod"], Quantity: ["quantity","adet","stok","miktar"] },
+  Stock:    { SKU: ["sku","kod","barkod","urun kodu","ürün kodu"], Quantity: ["quantity","adet","stok","miktar"] },
 };
+
+function normalizeTr(s: string): string {
+  return s
+    .replace(/İ/g, 'i').replace(/I/g, 'i')
+    .toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g')
+    .replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ç/g, 'c');
+}
 
 function autoMap(target: string, columns: string[]): Record<string, string> {
   const synonyms = FIELD_SYNONYMS[target] ?? {};
-  const colsLower = columns.map(c => c.toLowerCase());
   const result: Record<string, string> = {};
+  const colForms = columns.map(col => {
+    const n = normalizeTr(col);
+    return [n, n.replace(/_/g, ' '), n.replace(/_/g, '')];
+  });
   for (const [field, variants] of Object.entries(synonyms)) {
-    for (const variant of variants) {
-      const idx = colsLower.indexOf(variant);
-      if (idx !== -1) { result[field] = columns[idx]; break; }
+    const normVariants = variants.map(normalizeTr);
+    for (let i = 0; i < columns.length; i++) {
+      if (normVariants.some(v => colForms[i].includes(v))) {
+        result[field] = columns[i];
+        break;
+      }
     }
   }
   return result;

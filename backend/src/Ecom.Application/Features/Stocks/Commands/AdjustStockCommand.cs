@@ -43,8 +43,8 @@ public class AdjustStockHandler(IStockService stockService, ICurrentUserService 
             currentUser.UserId, request.CriticalStockLevel, cancellationToken);
 
         if (result.Succeeded)
-            await audit.LogAsync("StockAdjusted", "Stock",
-                request.VariantId?.ToString() ?? request.ProductId.ToString(),
+            await audit.LogAsync("StockAdjusted", "Stok",
+                request.ProductId.ToString(),
                 newValue: $"{request.MovementType}:{request.Quantity}",
                 cancellationToken: cancellationToken);
 
