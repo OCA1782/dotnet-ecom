@@ -148,6 +148,14 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         }
     }
 
+    public async Task SendAlertAsync(IEnumerable<string> toEmails, string subject, string htmlBody, CancellationToken ct = default)
+    {
+        var emails = toEmails.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct().ToList();
+        if (emails.Count == 0) return;
+        foreach (var email in emails)
+            await SendAsync(email, "Admin", subject, htmlBody, ct);
+    }
+
     private static string FormatPrice(decimal amount) =>
         amount.ToString("C", new System.Globalization.CultureInfo("tr-TR"));
 }

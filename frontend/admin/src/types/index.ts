@@ -78,6 +78,22 @@ export interface DashboardStats {
   monthTargetOrderCount?: number;
 }
 
+export interface ModuleStats {
+  totalProducts: number; activeProducts: number; inactiveProducts: number;
+  totalCategories: number; activeCategories: number;
+  totalBrands: number; activeBrands: number;
+  criticalStockCount: number; outOfStockCount: number; healthyStockCount: number;
+  pendingReviewCount: number; approvedReviewCount: number; totalReviewCount: number;
+  activeAnnouncementCount: number; totalAnnouncementCount: number;
+  todayOrderCount: number; pendingOrderCount: number; refundRequestedCount: number;
+  activeCouponCount: number; totalCouponCount: number; expiredCouponCount: number;
+  pendingPaymentCount: number; failedPaymentCount: number; todayPaymentCount: number;
+  openRefundCount: number; processedRefundCount: number;
+  shippedCount: number; inTransitCount: number; deliveryFailedCount: number;
+  draftInvoiceCount: number; errorInvoiceCount: number; totalInvoiceCount: number;
+  totalUserCount: number; newUserThisMonthCount: number; activeUserCount: number;
+}
+
 export interface SalesGoal {
   id: string;
   year: number;

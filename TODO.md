@@ -32,6 +32,15 @@ Son güncelleme: 2026-05-22 (v3)
 
 ## 🔴 Öncelikli (Aktif)
 
+### 16 — Adım 47 ✅ (2026-06-02)
+- [x] Admin > Dashboard: 13 modül için yeni istatistik kartları (GET /api/admin/dashboard/modules)
+- [x] Admin > Jobs: ModuleHealthCheckJob — saatlik çalışır, sorun varsa uyarı maili gönderir
+- [x] Admin > Yönetim > Bildirimler sekmesi — yetkili mail adresleri yönetimi, test butonu
+- [x] Admin > Yönetim > Şablon: kontrast önizlemesi — bg/text renk çakışmasında uyarı
+- [x] Admin > Deploy > Geçmiş: pagination bar her zaman görünür (logTotal > 0 koşulu)
+- [x] IEmailService.SendAlertAsync — çoklu alıcıya uyarı maili
+- [x] DbInitializer.EnsureAlertSettings — Alert:Enabled + Alert:Emails seed
+
 ### 9 — Admin > Stok
 - [ ] Satır bazlı audit log geçmişi (stok hareketine ek olarak audit log da göster)
 

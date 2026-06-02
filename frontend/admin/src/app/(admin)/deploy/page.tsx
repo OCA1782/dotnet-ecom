@@ -1551,32 +1551,34 @@ export default function DeployPage() {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Pagination — always visible when there are logs */}
+          {logTotal > 0 && (
             <div className="flex items-center justify-between px-5 py-4 border-t bg-slate-50/50">
               <span className="text-xs text-slate-400">
-                Sayfa {logPage} / {totalPages} · {logTotal} deploy
+                Sayfa {logPage} / {Math.max(totalPages, 1)} · {logTotal} kayıt
               </span>
-              <div className="flex items-center gap-1">
-                <button disabled={logPage <= 1} onClick={() => loadLogs(logPage - 1, filterServerId)}
-                  className="p-1.5 rounded-lg border text-slate-500 hover:bg-white disabled:opacity-40 transition">
-                  <ChevronLeft size={14} />
-                </button>
-                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                  const p = totalPages <= 7 ? i + 1 : i < 3 ? i + 1 : i === 3 ? logPage : totalPages - 2 + (i - 4);
-                  if (i === 3 && totalPages > 7) return <span key="dots" className="px-1 text-slate-400 text-xs">···</span>;
-                  return (
-                    <button key={p} onClick={() => loadLogs(p, filterServerId)}
-                      className={`w-7 h-7 rounded-lg text-xs font-medium transition ${p === logPage ? "bg-teal-600 text-white" : "border text-slate-600 hover:bg-white"}`}>
-                      {p}
-                    </button>
-                  );
-                })}
-                <button disabled={logPage >= totalPages} onClick={() => loadLogs(logPage + 1, filterServerId)}
-                  className="p-1.5 rounded-lg border text-slate-500 hover:bg-white disabled:opacity-40 transition">
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button disabled={logPage <= 1} onClick={() => loadLogs(logPage - 1, filterServerId)}
+                    className="p-1.5 rounded-lg border text-slate-500 hover:bg-white disabled:opacity-40 transition">
+                    <ChevronLeft size={14} />
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    const p = totalPages <= 7 ? i + 1 : i < 3 ? i + 1 : i === 3 ? logPage : totalPages - 2 + (i - 4);
+                    if (i === 3 && totalPages > 7) return <span key="dots" className="px-1 text-slate-400 text-xs">···</span>;
+                    return (
+                      <button key={p} onClick={() => loadLogs(p, filterServerId)}
+                        className={`w-7 h-7 rounded-lg text-xs font-medium transition ${p === logPage ? "bg-teal-600 text-white" : "border text-slate-600 hover:bg-white"}`}>
+                        {p}
+                      </button>
+                    );
+                  })}
+                  <button disabled={logPage >= totalPages} onClick={() => loadLogs(logPage + 1, filterServerId)}
+                    className="p-1.5 rounded-lg border text-slate-500 hover:bg-white disabled:opacity-40 transition">
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

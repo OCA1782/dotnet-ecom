@@ -12,7 +12,7 @@ import {
   Users, KeyRound, Database, Wifi, Activity,
   LayoutDashboard, Package, ShoppingCart, Layers, Tag, BarChart3,
   Inbox, BookOpen, Target, Warehouse, MessageSquare, Eye,
-  ExternalLink,
+  ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -551,7 +551,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
   );
 }
 
-type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "sistem";
+type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "sistem" | "bildirimler";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "genel",    label: "Genel",    icon: <Globe size={14} /> },
@@ -565,6 +565,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "mesajlar", label: "Mesajlar", icon: <MessageSquare size={14} /> },
   { id: "yetkiler", label: "Yetkiler", icon: <Shield size={14} /> },
   { id: "lisans",   label: "Lisans",   icon: <KeyRound size={14} /> },
+  { id: "bildirimler", label: "Bildirimler", icon: <BellRing size={14} /> },
   { id: "sistem",   label: "Sistem",   icon: <Settings size={14} /> },
 ];
 
@@ -926,6 +927,27 @@ function fmtTry(n: number) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(n);
 }
 
+function hexToLuminance(hex: string): number {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16) / 255;
+  const g = parseInt(clean.substring(2, 4), 16) / 255;
+  const b = parseInt(clean.substring(4, 6), 16) / 255;
+  const toLinear = (v: number) => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+function getContrastRatio(hex1: string, hex2: string): number {
+  try {
+    const l1 = hexToLuminance(hex1);
+    const l2 = hexToLuminance(hex2);
+    const lighter = Math.max(l1, l2);
+    const darker  = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  } catch {
+    return 21;
+  }
+}
+
 function CarrierManager() {
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -1273,6 +1295,54 @@ export default function YonetimPage() {
       .catch(() => {})
       .finally(() => setDevKeyLoading(false));
   }, [tab]);
+
+  // ── Bildirimler tab state ───────────────────────────────────────────────────
+  const [alertEnabled, setAlertEnabled]   = useState(false);
+  const [alertEmails, setAlertEmails]     = useState<string[]>([]);
+  const [alertNewEmail, setAlertNewEmail] = useState("");
+  const [alertSaving, setAlertSaving]     = useState(false);
+  const [alertSaved, setAlertSaved]       = useState(false);
+  const [alertTesting, setAlertTesting]   = useState(false);
+  const [alertTestMsg, setAlertTestMsg]   = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tab !== "bildirimler") return;
+    const enabled = settings["Alert:Enabled"] === "true";
+    const emails  = (settings["Alert:Emails"] ?? "")
+      .split(",").map(e => e.trim()).filter(Boolean);
+    setAlertEnabled(enabled);
+    setAlertEmails(emails);
+  }, [tab, settings]);
+
+  async function saveAlertSettings() {
+    setAlertSaving(true);
+    try {
+      await api.put("/api/admin/settings", {
+        "Alert:Enabled": alertEnabled ? "true" : "false",
+        "Alert:Emails": alertEmails.join(","),
+      });
+      set("Alert:Enabled", alertEnabled ? "true" : "false");
+      set("Alert:Emails", alertEmails.join(","));
+      setAlertSaved(true);
+      setTimeout(() => setAlertSaved(false), 2500);
+    } catch { } finally {
+      setAlertSaving(false);
+    }
+  }
+
+  async function sendTestAlert() {
+    if (alertEmails.length === 0) { setAlertTestMsg("En az bir e-posta adresi ekleyin."); return; }
+    setAlertTesting(true);
+    setAlertTestMsg(null);
+    try {
+      await api.post("/api/admin/settings/test-alert", { emails: alertEmails });
+      setAlertTestMsg("Test maili gönderildi!");
+    } catch (e: unknown) {
+      setAlertTestMsg(e instanceof Error ? e.message : "Gönderilemedi");
+    } finally {
+      setAlertTesting(false);
+    }
+  }
 
   async function handleRevealKey() {
     if (!revealPassword.trim()) { setRevealError("Şifre boş olamaz."); return; }
@@ -1742,6 +1812,26 @@ export default function YonetimPage() {
           </Section>
 
           <Section title="Müşteri Sitesi Renkleri" icon={<Palette size={16} />}>
+            {/* Canlı kontrast önizlemesi */}
+            {(() => {
+              const bg   = settings.CustomerBgColor   || "#F7FAFA";
+              const text = settings.CustomerTextColor || "#1c2044";
+              const ratio = getContrastRatio(bg, text);
+              const ok = ratio >= 4.5;
+              const aa = ratio >= 3;
+              return (
+                <div className="mb-4 rounded-xl border overflow-hidden" style={{ borderColor: ok ? "#bbf7d0" : aa ? "#fde68a" : "#fca5a5" }}>
+                  <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: bg }}>
+                    <span className="text-sm font-semibold" style={{ color: text }}>Örnek Sayfa Metni</span>
+                    <span className="text-xs opacity-60" style={{ color: text }}>Aa 123</span>
+                  </div>
+                  <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : aa ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                    <span>{ok ? "✓" : aa ? "⚠" : "✗"}</span>
+                    <span>Kontrast oranı: {ratio.toFixed(1)}:1 — {ok ? "WCAG AA/AAA geçer" : aa ? "Yalnızca büyük metin için yeterli" : "Kontrast yetersiz — yazı görünmeyebilir"}</span>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 { label: "Birincil Renk (Butonlar, linkler)", key: "PrimaryColor", default: "#0d9488" },
@@ -1778,6 +1868,25 @@ export default function YonetimPage() {
           </Section>
 
           <Section title="Admin Panel Renkleri" icon={<Palette size={16} />}>
+            {/* Sidebar önizlemesi */}
+            {(() => {
+              const sidebar  = settings.AdminSidebarColor  || "#1c2044";
+              const primary  = settings.AdminPrimaryColor  || "#0d9488";
+              const ratio    = getContrastRatio(sidebar, "#ffffff");
+              const ok       = ratio >= 4.5;
+              return (
+                <div className="mb-4 rounded-xl border overflow-hidden" style={{ borderColor: ok ? "#bbf7d0" : "#fca5a5" }}>
+                  <div className="px-3 py-2 flex items-center gap-3" style={{ backgroundColor: sidebar }}>
+                    <span className="text-sm font-bold text-white">Sidebar</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: primary, color: "#fff" }}>Birincil</span>
+                  </div>
+                  <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                    <span>{ok ? "✓" : "✗"}</span>
+                    <span>Sidebar ↔ Beyaz metin kontrastı: {ratio.toFixed(1)}:1 — {ok ? "Okunabilir" : "Yazılar görünmeyebilir"}</span>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: "Sidebar Rengi", key: "AdminSidebarColor", default: "#1c2044" },
@@ -2737,6 +2846,119 @@ export default function YonetimPage() {
             <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
               <Users size={12} /> Kullanıcıya rol atamak için <button className="text-teal-600 underline underline-offset-2" onClick={() => window.open("/kullanicilar", "_self")}>Kullanıcılar</button> sayfasına gidin.
             </p>
+          </Section>
+        </div>
+      )}
+
+      {/* ── Bildirimler ── */}
+      {tab === "bildirimler" && (
+        <div className="space-y-5">
+          <Section title="Uyarı & Bildirim Ayarları" icon={<BellRing size={16} />}
+            subtitle="Modül sağlık kontrolleri ve sistem uyarıları için yetkili e-posta adreslerini yönetin.">
+
+            {/* Etkin/Pasif toggle */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-3">
+                {alertEnabled ? <Bell size={18} className="text-teal-600" /> : <BellOff size={18} className="text-slate-400" />}
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Uyarı E-postaları</p>
+                  <p className="text-xs text-slate-400">Modül sağlık job&apos;ı sorun tespit ettiğinde aşağıdaki adreslere otomatik uyarı gönderir</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAlertEnabled(v => !v)}
+                className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${alertEnabled ? "bg-teal-500" : "bg-slate-300"}`}>
+                <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${alertEnabled ? "translate-x-5.5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+
+            {/* E-posta listesi */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Yetkili E-posta Adresleri</p>
+              {alertEmails.length === 0 && (
+                <p className="text-xs text-slate-400 italic">Henüz adres eklenmedi. Eklenen adresler uyarı alır.</p>
+              )}
+              {alertEmails.map((email, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <Mail size={13} className="text-slate-400 shrink-0" />
+                  <span className="flex-1 text-sm text-slate-700 font-mono">{email}</span>
+                  <button onClick={() => setAlertEmails(prev => prev.filter((_, i) => i !== idx))}
+                    className="text-slate-300 hover:text-red-500 transition"><X size={14} /></button>
+                </div>
+              ))}
+              {/* Yeni ekle */}
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={alertNewEmail}
+                  onChange={e => setAlertNewEmail(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && alertNewEmail.includes("@")) {
+                      setAlertEmails(prev => [...prev, alertNewEmail.trim()]);
+                      setAlertNewEmail("");
+                    }
+                  }}
+                  placeholder="yeni@adres.com"
+                  className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <button
+                  onClick={() => {
+                    if (alertNewEmail.includes("@")) {
+                      setAlertEmails(prev => [...prev, alertNewEmail.trim()]);
+                      setAlertNewEmail("");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 px-3 py-2 rounded-xl transition">
+                  <Plus size={13} /> Ekle
+                </button>
+              </div>
+            </div>
+
+            {/* Aksiyon butonları */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                onClick={saveAlertSettings}
+                disabled={alertSaving}
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 px-4 py-2.5 rounded-xl disabled:opacity-50 transition">
+                {alertSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {alertSaved ? "Kaydedildi!" : "Kaydet"}
+              </button>
+              <button
+                onClick={sendTestAlert}
+                disabled={alertTesting || alertEmails.length === 0}
+                className="flex items-center gap-2 text-sm font-medium text-slate-600 border border-slate-200 hover:border-slate-300 bg-white px-4 py-2.5 rounded-xl disabled:opacity-50 transition">
+                {alertTesting ? <Loader2 size={14} className="animate-spin" /> : <TestTube size={14} />}
+                Test Maili Gönder
+              </button>
+              {alertTestMsg && (
+                <span className={`text-xs font-medium px-2.5 py-1.5 rounded-lg ${alertTestMsg.includes("gönderildi") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                  {alertTestMsg}
+                </span>
+              )}
+            </div>
+          </Section>
+
+          <Section title="Uyarı Koşulları" icon={<AlertTriangle size={16} />}
+            subtitle="ModuleHealthCheckJob saatlik çalışır ve aşağıdaki koşullardan herhangi biri gerçekleştiğinde uyarı gönderir.">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { icon: "💬", label: "Onay bekleyen yorumlar", detail: "7 günden uzun süre bekleyen yorumlar" },
+                { icon: "↩️", label: "Açık iade talepleri", detail: "5 günden uzun süre bekleyen RefundRequested siparişler" },
+                { icon: "🧾", label: "Hata durumundaki faturalar", detail: "InvoiceStatus = Error" },
+                { icon: "💳", label: "Başarısız ödemeler", detail: "Son 24 saatte Failed ödeme" },
+                { icon: "📦", label: "Kritik stok altı ürünler", detail: "Miktar ≤ CriticalStockLevel" },
+                { icon: "🚚", label: "Teslimat başarısız", detail: "FailedDelivery durumundaki kargolar" },
+              ].map(({ icon, label, detail }) => (
+                <div key={label} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <span className="text-lg">{icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">{label}</p>
+                    <p className="text-xs text-slate-400">{detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-2">Job ayarlarını değiştirmek için Admin &gt; Job Yönetimi &gt; ModuleHealthCheckJob sayfasına gidin.</p>
           </Section>
         </div>
       )}

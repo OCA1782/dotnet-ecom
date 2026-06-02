@@ -12,4 +12,5 @@ public interface IEmailService
     Task SendLowStockAlertBatchAsync(string toEmail, IReadOnlyList<(string ProductName, int Available, int Critical)> products, CancellationToken ct = default);
     Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default);
     Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default);
+    Task SendAlertAsync(IEnumerable<string> toEmails, string subject, string htmlBody, CancellationToken ct = default);
 }

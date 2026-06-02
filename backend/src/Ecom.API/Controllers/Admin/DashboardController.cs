@@ -16,4 +16,11 @@ public class DashboardController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetDashboardQuery(), ct);
         return Ok(result);
     }
+
+    [HttpGet("modules")]
+    public async Task<IActionResult> GetModuleStats(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetModuleStatsQuery(), ct);
+        return Ok(result);
+    }
 }

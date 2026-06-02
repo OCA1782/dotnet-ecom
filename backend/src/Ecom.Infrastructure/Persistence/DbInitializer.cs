@@ -17,8 +17,30 @@ public static class DbInitializer
 
         await SeedAdminUser(db, config);
         await SeedSiteSettings(db);
+        await EnsureAlertSettings(db);
         await SeedRevealPassword(db, config);
         await SeedTestExternalSources(db, contentRootPath);
+    }
+
+    private static async Task EnsureAlertSettings(ApplicationDbContext db)
+    {
+        var keys = new[] { "Alert:Enabled", "Alert:Emails" };
+        var existing = await db.SiteSettings
+            .Where(s => keys.Contains(s.Key))
+            .Select(s => s.Key)
+            .ToListAsync();
+
+        var toAdd = new List<SiteSetting>();
+        if (!existing.Contains("Alert:Enabled"))
+            toAdd.Add(new SiteSetting { Key = "Alert:Enabled", Value = "false", Group = "Alert" });
+        if (!existing.Contains("Alert:Emails"))
+            toAdd.Add(new SiteSetting { Key = "Alert:Emails", Value = "", Group = "Alert" });
+
+        if (toAdd.Count > 0)
+        {
+            db.SiteSettings.AddRange(toAdd);
+            await db.SaveChangesAsync();
+        }
     }
 
     private static async Task SeedRevealPassword(ApplicationDbContext db, IConfiguration config)
