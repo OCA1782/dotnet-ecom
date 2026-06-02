@@ -42,7 +42,7 @@ public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<G
             .Take(request.PageSize)
             .Select(o => new OrderSummaryDto(
                 o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.ShipmentStatus,
-                o.GrandTotal, o.Items.Count, o.CreatedDate))
+                o.GrandTotal, o.Items.Count, o.CreatedDate, o.DataSource))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<OrderSummaryDto>.Create(items, totalCount, request.Page, request.PageSize);

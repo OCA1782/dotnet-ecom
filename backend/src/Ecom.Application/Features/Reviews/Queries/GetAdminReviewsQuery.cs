@@ -30,7 +30,8 @@ public record AdminReviewDto(
     int DislikeCount,
     int ReplyCount,
     int ReportCount,
-    bool HasUnresolvedReports
+    bool HasUnresolvedReports,
+    string? DataSource = null
 );
 
 public class GetAdminReviewsHandler(IApplicationDbContext db)
@@ -121,7 +122,7 @@ public class GetAdminReviewsHandler(IApplicationDbContext db)
             {
                 r.Id, r.ProductId, r.UserId,
                 r.Rating, r.Title, r.Body, r.IsVerifiedPurchase,
-                r.IsApproved, r.RejectionNote, r.CreatedDate
+                r.IsApproved, r.RejectionNote, r.CreatedDate, r.DataSource
             })
             .ToListAsync(cancellationToken);
 
@@ -154,7 +155,8 @@ public class GetAdminReviewsHandler(IApplicationDbContext db)
             dislikeCounts.GetValueOrDefault(r.Id, 0),
             replyCounts.GetValueOrDefault(r.Id, 0),
             reportData.ContainsKey(r.Id) ? reportData[r.Id].Total : 0,
-            reportData.ContainsKey(r.Id) && reportData[r.Id].Unresolved > 0
+            reportData.ContainsKey(r.Id) && reportData[r.Id].Unresolved > 0,
+            r.DataSource
             );
         }).ToList();
 

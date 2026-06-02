@@ -27,9 +27,15 @@ public class DeleteProductHandler(IApplicationDbContext db, IAuditService audit)
         if (product is null)
             return Result.Failure("Ürün bulunamadı.");
 
+        var blockingStatuses = BlockingStatuses.ToList();
+        var blockingOrderIds = await (
+            from o in db.Orders
+            where blockingStatuses.Contains(o.Status)
+            select o.Id
+        ).ToListAsync(cancellationToken);
+
         var hasActiveOrders = await db.OrderItems
-            .AnyAsync(i => i.ProductId == request.Id &&
-                BlockingStatuses.Contains(i.Order!.Status), cancellationToken);
+            .AnyAsync(i => i.ProductId == request.Id && blockingOrderIds.Contains(i.OrderId), cancellationToken);
 
         if (hasActiveOrders)
             return Result.Failure("Aktif siparişi bulunan ürün silinemez. Siparişler tamamlanana kadar bekleyin.");

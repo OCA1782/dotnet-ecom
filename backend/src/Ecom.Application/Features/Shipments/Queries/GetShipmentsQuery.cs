@@ -19,7 +19,8 @@ public record ShipmentListItemDto(
     string Status,
     DateTime? ShippedDate,
     DateTime? DeliveredDate,
-    DateTime CreatedDate
+    DateTime CreatedDate,
+    string? DataSource = null
 );
 
 public record GetShipmentsQuery(
@@ -73,7 +74,8 @@ public class GetShipmentsHandler(IApplicationDbContext db)
                 s.Status.ToString(),
                 s.ShippedDate,
                 s.DeliveredDate,
-                s.CreatedDate
+                s.CreatedDate,
+                s.DataSource
             ))
             .ToListAsync(ct);
 

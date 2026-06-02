@@ -18,7 +18,8 @@ public record AdminPaymentDto(
     string? TransactionId,
     DateTime? PaidDate,
     string? ErrorMessage,
-    DateTime CreatedDate
+    DateTime CreatedDate,
+    string? DataSource = null
 );
 
 public record AdminPaymentLogDto(
@@ -82,7 +83,8 @@ public class GetAdminPaymentsHandler(IApplicationDbContext db)
                 p.TransactionId,
                 p.PaidDate,
                 p.ErrorMessage,
-                p.CreatedDate
+                p.CreatedDate,
+                p.DataSource
             ))
             .ToListAsync(ct);
 

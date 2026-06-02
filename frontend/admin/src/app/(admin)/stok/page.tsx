@@ -567,14 +567,16 @@ export default function StockPage() {
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Rezerve</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kullanılabilir</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kritik Seviye</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : stocks.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Stok kaydı bulunamadı</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Stok kaydı bulunamadı</td></tr>
               ) : stocks.map((s, i) => (
                 <Fragment key={`${s.productId}-${s.variantId ?? i}`}>
                   <tr className={`transition-all ${
@@ -611,6 +613,12 @@ export default function StockPage() {
                         {s.criticalStockLevel}
                       </span>
                     </td>
+                    <td className="px-5 py-3.5 text-xs text-slate-500">
+                      {s.createdDate ? new Date(s.createdDate).toLocaleDateString("tr-TR") : "—"}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {s.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{s.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
                         <button onClick={() => openItemHistory(s)} title="Stok Geçmişi"
@@ -633,7 +641,7 @@ export default function StockPage() {
                     <tr className={s.availableQuantity === 0
                       ? "bg-red-50 border-l-4 border-l-red-500"
                       : "bg-amber-50/50 border-l-4 border-l-amber-400"}>
-                      <td colSpan={7} className="px-5 pb-3 pt-0">
+                      <td colSpan={9} className="px-5 pb-3 pt-0">
                         <div className="flex items-center gap-2">
                           {s.availableQuantity === 0 ? (
                             <>

@@ -185,6 +185,9 @@ export default function IadePage() {
                       İade Talep Edildi
                     </span>
                     <span className="text-xs text-slate-400">{PAYMENT_STATUS[order.paymentStatus] ?? "—"}</span>
+                    {order.dataSource && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{order.dataSource}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1"><User size={11} />{order.customerName}</span>

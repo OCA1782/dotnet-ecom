@@ -11,7 +11,7 @@ namespace Ecom.API.Controllers.Admin;
 [ApiController]
 [Route("api/admin/seed")]
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class SeedController(IApplicationDbContext db, IPasswordService passwordService) : ControllerBase
+public class SeedController(IApplicationDbContext db, IPasswordService passwordService, ICacheService cache) : ControllerBase
 {
     private static readonly Random _rng = new();
 
@@ -94,6 +94,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
     [HttpPost("bulk")]
     public async Task<IActionResult> SeedBulk([FromBody] BulkSeedRequest request, CancellationToken ct)
     {
+        const string testSource = "test";
         var count = Math.Clamp(request.Count, 1, 500);
         var entity = request.Entity.ToLowerInvariant();
         var created = new List<object>();
@@ -110,7 +111,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                     var slug = Slugify(name);
                     if (existing.Contains(slug)) slug += $"-{_rng.Next(100, 999)}";
                     existing.Add(slug);
-                    var cat = new Category { Name = name, Slug = slug, IsActive = true, ShowInMenu = true, ImageUrl = $"https://picsum.photos/seed/{slug}/600/400" };
+                    var cat = new Category { Name = name, Slug = slug, IsActive = true, ShowInMenu = true, ImageUrl = $"https://picsum.photos/seed/{slug}/600/400", DataSource = testSource };
                     db.Categories.Add(cat);
                     created.Add(new { cat.Id, cat.Name, cat.Slug });
                 }
@@ -126,7 +127,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                     var slug = Slugify(name);
                     if (existing.Contains(slug)) slug += $"-{_rng.Next(100, 999)}";
                     existing.Add(slug);
-                    var brand = new Brand { Name = name, Slug = slug, IsActive = true, LogoUrl = $"https://picsum.photos/seed/{slug}/200/200" };
+                    var brand = new Brand { Name = name, Slug = slug, IsActive = true, LogoUrl = $"https://picsum.photos/seed/{slug}/200/200", DataSource = testSource };
                     db.Brands.Add(brand);
                     created.Add(new { brand.Id, brand.Name, brand.Slug });
                 }
@@ -167,6 +168,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         IsFeatured = _rng.Next(5) == 0,
                         Description = $"Bu ürün test amaçlı oluşturulmuştur. {name} detaylı açıklaması.",
                         ShortDescription = $"{name} — test ürünü.",
+                        DataSource = testSource,
                     };
                     db.Products.Add(product);
 
@@ -175,6 +177,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         ProductId = product.Id,
                         Quantity = _rng.Next(0, 201),
                         CriticalStockLevel = _rng.Next(3, 11),
+                        DataSource = testSource,
                     };
                     db.Stocks.Add(stock);
 
@@ -211,6 +214,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         KvkkConsentDate = now,
                         PhoneNumber = $"05{_rng.Next(10, 60):D2}{_rng.Next(1000000, 9999999)}",
                         AvatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(firstName + "+" + lastName)}&background=0d9488&color=fff&size=200",
+                        DataSource = testSource,
                     };
                     user.Roles.Add(new Ecom.Domain.Entities.UserRole { UserId = user.Id, Role = Ecom.Domain.Enums.UserRole.Customer });
                     db.Users.Add(user);
@@ -251,6 +255,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         ShippingAddressSnapshot = addr,
                         BillingAddressSnapshot = addr,
                         Note = "Test siparişi",
+                        DataSource = testSource,
                     };
                     order.Items.Add(new OrderItem
                     {
@@ -288,6 +293,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         Body = Pick(_reviewBodies),
                         IsVerifiedPurchase = _rng.Next(2) == 0,
                         IsApproved = _rng.Next(3) != 0,
+                        DataSource = testSource,
                     };
                     db.ProductReviews.Add(review);
                     created.Add(new { review.Id, review.ProductId, review.Rating, review.IsApproved });
@@ -312,6 +318,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         EndDate = now.AddDays(_rng.Next(7, 90)),
                         IsActive = true,
                         Description = $"Test kuponu — {(isPercent ? "%" : "TL")} indirim",
+                        DataSource = testSource,
                     };
                     db.Coupons.Add(coupon);
                     created.Add(new { coupon.Id, coupon.Code, coupon.Type, coupon.Value });
@@ -347,6 +354,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         StartsAt = now.AddDays(-_rng.Next(0, 7)),
                         EndsAt = now.AddDays(_rng.Next(7, 60)),
                         DisplayOrder = i,
+                        DataSource = testSource,
                     };
                     db.Announcements.Add(announcement);
                     created.Add(new { announcement.Id, announcement.Title, announcement.Category, announcement.MediaType });
@@ -370,6 +378,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         ShipmentStatus = ShipmentStatus.Delivered,
                         TotalProductAmount = amt, TaxAmount = tax, GrandTotal = amt + tax,
                         ShippingAddressSnapshot = invoiceAddr, BillingAddressSnapshot = invoiceAddr,
+                        DataSource = testSource,
                     };
                     ord.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = $"Fatura Kalemi {i + 1}", SKU = $"INV-{i + 1:D4}", Quantity = 1, UnitPrice = amt, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
                     db.Orders.Add(ord);
@@ -383,6 +392,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         SubTotal = amt, TaxAmount = tax, TotalAmount = amt + tax,
                         BillingAddressSnapshot = invoiceAddr,
                         SentDate = invStatus == InvoiceStatus.Sent ? now.AddDays(-1) : null,
+                        DataSource = testSource,
                     };
                     invoice.Items.Add(new InvoiceItem { ProductName = $"Fatura Kalemi {i + 1}", SKU = $"INV-{i + 1:D4}", Quantity = 1, UnitPrice = amt, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
                     db.Invoices.Add(invoice);
@@ -407,6 +417,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         TotalProductAmount = amt, TaxAmount = tax, GrandTotal = amt + tax,
                         ShippingAddressSnapshot = retAddr, BillingAddressSnapshot = retAddr,
                         Note = $"Test iade talebi #{i + 1}",
+                        DataSource = testSource,
                     };
                     order.Items.Add(new OrderItem { ProductId = Guid.NewGuid(), ProductName = $"Test Ürün {i + 1}", SKU = $"RET-{i + 1:D3}", Quantity = i + 1, UnitPrice = 100m, TaxRate = 18m, TaxAmount = tax, LineTotal = amt + tax });
                     db.Orders.Add(order);
@@ -440,6 +451,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         Status = status,
                         ShippedDate = status >= ShipmentStatus.Shipped ? now.AddDays(-_rng.Next(1, 5)) : null,
                         DeliveredDate = status == ShipmentStatus.Delivered ? now.AddDays(-_rng.Next(0, 2)) : null,
+                        DataSource = testSource,
                     };
                     db.Shipments.Add(shipment);
                     created.Add(new { shipment.Id, ord.OrderNumber, shipment.CargoCompany, shipment.TrackingNumber, shipment.Status });
@@ -470,6 +482,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                         Currency = "TRY",
                         Status = status,
                         PaidDate = status == PaymentStatus.Paid ? now.AddDays(-_rng.Next(0, 30)) : null,
+                        DataSource = testSource,
                     };
                     db.Payments.Add(payment);
                     created.Add(new { payment.Id, ord.OrderNumber, payment.PaymentMethod, payment.Amount, payment.Status });
@@ -482,6 +495,16 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Seed sonrası ilgili cache anahtarlarını temizle (kategori ve ürün detay cache'leri stale kalmasın)
+        if (entity == "category")
+        {
+            await cache.RemoveByPrefixAsync("categories:", ct);
+        }
+        else if (entity == "product")
+        {
+            await cache.RemoveByPrefixAsync("product:slug:", ct);
+        }
 
         return Ok(new
         {

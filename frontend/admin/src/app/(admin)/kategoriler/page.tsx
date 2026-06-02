@@ -42,6 +42,8 @@ interface Category {
   productCount?: number;
   subCategories?: Category[];
   importedFromSourceName?: string;
+  createdDate?: string;
+  dataSource?: string;
 }
 
 interface CatForm {
@@ -372,6 +374,7 @@ export default function KategorilerPage() {
                 </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Menüde</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
@@ -424,8 +427,13 @@ export default function KategorilerPage() {
                           {cat.isActive ? "Aktif" : "Pasif"}
                         </span>
                       </td>
+                      <td className="px-5 py-3 text-xs text-slate-500">
+                        {cat.createdDate ? new Date(cat.createdDate).toLocaleDateString("tr-TR") : "—"}
+                      </td>
                       <td className="px-5 py-3">
-                        {cat.importedFromSourceName
+                        {cat.dataSource
+                          ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.dataSource}</span>
+                          : cat.importedFromSourceName
                           ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.importedFromSourceName}</span>
                           : <span className="text-xs text-slate-300">—</span>}
                       </td>
@@ -471,8 +479,13 @@ export default function KategorilerPage() {
                             {sub.isActive ? "Aktif" : "Pasif"}
                           </span>
                         </td>
+                        <td className="px-5 py-2.5 text-xs text-slate-500">
+                          {sub.createdDate ? new Date(sub.createdDate).toLocaleDateString("tr-TR") : "—"}
+                        </td>
                         <td className="px-5 py-2.5">
-                          {sub.importedFromSourceName
+                          {sub.dataSource
+                            ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{sub.dataSource}</span>
+                            : sub.importedFromSourceName
                             ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{sub.importedFromSourceName}</span>
                             : <span className="text-xs text-slate-300">—</span>}
                         </td>

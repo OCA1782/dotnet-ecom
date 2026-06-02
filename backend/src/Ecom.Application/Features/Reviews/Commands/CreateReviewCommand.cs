@@ -40,13 +40,14 @@ public class CreateReviewHandler(IApplicationDbContext db) : IRequestHandler<Cre
         if (alreadyReviewed)
             return Result<Guid>.Failure("Bu ürün için zaten bir yorum yazdınız.");
 
-        // Check verified purchase
+        // Check verified purchase — avoid navigation property in LINQ (EF Core 9+)
+        var qualifiedOrderIds = await (
+            from o in db.Orders
+            where o.UserId == request.UserId && (int)o.Status >= 6
+            select o.Id
+        ).ToListAsync(cancellationToken);
         var isVerified = await db.OrderItems
-            .AnyAsync(oi =>
-                oi.ProductId == request.ProductId &&
-                oi.Order!.UserId == request.UserId &&
-                (int)oi.Order.Status >= 6, // Delivered or Completed
-                cancellationToken);
+            .AnyAsync(oi => oi.ProductId == request.ProductId && qualifiedOrderIds.Contains(oi.OrderId), cancellationToken);
 
         var review = new ProductReview
         {

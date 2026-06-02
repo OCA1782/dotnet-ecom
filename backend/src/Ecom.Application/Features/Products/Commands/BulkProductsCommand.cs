@@ -59,10 +59,17 @@ public class BulkProductsHandler(IApplicationDbContext db, IAuditService audit)
                 break;
 
             case "delete":
+                var blockingStatuses = BlockingStatuses.ToList();
+                var blockingOrderIds = await (
+                    from o in db.Orders
+                    where blockingStatuses.Contains(o.Status)
+                    select o.Id
+                ).ToListAsync(ct);
+
                 foreach (var p in products)
                 {
                     var hasOrders = await db.OrderItems
-                        .AnyAsync(i => i.ProductId == p.Id && BlockingStatuses.Contains(i.Order!.Status), ct);
+                        .AnyAsync(i => i.ProductId == p.Id && blockingOrderIds.Contains(i.OrderId), ct);
                     if (hasOrders)
                     {
                         errors.Add($"{p.Name}: Aktif siparişi var, atlandı");

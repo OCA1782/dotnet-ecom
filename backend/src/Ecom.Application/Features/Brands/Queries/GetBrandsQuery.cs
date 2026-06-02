@@ -8,7 +8,7 @@ namespace Ecom.Application.Features.Brands.Queries;
 public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null)
     : IRequest<PaginatedList<BrandDto>>;
 
-public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null);
+public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null, DateTime CreatedDate = default, string? DataSource = null);
 
 public class GetBrandsQueryHandler(IApplicationDbContext db) : IRequestHandler<GetBrandsQuery, PaginatedList<BrandDto>>
 {
@@ -31,7 +31,9 @@ public class GetBrandsQueryHandler(IApplicationDbContext db) : IRequestHandler<G
             .Select(b => new BrandDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.Description, b.IsActive,
                 b.ImportedFromSourceId != null
                     ? db.ExternalSources.Where(s => s.Id == b.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
-                    : null))
+                    : null,
+                b.CreatedDate,
+                b.DataSource))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<BrandDto>.Create(items, total, request.Page, request.PageSize);

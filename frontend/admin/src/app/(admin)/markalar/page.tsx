@@ -25,7 +25,7 @@ const BRAND_ACTION_COLORS: Record<string, string> = {
   "Silindi — Marka": "bg-red-100 text-red-700",
 };
 
-interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; }
+interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; createdDate?: string; dataSource?: string; }
 interface BrandForm { id?: string; name: string; slug: string; logoUrl: string; description: string; isActive: boolean; }
 
 const EMPTY: BrandForm = { name: "", slug: "", logoUrl: "", description: "", isActive: true };
@@ -281,13 +281,14 @@ export default function MarkalarPage() {
                 </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Logo</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {brands.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
               ) : brands.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
@@ -305,8 +306,13 @@ export default function MarkalarPage() {
                       {b.isActive ? "Aktif" : "Pasif"}
                     </span>
                   </td>
+                  <td className="px-5 py-3 text-xs text-slate-500">
+                    {b.createdDate ? new Date(b.createdDate).toLocaleDateString("tr-TR") : "—"}
+                  </td>
                   <td className="px-5 py-3">
-                    {b.importedFromSourceName
+                    {b.dataSource
+                      ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{b.dataSource}</span>
+                      : b.importedFromSourceName
                       ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{b.importedFromSourceName}</span>
                       : <span className="text-xs text-slate-300">—</span>}
                   </td>

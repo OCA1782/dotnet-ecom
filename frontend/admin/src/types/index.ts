@@ -98,6 +98,7 @@ export interface AdminOrderSummary {
   grandTotal: number;
   itemCount: number;
   createdDate: string;
+  dataSource?: string;
 }
 
 export interface AdminOrderItem {
@@ -156,6 +157,8 @@ export interface AdminProduct {
   brandName?: string;
   categoryName?: string;
   importedFromSourceName?: string;
+  createdDate?: string;
+  dataSource?: string;
 }
 
 // Stock
@@ -170,6 +173,8 @@ export interface StockItem {
   criticalStockLevel: number;
   isCritical: boolean;
   lastMovementDate?: string;
+  createdDate?: string;
+  dataSource?: string;
 }
 
 // Users
@@ -183,6 +188,7 @@ export interface AdminUser {
   isActive: boolean;
   createdDate: string;
   roles: string[];
+  dataSource?: string;
 }
 
 // Coupons
@@ -207,6 +213,8 @@ export interface Coupon {
   startDate?: string;
   endDate?: string;
   isActive: boolean;
+  createdDate?: string;
+  dataSource?: string;
 }
 
 // Status maps

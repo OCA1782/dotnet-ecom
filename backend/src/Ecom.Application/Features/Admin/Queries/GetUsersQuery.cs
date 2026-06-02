@@ -17,7 +17,8 @@ public record UserListItemDto(
     bool EmailConfirmed,
     DateTime CreatedDate,
     DateTime? LastLoginDate,
-    IEnumerable<string> Roles
+    IEnumerable<string> Roles,
+    string? DataSource = null
 );
 
 public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null) : IRequest<PaginatedList<UserListItemDto>>;
@@ -43,7 +44,7 @@ public class GetUsersHandler(IApplicationDbContext db) : IRequestHandler<GetUser
             .Select(u => new
             {
                 u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive, u.EmailConfirmed,
-                u.CreatedDate, u.LastLoginDate
+                u.CreatedDate, u.LastLoginDate, u.DataSource
             })
             .ToListAsync(cancellationToken);
 
@@ -55,7 +56,8 @@ public class GetUsersHandler(IApplicationDbContext db) : IRequestHandler<GetUser
         var items = users.Select(u => new UserListItemDto(
             u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive, u.EmailConfirmed,
             u.CreatedDate, u.LastLoginDate,
-            roles.Where(r => r.UserId == u.Id).Select(r => r.Role.ToString())
+            roles.Where(r => r.UserId == u.Id).Select(r => r.Role.ToString()),
+            u.DataSource
         ));
 
         return PaginatedList<UserListItemDto>.Create(items, totalCount, request.Page, request.PageSize);

@@ -18,7 +18,9 @@ public record CategoryDto(
     bool IsActive,
     bool ShowInMenu,
     List<CategoryDto> SubCategories,
-    string? ImportedFromSourceName = null
+    string? ImportedFromSourceName = null,
+    DateTime CreatedDate = default,
+    string? DataSource = null
 );
 
 public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService cache) : IRequestHandler<GetCategoriesQuery, List<CategoryDto>>
@@ -59,6 +61,8 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
                 c.Id, c.ParentCategoryId, c.Name, c.Slug,
                 c.Description, c.ImageUrl, c.SortOrder, c.IsActive, c.ShowInMenu,
                 BuildTree(all, c.Id, sourceNames),
-                c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null))
+                c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
+                c.CreatedDate,
+                c.DataSource))
             .ToList();
 }

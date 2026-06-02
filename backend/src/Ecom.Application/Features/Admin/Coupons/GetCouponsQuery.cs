@@ -21,7 +21,9 @@ public record CouponDto(
     int UsageCount,
     DateTime? StartDate,
     DateTime? EndDate,
-    bool IsActive
+    bool IsActive,
+    DateTime CreatedDate = default,
+    string? DataSource = null
 );
 
 public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCouponsQuery, PaginatedList<CouponDto>>
@@ -43,7 +45,8 @@ public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCo
             .Select(c => new CouponDto(
                 c.Id, c.Code, c.Description, c.Type, c.Value,
                 c.MinOrderAmount, c.MaxUsageCount, c.MaxUsagePerUser,
-                c.UsageCount, c.StartDate, c.EndDate, c.IsActive))
+                c.UsageCount, c.StartDate, c.EndDate, c.IsActive,
+                c.CreatedDate, c.DataSource))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<CouponDto>.Create(items, total, request.Page, request.PageSize);

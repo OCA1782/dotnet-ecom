@@ -14,7 +14,8 @@ public record OrderSummaryDto(
     ShipmentStatus ShipmentStatus,
     decimal GrandTotal,
     int ItemCount,
-    DateTime CreatedDate
+    DateTime CreatedDate,
+    string? DataSource = null
 );
 
 public record GetMyOrdersQuery(Guid UserId, int Page = 1, int PageSize = 10, List<OrderStatus>? Statuses = null) : IRequest<PaginatedList<OrderSummaryDto>>;

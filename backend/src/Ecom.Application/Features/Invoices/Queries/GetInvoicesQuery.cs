@@ -17,7 +17,8 @@ public record InvoiceListDto(
     DateTime CreatedDate,
     DateTime? SentDate,
     string? ProviderInvoiceId,
-    string? ErrorMessage
+    string? ErrorMessage,
+    string? DataSource = null
 );
 
 public record GetInvoicesQuery(
@@ -57,7 +58,7 @@ public class GetInvoicesHandler(IApplicationDbContext db)
             .Select(i => new InvoiceListDto(
                 i.Id, i.InvoiceNumber, i.OrderId, i.Order.OrderNumber,
                 i.GuestEmail, i.DocType, i.Status, i.TotalAmount,
-                i.CreatedDate, i.SentDate, i.ProviderInvoiceId, i.ErrorMessage))
+                i.CreatedDate, i.SentDate, i.ProviderInvoiceId, i.ErrorMessage, i.DataSource))
             .ToListAsync(ct);
 
         return new InvoicesPagedResult(items, total, request.Page, request.PageSize);

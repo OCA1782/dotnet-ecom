@@ -51,6 +51,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<DeployServer> DeployServers => Set<DeployServer>();
     public DbSet<DeployLog> DeployLogs => Set<DeployLog>();
     public DbSet<JobLog> JobLogs => Set<JobLog>();
+    public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

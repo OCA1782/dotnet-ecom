@@ -307,14 +307,14 @@ export default function KuponlarPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["Kod", "Tür", "Değer", "Min. Sipariş", "Kullanım", "Bitiş", "Durum", ""].map(h => (
+                    {["Kod", "Tür", "Değer", "Min. Sipariş", "Kullanım", "Bitiş", "Durum", "Oluşturulma Tarihi", "Kaynak", ""].map(h => (
                       <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {coupons.length === 0 ? (
-                    <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Kupon bulunamadı</td></tr>
+                    <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Kupon bulunamadı</td></tr>
                   ) : coupons.map(c => (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-5 py-3 font-mono font-semibold text-slate-800 text-xs">{c.code}</td>
@@ -335,6 +335,12 @@ export default function KuponlarPage() {
                         }`}>
                           {c.isActive ? "Aktif" : "Pasif"}
                         </span>
+                      </td>
+                      <td className="px-5 py-3 text-xs text-slate-500">
+                        {c.createdDate ? new Date(c.createdDate).toLocaleDateString("tr-TR") : "—"}
+                      </td>
+                      <td className="px-5 py-3">
+                        {c.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{c.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1.5">

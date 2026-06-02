@@ -18,13 +18,21 @@ public class DeleteStockHandler(IApplicationDbContext db, IAuditService audit)
         if (stock is null)
             return Result.Failure("Stok kaydı bulunamadı.");
 
+        var blockingStatuses = new[]
+        {
+            Domain.Enums.OrderStatus.Created,
+            Domain.Enums.OrderStatus.PaymentPending,
+            Domain.Enums.OrderStatus.PaymentCompleted,
+            Domain.Enums.OrderStatus.Preparing,
+            Domain.Enums.OrderStatus.Shipped,
+        }.ToList();
+        var blockingOrderIds = await (
+            from o in db.Orders
+            where blockingStatuses.Contains(o.Status)
+            select o.Id
+        ).ToListAsync(cancellationToken);
         var hasActiveOrders = await db.OrderItems
-            .AnyAsync(i => i.ProductId == request.ProductId &&
-                (i.Order!.Status == Domain.Enums.OrderStatus.Created ||
-                 i.Order.Status == Domain.Enums.OrderStatus.PaymentPending ||
-                 i.Order.Status == Domain.Enums.OrderStatus.PaymentCompleted ||
-                 i.Order.Status == Domain.Enums.OrderStatus.Preparing ||
-                 i.Order.Status == Domain.Enums.OrderStatus.Shipped), cancellationToken);
+            .AnyAsync(i => i.ProductId == request.ProductId && blockingOrderIds.Contains(i.OrderId), cancellationToken);
 
         if (hasActiveOrders)
             return Result.Failure("Aktif siparişi olan ürünün stoğu silinemez.");

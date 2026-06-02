@@ -156,6 +156,7 @@ export default function AdminProductsPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [priceAdjustModal, setPriceAdjustModal] = useState(false);
   const [priceAdjustPercent, setPriceAdjustPercent] = useState("");
+  const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
 
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -245,7 +246,8 @@ export default function AdminProductsPage() {
       const body: Record<string, unknown> = { productIds: [...selected], action };
       if (pricePercent !== undefined) body.priceAdjustPercent = pricePercent;
       const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
-      const msg = `${r.affected} ürün güncellendi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`;
+      const verb = action === "delete" ? "silindi" : "güncellendi";
+      const msg = `${r.affected} ürün ${verb}${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`;
       setMsg({ text: msg, ok: true });
       setSelected(new Set());
       await fetchProducts();
@@ -662,7 +664,7 @@ export default function AdminProductsPage() {
               <Percent size={12} /> Fiyat Ayarla
             </button>
             <button
-              onClick={() => handleBulkAction("delete")}
+              onClick={() => setBulkDeleteModal(true)}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50"
             >
@@ -761,7 +763,9 @@ export default function AdminProductsPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3">
-                    {p.importedFromSourceName
+                    {p.dataSource
+                      ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{p.dataSource}</span>
+                      : p.importedFromSourceName
                       ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{p.importedFromSourceName}</span>
                       : <span className="text-xs text-slate-300">—</span>}
                   </td>
@@ -923,6 +927,40 @@ export default function AdminProductsPage() {
                 className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50"
               >
                 Uygula
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">Toplu Silme</h2>
+                <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-700">
+              Seçili <span className="font-semibold text-slate-900">{selected.size} ürünü</span> silmek istediğinizden emin misiniz?
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Aktif siparişi bulunan ürünler atlanacaktır. Bu işlem geri alınamaz.
+            </p>
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setBulkDeleteModal(false)} disabled={bulkLoading}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
+                Vazgeç
+              </button>
+              <button
+                onClick={async () => { setBulkDeleteModal(false); await handleBulkAction("delete"); }}
+                disabled={bulkLoading}
+                className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                {bulkLoading ? "Siliniyor..." : "Sil"}
               </button>
             </div>
           </div>

@@ -20,7 +20,8 @@ public record AnnouncementDto(
     DateTime? EndsAt,
     int DisplayOrder,
     DateTime CreatedDate,
-    DateTime? UpdatedDate
+    DateTime? UpdatedDate,
+    string? DataSource = null
 );
 
 public record GetAnnouncementsQuery(
@@ -69,7 +70,7 @@ public class GetAnnouncementsHandler(IApplicationDbContext db)
                 a.MediaUrl, a.MediaType, a.Category,
                 a.LinkUrl, a.LinkText, a.IsActive,
                 a.StartsAt, a.EndsAt, a.DisplayOrder,
-                a.CreatedDate, a.UpdatedDate))
+                a.CreatedDate, a.UpdatedDate, a.DataSource))
             .ToListAsync(ct);
 
         return PaginatedList<AnnouncementDto>.Create(items, total, request.Page, request.PageSize);

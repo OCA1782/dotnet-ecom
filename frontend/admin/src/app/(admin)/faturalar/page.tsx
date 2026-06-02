@@ -20,6 +20,7 @@ interface InvoiceListItem {
   sentDate: string | null;
   providerInvoiceId: string | null;
   errorMessage: string | null;
+  dataSource?: string;
 }
 
 interface InvoiceDetail {
@@ -248,6 +249,7 @@ export default function FaturalarPage() {
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tutar</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tarih</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kaynak</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -270,6 +272,9 @@ export default function FaturalarPage() {
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-slate-800">{fmt(inv.totalAmount)}</td>
                         <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(inv.createdDate)}</td>
+                        <td className="px-4 py-3">
+                          {inv.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{inv.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
+                        </td>
                         <td className="px-4 py-3">
                           <button onClick={() => openDetail(inv.id)}
                             className="p-1.5 rounded-lg hover:bg-teal-50 text-slate-400 hover:text-teal-600 transition">

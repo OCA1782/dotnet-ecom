@@ -323,12 +323,13 @@ export default function OrdersPage() {
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Ödeme</th>
                   <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Tutar</th>
                   <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Tarih</th>
+                  <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
                   <th className="px-5 py-3 text-slate-500 font-medium text-xs"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {orders.length === 0 ? (
-                  <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Sipariş bulunamadı</td></tr>
+                  <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Sipariş bulunamadı</td></tr>
                 ) : orders.map((order) => {
                   const warning = getOrderWarning(order.status);
                   return (
@@ -357,6 +358,11 @@ export default function OrdersPage() {
                         <td className="px-5 py-3.5 text-slate-600 text-xs">{PAYMENT_STATUS[order.paymentStatus] ?? "—"}</td>
                         <td className="px-5 py-3.5 text-right font-semibold text-slate-800 text-xs">{formatPrice(order.grandTotal)}</td>
                         <td className="px-5 py-3.5 text-right text-slate-400 text-xs">{formatDate(order.createdDate)}</td>
+                        <td className="px-5 py-3.5">
+                          {order.dataSource
+                            ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{order.dataSource}</span>
+                            : <span className="text-xs text-slate-300">—</span>}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5 justify-end">
                             {APPROVABLE.has(order.status) && (

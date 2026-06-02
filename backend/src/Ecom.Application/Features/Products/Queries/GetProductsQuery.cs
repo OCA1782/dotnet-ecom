@@ -41,7 +41,9 @@ public record ProductListItemDto(
     bool IsActive,
     bool IsPublished,
     bool IsFeatured,
-    string? ImportedFromSourceName = null
+    string? ImportedFromSourceName = null,
+    DateTime CreatedDate = default,
+    string? DataSource = null
 );
 
 public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
@@ -188,7 +190,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
                 p.IsActive, p.IsPublished, p.IsFeatured,
                 p.ImportedFromSourceId != null
                     ? db.ExternalSources.Where(s => s.Id == p.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
-                    : null))
+                    : null,
+                p.CreatedDate,
+                p.DataSource))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);

@@ -29,6 +29,7 @@ interface AdminReviewDto {
   replyCount: number;
   reportCount: number;
   hasUnresolvedReports: boolean;
+  dataSource?: string;
 }
 
 interface ReviewReportDto {
@@ -340,14 +341,14 @@ export default function YorumlarPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Ürün / Kullanıcı", "Puan", "Yorum", "Etkileşimler", "Tarih", "Durum", ""].map(h => (
+                {["Ürün / Kullanıcı", "Puan", "Yorum", "Etkileşimler", "Tarih", "Durum", "Kaynak", ""].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {reviews.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Yorum bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yorum bulunamadı</td></tr>
               ) : reviews.map(r => (
                 <tr key={r.id} className={`align-top ${r.hasUnresolvedReports ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3 max-w-[180px]">
@@ -416,6 +417,9 @@ export default function YorumlarPage() {
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Bekliyor</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {r.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{r.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-1.5 items-center">

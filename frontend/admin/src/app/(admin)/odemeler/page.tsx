@@ -22,6 +22,7 @@ interface Payment {
   paidDate: string | null;
   errorMessage: string | null;
   createdDate: string;
+  dataSource?: string;
 }
 
 interface PaymentLog {
@@ -257,6 +258,7 @@ export default function OdemelerPage() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Tutar</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Durum</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Tarih</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Kaynak</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">İşlemler</th>
                 </tr>
               </thead>
@@ -293,6 +295,9 @@ export default function OdemelerPage() {
                     <td className="px-4 py-3.5 text-xs text-slate-500">
                       <div>{new Date(p.createdDate).toLocaleDateString("tr-TR")}</div>
                       <div className="text-slate-400">{new Date(p.createdDate).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {p.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{p.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">

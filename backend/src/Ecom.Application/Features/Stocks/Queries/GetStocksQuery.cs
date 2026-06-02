@@ -23,7 +23,9 @@ public record StockListItemDto(
     int ReservedQuantity,
     int AvailableQuantity,
     int CriticalStockLevel,
-    bool IsCritical
+    bool IsCritical,
+    DateTime CreatedDate = default,
+    string? DataSource = null
 );
 
 public class GetStocksQueryHandler(IApplicationDbContext db)
@@ -62,7 +64,9 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
                 s.ReservedQuantity,
                 s.Quantity - s.ReservedQuantity,
                 s.CriticalStockLevel,
-                (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel
+                (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel,
+                s.CreatedDate,
+                s.DataSource
             ))
             .ToListAsync(cancellationToken);
 
