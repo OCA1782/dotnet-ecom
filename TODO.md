@@ -32,6 +32,14 @@ Son güncelleme: 2026-05-22 (v3)
 
 ## 🔴 Öncelikli (Aktif)
 
+### 17 — Adım 49: Dinamik Logo Sistemi ✅ (2026-06-03)
+- [x] globals.css: --tmpl-logo-color + --tmpl-logo-accent tüm 18 şablon için eklendi
+- [x] Customer: Pacifico font (next/font/google), BrandLogo component (Pacifico+accent subtitle)
+- [x] Customer Header: logoUrl varsa görsel, yoksa BrandLogo ile site adı logo stili
+- [x] Customer Footer: FooterBrandName — Pacifico + beyaz renk (footer koyu zemin için)
+- [x] Admin Sidebar: AdminBrandName — Inter/800/white, 3+ kelimede subtitle teal
+- [x] Admin Login: server component → settings'ten dinamik siteTitle + AdminLoginForm client
+
 ### 16 — Adım 47 ✅ (2026-06-02)
 - [x] Admin > Dashboard: 13 modül için yeni istatistik kartları (GET /api/admin/dashboard/modules)
 - [x] Admin > Jobs: ModuleHealthCheckJob — saatlik çalışır, sorun varsa uyarı maili gönderir

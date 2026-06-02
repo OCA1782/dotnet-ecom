@@ -36,6 +36,24 @@ function IconLinkedIn() {
   );
 }
 
+function FooterBrandName({ name }: { name: string }) {
+  const words = name.trim().split(/\s+/);
+  const main = words.length >= 3 ? words.slice(0, -1).join(" ") : name;
+  const sub = words.length >= 3 ? words[words.length - 1] : null;
+  return (
+    <span className="flex flex-col" style={{ gap: "2px" }}>
+      <span style={{ fontFamily: "var(--font-pacifico, Georgia, serif)", fontWeight: 400, fontSize: "1.125rem", color: "#ffffff", lineHeight: 1.1 }}>
+        {main}
+      </span>
+      {sub && (
+        <span style={{ fontFamily: "var(--font-geist, system-ui, sans-serif)", fontWeight: 700, fontSize: "0.45rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", lineHeight: 1 }}>
+          {sub}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default async function Footer() {
   const settings = await getSettings();
 
@@ -64,7 +82,7 @@ export default async function Footer() {
               <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                 <FooterLogoImg src={logoUrl} alt={siteName} />
               </div>
-              <span className="text-white font-bold text-xl">{siteName}</span>
+              <FooterBrandName name={siteName} />
             </div>
             <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
               {tagline}

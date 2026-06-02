@@ -9,6 +9,8 @@
   --tmpl-header-bg: #ffffff;
   --tmpl-header-border: #E3EFEE;
   --tmpl-header-shadow: 0 2px 12px rgba(18,48,74,0.07);
+  --tmpl-logo-color: #0F5F8F;
+  --tmpl-logo-accent: #F05A24;
 }
 
 @theme inline {
@@ -64,6 +66,8 @@ html[data-template="bold"] {
   --tmpl-header-bg: var(--color-primary, #0d9488);
   --tmpl-header-border: transparent;
   --tmpl-header-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #FFD166;
 }
 html[data-template="bold"] header[data-tmpl-header] a,
 html[data-template="bold"] header[data-tmpl-header] button,
@@ -91,6 +95,8 @@ html[data-template="dark"] {
   --tmpl-header-bg: #1e293b;
   --tmpl-header-border: #334155;
   --tmpl-header-shadow: 0 2px 16px rgba(0,0,0,0.5);
+  --tmpl-logo-color: #f1f5f9;
+  --tmpl-logo-accent: #F5A623;
 }
 html[data-template="dark"] body { background-color: #0f172a; color: #f1f5f9; }
 html[data-template="dark"] header[data-tmpl-header] a,
@@ -141,6 +147,8 @@ html[data-template="luxe"] {
   --tmpl-header-bg: #fffef9;
   --tmpl-header-border: #e8e0d0;
   --tmpl-header-shadow: 0 2px 12px rgba(101,67,33,0.07);
+  --tmpl-logo-color: #78350f;
+  --tmpl-logo-accent: #92400e;
 }
 html[data-template="luxe"] body { background-color: #faf9f6; }
 html[data-template="luxe"] [data-header-inner] {
@@ -187,6 +195,8 @@ html[data-template="sport"] {
   --tmpl-header-bg: #0f172a;
   --tmpl-header-border: #1e293b;
   --tmpl-header-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  --tmpl-logo-color: #f1f5f9;
+  --tmpl-logo-accent: #f97316;
 }
 html[data-template="sport"] body { background-color: #f1f5f9; }
 html[data-template="sport"] header[data-tmpl-header] > div {
@@ -221,6 +231,8 @@ html[data-template="retro"] {
   --tmpl-header-bg: #fef3c7;
   --tmpl-header-border: #d97706;
   --tmpl-header-shadow: 0 3px 0 #d97706;
+  --tmpl-logo-color: #78350f;
+  --tmpl-logo-accent: #d97706;
 }
 html[data-template="retro"] body { background-color: #fef9ef; }
 html[data-template="retro"] header[data-tmpl-header] { border-bottom-width: 3px !important; }
@@ -366,6 +378,8 @@ html[data-template="brutalist"] {
   --tmpl-header-bg: #ffffff;
   --tmpl-header-border: #000000;
   --tmpl-header-shadow: 0 3px 0 #000000;
+  --tmpl-logo-color: #000000;
+  --tmpl-logo-accent: #333333;
 }
 html[data-template="brutalist"] body { background: #f5f5f5; }
 html[data-template="brutalist"] header[data-tmpl-header] { border-bottom-width: 3px !important; }
@@ -411,6 +425,8 @@ html[data-template="glassmorphism"] {
   --tmpl-header-bg: rgba(255,255,255,0.12);
   --tmpl-header-border: rgba(255,255,255,0.25);
   --tmpl-header-shadow: 0 4px 30px rgba(0,0,0,0.12);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #c4b5fd;
 }
 html[data-template="glassmorphism"] body {
   background: linear-gradient(135deg, #1a0533 0%, #3d0066 35%, #0f2460 70%, #001a4d 100%) fixed !important;
@@ -470,6 +486,8 @@ html[data-template="neon"] {
   --tmpl-header-bg: #0a0020;
   --tmpl-header-border: #cc00ff;
   --tmpl-header-shadow: 0 0 24px rgba(204,0,255,0.35);
+  --tmpl-logo-color: #e879f9;
+  --tmpl-logo-accent: #00ffff;
 }
 html[data-template="neon"] body { background: #050010; color: #f0e6ff; }
 html[data-template="neon"] header[data-tmpl-header] { border-bottom-width: 1px !important; }
@@ -519,6 +537,8 @@ html[data-template="pastel"] {
   --tmpl-header-bg: #fce7f3;
   --tmpl-header-border: #f9a8d4;
   --tmpl-header-shadow: 0 2px 8px rgba(219,39,119,0.08);
+  --tmpl-logo-color: #be185d;
+  --tmpl-logo-accent: #ec4899;
 }
 html[data-template="pastel"] body { background: #fdf4ff; }
 html[data-template="pastel"] [class*="rounded-2xl"],
@@ -563,6 +583,8 @@ html[data-template="catalog"] {
   --tmpl-header-bg: #131921;
   --tmpl-header-border: #232f3e;
   --tmpl-header-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #febd69;
 }
 html[data-template="catalog"] body { background: #eaeded; }
 html[data-template="catalog"] header[data-tmpl-header] > div {
@@ -618,6 +640,8 @@ html[data-template="catalog"] .text-\[\#008F86\] { color: #007185 !important; }
 html[data-template="atolye"] {
   --color-primary: #1E5B8C;
   --color-accent:  #C74B2A;
+  --tmpl-logo-color: #2C1A10;
+  --tmpl-logo-accent: #C74B2A;
 }
 html[data-template="atolye"] body { background-color: #F5F0E8; color: #2C1A10; }
 html[data-template="atolye"] header[data-tmpl-header] { background-color: #F5F0E8 !important; border-bottom: 2px solid #D4882C; }
@@ -652,6 +676,8 @@ html[data-template="atolye"] .bg-orange-500 { background: #C74B2A !important; }
 html[data-template="anadolu"] {
   --color-primary: #C74B2A;
   --color-accent:  #D4882C;
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #D4882C;
 }
 html[data-template="anadolu"] body { background-color: #F5F0E8; color: #1E3A5F; }
 html[data-template="anadolu"] header[data-tmpl-header] { background-color: #1E5B8C !important; }
@@ -688,6 +714,8 @@ html[data-template="anadolu"] .text-orange-500, html[data-template="anadolu"] .t
 html[data-template="cini"] {
   --color-primary: #1E5B8C;
   --color-accent:  #D4882C;
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #D4882C;
 }
 html[data-template="cini"] body { background-color: #F0EBE3; color: #2C1A10; }
 html[data-template="cini"] header[data-tmpl-header] { background-color: #C74B2A !important; }
@@ -724,3 +752,25 @@ html[data-template="cini"] .bg-teal-50 { background: #EDE6D8 !important; }
 html[data-template="cini"] footer { background-color: #2C1A10 !important; color: #F5F0E8 !important; }
 html[data-template="cini"] .text-orange-500, html[data-template="cini"] .text-orange-600 { color: #D4882C !important; }
 html[data-template="cini"] .bg-orange-500 { background: #D4882C !important; }
+
+/* ═══ BrandLogo — CSS metin logo sistemi ════════════════════════════════
+   Header: yüksek özgüllük — !important'lı şablon span kurallarını geçer.
+   Footer: düz seçici, şablon footer override'ları ile çakışmaz.
+══════════════════════════════════════════════════════════════════════════ */
+header[data-tmpl-header] [data-slot="logo"] [data-brand-name] {
+  color: var(--tmpl-logo-color, #0F5F8F) !important;
+  font-family: var(--font-pacifico, Georgia, serif) !important;
+  font-weight: 400 !important;
+  font-size: 1.5rem !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.01em !important;
+}
+header[data-tmpl-header] [data-slot="logo"] [data-brand-subtitle] {
+  color: var(--tmpl-logo-accent, #F05A24) !important;
+  font-family: var(--font-geist, system-ui, sans-serif) !important;
+  font-weight: 700 !important;
+  font-size: 0.5rem !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}

@@ -1596,6 +1596,130 @@ export default function YonetimPage() {
       {/* ── Görünüm ── */}
       {tab === "gorunum" && (
         <div className="space-y-5">
+
+          {/* ── Logo Sistemi Kullanım Kılavuzu ── */}
+          <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-teal-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <ImageIcon size={14} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-teal-900">Logo Sistemi Nasıl Çalışır?</p>
+                <p className="text-xs text-teal-700 mt-0.5 leading-relaxed">
+                  Sistem iki mod arasında otomatik geçiş yapar: <strong>Görsel Logo</strong> (yüklediğiniz PNG/JPG/SVG) veya <strong>Metin Logo</strong> (site adınız şık bir yazı tipinde).
+                </p>
+              </div>
+            </div>
+
+            {/* Öncelik akışı */}
+            <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Müşteri Sitesi — Header Logo Öncelik Sırası</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-teal-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">İsimli Logo yüklüyse → görsel gösterilir</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoNamed</code> dolu ise bu resim header'da öncelikli olarak görünür. En fazla 280 × 72 px alan kullanır.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-teal-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">İsimli yoksa, İsimsiz Logo yüklüyse → o gösterilir</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoIcon</code> dolu ise ikon resmi header'da görünür.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Her ikisi de boşsa → Metin Logo otomatik devreye girer</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Site adınız (<code className="bg-slate-100 px-1 rounded">SiteName</code>) Pacifico yazı tipiyle logo gibi işlenir.
+                      Üç ve daha fazla kelimeli adlarda son kelime vurgu rengiyle ayrı satırda gösterilir.
+                      Örnek: <em className="text-teal-600">"Neslinin Rengi&nbsp;<span className="text-orange-500">Atölyesi</span>"</em>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tablo: alan → nerede kullanılır */}
+            <div className="bg-white rounded-xl border border-teal-100 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Alan</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Header</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Footer</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Favicon</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  <tr>
+                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimli Logo</td>
+                    <td className="px-3 py-2 text-teal-600">✓ Öncelikli</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimsiz Logo</td>
+                    <td className="px-3 py-2 text-teal-500">✓ Yedek</td>
+                    <td className="px-3 py-2 text-teal-600">✓ İkon kutusu</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri Favicon</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 text-teal-600">✓ Sekme ikonu</td>
+                  </tr>
+                  <tr className="bg-orange-50">
+                    <td className="px-3 py-2 font-medium text-slate-700">Metin Logo <span className="text-[10px] text-orange-500 font-normal">(otomatik)</span></td>
+                    <td className="px-3 py-2 text-orange-500">✓ İkisi de boşsa</td>
+                    <td className="px-3 py-2 text-orange-500">✓ Her zaman</td>
+                    <td className="px-3 py-2 text-slate-400">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Admin sidebar notu */}
+            <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admin Paneli — Sidebar Logo</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-indigo-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">◀</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Daraltılmış sidebar → her zaman Admin İsimsiz Logo ikonu</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boşsa <code className="bg-slate-100 px-1 rounded">/logo-icon.png</code> gösterilir.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + Admin İsimli Logo yüklüyse → görsel</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoNamed</code> dolu olduğunda tam logo görseli gösterilir.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + İsimli Logo boşsa → Metin Logo</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Site adı Inter Bold yazı tipiyle beyaz renkte, 3+ kelimeli adlarda son kelime teal vurguyla alt satırda gösterilir.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-teal-600 bg-teal-100 rounded-xl px-3 py-2">
+              <span>💡</span>
+              <span>
+                <strong>Metin logoya geçmek için:</strong> Müşteri İsimli Logo ve İsimsiz Logo alanlarını boşaltın (URL'yi silin + Kaydet).
+                Site adınız otomatik olarak Pacifico yazı tipiyle logo gibi görünecektir.
+              </span>
+            </div>
+          </div>
+
           {/* Admin Panel Görselleri */}
           <Section title="Admin Panel Görselleri" icon={<ImageIcon size={16} />}
             subtitle="Admin panelinin sidebar'ında ve tarayıcı sekmesinde görünen görseller.">
@@ -1615,11 +1739,19 @@ export default function YonetimPage() {
                     </div>
                     <input ref={adminLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => adminLogoNamedRef.current?.click()} disabled={busy}
-                      className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
-                      {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => adminLogoNamedRef.current?.click()} disabled={busy}
+                        className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {busy ? "Yükleniyor..." : "Yükle"}
+                      </button>
+                      {settings[key] && (
+                        <button onClick={() => set(key, "")}
+                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
+                          <Trash2 size={12} /> Sil
+                        </button>
+                      )}
+                    </div>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
                         className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
@@ -1642,11 +1774,19 @@ export default function YonetimPage() {
                     </div>
                     <input ref={adminLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => adminLogoIconRef.current?.click()} disabled={busy}
-                      className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
-                      {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => adminLogoIconRef.current?.click()} disabled={busy}
+                        className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {busy ? "Yükleniyor..." : "Yükle"}
+                      </button>
+                      {settings[key] && (
+                        <button onClick={() => set(key, "")}
+                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
+                          <Trash2 size={12} /> Sil
+                        </button>
+                      )}
+                    </div>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
                         className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
@@ -1713,11 +1853,19 @@ export default function YonetimPage() {
                     </div>
                     <input ref={customerLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => customerLogoNamedRef.current?.click()} disabled={busy}
-                      className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
-                      {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => customerLogoNamedRef.current?.click()} disabled={busy}
+                        className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {busy ? "Yükleniyor..." : "Yükle"}
+                      </button>
+                      {settings[key] && (
+                        <button onClick={() => set(key, "")}
+                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
+                          <Trash2 size={12} /> Sil
+                        </button>
+                      )}
+                    </div>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
                         className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
@@ -1740,11 +1888,19 @@ export default function YonetimPage() {
                     </div>
                     <input ref={customerLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
-                    <button onClick={() => customerLogoIconRef.current?.click()} disabled={busy}
-                      className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
-                      {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => customerLogoIconRef.current?.click()} disabled={busy}
+                        className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {busy ? "Yükleniyor..." : "Yükle"}
+                      </button>
+                      {settings[key] && (
+                        <button onClick={() => set(key, "")}
+                          className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
+                          <Trash2 size={12} /> Sil
+                        </button>
+                      )}
+                    </div>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
                         className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />

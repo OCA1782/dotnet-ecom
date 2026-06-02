@@ -7,8 +7,9 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import BrandLogo from "@/components/BrandLogo";
 
-export default function Header({ logoUrl, logoIconUrl, siteName }: { logoUrl?: string; logoIconUrl?: string; siteName?: string }) {
+export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteName?: string }) {
   const { itemCount, fetchCart } = useCart();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -156,16 +157,8 @@ export default function Header({ logoUrl, logoIconUrl, siteName }: { logoUrl?: s
                 <img src={logoUrl} alt={siteName ?? "Mağaza"}
                   style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }}
                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-              ) : logoIconUrl ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoIconUrl} alt={siteName ?? "Mağaza"}
-                    style={{ height: "64px", width: "auto", objectFit: "contain" }}
-                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                  {siteName && <span className="text-base font-bold text-teal-700 tracking-tight hidden sm:inline">{siteName}</span>}
-                </>
               ) : (
-                <span className="text-lg font-bold text-teal-700 tracking-tight">{siteName ?? "Keyvora"}</span>
+                <BrandLogo name={siteName ?? "Keyvora"} size="md" />
               )}
             </Link>
 

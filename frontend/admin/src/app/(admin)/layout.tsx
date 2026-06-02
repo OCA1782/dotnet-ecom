@@ -95,6 +95,24 @@ function reorder(items: NavItem[], order: string[]): NavItem[] {
   return [...sorted, ...rest];
 }
 
+function AdminBrandName({ title }: { title: string }) {
+  const words = title.trim().split(/\s+/);
+  const main = words.length >= 3 ? words.slice(0, -1).join(" ") : title;
+  const sub = words.length >= 3 ? words[words.length - 1] : null;
+  return (
+    <div className="flex flex-col" style={{ gap: "2px" }}>
+      <span style={{ fontFamily: "Inter, system-ui, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#ffffff", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+        {main}
+      </span>
+      {sub && (
+        <span style={{ fontFamily: "Inter, system-ui, sans-serif", fontWeight: 600, fontSize: "0.45rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "#5eead4", lineHeight: 1 }}>
+          {sub}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function EnvBadge() {
   const env = process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV;
   if (env === "production") return null;
@@ -320,17 +338,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <p className="text-slate-400 text-xs truncate">{user.email}</p>
             </>
           ) : (
-            /* Genişletilmiş: isimsiz ikon + metin */
+            /* Genişletilmiş: isimsiz — metin logo (Inter 800 white) */
             <>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-12 h-12 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
-                    onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
-                </div>
-                <span className="text-white font-bold text-base truncate">{siteTitle}</span>
-              </div>
-              <p className="text-slate-400 text-xs truncate">{user.email}</p>
+              <AdminBrandName title={siteTitle} />
+              <p className="text-slate-400 text-xs truncate mt-1">{user.email}</p>
             </>
           )}
         </div>

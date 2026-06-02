@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Pacifico } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -13,6 +13,7 @@ import { CompareProvider } from "@/contexts/CompareContext";
 import { getSettings } from "@/lib/settings";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-pacifico" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -59,12 +60,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : "modern";
 
   return (
-    <html lang="tr" className={`${geist.variable} h-full antialiased`} data-template={template}>
+    <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
       <body className="min-h-full flex flex-col">
         <CompareProvider>
           <Header
-            logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || settings.LogoUrl || undefined}
-            logoIconUrl={settings.CustomerLogoIcon || settings.LogoUrl || undefined}
+            logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
             siteName={settings.SiteName || undefined}
           />
           <main className="flex-1">{children}</main>
