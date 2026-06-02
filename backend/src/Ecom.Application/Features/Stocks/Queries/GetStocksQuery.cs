@@ -35,6 +35,8 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
     public async Task<PaginatedList<StockListItemDto>> Handle(GetStocksQuery request, CancellationToken cancellationToken)
     {
         var query = db.Stocks
+            .IgnoreQueryFilters()
+            .Where(s => !s.IsDeleted)
             .Include(s => s.Product)
             .Include(s => s.ProductVariant)
             .AsQueryable();
@@ -70,9 +72,12 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
                 s.Id,
                 s.ProductId,
                 s.ProductVariantId,
-                s.Product != null ? s.Product.Name : (s.ProductVariant != null ? s.ProductVariant.VariantName : ""),
+                s.Product != null ? s.Product.Name
+                    : (s.ProductVariant != null ? s.ProductVariant.VariantName
+                    : (s.ProductId != null ? "[Silinmiş Ürün]" : "[Bilinmeyen]")),
                 s.ProductVariant != null ? s.ProductVariant.VariantName : null,
-                s.Product != null ? s.Product.SKU : (s.ProductVariant != null ? s.ProductVariant.SKU : ""),
+                s.Product != null ? s.Product.SKU
+                    : (s.ProductVariant != null ? s.ProductVariant.SKU : ""),
                 s.Quantity,
                 s.ReservedQuantity,
                 s.Quantity - s.ReservedQuantity,
