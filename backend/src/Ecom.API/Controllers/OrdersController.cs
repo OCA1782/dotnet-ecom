@@ -98,6 +98,14 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
         return result.Succeeded ? NoContent() : BadRequest(new { error = result.Error });
     }
 
+    [HttpPost("{orderNumber}/request-refund")]
+    [Authorize]
+    public async Task<IActionResult> RequestRefund(string orderNumber, [FromBody] RequestRefundRequest? req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new RequestRefundCommand(currentUser.UserId!.Value, orderNumber, req?.Reason), ct);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
+
     [HttpGet("track")]
     public async Task<IActionResult> Track(
         [FromQuery] string orderNumber,
@@ -241,6 +249,11 @@ public class UpdateOrderAddressRequest
 }
 
 public class CancelOrderRequest
+{
+    public string? Reason { get; set; }
+}
+
+public class RequestRefundRequest
 {
     public string? Reason { get; set; }
 }

@@ -473,6 +473,10 @@ export default function OrderDetailPage() {
   const [paying, setPaying]       = useState(false);
   const [payError, setPayError]   = useState("");
   const [showAddr, setShowAddr]   = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/giris");
@@ -528,6 +532,20 @@ export default function OrderDetailPage() {
     }
   }
 
+  async function requestRefund() {
+    if (!order) return;
+    setRefunding(true);
+    setRefundError("");
+    try {
+      await api.post(`/api/orders/${order.orderNumber}/request-refund`, { reason: refundReason || undefined });
+      setShowRefund(false);
+      setRefundReason("");
+      loadOrder();
+    } catch (e: unknown) {
+      setRefundError(e instanceof Error ? e.message : "İade talebi gönderilemedi.");
+    } finally { setRefunding(false); }
+  }
+
   if (authLoading || loading) {
     return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">Yükleniyor...</div>;
   }
@@ -545,6 +563,7 @@ export default function OrderDetailPage() {
   const ps          = paymentStatusStyle(order.paymentStatus);
   const isPending   = order.status === 1 || order.status === 2;
   const canCancel   = [1, 2].includes(order.status);
+  const canRefund   = [6, 7].includes(order.status);
   const shipment    = order.shipments?.[0];
   const addrOk      = hasAddress(order.shippingAddressSnapshot);
   const billingDiff = order.billingAddressSnapshot && order.billingAddressSnapshot !== order.shippingAddressSnapshot;
@@ -567,6 +586,46 @@ export default function OrderDetailPage() {
           loading={cancelling}
           error={cancelError}
         />
+      )}
+
+      {showRefund && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-sm">İade Talebi Oluştur</h3>
+              <button onClick={() => { setShowRefund(false); setRefundReason(""); setRefundError(""); }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition text-lg leading-none">×</button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-slate-600">
+                <strong>{order.orderNumber}</strong> siparişi için iade talebi oluşturulacak. İade talebiniz incelendikten sonra size dönülecektir.
+              </p>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">İade Nedeni (isteğe bağlı)</label>
+                <textarea
+                  value={refundReason}
+                  onChange={e => setRefundReason(e.target.value)}
+                  rows={3}
+                  placeholder="İade nedeninizi belirtin..."
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                />
+              </div>
+              {refundError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{refundError}</p>
+              )}
+            </div>
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => { setShowRefund(false); setRefundReason(""); setRefundError(""); }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 font-medium hover:bg-slate-50 transition">
+                Vazgeç
+              </button>
+              <button onClick={requestRefund} disabled={refunding}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50">
+                {refunding ? "Gönderiliyor..." : "İade Talebi Gönder"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Header */}
@@ -793,13 +852,21 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {/* Cancel action */}
-      {canCancel && (
-        <div className="flex justify-end pt-2">
-          <button onClick={() => setShowCancel(true)} disabled={cancelling}
-            className="px-5 py-2.5 border border-red-300 text-red-600 text-sm rounded-xl hover:bg-red-50 transition disabled:opacity-50">
-            Siparişi İptal Et
-          </button>
+      {/* Actions */}
+      {(canCancel || canRefund) && (
+        <div className="flex justify-end gap-3 pt-2">
+          {canRefund && (
+            <button onClick={() => setShowRefund(true)}
+              className="px-5 py-2.5 border border-orange-300 text-orange-600 text-sm rounded-xl hover:bg-orange-50 transition">
+              İade Talebi Oluştur
+            </button>
+          )}
+          {canCancel && (
+            <button onClick={() => setShowCancel(true)} disabled={cancelling}
+              className="px-5 py-2.5 border border-red-300 text-red-600 text-sm rounded-xl hover:bg-red-50 transition disabled:opacity-50">
+              Siparişi İptal Et
+            </button>
+          )}
         </div>
       )}
     </div>
