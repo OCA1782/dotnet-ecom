@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import {
   FileText, Plus, RefreshCw, Search, Eye, CheckCircle, XCircle,
   Clock, AlertCircle, Send, ChevronDown, Database,
+  ChevronsUpDown, ChevronUp,
 } from "lucide-react";
 
 interface InvoiceListItem {
@@ -67,6 +68,10 @@ const STATUS_MAP: Record<number, { label: string; color: string; icon: React.Com
   5: { label: "Hata",    color: "bg-red-100 text-red-700",       icon: AlertCircle },
 };
 
+type SortField = "total" | "createdDate" | "dataSource";
+type SortDir = "asc" | "desc";
+function buildSortKey(f: SortField, d: SortDir) { return `${f}-${d}`; }
+
 function fmt(n: number) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(n);
 }
@@ -94,8 +99,20 @@ export default function FaturalarPage() {
   const [statusFilter, setStatusFilter] = useState<number | "">("");
   const [docTypeFilter, setDocTypeFilter] = useState<number | "">("");
 
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+  }
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-40" />;
+    return sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+  }
+
   const [createModal, setCreateModal] = useState(false);
-  const [createOrderId, setCreateOrderId] = useState("");
+  const [createOrderNumber, setCreateOrderNumber] = useState("");
   const [createDocType, setCreateDocType] = useState(1);
   const [createNotes, setCreateNotes] = useState("");
   const [creating, setCreating] = useState(false);
@@ -112,12 +129,13 @@ export default function FaturalarPage() {
         ...(search && { search }),
         ...(statusFilter !== "" && { status: String(statusFilter) }),
         ...(docTypeFilter !== "" && { docType: String(docTypeFilter) }),
+        ...(sortField && { sortBy: buildSortKey(sortField, sortDir) }),
       });
       const result = await api.get<PagedResult>(`/api/admin/invoices?${params}`);
       setData(result);
     } catch { /* empty */ }
     finally { setLoading(false); }
-  }, [page, search, statusFilter, docTypeFilter]);
+  }, [page, search, statusFilter, docTypeFilter, sortField, sortDir]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -131,13 +149,13 @@ export default function FaturalarPage() {
   }
 
   async function handleCreate() {
-    if (!createOrderId.trim()) { setCreateError("Sipariş ID zorunludur."); return; }
+    if (!createOrderNumber.trim()) { setCreateError("Sipariş numarası zorunludur."); return; }
     setCreating(true);
     setCreateError("");
     try {
-      await api.post("/api/admin/invoices", { orderId: createOrderId, docType: createDocType, notes: createNotes || null });
+      await api.post("/api/admin/invoices", { orderNumber: createOrderNumber, docType: createDocType, notes: createNotes || null });
       setCreateModal(false);
-      setCreateOrderId("");
+      setCreateOrderNumber("");
       setCreateDocType(1);
       setCreateNotes("");
       await load();
@@ -247,9 +265,21 @@ export default function FaturalarPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Müşteri</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tür</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tutar</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tarih</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kaynak</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <button onClick={() => handleSort("total")} className="flex items-center gap-1 ml-auto hover:text-teal-600 transition">
+                        Tutar <SortIcon field="total" />
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <button onClick={() => handleSort("createdDate")} className="flex items-center gap-1 hover:text-teal-600 transition">
+                        Tarih <SortIcon field="createdDate" />
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <button onClick={() => handleSort("dataSource")} className="flex items-center gap-1 hover:text-teal-600 transition">
+                        Kaynak <SortIcon field="dataSource" />
+                      </button>
+                    </th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -323,8 +353,9 @@ export default function FaturalarPage() {
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{createError}</div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Sipariş ID <span className="text-red-500">*</span></label>
-                <input value={createOrderId} onChange={e => setCreateOrderId(e.target.value)} className={inp} placeholder="xxxxxxxx-xxxx-..." />
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sipariş Numarası <span className="text-red-500">*</span></label>
+                <input value={createOrderNumber} onChange={e => setCreateOrderNumber(e.target.value)} className={inp} placeholder="SIP-20260601-000001" />
+                <p className="text-xs text-slate-400 mt-1">Sipariş listesindeki numarayı girin.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Belge Türü</label>

@@ -519,13 +519,14 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
     public async Task<IActionResult> SeedReturns(CancellationToken ct)
     {
         var addressSnapshot = """{"addressTitle":"Test Adres","firstName":"Test","lastName":"Müşteri","phoneNumber":"05001234567","country":"TR","city":"İstanbul","district":"Kadıköy","neighborhood":"Moda","fullAddress":"Test Sokak No:1","postalCode":"34710"}""";
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() % 100000;
 
         var testOrders = new List<Order>();
         for (int i = 1; i <= 3; i++)
         {
             var order = new Order
             {
-                OrderNumber = $"TEST-RET-{DateTime.UtcNow:yyyyMMdd}-{i:D3}",
+                OrderNumber = $"TST-RET-{DateTime.UtcNow:yyyyMMdd}-{suffix}-{i}",
                 Status = OrderStatus.RefundRequested,
                 PaymentStatus = PaymentStatus.Paid,
                 ShipmentStatus = ShipmentStatus.Delivered,
@@ -535,12 +536,13 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 ShippingAddressSnapshot = addressSnapshot,
                 BillingAddressSnapshot = addressSnapshot,
                 Note = $"Test iade talebi #{i}",
+                DataSource = "test",
             };
             order.Items.Add(new OrderItem
             {
                 ProductId = Guid.NewGuid(),
                 ProductName = $"Test Ürün {i}",
-                SKU = $"TEST-{i:D3}",
+                SKU = $"RET-{suffix}-{i:D3}",
                 Quantity = i,
                 UnitPrice = 100m,
                 TaxRate = 18m,
@@ -560,13 +562,14 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
     public async Task<IActionResult> SeedInvoices(CancellationToken ct)
     {
         var addressSnapshot = """{"addressTitle":"Fatura Adresi","firstName":"Test","lastName":"Müşteri","phoneNumber":"05001234567","country":"TR","city":"İstanbul","district":"Şişli","neighborhood":"Nişantaşı","fullAddress":"Test Cad. No:5","postalCode":"34367"}""";
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() % 100000;
 
         var testOrders = new List<Order>();
         for (int i = 1; i <= 3; i++)
         {
             var order = new Order
             {
-                OrderNumber = $"TEST-INV-{DateTime.UtcNow:yyyyMMdd}-{i:D3}",
+                OrderNumber = $"TST-FAT-{DateTime.UtcNow:yyyyMMdd}-{suffix}-{i}",
                 Status = OrderStatus.Completed,
                 PaymentStatus = PaymentStatus.Paid,
                 ShipmentStatus = ShipmentStatus.Delivered,
@@ -575,12 +578,13 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 GrandTotal = 236m * i,
                 ShippingAddressSnapshot = addressSnapshot,
                 BillingAddressSnapshot = addressSnapshot,
+                DataSource = "test",
             };
             order.Items.Add(new OrderItem
             {
                 ProductId = Guid.NewGuid(),
                 ProductName = $"Fatura Ürünü {i}",
-                SKU = $"INV-PRD-{i:D3}",
+                SKU = $"FAT-{suffix}-{i:D3}",
                 Quantity = i,
                 UnitPrice = 200m,
                 TaxRate = 18m,
@@ -594,7 +598,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
         await db.SaveChangesAsync(ct);
 
         var invoices = new List<Invoice>();
-        var docTypes = new[] { EInvoiceDocType.eArchive, EInvoiceDocType.eInvoice, EInvoiceDocType.eArchive };
+        var docTypes = new[] { EInvoiceDocType.eArchive, EInvoiceDocType.eInvoice, EInvoiceDocType.eDispatch };
         var statuses = new[] { InvoiceStatus.Draft, InvoiceStatus.Pending, InvoiceStatus.Sent };
 
         for (int i = 0; i < 3; i++)
@@ -602,7 +606,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
             var order = testOrders[i];
             var invoice = new Invoice
             {
-                InvoiceNumber = $"FT-{DateTime.UtcNow:yyyyMMdd}-{i + 1:D4}",
+                InvoiceNumber = $"TST-FT-{DateTime.UtcNow:yyyyMMdd}-{suffix}-{i + 1:D2}",
                 OrderId = order.Id,
                 DocType = docTypes[i],
                 Status = statuses[i],
@@ -611,11 +615,12 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 TotalAmount = order.GrandTotal,
                 BillingAddressSnapshot = addressSnapshot,
                 SentDate = statuses[i] == InvoiceStatus.Sent ? DateTime.UtcNow.AddDays(-1) : null,
+                DataSource = "test",
             };
             invoice.Items.Add(new InvoiceItem
             {
                 ProductName = $"Fatura Ürünü {i + 1}",
-                SKU = $"INV-PRD-{i + 1:D3}",
+                SKU = $"FAT-{suffix}-{i + 1:D3}",
                 Quantity = i + 1,
                 UnitPrice = 200m,
                 TaxRate = 18m,

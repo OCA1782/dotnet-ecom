@@ -26,7 +26,8 @@ public record GetInvoicesQuery(
     int PageSize = 20,
     InvoiceStatus? Status = null,
     EInvoiceDocType? DocType = null,
-    string? Search = null
+    string? Search = null,
+    string? SortBy = null
 ) : IRequest<InvoicesPagedResult>;
 
 public record InvoicesPagedResult(List<InvoiceListDto> Items, int Total, int Page, int PageSize);
@@ -51,8 +52,17 @@ public class GetInvoicesHandler(IApplicationDbContext db)
         }
 
         var total = await q.CountAsync(ct);
-        var items = await q
-            .OrderByDescending(i => i.CreatedDate)
+        var orderedQ = request.SortBy switch
+        {
+            "total-asc"        => q.OrderBy(i => i.TotalAmount),
+            "total-desc"       => q.OrderByDescending(i => i.TotalAmount),
+            "createdDate-asc"  => q.OrderBy(i => i.CreatedDate),
+            "createdDate-desc" => q.OrderByDescending(i => i.CreatedDate),
+            "dataSource-asc"   => q.OrderBy(i => i.DataSource),
+            "dataSource-desc"  => q.OrderByDescending(i => i.DataSource),
+            _                  => q.OrderByDescending(i => i.CreatedDate),
+        };
+        var items = await orderedQ
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(i => new InvoiceListDto(

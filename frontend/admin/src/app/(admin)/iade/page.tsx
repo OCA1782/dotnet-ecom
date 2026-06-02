@@ -10,8 +10,6 @@ import {
   RotateCcw, CheckCircle2, XCircle, Eye, AlertTriangle,
   Clock, User, Search, Database,
 } from "lucide-react";
-import ConfirmModal from "@/components/ConfirmModal";
-
 interface RefundNote { orderId: string; orderNumber: string; note: string }
 
 export default function IadePage() {
@@ -273,16 +271,42 @@ export default function IadePage() {
 
       {/* Red Modalı */}
       {rejectModal && (
-        <ConfirmModal
-          title="İadeyi Reddet"
-          message={`${rejectModal.orderNumber} numaralı iade talebi reddedilecek. Sipariş Tamamlandı olarak işaretlenecek.`}
-          confirmLabel="Reddet"
-          cancelLabel="Vazgeç"
-          danger
-          icon={<span className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-100 text-red-600"><XCircle size={18} /></span>}
-          onConfirm={confirmReject}
-          onCancel={() => { setRejectModal(null); setNoteInput(""); }}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <XCircle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">İadeyi Reddet</h2>
+                <p className="text-xs text-slate-500">{rejectModal.orderNumber}</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600">
+              İade talebi reddedilecek. Sipariş durumu <strong>Tamamlandı</strong> olarak güncellenecek.
+            </p>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 block mb-1">Red nedeni (isteğe bağlı)</label>
+              <textarea
+                value={noteInput}
+                onChange={e => { setNoteInput(e.target.value); setRejectModal(m => m ? { ...m, note: e.target.value } : m); }}
+                placeholder="Red gerekçesi veya açıklama..."
+                rows={3}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={confirmReject}
+                className="flex-1 bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
+                Reddet
+              </button>
+              <button onClick={() => { setRejectModal(null); setNoteInput(""); }}
+                className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
