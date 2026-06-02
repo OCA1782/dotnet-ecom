@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History } from "lucide-react";
+import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 
 interface AuditLog {
@@ -49,6 +49,9 @@ function slugify(s: string) {
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 export default function MarkalarPage() {
   const [historyTarget, setHistoryTarget] = useState<Brand | null>(null);
   const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
@@ -88,6 +91,19 @@ export default function MarkalarPage() {
   const [pageSize, setPageSize] = useState(20);
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -95,13 +111,14 @@ export default function MarkalarPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize), onlyActive: "false" });
       if (search) qs.set("search", search);
       if (statusFilter) qs.set("isActive", statusFilter);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<{ items: Brand[]; totalPages: number; totalCount: number }>(`/api/brands?${qs}`);
       setBrands(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount ?? data.items.length);
     } catch { setBrands([]); }
     finally { setLoading(false); }
-  }, [page, pageSize, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter, sortField, sortDir]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -281,8 +298,8 @@ export default function MarkalarPage() {
                 </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Logo</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>

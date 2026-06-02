@@ -9,7 +9,8 @@ public record GetStocksQuery(
     int Page = 1,
     int PageSize = 20,
     string? Search = null,
-    bool OnlyCritical = false
+    bool OnlyCritical = false,
+    string? SortBy = null
 ) : IRequest<PaginatedList<StockListItemDto>>;
 
 public record StockListItemDto(
@@ -49,8 +50,20 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
 
         var total = await query.CountAsync(cancellationToken);
 
-        var items = await query
-            .OrderBy(s => s.Product != null ? s.Product.Name : s.ProductVariant!.VariantName)
+        var orderedQuery = request.SortBy switch
+        {
+            "name-asc"         => query.OrderBy(s => s.Product != null ? s.Product.Name : s.ProductVariant!.VariantName),
+            "name-desc"        => query.OrderByDescending(s => s.Product != null ? s.Product.Name : s.ProductVariant!.VariantName),
+            "quantity-asc"     => query.OrderBy(s => s.Quantity - s.ReservedQuantity),
+            "quantity-desc"    => query.OrderByDescending(s => s.Quantity - s.ReservedQuantity),
+            "createdDate-asc"  => query.OrderBy(s => s.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(s => s.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(s => s.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(s => s.DataSource),
+            _                  => query.OrderBy(s => s.Product != null ? s.Product.Name : s.ProductVariant!.VariantName),
+        };
+
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(s => new StockListItemDto(

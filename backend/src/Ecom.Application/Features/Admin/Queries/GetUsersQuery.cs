@@ -21,7 +21,7 @@ public record UserListItemDto(
     string? DataSource = null
 );
 
-public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null) : IRequest<PaginatedList<UserListItemDto>>;
+public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null, string? SortBy = null) : IRequest<PaginatedList<UserListItemDto>>;
 
 public class GetUsersHandler(IApplicationDbContext db) : IRequestHandler<GetUsersQuery, PaginatedList<UserListItemDto>>
 {
@@ -37,8 +37,18 @@ public class GetUsersHandler(IApplicationDbContext db) : IRequestHandler<GetUser
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var users = await query
-            .OrderByDescending(u => u.CreatedDate)
+        var orderedQuery = request.SortBy switch
+        {
+            "name-asc"         => query.OrderBy(u => u.Name).ThenBy(u => u.Surname),
+            "name-desc"        => query.OrderByDescending(u => u.Name).ThenByDescending(u => u.Surname),
+            "createdDate-asc"  => query.OrderBy(u => u.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(u => u.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(u => u.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(u => u.DataSource),
+            _                  => query.OrderByDescending(u => u.CreatedDate),
+        };
+
+        var users = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(u => new

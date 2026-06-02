@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
-import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX, History, Package, Trash2 } from "lucide-react";
+import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX, History, Package, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 const MOVEMENT_TYPES = [
   { value: "StockIn", label: "Stok Girişi" },
@@ -36,6 +36,9 @@ const MOVEMENT_TYPE_LABELS: Record<string, string> = {
   StockIn: "Stok Girişi", StockOut: "Stok Çıkışı",
   Adjustment: "Düzeltme", Return: "İade",
 };
+
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
 export default function StockPage() {
   const [tab, setTab] = useState<"stok" | "hareketler">("stok");
@@ -94,6 +97,19 @@ export default function StockPage() {
   const [stockSearch, setStockSearch] = useState("");
   const [stockSearchInput, setStockSearchInput] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   // Adjust existing stock
   const [adjustTarget, setAdjustTarget] = useState<StockItem | null>(null);
@@ -138,12 +154,13 @@ export default function StockPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (criticalOnly) qs.set("onlyCritical", "true");
       if (stockSearch) qs.set("search", stockSearch);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<StockItem>>(`/api/admin/stocks?${qs}`);
       setStocks(data.items);
       setTotalPages(data.totalPages);
     } catch { setStocks([]); }
     finally { setLoading(false); }
-  }, [page, criticalOnly, stockSearch]);
+  }, [page, criticalOnly, stockSearch, sortField, sortDir]);
 
   useEffect(() => { fetchStocks(); }, [fetchStocks]);
 
@@ -567,8 +584,8 @@ export default function StockPage() {
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Rezerve</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kullanılabilir</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kritik Seviye</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import type { Coupon, PaginatedList } from "@/types";
 import { COUPON_TYPE_LABEL } from "@/types";
 import { exportToExcel } from "@/lib/excel";
-import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, ShoppingCart } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import { formatDate, formatPrice } from "@/lib/utils";
 
@@ -68,6 +68,9 @@ const empty: FormState = {
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 function toISOLocal(dt: string) {
   if (!dt) return undefined;
   return new Date(dt).toISOString();
@@ -95,6 +98,19 @@ export default function KuponlarPage() {
 
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZES = [20, 50, 100];
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   // --- Global usages tab ---
   const [usages, setUsages] = useState<CouponUsage[]>([]);
@@ -113,13 +129,14 @@ export default function KuponlarPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize), includeInactive: String(includeInactive) });
       if (search) qs.set("search", search);
       if (typeFilter) qs.set("type", typeFilter);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<Coupon>>(`/api/admin/coupons?${qs}`);
       setCoupons(data.items);
       setTotal(data.totalCount);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, includeInactive, search, typeFilter]);
+  }, [page, pageSize, includeInactive, search, typeFilter, sortField, sortDir]);
 
   const loadAllUsages = useCallback(async () => {
     setUsagesLoading(true);
@@ -307,9 +324,16 @@ export default function KuponlarPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["Kod", "Tür", "Değer", "Min. Sipariş", "Kullanım", "Bitiş", "Durum", "Oluşturulma Tarihi", "Kaynak", ""].map(h => (
-                      <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                    ))}
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kod</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Tür</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Değer</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Min. Sipariş</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kullanım</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Bitiş</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

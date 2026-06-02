@@ -17,9 +17,10 @@ public class BrandsController(IMediator mediator) : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] bool onlyActive = true,
         [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetBrandsQuery(page, pageSize, search, onlyActive, isActive), ct);
+        var result = await mediator.Send(new GetBrandsQuery(page, pageSize, search, onlyActive, isActive, sortBy), ct);
         return Ok(result);
     }
 

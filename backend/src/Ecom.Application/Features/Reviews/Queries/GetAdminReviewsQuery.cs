@@ -10,7 +10,8 @@ public record GetAdminReviewsQuery(
     int PageSize = 20,
     bool? IsApproved = null,
     string? Search = null,
-    bool? HasReports = null
+    bool? HasReports = null,
+    string? SortBy = null
 ) : IRequest<PaginatedList<AdminReviewDto>>;
 
 public record AdminReviewDto(
@@ -78,8 +79,18 @@ public class GetAdminReviewsHandler(IApplicationDbContext db)
 
         var total = await query.CountAsync(cancellationToken);
 
-        var reviewIds = await query
-            .OrderByDescending(r => r.CreatedDate)
+        var orderedQuery = request.SortBy switch
+        {
+            "rating-asc"       => query.OrderBy(r => r.Rating),
+            "rating-desc"      => query.OrderByDescending(r => r.Rating),
+            "createdDate-asc"  => query.OrderBy(r => r.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(r => r.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(r => r.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(r => r.DataSource),
+            _                  => query.OrderByDescending(r => r.CreatedDate),
+        };
+
+        var reviewIds = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(r => r.Id)
@@ -114,8 +125,7 @@ public class GetAdminReviewsHandler(IApplicationDbContext db)
             })
             .ToDictionaryAsync(x => x.ReviewId, x => x, cancellationToken);
 
-        var items = await query
-            .OrderByDescending(r => r.CreatedDate)
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(r => new

@@ -30,7 +30,8 @@ public record GetAnnouncementsQuery(
     string? Category = null,
     bool? IsActive = null,
     string? Search = null,
-    bool OnlyActive = false
+    bool OnlyActive = false,
+    string? SortBy = null
 ) : IRequest<PaginatedList<AnnouncementDto>>;
 
 public class GetAnnouncementsHandler(IApplicationDbContext db)
@@ -60,9 +61,15 @@ public class GetAnnouncementsHandler(IApplicationDbContext db)
             query = query.Where(a => a.Title.Contains(request.Search) || (a.Summary != null && a.Summary.Contains(request.Search)));
 
         var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderBy(a => a.DisplayOrder)
-            .ThenByDescending(a => a.CreatedDate)
+        IQueryable<Ecom.Domain.Entities.Announcement> orderedQuery = request.SortBy switch
+        {
+            "createdDate-asc"  => query.OrderBy(a => a.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(a => a.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(a => a.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(a => a.DataSource),
+            _                  => query.OrderBy(a => a.DisplayOrder).ThenByDescending(a => a.CreatedDate),
+        };
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(a => new AnnouncementDto(

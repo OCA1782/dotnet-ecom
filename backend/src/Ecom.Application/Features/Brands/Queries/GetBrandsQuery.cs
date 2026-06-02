@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Brands.Queries;
 
-public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null)
+public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null, string? SortBy = null)
     : IRequest<PaginatedList<BrandDto>>;
 
 public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null, DateTime CreatedDate = default, string? DataSource = null);
@@ -24,8 +24,17 @@ public class GetBrandsQueryHandler(IApplicationDbContext db) : IRequestHandler<G
             query = query.Where(b => b.Name.Contains(request.Search));
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderBy(b => b.Name)
+        var orderedQuery = request.SortBy switch
+        {
+            "name-asc"         => query.OrderBy(b => b.Name),
+            "name-desc"        => query.OrderByDescending(b => b.Name),
+            "createdDate-asc"  => query.OrderBy(b => b.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(b => b.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(b => b.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(b => b.DataSource),
+            _                  => query.OrderByDescending(b => b.CreatedDate),
+        };
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(b => new BrandDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.Description, b.IsActive,

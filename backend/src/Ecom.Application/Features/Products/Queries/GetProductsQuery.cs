@@ -172,9 +172,13 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
             "price-desc"  => query.OrderByDescending(p => p.DiscountPrice ?? p.Price),
             "name-asc"    => query.OrderBy(p => p.Name),
             "name-desc"   => query.OrderByDescending(p => p.Name),
-            "stock-asc"   => query.OrderBy(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
-            "stock-desc"  => query.OrderByDescending(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
-            _             => query.OrderByDescending(p => p.CreatedDate),
+            "stock-asc"        => query.OrderBy(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
+            "stock-desc"       => query.OrderByDescending(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
+            "createdDate-asc"  => query.OrderBy(p => p.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(p => p.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(p => p.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(p => p.DataSource),
+            _                  => query.OrderByDescending(p => p.CreatedDate),
         };
 
         var items = await orderedQuery

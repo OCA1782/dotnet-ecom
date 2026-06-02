@@ -18,9 +18,10 @@ public class ReviewsController(IMediator mediator) : ControllerBase
         [FromQuery] bool? isApproved = null,
         [FromQuery] string? search = null,
         [FromQuery] bool? hasReports = null,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetAdminReviewsQuery(page, pageSize, isApproved, search, hasReports), ct);
+        var result = await mediator.Send(new GetAdminReviewsQuery(page, pageSize, isApproved, search, hasReports, sortBy), ct);
         return Ok(result);
     }
 

@@ -10,7 +10,8 @@ public record GetAdminOrdersQuery(
     int Page = 1,
     int PageSize = 20,
     OrderStatus? Status = null,
-    string? Search = null
+    string? Search = null,
+    string? SortBy = null
 ) : IRequest<PaginatedList<OrderSummaryDto>>;
 
 public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<GetAdminOrdersQuery, PaginatedList<OrderSummaryDto>>
@@ -33,11 +34,20 @@ public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<G
                 (o.GuestEmail != null && o.GuestEmail.Contains(search)));
         }
 
-        query = query.OrderByDescending(o => o.CreatedDate);
+        IQueryable<Ecom.Domain.Entities.Order> orderedQuery = request.SortBy switch
+        {
+            "total-asc"        => query.OrderBy(o => o.GrandTotal),
+            "total-desc"       => query.OrderByDescending(o => o.GrandTotal),
+            "createdDate-asc"  => query.OrderBy(o => o.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(o => o.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(o => o.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(o => o.DataSource),
+            _                  => query.OrderByDescending(o => o.CreatedDate),
+        };
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        var totalCount = await orderedQuery.CountAsync(cancellationToken);
 
-        var items = await query
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(o => new OrderSummaryDto(

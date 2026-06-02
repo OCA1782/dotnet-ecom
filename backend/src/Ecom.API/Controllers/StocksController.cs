@@ -17,9 +17,10 @@ public class StocksController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] bool onlyCritical = false,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetStocksQuery(page, pageSize, search, onlyCritical), ct);
+        var result = await mediator.Send(new GetStocksQuery(page, pageSize, search, onlyCritical, sortBy), ct);
         return Ok(result);
     }
 

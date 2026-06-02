@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate } from "@/lib/utils";
 import type { AdminUser, PaginatedList } from "@/types";
-import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History } from "lucide-react";
+import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 
 interface AuditLog {
@@ -69,6 +69,9 @@ const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: ""
 
 const PAGE_SIZES = [20, 50, 100];
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,19 @@ export default function UsersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   const [rolesTarget, setRolesTarget] = useState<AdminUser | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -127,13 +143,14 @@ export default function UsersPage() {
     try {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (search) qs.set("search", search);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<AdminUser>>(`/api/admin/users?${qs}`);
       setUsers(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount);
     } catch { setUsers([]); }
     finally { setLoading(false); }
-  }, [page, pageSize, search]);
+  }, [page, pageSize, search, sortField, sortDir]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -322,9 +339,14 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Kullanıcı", "E-posta", "Cep Telefonu", "Roller", "Durum", "Kayıt Tarihi", "Kaynak", ""].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kullanıcı</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">E-posta</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Cep Telefonu</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Roller</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kayıt Tarihi <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

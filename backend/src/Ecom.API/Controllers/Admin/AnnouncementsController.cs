@@ -18,10 +18,11 @@ public class AnnouncementsController(IMediator mediator) : ControllerBase
         [FromQuery] string? category = null,
         [FromQuery] bool? isActive = null,
         [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
         var result = await mediator.Send(
-            new GetAnnouncementsQuery(page, pageSize, category, isActive, search, false), ct);
+            new GetAnnouncementsQuery(page, pageSize, category, isActive, search, false, sortBy), ct);
         return Ok(result);
     }
 

@@ -135,9 +135,10 @@ public class OrdersController(IMediator mediator, ICurrentUserService currentUse
         [FromQuery] int pageSize = 20,
         [FromQuery] OrderStatus? status = null,
         [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetAdminOrdersQuery(page, pageSize, status, search), ct);
+        var result = await mediator.Send(new GetAdminOrdersQuery(page, pageSize, status, search, sortBy), ct);
         return Ok(result);
     }
 

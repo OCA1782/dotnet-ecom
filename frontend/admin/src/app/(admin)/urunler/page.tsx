@@ -105,7 +105,7 @@ function Field({ label, children }: { label: React.ReactNode; children: React.Re
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 const SELECT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
-type SortField = "name" | "price" | "stock";
+type SortField = "name" | "price" | "stock" | "createdDate" | "dataSource";
 type SortDir   = "asc" | "desc";
 const PAGE_SIZES = [10, 25, 50] as const;
 
@@ -258,15 +258,10 @@ export default function AdminProductsPage() {
     }
   }
 
-  // Toggle sort: same field → flip direction; different field → set asc
+  // Toggle sort: same field → flip direction; different field → set desc
   function handleSort(field: SortField) {
-    if (sortField === field) {
-      if (sortDir === "asc") setSortDir("desc");
-      else { setSortField(null); }
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
     setPage(1);
   }
 
@@ -616,7 +611,7 @@ export default function AdminProductsPage() {
           {sortField && (
             <span className="flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-700 rounded-lg px-2.5 py-1.5">
               <Filter size={10} />
-              Sıralama: {sortField === "name" ? "İsim" : sortField === "price" ? "Fiyat" : "Stok"} {sortDir === "asc" ? "↑" : "↓"}
+              Sıralama: {sortField === "name" ? "İsim" : sortField === "price" ? "Fiyat" : sortField === "createdDate" ? "Tarih" : sortField === "dataSource" ? "Kaynak" : "Stok"} {sortDir === "asc" ? "↑" : "↓"}
               <button onClick={() => { setSortField(null); setPage(1); }} className="ml-1 hover:text-red-500"><X size={11} /></button>
             </span>
           )}
@@ -712,15 +707,16 @@ export default function AdminProductsPage() {
                   </button>
                 </th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Durum</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Kaynak</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
                 <th className="px-5 py-3 text-xs font-medium text-slate-500 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
               ) : products.map((p) => (
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-60" : ""} ${selected.has(p.id) ? "bg-teal-50/50" : ""}`}>
                   <td className="px-4 py-3 w-10">
@@ -769,6 +765,7 @@ export default function AdminProductsPage() {
                       ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{p.importedFromSourceName}</span>
                       : <span className="text-xs text-slate-300">—</span>}
                   </td>
+                  <td className="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{p.createdDate ? new Date(p.createdDate).toLocaleDateString("tr-TR") : "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openEdit(p)}

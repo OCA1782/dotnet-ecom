@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Admin.Coupons;
 
-public record GetCouponsQuery(int Page = 1, int PageSize = 20, bool IncludeInactive = false, string? Search = null, int? Type = null)
+public record GetCouponsQuery(int Page = 1, int PageSize = 20, bool IncludeInactive = false, string? Search = null, int? Type = null, string? SortBy = null)
     : IRequest<PaginatedList<CouponDto>>;
 
 public record CouponDto(
@@ -38,8 +38,17 @@ public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCo
             query = query.Where(c => (int)c.Type == request.Type.Value);
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(c => c.CreatedDate)
+        var orderedQuery = request.SortBy switch
+        {
+            "code-asc"         => query.OrderBy(c => c.Code),
+            "code-desc"        => query.OrderByDescending(c => c.Code),
+            "createdDate-asc"  => query.OrderBy(c => c.CreatedDate),
+            "createdDate-desc" => query.OrderByDescending(c => c.CreatedDate),
+            "dataSource-asc"   => query.OrderBy(c => c.DataSource),
+            "dataSource-desc"  => query.OrderByDescending(c => c.DataSource),
+            _                  => query.OrderByDescending(c => c.CreatedDate),
+        };
+        var items = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(c => new CouponDto(

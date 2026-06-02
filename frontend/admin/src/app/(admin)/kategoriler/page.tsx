@@ -6,7 +6,7 @@ import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import {
   Plus, Pencil, Trash2, X, Download, Upload, Search,
   ChevronRight, ChevronDown, FolderOpen, Folder,
-  ChevronsDownUp, ChevronsUpDown, Info, History,
+  ChevronsDownUp, ChevronsUpDown, Info, History, ChevronUp,
 } from "lucide-react";
 
 interface AuditLog {
@@ -85,6 +85,8 @@ const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-
 const PAGE_SIZES = [10, 25, 50] as const;
 type PageSize = typeof PAGE_SIZES[number];
 
+type SortField = "createdDate" | "dataSource";
+
 function buildPageNums(total: number, current: number): (number | "…")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | "…")[] = [1];
@@ -133,6 +135,19 @@ export default function KategorilerPage() {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -145,8 +160,8 @@ export default function KategorilerPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Reset to page 1 when any filter changes
-  useEffect(() => { setPage(1); }, [filterText, menuFilter, activeFilter, pageSize]);
+  // Reset to page 1 when any filter/sort changes
+  useEffect(() => { setPage(1); }, [filterText, menuFilter, activeFilter, pageSize, sortField, sortDir]);
 
   function toggleCollapse(id: string) {
     setCollapsedIds(prev => {
@@ -240,12 +255,22 @@ export default function KategorilerPage() {
     return matchText && matchMenu && matchActive;
   });
 
-  const allRoots = categories.filter(c => !c.parentCategoryId);
+  const sortedCats = sortField
+    ? [...filteredCats].sort((a, b) => {
+        let aVal = "", bVal = "";
+        if (sortField === "createdDate") { aVal = a.createdDate ?? ""; bVal = b.createdDate ?? ""; }
+        else if (sortField === "dataSource") { aVal = a.dataSource ?? a.importedFromSourceName ?? ""; bVal = b.dataSource ?? b.importedFromSourceName ?? ""; }
+        const cmp = aVal.localeCompare(bVal);
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : filteredCats;
+
+  const allRoots = (sortField ? sortedCats : categories).filter(c => !c.parentCategoryId);
 
   // A root is visible if it itself matches OR any of its children match
   const visibleRoots = allRoots.filter(cat =>
-    filteredCats.some(c => c.id === cat.id) ||
-    filteredCats.some(c => c.parentCategoryId === cat.id)
+    sortedCats.some(c => c.id === cat.id) ||
+    sortedCats.some(c => c.parentCategoryId === cat.id)
   );
 
   const totalRoots = visibleRoots.length;
@@ -254,7 +279,7 @@ export default function KategorilerPage() {
   const pagedRoots = visibleRoots.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const getVisibleChildren = (parentId: string) =>
-    filteredCats.filter(c => c.parentCategoryId === parentId);
+    sortedCats.filter(c => c.parentCategoryId === parentId);
 
   const isExpanded = (catId: string) => isSearching || !collapsedIds.has(catId);
 
@@ -374,8 +399,8 @@ export default function KategorilerPage() {
                 </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Menüde</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturulma Tarihi</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>

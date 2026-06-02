@@ -24,9 +24,10 @@ public class UsersController(IMediator mediator) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetUsersQuery(page, pageSize, search), ct);
+        var result = await mediator.Send(new GetUsersQuery(page, pageSize, search, sortBy), ct);
         return Ok(result);
     }
 

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import {
   Plus, Pencil, Trash2, Search, X, Upload, Link2,
   Image, Video, FileText, Megaphone, Eye, EyeOff,
-  Calendar, AlignLeft, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight,
+  Calendar, AlignLeft, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 
 interface Announcement {
@@ -72,6 +72,9 @@ const empty: FormState = {
 const inp = "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 bg-white";
 const label = "block text-xs font-semibold text-slate-600 mb-1";
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 function catInfo(cat: string) {
   return CATEGORIES.find(c => c.value === cat) ?? CATEGORIES[0];
 }
@@ -106,6 +109,20 @@ export default function DuyurularPage() {
   const [activeFilter, setActiveFilter] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
+
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(empty);
@@ -123,6 +140,7 @@ export default function DuyurularPage() {
       if (search) qs.set("search", search);
       if (catFilter) qs.set("category", catFilter);
       if (activeFilter !== "") qs.set("isActive", activeFilter);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<Announcement>>(`/api/admin/announcements?${qs}`);
       setItems(data.items);
       setTotal(data.totalCount);
@@ -131,7 +149,7 @@ export default function DuyurularPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, catFilter, activeFilter]);
+  }, [page, search, catFilter, activeFilter, sortField, sortDir]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -269,6 +287,12 @@ export default function DuyurularPage() {
           <option value="true">Aktif</option>
           <option value="false">Pasif</option>
         </select>
+        <button onClick={() => handleSort("createdDate")} className="flex items-center gap-1 text-xs border border-slate-200 rounded-xl px-3 py-2 hover:border-teal-400 hover:text-teal-600 transition select-none bg-white">
+          Oluşturma Tarihi <SortIcon field="createdDate" />
+        </button>
+        <button onClick={() => handleSort("dataSource")} className="flex items-center gap-1 text-xs border border-slate-200 rounded-xl px-3 py-2 hover:border-teal-400 hover:text-teal-600 transition select-none bg-white">
+          Kaynak <SortIcon field="dataSource" />
+        </button>
       </div>
 
       {/* İçerik */}

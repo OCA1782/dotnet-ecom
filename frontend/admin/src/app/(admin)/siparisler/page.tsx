@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { AdminOrderSummary, PaginatedList } from "@/types";
 import { ORDER_STATUS, ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
-import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw, CheckCircle2, Trash2, Activity, ShoppingCart } from "lucide-react";
+import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw, CheckCircle2, Trash2, Activity, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { exportToExcel } from "@/lib/excel";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -50,6 +50,9 @@ const DELETABLE = new Set([7, 8, 10, 11]); // Completed, Cancelled, Refunded, Fa
 
 const PAGE_SIZES = [15, 30, 50, 100];
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 type ModalTarget = { orderId: string; orderNumber: string };
 
 export default function OrdersPage() {
@@ -91,6 +94,19 @@ export default function OrdersPage() {
   const [cancelModal, setCancelModal] = useState<ModalTarget | null>(null);
   const [deleteModal, setDeleteModal] = useState<ModalTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -98,6 +114,7 @@ export default function OrdersPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (search) qs.set("search", search);
       if (statusFilter) qs.set("status", statusFilter);
+      if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<AdminOrderSummary>>(`/api/orders/admin/list?${qs}`);
       setOrders(data.items);
       setTotalPages(data.totalPages);
@@ -107,7 +124,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter, sortField, sortDir]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -322,8 +339,8 @@ export default function OrdersPage() {
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Ödeme</th>
                   <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Tutar</th>
-                  <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Tarih</th>
-                  <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kaynak</th>
+                  <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 ml-auto hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
+                  <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
                   <th className="px-5 py-3 text-slate-500 font-medium text-xs"></th>
                 </tr>
               </thead>

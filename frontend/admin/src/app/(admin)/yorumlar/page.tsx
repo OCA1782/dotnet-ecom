@@ -7,7 +7,7 @@ import { exportToExcel } from "@/lib/excel";
 import {
   Download, Search, CheckCircle, XCircle, Trash2,
   MessageSquare, Bell, ThumbsUp, ThumbsDown, Flag,
-  MessageCircle, AlertTriangle, X, History,
+  MessageCircle, AlertTriangle, X, History, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -67,6 +67,9 @@ interface AuditLog {
   createdDate: string;
 }
 
+type SortField = "createdDate" | "dataSource";
+function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
 interface RejectState { id: string; note: string; notify: boolean }
 
 function Stars({ rating }: { rating: number }) {
@@ -105,6 +108,19 @@ export default function YorumlarPage() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZES = [20, 50, 100];
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+    setPage(1);
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+  }
 
   // Şikayet modalı
   const [reportsModal, setReportsModal] = useState<{ reviewId: string; productName: string } | null>(null);
@@ -144,13 +160,14 @@ export default function YorumlarPage() {
       if (isApproved !== "") params.set("isApproved", isApproved);
       if (hasReports !== "") params.set("hasReports", hasReports);
       if (search.trim()) params.set("search", search.trim());
+      if (sortField) params.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<AdminReviewDto>>(`/api/admin/reviews?${params}`);
       setReviews(data.items);
       setTotal(data.totalCount);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, isApproved, hasReports, search]);
+  }, [page, pageSize, isApproved, hasReports, search, sortField, sortDir]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -341,9 +358,14 @@ export default function YorumlarPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Ürün / Kullanıcı", "Puan", "Yorum", "Etkileşimler", "Tarih", "Durum", "Kaynak", ""].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
-                ))}
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Ürün / Kullanıcı</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Puan</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Yorum</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Etkileşimler</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Durum</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
