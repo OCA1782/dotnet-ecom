@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate } from "@/lib/utils";
@@ -321,16 +322,16 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Kullanıcı", "E-posta", "Cep Telefonu", "Roller", "Durum", "Kayıt Tarihi", ""].map(h => (
+                {["Kullanıcı", "E-posta", "Cep Telefonu", "Roller", "Durum", "Kayıt Tarihi", "Kaynak", ""].map(h => (
                   <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
                   <td className="px-5 py-3.5">
@@ -341,7 +342,10 @@ export default function UsersPage() {
                           : <span className="text-xs font-bold text-slate-400">{u.name[0]}{u.surname[0]}</span>
                         }
                       </div>
-                      <span className="font-medium text-slate-900 text-xs">{u.name} {u.surname}</span>
+                      <Link href={`/kullanicilar/${u.id}`}
+                        className="font-medium text-slate-900 text-xs hover:text-teal-600 transition">
+                        {u.name} {u.surname}
+                      </Link>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-slate-500 text-xs">{u.email}</td>
@@ -361,6 +365,9 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{formatDate(u.createdDate)}</td>
+                  <td className="px-5 py-3.5">
+                    {u.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{u.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openHistory(u)} title="Geçmiş"

@@ -43,6 +43,14 @@ export default function HesabimPage() {
   const [phone, setPhone] = useState("");
   const [commercialConsent, setCommercialConsent] = useState(false);
 
+  // Şifre değiştirme
+  const [pwSection, setPwSection] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [changingPw, setChangingPw] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
   useEffect(() => {
     if (!authLoading && !user) router.replace("/giris");
   }, [authLoading, user, router]);
@@ -88,6 +96,20 @@ export default function HesabimPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleChangePassword() {
+    if (!newPw || !currentPw) { setPwMsg({ text: "Tüm alanları doldurun.", ok: false }); return; }
+    if (newPw !== confirmPw) { setPwMsg({ text: "Yeni şifreler eşleşmiyor.", ok: false }); return; }
+    setChangingPw(true);
+    setPwMsg(null);
+    try {
+      await api.patch("/api/users/me/change-password", { currentPassword: currentPw, newPassword: newPw, confirmPassword: confirmPw });
+      setPwMsg({ text: "Şifreniz başarıyla değiştirildi.", ok: true });
+      setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwSection(false);
+    } catch (e: unknown) {
+      setPwMsg({ text: e instanceof Error ? e.message : "Şifre değiştirilemedi.", ok: false });
+    } finally { setChangingPw(false); }
   }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -234,6 +256,56 @@ export default function HesabimPage() {
                   className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
                   Vazgeç
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* Güvenlik Bölümü */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-slate-800">Güvenlik</h2>
+              {!pwSection && (
+                <button onClick={() => { setPwSection(true); setPwMsg(null); }}
+                  className="text-sm text-teal-600 hover:text-teal-700 font-medium transition">
+                  Şifremi Değiştir
+                </button>
+              )}
+            </div>
+
+            {!pwSection ? (
+              <p className="text-sm text-slate-500">Hesabınızın güvenliği için düzenli aralıklarla şifrenizi değiştirmenizi öneririz.</p>
+            ) : (
+              <div className="space-y-3">
+                {pwMsg && (
+                  <div className={`px-4 py-3 rounded-xl text-sm ${pwMsg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                    {pwMsg.text}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Mevcut Şifre *</label>
+                  <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                    className={INPUT} placeholder="••••••••" autoComplete="current-password" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Yeni Şifre *</label>
+                  <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                    className={INPUT} placeholder="En az 8 karakter, büyük harf ve rakam" autoComplete="new-password" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Yeni Şifre (Tekrar) *</label>
+                  <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                    className={INPUT} placeholder="••••••••" autoComplete="new-password" />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={handleChangePassword} disabled={changingPw}
+                    className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                    {changingPw ? "Değiştiriliyor..." : "Şifreyi Değiştir"}
+                  </button>
+                  <button onClick={() => { setPwSection(false); setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwMsg(null); }}
+                    className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
+                    Vazgeç
+                  </button>
+                </div>
               </div>
             )}
           </div>

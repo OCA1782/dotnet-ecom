@@ -77,6 +77,19 @@ public class UserMeController(IMediator mediator, ICurrentUserService currentUse
 
         return Ok(new { url });
     }
+
+    [HttpPatch("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ChangePasswordCommand
+        {
+            UserId = currentUser.UserId!.Value,
+            CurrentPassword = req.CurrentPassword,
+            NewPassword = req.NewPassword,
+            ConfirmPassword = req.ConfirmPassword,
+        }, ct);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
 }
 
 public class UpdateProfileRequest
@@ -85,4 +98,11 @@ public class UpdateProfileRequest
     public string Surname { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public bool CommercialConsent { get; set; }
+}
+
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
 }

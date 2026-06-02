@@ -1,5 +1,6 @@
 using Ecom.Application.Features.Admin.Commands;
 using Ecom.Application.Features.Admin.Queries;
+using Ecom.Application.Features.Users.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,13 @@ namespace Ecom.API.Controllers.Admin;
 [Authorize(Roles = "SuperAdmin,Admin")]
 public class UsersController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetDetails(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetUserDetailsQuery(id), ct);
+        return result is null ? NotFound() : Ok(result);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
