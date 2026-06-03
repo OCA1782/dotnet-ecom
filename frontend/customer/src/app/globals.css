@@ -132,6 +132,13 @@ html[data-template="dark"] .bg-purple-100,
 html[data-template="dark"] .bg-slate-100 { background-color: #0f172a !important; }
 html[data-template="dark"] .border-slate-100,
 html[data-template="dark"] .border-slate-200 { border-color: #1e293b !important; }
+html[data-template="dark"] input:not([type="checkbox"]):not([type="radio"]) {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+html[data-template="dark"] input:not([type="checkbox"]):not([type="radio"])::placeholder { color: #475569 !important; }
+html[data-template="dark"] .border-slate-300 { border-color: #334155 !important; }
 
 /* ═══════════════════════════════════════════════════════
    5. SHOWCASE — 2 sütun, çok uzun görseller, premium
@@ -518,6 +525,13 @@ html[data-template="glassmorphism"] .bg-slate-100 { background: rgba(255,255,255
 html[data-template="glassmorphism"] .text-slate-600 { color: rgba(255,255,255,0.75) !important; }
 html[data-template="glassmorphism"] .border-slate-100,
 html[data-template="glassmorphism"] .border-slate-200 { border-color: rgba(255,255,255,0.18) !important; }
+html[data-template="glassmorphism"] input:not([type="checkbox"]):not([type="radio"]) {
+  background: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255,255,255,0.3) !important;
+  color: #ffffff !important;
+}
+html[data-template="glassmorphism"] input:not([type="checkbox"]):not([type="radio"])::placeholder { color: rgba(255,255,255,0.5) !important; }
+html[data-template="glassmorphism"] .border-slate-300 { border-color: rgba(255,255,255,0.25) !important; }
 
 /* ═══════════════════════════════════════════════════════
    13. NEON — siber punk, mor/magenta ışıltı, siyah arka plan
@@ -592,6 +606,14 @@ html[data-template="neon"] .bg-purple-100,
 html[data-template="neon"] .bg-slate-100 { background: #200040 !important; }
 html[data-template="neon"] .border-slate-100,
 html[data-template="neon"] .border-slate-200 { border-color: #3a006a !important; }
+html[data-template="neon"] input:not([type="checkbox"]):not([type="radio"]) {
+  background: #1a003a !important;
+  border-color: #cc00ff !important;
+  color: #f0e6ff !important;
+  box-shadow: 0 0 8px rgba(204,0,255,0.15) inset !important;
+}
+html[data-template="neon"] input:not([type="checkbox"]):not([type="radio"])::placeholder { color: #9933cc !important; }
+html[data-template="neon"] .border-slate-300 { border-color: #cc00ff !important; }
 
 /* ═══════════════════════════════════════════════════════
    14. PASTEL — her kart farklı renk, pill şekiller

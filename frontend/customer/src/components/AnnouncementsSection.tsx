@@ -31,6 +31,13 @@ const CAT_COLORS: Record<string, string> = {
   etkinlik:      "bg-purple-100 text-purple-700",
 };
 
+const CAT_HEADER: Record<string, { bg: string; icon: string }> = {
+  kampanya:      { bg: "bg-orange-100",  icon: "🏷️" },
+  duyuru:        { bg: "bg-blue-100",    icon: "📢" },
+  bilgilendirme: { bg: "bg-teal-100",    icon: "ℹ️"  },
+  etkinlik:      { bg: "bg-purple-100",  icon: "🎉" },
+};
+
 const CAT_LABELS: Record<string, string> = {
   kampanya:      "Kampanya",
   duyuru:        "Duyuru",
@@ -80,7 +87,7 @@ export default function AnnouncementsSection({ announcements }: { announcements:
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(item => (
               <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
-                {item.mediaUrl && (
+                {item.mediaUrl ? (
                   <div className="h-44 overflow-hidden bg-slate-100">
                     {item.mediaType === "video" ? (
                       <video
@@ -97,6 +104,10 @@ export default function AnnouncementsSection({ announcements }: { announcements:
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     )}
+                  </div>
+                ) : (
+                  <div className={`h-20 flex items-center justify-center text-3xl ${CAT_HEADER[item.category]?.bg ?? "bg-slate-100"}`}>
+                    {CAT_HEADER[item.category]?.icon ?? "📢"}
                   </div>
                 )}
 
