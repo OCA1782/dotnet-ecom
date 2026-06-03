@@ -52,6 +52,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<DeployLog> DeployLogs => Set<DeployLog>();
     public DbSet<JobLog> JobLogs => Set<JobLog>();
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<AlertCondition> AlertConditions => Set<AlertCondition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -48,6 +48,8 @@ public interface IApplicationDbContext
     DbSet<DeployLog> DeployLogs { get; }
     DbSet<JobLog> JobLogs { get; }
     DbSet<UploadedFile> UploadedFiles { get; }
+    DbSet<Campaign> Campaigns { get; }
+    DbSet<AlertCondition> AlertConditions { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
