@@ -281,7 +281,7 @@ html[data-template="retro"] .bg-\[\#12304A\] { background-color: #92400e !import
 html[data-template="retro"] .hover\:bg-\[\#FF7A45\]:hover { background-color: #d97706 !important; }
 html[data-template="retro"] .text-teal-500, html[data-template="retro"] .text-teal-600,
 html[data-template="retro"] .text-\[\#008F86\] { color: #92400e !important; }
-html[data-template="retro"] .bg-gradient-to-b, html[data-template="retro"] .bg-gradient-to-br { background: #fde68a !important; }
+html[data-template="retro"] .bg-gradient-to-b { background: #fde68a !important; }
 
 /* ═══════════════════════════════════════════════════════
    9. INSTAGRAM — kare ızgara, metin hover overlay
@@ -653,8 +653,7 @@ html[data-template="pastel"] [data-product-grid] > *:nth-child(8n+8),
 html[data-template="pastel"] .product-card:nth-child(8n+8) { background: #f0fdfa !important; border-color: #5eead4 !important; }
 html[data-template="pastel"] [class*="shadow-xl"],
 html[data-template="pastel"] [class*="shadow-lg"] { box-shadow: 0 4px 12px rgba(219,39,119,0.12) !important; }
-html[data-template="pastel"] .bg-gradient-to-b,
-html[data-template="pastel"] .bg-gradient-to-br { background: rgba(255,255,255,0.5) !important; }
+html[data-template="pastel"] .bg-gradient-to-b { background: rgba(255,255,255,0.5) !important; }
 html[data-template="pastel"] .bg-teal-500 { background: #ec4899 !important; }
 html[data-template="pastel"] .bg-\[\#12304A\] { background: #be185d !important; }
 html[data-template="pastel"] .hover\:bg-\[\#FF7A45\]:hover { background: #f472b6 !important; }
