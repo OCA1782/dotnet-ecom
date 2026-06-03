@@ -117,6 +117,21 @@ html[data-template="dark"] .border-slate-200, html[data-template="dark"] .border
 html[data-template="dark"] .border-gray-200 { border-color: #334155 !important; }
 html[data-template="dark"] .border-teal-100, html[data-template="dark"] .border-teal-200 { border-color: #1e3a5f !important; }
 html[data-template="dark"] footer { background-color: #0a0f1e !important; }
+html[data-template="dark"] .bg-\[\#F7FAFA\] { background-color: #1e293b !important; }
+html[data-template="dark"] .bg-orange-50,
+html[data-template="dark"] .bg-sky-50,
+html[data-template="dark"] .bg-emerald-50,
+html[data-template="dark"] .bg-amber-50,
+html[data-template="dark"] .bg-violet-50,
+html[data-template="dark"] .bg-cyan-50,
+html[data-template="dark"] .bg-lime-50 { background-color: #0c1a2e !important; }
+html[data-template="dark"] .bg-orange-100,
+html[data-template="dark"] .bg-blue-100,
+html[data-template="dark"] .bg-teal-100,
+html[data-template="dark"] .bg-purple-100,
+html[data-template="dark"] .bg-slate-100 { background-color: #0f172a !important; }
+html[data-template="dark"] .border-slate-100,
+html[data-template="dark"] .border-slate-200 { border-color: #1e293b !important; }
 
 /* ═══════════════════════════════════════════════════════
    5. SHOWCASE — 2 sütun, çok uzun görseller, premium
@@ -476,6 +491,33 @@ html[data-template="glassmorphism"] .bg-\[\#FF7A45\] { background: #a78bfa !impo
 html[data-template="glassmorphism"] .bg-teal-500 { background: rgba(167,139,250,0.8) !important; }
 html[data-template="glassmorphism"] .bg-\[\#12304A\] { background: rgba(167,139,250,0.9) !important; }
 html[data-template="glassmorphism"] footer { background: rgba(0,0,0,0.3) !important; }
+/* Section containers: glass backgrounds so white text stays readable */
+html[data-template="glassmorphism"] .bg-white {
+  background: rgba(255,255,255,0.10) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+html[data-template="glassmorphism"] .bg-\[\#F7FAFA\],
+html[data-template="glassmorphism"] .bg-slate-50,
+html[data-template="glassmorphism"] .bg-gray-50 { background: rgba(255,255,255,0.06) !important; }
+/* Category card pastel backgrounds → glass */
+html[data-template="glassmorphism"] .bg-teal-50,
+html[data-template="glassmorphism"] .bg-orange-50,
+html[data-template="glassmorphism"] .bg-sky-50,
+html[data-template="glassmorphism"] .bg-emerald-50,
+html[data-template="glassmorphism"] .bg-amber-50,
+html[data-template="glassmorphism"] .bg-violet-50,
+html[data-template="glassmorphism"] .bg-cyan-50,
+html[data-template="glassmorphism"] .bg-lime-50 { background: rgba(255,255,255,0.12) !important; }
+/* Announcement badge backgrounds */
+html[data-template="glassmorphism"] .bg-orange-100,
+html[data-template="glassmorphism"] .bg-blue-100,
+html[data-template="glassmorphism"] .bg-teal-100,
+html[data-template="glassmorphism"] .bg-purple-100,
+html[data-template="glassmorphism"] .bg-slate-100 { background: rgba(255,255,255,0.15) !important; }
+html[data-template="glassmorphism"] .text-slate-600 { color: rgba(255,255,255,0.75) !important; }
+html[data-template="glassmorphism"] .border-slate-100,
+html[data-template="glassmorphism"] .border-slate-200 { border-color: rgba(255,255,255,0.18) !important; }
 
 /* ═══════════════════════════════════════════════════════
    13. NEON — siber punk, mor/magenta ışıltı, siyah arka plan
@@ -528,6 +570,28 @@ html[data-template="neon"] .hover\:bg-\[\#FF7A45\]:hover { background: #aa00dd !
 html[data-template="neon"] .border-teal-100, html[data-template="neon"] .border-teal-200,
 html[data-template="neon"] .border-\[#E3EFEE\] { border-color: #3a006a !important; }
 html[data-template="neon"] footer { background: #0a0020 !important; }
+/* Section containers: dark neon backgrounds so light text stays readable */
+html[data-template="neon"] .bg-white { background-color: #0d0025 !important; }
+html[data-template="neon"] .bg-\[\#F7FAFA\],
+html[data-template="neon"] .bg-slate-50,
+html[data-template="neon"] .bg-gray-50 { background-color: #080018 !important; }
+/* Category card pastel backgrounds → dark neon */
+html[data-template="neon"] .bg-teal-50,
+html[data-template="neon"] .bg-orange-50,
+html[data-template="neon"] .bg-sky-50,
+html[data-template="neon"] .bg-emerald-50,
+html[data-template="neon"] .bg-amber-50,
+html[data-template="neon"] .bg-violet-50,
+html[data-template="neon"] .bg-cyan-50,
+html[data-template="neon"] .bg-lime-50 { background: #1a003a !important; }
+/* Announcement badge backgrounds */
+html[data-template="neon"] .bg-orange-100,
+html[data-template="neon"] .bg-blue-100,
+html[data-template="neon"] .bg-teal-100,
+html[data-template="neon"] .bg-purple-100,
+html[data-template="neon"] .bg-slate-100 { background: #200040 !important; }
+html[data-template="neon"] .border-slate-100,
+html[data-template="neon"] .border-slate-200 { border-color: #3a006a !important; }
 
 /* ═══════════════════════════════════════════════════════
    14. PASTEL — her kart farklı renk, pill şekiller
