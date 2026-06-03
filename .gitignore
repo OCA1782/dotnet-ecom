@@ -69,6 +69,10 @@ docker-compose.override.yml
 # Claude Code memory / session files
 .claude/
 
+# Git history rewrite artifacts
+replacements.txt
+.git/filter-repo/
+
 # Uploaded files (runtime)
 backend/src/Ecom.API/uploads/
 

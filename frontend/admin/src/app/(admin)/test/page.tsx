@@ -394,7 +394,7 @@ const TEST_MODELS = [
       {
         name: "Admin",
         fields: {
-          Email: "admin@test.com", Şifre: "REDACTED_ADMIN_PASSWORD",
+          Email: "admin@test.com", Şifre: "••••••••",
           Ad: "Test", Soyad: "Admin", Rol: "Admin",
           Erişim: "Tüm admin sayfaları (/api/admin/*)",
         },

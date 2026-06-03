@@ -1,8 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # no public ports — internal Docker network only
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -14,11 +13,11 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?RABBITMQ_USERNAME required}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD required}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 15s
@@ -34,7 +33,7 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_PID: "Express"
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
     deploy:
@@ -53,7 +52,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "5124:8080"
+      - "127.0.0.1:5124:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ConnectionStrings__DefaultConnection=Server=db;Database=EcomDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
@@ -65,15 +64,15 @@ services:
       - AllowedOrigins__0=${ALLOWED_ORIGIN_0:-http://localhost:3000}
       - AllowedOrigins__1=${ALLOWED_ORIGIN_1:-http://localhost:3001}
       - RabbitMQ__Host=rabbitmq
-      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
-      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMQ__Username=${RABBITMQ_USERNAME:?RABBITMQ_USERNAME required}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD required}
       - ConnectionStrings__Redis=redis:6379
       - ECOM_LICENSE=${ECOM_LICENSE:-}
       - Cloudinary__Url=${CLOUDINARY_URL:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
       - Docs__LocalPath=/app/docs
-      - GitHub__Token=${GITHUB_TOKEN:-REDACTED_GITHUB_TOKEN}
+      - GitHub__Token=${GITHUB_TOKEN:-}
       - GitHub__Owner=OCA1782
       - GitHub__Repo=dotnet-ecom-docs
       - GitHub__DocsPath=
@@ -97,7 +96,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - INTERNAL_API_URL=http://api:8080
@@ -112,7 +111,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - PORT=3001

@@ -69,12 +69,17 @@ public static class DbInitializer
 
         if (exists) return;
 
+        var adminPassword = config["Seed:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+            throw new InvalidOperationException(
+                "Seed:AdminPassword yapılandırması eksik. .env dosyasında SEED_ADMIN_PASSWORD tanımlayın.");
+
         var admin = new User
         {
             Name = "Super",
             Surname = "Admin",
             Email = adminEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(config["Seed:AdminPassword"] ?? "REDACTED_ADMIN_PASSWORD"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
             IsActive = true,
             EmailConfirmed = true,
             KvkkConsent = true,

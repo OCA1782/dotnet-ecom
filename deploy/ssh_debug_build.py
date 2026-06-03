@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
+import os
 import paramiko
 
-host = '178.105.230.111'
-user = 'root'
-password = 'REDACTED_SSH_PASSWORD'
+host = os.environ['DEPLOY_SSH_HOST']
+user = os.environ['DEPLOY_SSH_USER']
+password = os.environ['DEPLOY_SSH_PASSWORD']
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

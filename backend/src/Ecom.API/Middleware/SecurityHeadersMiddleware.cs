@@ -19,8 +19,8 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
 
         headers["Content-Security-Policy"] =
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-            "style-src 'self' 'unsafe-inline'; " +
+            "script-src 'self'; " +
+            "style-src 'self'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self' data:; " +
             "connect-src 'self' http://localhost:3000 http://localhost:3001 http://localhost:5124 https:; " +
