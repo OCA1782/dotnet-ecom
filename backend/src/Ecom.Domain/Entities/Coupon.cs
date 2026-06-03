@@ -16,6 +16,9 @@ public class Coupon : BaseEntity
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public bool IsActive { get; set; } = true;
+    public string? Icon { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? StylesJson { get; set; }
 
     public ICollection<CouponUsage> Usages { get; set; } = new List<CouponUsage>();
 }

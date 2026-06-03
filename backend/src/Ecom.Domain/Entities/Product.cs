@@ -25,6 +25,9 @@ public class Product : BaseEntity
     public bool IsFeatured { get; set; } = false;
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
+    public string? Icon { get; set; }
+    public string? StylesJson { get; set; }
+    public string? VideoUrl { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
 

@@ -16,4 +16,5 @@ public class Announcement : BaseEntity
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
     public int DisplayOrder { get; set; } = 0;
+    public string? StylesJson { get; set; }
 }

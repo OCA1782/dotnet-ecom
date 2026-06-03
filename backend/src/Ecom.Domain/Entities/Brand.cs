@@ -11,6 +11,8 @@ public class Brand : BaseEntity
     public bool IsActive { get; set; } = true;
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
+    public string? Icon { get; set; }
+    public string? StylesJson { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
 

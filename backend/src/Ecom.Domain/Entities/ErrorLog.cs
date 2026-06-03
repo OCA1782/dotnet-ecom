@@ -15,4 +15,5 @@ public class ErrorLog : BaseEntity
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public int? StatusCode { get; set; }
+    public string? RequestPayload { get; set; }
 }

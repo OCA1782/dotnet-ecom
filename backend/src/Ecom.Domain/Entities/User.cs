@@ -18,6 +18,8 @@ public class User : BaseEntity
     public DateTime? KvkkConsentDate { get; set; }
 
     public string? AvatarUrl { get; set; }
+    public string? Icon { get; set; }
+    public string? StylesJson { get; set; }
 
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
