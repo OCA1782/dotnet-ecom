@@ -68,6 +68,8 @@ public static class DependencyInjection
         services.AddSingleton<IServiceStateManager, ServiceStateManager>();
         services.AddSingleton<IDeployStreamHub, DeployStreamHub>();
         services.AddScoped<IDeployService, DeployService>();
+        services.AddScoped<ITotpService, TotpService>();
+        services.AddScoped<IGoogleAuthService, GoogleAuthService>();
         services.AddDataProtection();
 
         var redisConn = configuration.GetConnectionString("Redis");
