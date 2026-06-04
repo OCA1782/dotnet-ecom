@@ -69,7 +69,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AlertConditions");
+                    b.ToTable("AlertConditions", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Announcement", b =>
@@ -129,6 +129,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("StartsAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Summary")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -147,7 +150,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsActive");
 
-                    b.ToTable("Announcements");
+                    b.ToTable("Announcements", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.AuditLog", b =>
@@ -196,7 +199,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Brand", b =>
@@ -212,6 +215,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("ImportedFromSourceId")
@@ -240,12 +246,15 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Brands");
+                    b.ToTable("Brands", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Campaign", b =>
@@ -301,7 +310,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Campaigns");
+                    b.ToTable("Campaigns", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Cart", b =>
@@ -338,7 +347,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Carts");
+                    b.ToTable("Carts", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.CartItem", b =>
@@ -385,7 +394,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProductVariantId");
 
-                    b.ToTable("CartItems");
+                    b.ToTable("CartItems", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Category", b =>
@@ -401,6 +410,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImageUrl")
@@ -440,8 +452,14 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("VideoUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -450,7 +468,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Coupon", b =>
@@ -477,6 +495,12 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Icon")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -495,6 +519,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
@@ -512,7 +539,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Coupons");
+                    b.ToTable("Coupons", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.CouponUsage", b =>
@@ -553,7 +580,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CouponUsages");
+                    b.ToTable("CouponUsages", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.DeployLog", b =>
@@ -610,7 +637,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ServerId");
 
-                    b.ToTable("DeployLogs");
+                    b.ToTable("DeployLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.DeployServer", b =>
@@ -689,7 +716,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DeployServers");
+                    b.ToTable("DeployServers", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ErrorLog", b =>
@@ -724,6 +751,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<string>("Path")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RequestPayload")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -748,7 +778,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ErrorLogs");
+                    b.ToTable("ErrorLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ExternalSource", b =>
@@ -810,7 +840,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ExternalSources");
+                    b.ToTable("ExternalSources", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ExternalSourceImportLog", b =>
@@ -867,7 +897,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExternalSourceId");
 
-                    b.ToTable("ExternalSourceImportLogs");
+                    b.ToTable("ExternalSourceImportLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ImportJob", b =>
@@ -942,7 +972,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExternalSourceId");
 
-                    b.ToTable("ImportJobs");
+                    b.ToTable("ImportJobs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Invoice", b =>
@@ -1019,7 +1049,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.InvoiceItem", b =>
@@ -1074,7 +1104,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("InvoiceItems");
+                    b.ToTable("InvoiceItems", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.JobLog", b =>
@@ -1112,7 +1142,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("JobLogs");
+                    b.ToTable("JobLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.License", b =>
@@ -1155,7 +1185,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Licenses");
+                    b.ToTable("Licenses", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Order", b =>
@@ -1232,7 +1262,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.OrderItem", b =>
@@ -1300,7 +1330,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.OrderStatusHistory", b =>
@@ -1340,7 +1370,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderStatusHistories");
+                    b.ToTable("OrderStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.OutboxMessage", b =>
@@ -1371,7 +1401,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("OutboxMessages");
+                    b.ToTable("OutboxMessages", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Payment", b =>
@@ -1439,7 +1469,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Product", b =>
@@ -1473,6 +1503,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.Property<decimal?>("DiscountPrice")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("ImportedFromSourceId")
                         .HasColumnType("uniqueidentifier");
@@ -1519,11 +1552,17 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("TaxRate")
                         .HasColumnType("decimal(5,2)");
 
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("VideoUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -1537,7 +1576,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ProductImage", b =>
@@ -1578,7 +1617,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ProductImages");
+                    b.ToTable("ProductImages", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ProductReview", b =>
@@ -1633,7 +1672,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProductId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ProductReviews");
+                    b.ToTable("ProductReviews", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ProductVariant", b =>
@@ -1690,7 +1729,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("SKU")
                         .IsUnique();
 
-                    b.ToTable("ProductVariants");
+                    b.ToTable("ProductVariants", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ReviewLike", b =>
@@ -1726,7 +1765,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ReviewLikes");
+                    b.ToTable("ReviewLikes", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ReviewReply", b =>
@@ -1763,7 +1802,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ReviewReplies");
+                    b.ToTable("ReviewReplies", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ReviewReport", b =>
@@ -1803,7 +1842,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ReviewReports");
+                    b.ToTable("ReviewReports", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.SalesGoal", b =>
@@ -1838,7 +1877,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SalesGoals");
+                    b.ToTable("SalesGoals", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Shipment", b =>
@@ -1891,7 +1930,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Shipments");
+                    b.ToTable("Shipments", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ShippingCarrier", b =>
@@ -1963,7 +2002,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Code");
 
-                    b.ToTable("ShippingCarriers");
+                    b.ToTable("ShippingCarriers", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.SiteSetting", b =>
@@ -2001,7 +2040,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SiteSettings");
+                    b.ToTable("SiteSettings", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.Stock", b =>
@@ -2051,7 +2090,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[ProductVariantId] IS NOT NULL");
 
-                    b.ToTable("Stocks");
+                    b.ToTable("Stocks", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.StockMovement", b =>
@@ -2100,7 +2139,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("StockId");
 
-                    b.ToTable("StockMovements");
+                    b.ToTable("StockMovements", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.UploadedFile", b =>
@@ -2156,7 +2195,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UploadedFiles");
+                    b.ToTable("UploadedFiles", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.User", b =>
@@ -2195,6 +2234,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("GoogleId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
@@ -2238,6 +2280,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("StylesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Surname")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2264,7 +2309,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.UserAddress", b =>
@@ -2348,7 +2393,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserAddresses");
+                    b.ToTable("UserAddresses", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.UserRefreshToken", b =>
@@ -2389,7 +2434,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserRefreshTokens");
+                    b.ToTable("UserRefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.UserRole", b =>
@@ -2420,7 +2465,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.VisitorLog", b =>
@@ -2473,7 +2518,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VisitorLogs");
+                    b.ToTable("VisitorLogs", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.WishlistItem", b =>
@@ -2506,7 +2551,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WishlistItems");
+                    b.ToTable("WishlistItems", (string)null);
                 });
 
             modelBuilder.Entity("Ecom.Infrastructure.Messaging.Sagas.OrderSagaState", b =>
