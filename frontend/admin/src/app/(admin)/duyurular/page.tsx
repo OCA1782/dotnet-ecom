@@ -8,6 +8,8 @@ import {
   Calendar, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
+import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
+import AnnouncementPreview from "@/components/previews/AnnouncementPreview";
 
 interface Announcement {
   id: string;
@@ -131,6 +133,7 @@ export default function DuyurularPage() {
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -439,17 +442,21 @@ export default function DuyurularPage() {
       {/* Duyuru Formu Modalı */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[92vh] transition-all duration-200 ${showPreview ? "max-w-5xl" : "max-w-3xl"}`}>
 
             {/* Modal başlık */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
               <h2 className="font-bold text-slate-800">{editId ? "Duyuruyu Düzenle" : "Yeni Duyuru"}</h2>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
+                <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="px-6 py-5 space-y-4">
+            <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-w-0">
 
               {/* Başlık + Kategori */}
               <div className="grid grid-cols-3 gap-3">
@@ -623,6 +630,13 @@ export default function DuyurularPage() {
                 </button>
               </div>
             </div>
+
+            {/* Preview panel */}
+            <PreviewPanel open={showPreview}>
+              <AnnouncementPreview form={form} />
+            </PreviewPanel>
+
+            </div>{/* /flex */}
           </div>
         </div>
       )}

@@ -7,6 +7,8 @@ import { COUPON_TYPE_LABEL } from "@/types";
 import { exportToExcel } from "@/lib/excel";
 import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
+import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
+import CouponPreview from "@/components/previews/CouponPreview";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 type FormState = {
@@ -90,6 +92,7 @@ export default function KuponlarPage() {
   const [loading, setLoading] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [saving, setSaving] = useState(false);
@@ -544,12 +547,16 @@ export default function KuponlarPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-lg"}`}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">{editId ? "Kuponu Düzenle" : "Yeni Kupon"}</h2>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              <div className="flex items-center gap-2">
+                <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
+                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              </div>
             </div>
-            <div className="px-6 py-4 space-y-4">
+            <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
 
               {!editId && (
@@ -634,6 +641,12 @@ export default function KuponlarPage() {
                 </button>
               </div>
             </div>
+
+            <PreviewPanel open={showPreview}>
+              <CouponPreview form={form} />
+            </PreviewPanel>
+
+            </div>{/* /flex */}
           </div>
         </div>
       )}

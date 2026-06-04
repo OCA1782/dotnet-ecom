@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
+import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
+import BrandPreview from "@/components/previews/BrandPreview";
 
 interface AuditLog {
   id: string;
@@ -82,6 +84,7 @@ export default function MarkalarPage() {
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "true" | "false">("");
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [form, setForm] = useState<BrandForm>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -459,12 +462,16 @@ export default function MarkalarPage() {
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-md"}`}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">{modal === "create" ? "Yeni Marka" : "Markayı Düzenle"}</h2>
-              <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              <div className="flex items-center gap-2">
+                <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
+                <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              </div>
             </div>
-            <div className="px-6 py-4 space-y-4">
+            <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
@@ -499,6 +506,12 @@ export default function MarkalarPage() {
                 </button>
               </div>
             </div>
+
+            <PreviewPanel open={showPreview}>
+              <BrandPreview form={form} />
+            </PreviewPanel>
+
+            </div>{/* /flex */}
           </div>
         </div>
       )}

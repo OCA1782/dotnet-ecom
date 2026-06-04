@@ -8,6 +8,8 @@ import { formatDate } from "@/lib/utils";
 import type { AdminUser, PaginatedList } from "@/types";
 import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
+import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
+import { UserPreview } from "@/components/previews/UserPreview";
 
 interface AuditLog {
   id: string;
@@ -95,6 +97,7 @@ export default function UsersPage() {
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -493,56 +496,64 @@ export default function UsersPage() {
       {/* Create modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-lg"}`}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">Yeni Kullanıcı</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              <div className="flex items-center gap-2">
+                <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
+                <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              </div>
             </div>
-            <div className="px-6 py-5 space-y-4">
-              {formError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>}
-              <ImageUpload
-                value={form.avatarUrl}
-                onChange={url => setForm(f => ({ ...f, avatarUrl: url }))}
-                label="Profil Fotoğrafı"
-                shape="circle"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
-                  <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <div className="flex flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                {formError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>}
+                <ImageUpload
+                  value={form.avatarUrl}
+                  onChange={url => setForm(f => ({ ...f, avatarUrl: url }))}
+                  label="Profil Fotoğrafı"
+                  shape="circle"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
+                    <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
+                    <input className={INPUT} value={form.surname} onChange={e => setForm(f => ({ ...f, surname: e.target.value }))} />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
-                  <input className={INPUT} value={form.surname} onChange={e => setForm(f => ({ ...f, surname: e.target.value }))} />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
+                  <input type="email" className={INPUT} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
-                <input type="email" className={INPUT} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Şifre *</label>
+                    <input type="password" className={INPUT} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                    <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Şifre *</label>
-                  <input type="password" className={INPUT} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
+                  <select className={INPUT} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
+                    {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
-                  <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button onClick={() => setShowModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                  <button onClick={handleCreate} disabled={saving}
+                    className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                    {saving ? "Kaydediliyor..." : "Oluştur"}
+                  </button>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
-                <select className={INPUT} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                  {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => setShowModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
-                <button onClick={handleCreate} disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                  {saving ? "Kaydediliyor..." : "Oluştur"}
-                </button>
-              </div>
+              <PreviewPanel open={showPreview}>
+                <UserPreview form={form} />
+              </PreviewPanel>
             </div>
           </div>
         </div>
@@ -620,50 +631,58 @@ export default function UsersPage() {
       {/* Edit modal */}
       {editModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-md"}`}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">Kullanıcıyı Düzenle</h2>
-              <button onClick={() => setEditModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              <div className="flex items-center gap-2">
+                <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
+                <button onClick={() => setEditModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+              </div>
             </div>
-            <div className="px-6 py-5 space-y-4">
-              {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</p>}
-              <ImageUpload
-                value={editForm.profileImageUrl}
-                onChange={url => setEditForm(f => ({ ...f, profileImageUrl: url }))}
-                label="Profil Fotoğrafı"
-                shape="circle"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
-                  <input className={INPUT} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+            <div className="flex flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</p>}
+                <ImageUpload
+                  value={editForm.profileImageUrl}
+                  onChange={url => setEditForm(f => ({ ...f, profileImageUrl: url }))}
+                  label="Profil Fotoğrafı"
+                  shape="circle"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
+                    <input className={INPUT} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
+                    <input className={INPUT} value={editForm.surname} onChange={e => setEditForm(f => ({ ...f, surname: e.target.value }))} />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
-                  <input className={INPUT} value={editForm.surname} onChange={e => setEditForm(f => ({ ...f, surname: e.target.value }))} />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
+                  <input type="email" className={INPUT} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                  <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={editForm.phoneNumber} onChange={e => setEditForm(f => ({ ...f, phoneNumber: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
+                  <select className={INPUT} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
+                    {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button onClick={() => setEditModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                  <button onClick={handleEdit} disabled={editSaving}
+                    className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                    {editSaving ? "Kaydediliyor..." : "Güncelle"}
+                  </button>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
-                <input type="email" className={INPUT} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
-                <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={editForm.phoneNumber} onChange={e => setEditForm(f => ({ ...f, phoneNumber: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
-                <select className={INPUT} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-                  {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => setEditModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
-                <button onClick={handleEdit} disabled={editSaving}
-                  className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                  {editSaving ? "Kaydediliyor..." : "Güncelle"}
-                </button>
-              </div>
+              <PreviewPanel open={showPreview}>
+                <UserPreview form={editForm} />
+              </PreviewPanel>
             </div>
           </div>
         </div>

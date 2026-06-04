@@ -8,6 +8,8 @@ import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clo
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
+import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
+import ProductPreview from "@/components/previews/ProductPreview";
 
 interface Category { id: string; name: string; slug: string; parentCategoryId?: string; subCategories?: Category[]; }
 
@@ -80,15 +82,30 @@ function slugify(s: string) {
     .trim();
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({ title, onClose, children, preview, showPreview, onTogglePreview }: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  preview?: React.ReactNode;
+  showPreview?: boolean;
+  onTogglePreview?: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-5xl" : "max-w-3xl"}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
           <h2 className="font-bold text-slate-800 text-lg">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            {onTogglePreview && (
+              <PreviewToggleButton open={!!showPreview} onToggle={onTogglePreview} />
+            )}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
+          </div>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
+        <div className="flex flex-1 overflow-hidden">
+          <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
+          <PreviewPanel open={!!showPreview}>{preview}</PreviewPanel>
+        </div>
       </div>
     </div>
   );
@@ -139,6 +156,7 @@ export default function AdminProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -1049,7 +1067,20 @@ export default function AdminProductsPage() {
 
       {/* Create / Edit Modal */}
       {modal && (
-        <Modal title={modal === "create" ? "Yeni Ürün" : "Ürünü Düzenle"} onClose={() => setModal(null)}>
+        <Modal
+          title={modal === "create" ? "Yeni Ürün" : "Ürünü Düzenle"}
+          onClose={() => setModal(null)}
+          showPreview={showPreview}
+          onTogglePreview={() => setShowPreview(p => !p)}
+          preview={
+            <ProductPreview
+              form={form}
+              images={modal === "edit" ? productImages : stagedImages.map((url, i) => ({ imageUrl: url, isMain: i === 0 }))}
+              brands={brands}
+              initialStock={form.initialStock}
+            />
+          }
+        >
           <div className="space-y-4">
             {formError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>}
 
