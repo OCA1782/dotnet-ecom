@@ -52,7 +52,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:5124:8080"
+      - "5124:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ConnectionStrings__DefaultConnection=Server=db;Database=EcomDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
@@ -96,7 +96,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - INTERNAL_API_URL=http://api:8080
@@ -111,7 +111,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
     ports:
-      - "127.0.0.1:3001:3001"
+      - "3001:3001"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - PORT=3001
