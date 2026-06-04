@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
+import { resolveMediaUrl } from "@/lib/utils";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
@@ -537,7 +538,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="w-8 h-8 rounded-full bg-teal-600 overflow-hidden flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {user.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ? <img src={resolveMediaUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
                     : <>{user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}</>
                   }
                 </div>
@@ -564,7 +565,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0, overflow: "hidden" }}>
                   {user.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={user.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ? <img src={resolveMediaUrl(user.avatarUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     : <>{user.name?.[0]?.toUpperCase()}{user.surname?.[0]?.toUpperCase()}</>
                   }
                 </div>

@@ -69,6 +69,7 @@ services:
       - ConnectionStrings__Redis=redis:6379
       - ECOM_LICENSE=${ECOM_LICENSE:-}
       - Cloudinary__Url=${CLOUDINARY_URL:-}
+      - Storage__PublicBaseUrl=${STORAGE_PUBLIC_BASE_URL:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
       - Docs__LocalPath=/app/docs
