@@ -1197,6 +1197,57 @@ function DocsNotlarTab() {
   );
 }
 
+/* ─── Changelog Markdown Tab ─────────────────────────────────────────── */
+
+function ChangelogMarkdownTab() {
+  const [content, setContent] = useState<string | null>(null);
+  const [lastModified, setLastModified] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetch = useCallback(async () => {
+    setLoading(true); setError(false);
+    try {
+      const data = await api.get<{ content: string; lastModified: string }>(
+        "/api/admin/docs/file?name=degisiklik-gunlugu.md"
+      );
+      setContent(data.content);
+      setLastModified(data.lastModified);
+    } catch { setError(true); } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-3">
+        <Clock size={14} className="text-teal-600" />
+        <span className="text-sm font-semibold text-slate-700">Değişiklik Günlüğü</span>
+        {lastModified && <span className="text-[10px] text-slate-400">{fmtDate(lastModified)}</span>}
+        <span className="text-[10px] bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full font-medium ml-1">
+          5 dk'da bir otomatik güncellenir
+        </span>
+        <button onClick={fetch} className={`ml-auto p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-400 transition ${loading ? "animate-spin" : ""}`}>
+          <RefreshCw size={13} />
+        </button>
+      </div>
+      <div className="px-5 py-4 max-h-[calc(100vh-380px)] overflow-y-auto">
+        {loading && !content ? (
+          <div className="text-center text-sm text-slate-400 py-8">Yükleniyor…</div>
+        ) : error ? (
+          <div className="text-center text-sm text-slate-400 py-8">
+            <p>degisiklik-gunlugu.md bulunamadı.</p>
+            <p className="text-xs mt-1 text-slate-300">ChangelogDocsJob henüz çalışmamış olabilir (5 dakika bekleyin)</p>
+          </div>
+        ) : content ? renderMarkdown(content) : null}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Yenilikler Tab ─────────────────────────────────────────────────── */
 
 type ChangeType = "frontend" | "backend" | "guvenik" | "ux" | "altyapi" | "ozellik";
@@ -2349,9 +2400,7 @@ function YeniliklerTab() {
       </div>
 
       {subTab === "notlar" ? <DocsNotlarTab /> : subTab === "degisiklikler" ? (
-        <div className="space-y-2">
-          {CHANGELOG.map(day => <DayEntry key={day.date + (day.label ?? "")} day={day} />)}
-        </div>
+        <ChangelogMarkdownTab />
       ) : (<>
       {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-4">

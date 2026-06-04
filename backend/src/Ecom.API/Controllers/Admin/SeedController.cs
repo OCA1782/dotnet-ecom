@@ -490,8 +490,35 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 break;
             }
 
+            case "campaign":
+            {
+                var colorSchemes = new[] { "orange", "teal", "navy", "amber", "purple", "green", "rose", "sky" };
+                var icons = new[] { "🏷️", "💸", "🚚", "⭐", "🎁", "🔥", "💎", "%", "🛍️", "🎯" };
+                var titles = new[] { "Yaz Kampanyası", "Hafta Sonu İndirimi", "Flash Sale", "Ücretsiz Kargo", "Özel Fırsat", "Mega İndirim", "Son Fırsat", "Bahar Fırsatları", "Sezon Sonu" };
+                var subtitles = new[] { "Seçili ürünlerde büyük indirimler", "Sınırlı süre", "Kaçırma!", "Hemen al", "Fırsatları keşfet", "Stoklarla sınırlıdır" };
+                for (int i = 0; i < count; i++)
+                {
+                    var campaign = new Campaign
+                    {
+                        Title = $"{Pick(titles)} #{_rng.Next(100, 999)}",
+                        Subtitle = Pick(subtitles),
+                        Icon = Pick(icons),
+                        ColorScheme = Pick(colorSchemes),
+                        ImageUrl = _rng.Next(3) != 0 ? $"https://picsum.photos/seed/cmp{_rng.Next(1000)}/800/300" : null,
+                        LinkUrl = "/urunler",
+                        LinkText = "Alışverişe Başla",
+                        DisplayOrder = i,
+                        IsActive = true,
+                        DataSource = testSource,
+                    };
+                    db.Campaigns.Add(campaign);
+                    created.Add(new { campaign.Id, campaign.Title, campaign.ColorScheme });
+                }
+                break;
+            }
+
             default:
-                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon, announcement, invoice, return, shipment, payment" });
+                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon, announcement, invoice, return, shipment, payment, campaign" });
         }
 
         await db.SaveChangesAsync(ct);

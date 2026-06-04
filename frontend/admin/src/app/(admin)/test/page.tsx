@@ -8,7 +8,7 @@ import {
   RotateCcw, Database, User, Package, Tag, ChevronUp, Server,
   Factory, Hash, Loader2, ShoppingBag, Star, Ticket, UserPlus,
   CheckCircle, XCircle as XCircleIcon, Minus,
-  Megaphone, FileText, Truck, CreditCard,
+  Megaphone, FileText, Truck, CreditCard, Gift,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -752,6 +752,7 @@ const SEED_ENTITIES: SeedEntity[] = [
   { id: "return",       label: "İadeler",      icon: RotateCcw,   color: "red",    description: "RefundRequested statüsünde test iade siparişleri oluşturur." },
   { id: "shipment",     label: "Kargolar",     icon: Truck,       color: "teal",   description: "Mevcut siparişler için kargo takip kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
   { id: "payment",      label: "Ödemeler",     icon: CreditCard,  color: "emerald",description: "Mevcut siparişler için ödeme kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
+  { id: "campaign",     label: "Kampanyalar",  icon: Gift,        color: "orange", description: "Rastgele başlık, renk şeması ve görsel ile aktif kampanya banner'ları oluşturur." },
 ];
 
 const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> = {
