@@ -66,9 +66,20 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     : params.kategori
     ? `${params.kategori.charAt(0).toUpperCase() + params.kategori.slice(1)} Ürünleri`
     : "Tüm Ürünler";
+  const description = `${siteName}'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`;
   return {
     title,
-    description: `${siteName}'da ${title.toLowerCase()} — uygun fiyat, hızlı teslimat.`,
+    description,
+    openGraph: {
+      title: `${title} | ${siteName}`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${title} | ${siteName}`,
+      description,
+    },
   };
 }
 

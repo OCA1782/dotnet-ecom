@@ -27,14 +27,20 @@ export async function generateMetadata({
   const mainImage = product.images?.find((i) => i.isMain) ?? product.images?.[0];
   const price = product.discountPrice ?? product.price;
 
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const description = product.metaDescription ?? product.shortDescription ?? `${product.name} — ${price.toFixed(2)} ₺`;
   return {
     title: product.metaTitle ?? product.name,
-    description: product.metaDescription ?? product.shortDescription ?? `${product.name} — ${price.toFixed(2)} ₺`,
+    description,
+    alternates: {
+      canonical: `${SITE_URL}/urun/${product.slug}`,
+    },
     openGraph: {
       title: product.name,
       description: product.shortDescription ?? undefined,
-      images: mainImage?.imageUrl ? [{ url: mainImage.imageUrl, alt: product.name }] : [],
+      images: mainImage?.imageUrl ? [{ url: mainImage.imageUrl, alt: product.name, width: 800, height: 800 }] : [],
       type: "website",
+      url: `${SITE_URL}/urun/${product.slug}`,
     },
     twitter: {
       card: "summary_large_image",
