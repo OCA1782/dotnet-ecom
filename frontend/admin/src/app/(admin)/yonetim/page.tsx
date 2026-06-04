@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   Settings, Globe, Palette, Truck, Menu, Shield, FileText,
   Save, Upload, Loader2, CheckCircle, GripVertical,
@@ -874,10 +875,11 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
           <input value={item.q} onChange={e => setField(i, "q", e.target.value)}
             placeholder="Soru metni..."
             className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
-          <textarea value={item.a} onChange={e => setField(i, "a", e.target.value)}
+          <RichTextEditor
+            value={item.a}
+            onChange={v => setField(i, "a", v)}
             placeholder="Cevap metni..."
-            rows={3}
-            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none" />
+          />
         </div>
       ))}
       <button onClick={add}
@@ -889,20 +891,15 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 /* ─── Text page editor ───────────────────────────────────────────────── */
-function TextEditor({ label, settingKey, value, onChange, rows = 12, hint }: {
+function TextEditor({ label, settingKey, value, onChange, hint }: {
   label: string; settingKey: string; value: string;
   onChange: (key: string, val: string) => void;
   rows?: number; hint?: string;
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-slate-600">{label}</label>
-        {value && <span className="text-xs text-slate-400">{value.length} karakter</span>}
-      </div>
-      <textarea value={value} onChange={e => onChange(settingKey, e.target.value)}
-        rows={rows} placeholder="İçerik buraya girilecek..."
-        className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 resize-y font-sans leading-relaxed" />
+      <label className="text-xs font-semibold text-slate-600 block">{label}</label>
+      <RichTextEditor value={value} onChange={v => onChange(settingKey, v)} placeholder="İçerik buraya girilecek..." />
       {hint && <p className="text-xs text-slate-400">{hint}</p>}
     </div>
   );

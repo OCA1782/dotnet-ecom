@@ -10,6 +10,7 @@ import {
   MessageCircle, AlertTriangle, X, History, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface AdminReviewDto {
   id: string;
@@ -663,8 +664,8 @@ export default function YorumlarPage() {
       {/* Reddet + Bildir Modal */}
       {rejectState && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
-            <div className="flex items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 shrink-0">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
                 <Bell size={20} className="text-red-600" />
               </div>
@@ -673,26 +674,26 @@ export default function YorumlarPage() {
                 <p className="text-xs text-slate-500">İsteğe bağlı not ekleyebilir ve kullanıcıya bildirim gönderebilirsiniz.</p>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 block mb-1">Red Notu (isteğe bağlı)</label>
-              <textarea
-                value={rejectState.note}
-                onChange={e => setRejectState(s => s ? { ...s, note: e.target.value } : s)}
-                placeholder="Yorum neden reddedildi? (kullanıcıya gösterilecek)"
-                rows={3}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-              />
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Red Notu (isteğe bağlı)</label>
+                <RichTextEditor
+                  value={rejectState.note}
+                  onChange={v => setRejectState(s => s ? { ...s, note: v } : s)}
+                  placeholder="Yorum neden reddedildi? (kullanıcıya gösterilecek)"
+                />
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rejectState.notify}
+                  onChange={e => setRejectState(s => s ? { ...s, notify: e.target.checked } : s)}
+                  className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-400"
+                />
+                <span className="text-sm text-slate-700">Kullanıcıya e-posta ile bildir</span>
+              </label>
             </div>
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rejectState.notify}
-                onChange={e => setRejectState(s => s ? { ...s, notify: e.target.checked } : s)}
-                className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-400"
-              />
-              <span className="text-sm text-slate-700">Kullanıcıya e-posta ile bildir</span>
-            </label>
-            <div className="flex gap-3 pt-1">
+            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
               <button onClick={handleReject}
                 className="flex-1 bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
                 Reddet

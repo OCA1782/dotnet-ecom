@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import CategoryPreview from "@/components/previews/CategoryPreview";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface AuditLog {
   id: string;
@@ -667,7 +668,7 @@ export default function KategorilerPage() {
       {/* Create / Edit modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-md"}`}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-4xl" : "max-w-2xl"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">{modal === "create" ? "Yeni Kategori" : "Kategoriyi Düzenle"}</h2>
               <div className="flex items-center gap-2">
@@ -696,6 +697,14 @@ export default function KategorilerPage() {
                   <option value="">Ana Kategori</option>
                   {categories.filter(c => c.id !== form.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Açıklama</label>
+                <RichTextEditor
+                  value={form.description}
+                  onChange={v => setForm(f => ({ ...f, description: v }))}
+                  placeholder="Kategori açıklaması (isteğe bağlı)..."
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

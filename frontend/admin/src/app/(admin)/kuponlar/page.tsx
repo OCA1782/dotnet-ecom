@@ -9,6 +9,7 @@ import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, Shoppin
 import ConfirmModal from "@/components/ConfirmModal";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import CouponPreview from "@/components/previews/CouponPreview";
+import RichTextEditor from "@/components/RichTextEditor";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 type FormState = {
@@ -547,7 +548,7 @@ export default function KuponlarPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-lg"}`}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-4xl" : "max-w-2xl"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">{editId ? "Kuponu Düzenle" : "Yeni Kupon"}</h2>
               <div className="flex items-center gap-2">
@@ -573,8 +574,11 @@ export default function KuponlarPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Açıklama</label>
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className={INPUT} placeholder="İsteğe bağlı" />
+                <RichTextEditor
+                  value={form.description}
+                  onChange={v => setForm(f => ({ ...f, description: v }))}
+                  placeholder="Kupon açıklaması / kullanım koşulları (isteğe bağlı)..."
+                />
               </div>
 
               {!editId && (

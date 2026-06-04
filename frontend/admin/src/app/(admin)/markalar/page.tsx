@@ -7,6 +7,7 @@ import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Tra
 import ImageUpload from "@/components/ImageUpload";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import BrandPreview from "@/components/previews/BrandPreview";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface AuditLog {
   id: string;
@@ -462,7 +463,7 @@ export default function MarkalarPage() {
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-md"}`}>
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-4xl" : "max-w-2xl"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="font-bold text-slate-800">{modal === "create" ? "Yeni Marka" : "Markayı Düzenle"}</h2>
               <div className="flex items-center gap-2">
@@ -491,7 +492,11 @@ export default function MarkalarPage() {
               />
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Açıklama</label>
-                <input className={INPUT} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                <RichTextEditor
+                  value={form.description}
+                  onChange={v => setForm(f => ({ ...f, description: v }))}
+                  placeholder="Marka hakkında açıklama (isteğe bağlı)..."
+                />
               </div>
               {modal === "edit" && (
                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
