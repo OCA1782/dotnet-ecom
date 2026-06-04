@@ -11,7 +11,7 @@ import {
   PanelLeftClose, PanelLeftOpen, FlaskConical, BarChart3,
   HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
   Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket, Clock,
-  Image, FolderOpen,
+  Image, FolderOpen, Gift,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
@@ -39,6 +39,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/stok",         label: "Stok",          icon: Warehouse,       group: "katalog", allowedRoles: ["SuperAdmin","Admin","StockManager","ProductManager"] },
   { href: "/yorumlar",     label: "Yorumlar",      icon: MessageSquare,   group: "katalog", allowedRoles: ["SuperAdmin","Admin","CustomerSupport","ContentManager"] },
   { href: "/duyurular",   label: "Duyurular",     icon: Megaphone,       group: "katalog", allowedRoles: ["SuperAdmin","Admin","ContentManager"] },
+  { href: "/kampanyalar", label: "Kampanyalar",   icon: Gift,            group: "katalog", allowedRoles: ["SuperAdmin","Admin","ContentManager"] },
   { href: "/imajlar",     label: "İmaj Yönetimi", icon: Image,           group: "katalog", allowedRoles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
   { href: "/belgeler",    label: "Dosya Yönetimi",icon: FolderOpen,      group: "katalog", allowedRoles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
   // Satış
