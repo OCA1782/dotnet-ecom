@@ -7,6 +7,7 @@ import type { AdminProduct, PaginatedList } from "@/types";
 import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface Category { id: string; name: string; slug: string; parentCategoryId?: string; subCategories?: Category[]; }
 
@@ -82,7 +83,7 @@ function slugify(s: string) {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
           <h2 className="font-bold text-slate-800 text-lg">{title}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
@@ -1110,7 +1111,12 @@ export default function AdminProductsPage() {
             </Field>
 
             <Field label="Açıklama">
-              <textarea className={INPUT} rows={3} value={form.description} onChange={e => setField("description", e.target.value)} />
+              <RichTextEditor
+                value={form.description}
+                onChange={v => setField("description", v)}
+                placeholder="Ürün açıklaması yazın…"
+                minHeight={160}
+              />
             </Field>
 
             {modal === "create" && (

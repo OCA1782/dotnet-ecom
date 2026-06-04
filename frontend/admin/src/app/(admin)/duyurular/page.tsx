@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import {
   Plus, Pencil, Trash2, Search, X, Upload, Link2,
-  Image, Video, FileText, Megaphone, Eye, EyeOff,
-  Calendar, AlignLeft, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown,
+  Image, Video, FileText, Megaphone,
+  Calendar, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface Announcement {
   id: string;
@@ -438,7 +439,7 @@ export default function DuyurularPage() {
       {/* Duyuru Formu Modalı */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
 
             {/* Modal başlık */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
@@ -475,8 +476,12 @@ export default function DuyurularPage() {
               {/* İçerik */}
               <div>
                 <label className={label}>İçerik (tam metin)</label>
-                <textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                  rows={4} placeholder="Duyurunun tam içeriği…" className={inp + " resize-none"} />
+                <RichTextEditor
+                  value={form.content}
+                  onChange={v => setForm(f => ({ ...f, content: v }))}
+                  placeholder="Duyurunun tam içeriği…"
+                  minHeight={180}
+                />
               </div>
 
               {/* Medya yükleme */}
