@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { ADMIN_ROLE_COLUMNS } from "@/lib/roles";
 import RichTextEditor from "@/components/RichTextEditor";
 import {
   Settings, Globe, Palette, Truck, Menu, Shield, FileText,
@@ -583,16 +584,8 @@ const CONTENT_SUBS: { id: ContentSub; label: string }[] = [
 ];
 
 /* ─── RBAC Matrix ────────────────────────────────────────────────────── */
-const ROLE_COLUMNS = [
-  { key: "SuperAdmin",     label: "Süper Admin" },
-  { key: "Admin",          label: "Admin" },
-  { key: "ProductManager", label: "Ürün Yön." },
-  { key: "StockManager",   label: "Stok Yön." },
-  { key: "OrderManager",   label: "Sipariş Yön." },
-  { key: "CustomerSupport",label: "Müşteri Des." },
-  { key: "FinanceUser",    label: "Finans" },
-  { key: "ContentManager", label: "İçerik Yön." },
-];
+// ROLE_COLUMNS → @/lib/roles.ts ADMIN_ROLE_COLUMNS'dan beslenir (tutarlılık için)
+const ROLE_COLUMNS = ADMIN_ROLE_COLUMNS;
 
 // module names MUST match nav item labels in layout.tsx exactly
 const PERMISSION_MATRIX: { module: string; group: string; roles: string[] }[] = [

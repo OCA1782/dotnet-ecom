@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate } from "@/lib/utils";
+import { ROLE_COLORS, ROLE_LABELS, ADMIN_ROLES, ALL_ROLE_DEFS } from "@/lib/roles";
 import type { AdminUser, PaginatedList } from "@/types";
 import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
@@ -46,22 +47,7 @@ const USER_ACTION_COLORS: Record<string, string> = {
   "Silindi — Kullanıcı": "bg-red-100 text-red-700",
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  SuperAdmin: "bg-purple-100 text-purple-800",
-  Admin: "bg-red-100 text-red-800",
-  ProductManager: "bg-indigo-100 text-indigo-800",
-  StockManager: "bg-orange-100 text-orange-800",
-  OrderManager: "bg-blue-100 text-blue-800",
-  FinanceUser: "bg-green-100 text-green-800",
-  CustomerSupport: "bg-teal-100 text-teal-800",
-  ContentManager: "bg-pink-100 text-pink-800",
-  Customer: "bg-slate-100 text-slate-600",
-};
-
-const ALL_ROLES = [
-  "Customer", "Admin", "ProductManager", "StockManager",
-  "OrderManager", "FinanceUser", "CustomerSupport", "ContentManager", "SuperAdmin",
-];
+// ROLE_COLORS ve ROLE_LABELS → @/lib/roles.ts'den import edildi
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
@@ -379,7 +365,7 @@ export default function UsersPage() {
                     <div className="flex flex-wrap gap-1.5">
                       {u.roles?.map(role => (
                         <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[role] ?? "bg-slate-100 text-slate-600"}`}>
-                          {role}
+                          {ROLE_LABELS[role] ?? role}
                         </span>
                       ))}
                     </div>
@@ -540,7 +526,12 @@ export default function UsersPage() {
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
                   <select className={INPUT} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                    {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    <optgroup label="── Yönetici Rolleri">
+                      {ADMIN_ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                    </optgroup>
+                    <optgroup label="── Müşteri">
+                      <option value="Customer">Müşteri</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
@@ -601,18 +592,18 @@ export default function UsersPage() {
               {rolesError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{rolesError}</p>}
               <p className="text-xs text-slate-500">Kullanıcının sahip olacağı rolleri seçin. En az bir rol zorunludur.</p>
               <div className="space-y-2">
-                {ALL_ROLES.map(role => (
-                  <label key={role} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
+                {ALL_ROLE_DEFS.map(roleDef => (
+                  <label key={roleDef.key} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
                     <input
                       type="checkbox"
-                      checked={selectedRoles.includes(role)}
+                      checked={selectedRoles.includes(roleDef.key)}
                       onChange={e => {
-                        if (e.target.checked) setSelectedRoles(r => [...r, role]);
-                        else setSelectedRoles(r => r.filter(x => x !== role));
+                        if (e.target.checked) setSelectedRoles(r => [...r, roleDef.key]);
+                        else setSelectedRoles(r => r.filter(x => x !== roleDef.key));
                       }}
                       className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-400"
                     />
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[role] ?? "bg-slate-100 text-slate-600"}`}>{role}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleDef.color}`}>{roleDef.label}</span>
                   </label>
                 ))}
               </div>
@@ -669,7 +660,12 @@ export default function UsersPage() {
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
                   <select className={INPUT} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-                    {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    <optgroup label="── Yönetici Rolleri">
+                      {ADMIN_ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                    </optgroup>
+                    <optgroup label="── Müşteri">
+                      <option value="Customer">Müşteri</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">

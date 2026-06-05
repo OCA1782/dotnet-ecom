@@ -16,6 +16,7 @@ import {
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/utils";
+import { ROLE_LABELS } from "@/lib/roles";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
@@ -178,13 +179,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     setUserMenuOpen(o => !o);
   }, []);
-  const roleLabel = (role: string) => {
-    if (role === "SuperAdmin") return "Süper Admin";
-    if (role === "Admin") return "Admin";
-    if (role === "Manager") return "Yönetici";
-    if (role === "Support") return "Destek";
-    return role;
-  };
+  const roleLabel = (role: string) => ROLE_LABELS[role] ?? role;
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     if (typeof window !== "undefined") {
       try {
