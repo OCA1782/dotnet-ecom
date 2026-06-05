@@ -17,13 +17,13 @@ public static class LicenseValidator
     // RSA-2048 public key — lisans bu anahtara karşılık gelen private key ile imzalanmıştır.
     // Private key olmadan geçerli lisans üretilemez.
     private const string PublicKeyBase64 =
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsRnyTFkxwKHQgrj4FU+e" +
-        "dm7kPDRAS6QLAkJcw1ntnsc7CCudPJlsqaJ8+xgi5j69VEENsArVHUq2KSyyDF4y" +
-        "8c8xTC8sWKIV5vrwv0NyO8qXK1sEGj8tckMqzb2kMvghbrYXj8B45qSAWbbGeSRR" +
-        "AVNiYZRdohnhNQ03a//ome2rfOLH468v/HsV7Dslns8cx5hxQHpxIYy7wY5wZhHt" +
-        "no8CGDXRZeNgMt7tQzhtrJRxWDArNiIhKl8/dC+6eDxWj2c7ujKupzcYak2/EAAp" +
-        "EgmY1yPc7/ACA+VHo6qKXG7mH6d9bvi+2dYnfcJjRSTgC4v0B9RpYzBSzXB55lfN" +
-        "qQIDAQAB";
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwnrBlMdL/yerJlDT9l+i" +
+        "pJZb/f2yqm6Vnrgpf+aoyZHBHDaslrddZ2ww6BAbSAs/Mo0+XCLzdRiL2Ly8vO5H" +
+        "X+0kOcoeaL8YkBRuxmp5vND3GbYQBRNh50O/fsHLOw3rcfHNLXC1ZPPwFapSViSb" +
+        "9ykAtYkWE7Fr5I8Bz0CTlnlmGgtEQNIQSX7hjkqPCxZtg9rHzZU6fJamj9MhhfYo" +
+        "bxJzHsl6VR27kVg9Z82PkikSEuu9882fI8xJRLY992ZonHUxUHDIgp2+WTm6smSy" +
+        "RK5uA8nFkQ3MJsHlsNvPBPnPkpmaJmgsX4JxDCsZjHy2DtRInNnvwfkFZxASWS7/" +
+        "VwIDAQAB";
 
     private const string JwtSalt = "ecom-jwt-signing-salt-v1-2026";
 
