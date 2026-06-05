@@ -68,6 +68,8 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD required}
       - ConnectionStrings__Redis=redis:6379
       - ECOM_LICENSE=${ECOM_LICENSE:-}
+      - ECOM_PUBLIC_KEY=${ECOM_PUBLIC_KEY:-}
+      - LICENSE_ACTIVATION_URL=${LICENSE_ACTIVATION_URL:-}
       - Cloudinary__Url=${CLOUDINARY_URL:-}
       - Storage__PublicBaseUrl=${STORAGE_PUBLIC_BASE_URL:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
