@@ -55,6 +55,7 @@ Log.Logger = loggerConfig.CreateLogger();
 builder.Host.UseSerilog();
 // ──────────────────────────────────────────────────────────────────────────
 
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<AuditFilter>();
 builder.Services.AddControllers(options =>
 {
@@ -173,11 +174,51 @@ using (var scope = app.Services.CreateScope())
         Console.ForegroundColor = ConsoleColor.Red;
         Console.Error.WriteLine("──────────────────────────────────────────────────────");
         Console.Error.WriteLine($"  HATA: {ex.Message}");
-        Console.Error.WriteLine("  appsettings.Development.json → \"License\": \"<token>\"");
-        Console.Error.WriteLine("  veya ECOM_LICENSE ortam değişkeni tanımlanmalıdır.");
+        Console.Error.WriteLine("  ECOM_LICENSE  : lisans token");
+        Console.Error.WriteLine("  ECOM_PUBLIC_KEY: RSA public key (SPKI DER base64)");
         Console.Error.WriteLine("──────────────────────────────────────────────────────");
         Console.ResetColor();
         Environment.Exit(1);
+    }
+
+    // ── Online Aktivasyon (startup) ───────────────────────────────────────
+    var activationUrl = config["License:ActivationUrl"]
+        ?? Environment.GetEnvironmentVariable("LICENSE_ACTIVATION_URL");
+
+    if (!string.IsNullOrWhiteSpace(activationUrl))
+    {
+        try
+        {
+            var licToken  = config["License"] ?? Environment.GetEnvironmentVariable("ECOM_LICENSE") ?? "";
+            var hash      = LicenseValidator.ComputeActivationHash(licToken);
+            var hostname  = System.Net.Dns.GetHostName();
+            var body      = System.Text.Json.JsonSerializer.Serialize(new { hash, hostname });
+
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var response = await httpClient.PostAsync(
+                activationUrl,
+                new System.Net.Http.StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine("──────────────────────────────────────────────────────");
+                Console.Error.WriteLine($"  HATA: Online aktivasyon başarısız (HTTP {(int)response.StatusCode}).");
+                Console.Error.WriteLine("  Bu lisans bu sunucu için yetkili değil.");
+                Console.Error.WriteLine("──────────────────────────────────────────────────────");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine("──────────────────────────────────────────────────────");
+            Console.Error.WriteLine($"  HATA: Aktivasyon sunucusuna ulaşılamadı: {ex.Message}");
+            Console.Error.WriteLine("──────────────────────────────────────────────────────");
+            Console.ResetColor();
+            Environment.Exit(1);
+        }
     }
     // ─────────────────────────────────────────────────────────────────────
 }

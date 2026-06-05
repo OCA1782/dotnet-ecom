@@ -1192,6 +1192,7 @@ export default function YonetimPage() {
   })();
   const [licGenPrivKey, setLicGenPrivKey] = useState("");
   const [licGenIssuer, setLicGenIssuer] = useState("OCA1782");
+  const [licGenHost, setLicGenHost] = useState("");
   const [licGenNbf, setLicGenNbf] = useState(() => new Date().toISOString().slice(0, 10));
   const [licGenExp, setLicGenExp] = useState(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 2); return d.toISOString().slice(0, 10); });
   const [licGenToken, setLicGenToken] = useState<string | null>(null);
@@ -1445,7 +1446,9 @@ export default function YonetimPage() {
         { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
         false, ["sign"]
       );
-      const payload = JSON.stringify({ app: "Ecom", iss: licGenIssuer, nbf: licGenNbf, exp: licGenExp });
+      const payloadObj: Record<string, string> = { app: "Ecom", iss: licGenIssuer, nbf: licGenNbf, exp: licGenExp };
+      if (licGenHost.trim()) payloadObj.host = licGenHost.trim();
+      const payload = JSON.stringify(payloadObj);
       const payloadBytes = new TextEncoder().encode(payload);
       const sigBytes = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, payloadBytes);
       const b64url = (arr: Uint8Array) => btoa(String.fromCharCode(...arr)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
@@ -3843,11 +3846,18 @@ export default function YonetimPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-0.5">Issuer</label>
-                    <p className="text-[10px] text-slate-400 mb-1.5">Kim verdi? Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir, doğrulamayı etkilemez.</p>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir.</p>
                     <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-0.5">Host <span className="text-slate-400 font-normal">(opsiyonel)</span></label>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Sunucu hostname veya IP. Doldurulursa lisans <strong>yalnızca bu sunucuda</strong> çalışır.</p>
+                    <input value={licGenHost} onChange={e => setLicGenHost(e.target.value)}
+                      placeholder="178.105.230.111 veya api.domain.com"
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
                   <div>

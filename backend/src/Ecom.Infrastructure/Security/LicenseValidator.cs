@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,23 +10,21 @@ public sealed record LicenseInfo(
     string Issuer,
     DateOnly NotBefore,
     DateOnly ExpiresAt,
+    string? Host,
     string PayloadRaw
 );
 
 public static class LicenseValidator
 {
-    // RSA-2048 public key — lisans bu anahtara karşılık gelen private key ile imzalanmıştır.
-    // Private key olmadan geçerli lisans üretilemez.
-    private const string PublicKeyBase64 =
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwnrBlMdL/yerJlDT9l+i" +
-        "pJZb/f2yqm6Vnrgpf+aoyZHBHDaslrddZ2ww6BAbSAs/Mo0+XCLzdRiL2Ly8vO5H" +
-        "X+0kOcoeaL8YkBRuxmp5vND3GbYQBRNh50O/fsHLOw3rcfHNLXC1ZPPwFapSViSb" +
-        "9ykAtYkWE7Fr5I8Bz0CTlnlmGgtEQNIQSX7hjkqPCxZtg9rHzZU6fJamj9MhhfYo" +
-        "bxJzHsl6VR27kVg9Z82PkikSEuu9882fI8xJRLY992ZonHUxUHDIgp2+WTm6smSy" +
-        "RK5uA8nFkQ3MJsHlsNvPBPnPkpmaJmgsX4JxDCsZjHy2DtRInNnvwfkFZxASWS7/" +
-        "VwIDAQAB";
-
     private const string JwtSalt = "ecom-jwt-signing-salt-v1-2026";
+
+    // Public key ortam değişkeninden okunur — kaynak kodda saklanmaz.
+    // ECOM_PUBLIC_KEY: RSA-2048 SPKI DER base64 formatı (PEM başlıkları olmadan).
+    private static string GetPublicKey() =>
+        Environment.GetEnvironmentVariable("ECOM_PUBLIC_KEY")
+        ?? throw new LicenseException(
+            "ECOM_PUBLIC_KEY ortam değişkeni tanımlı değil. " +
+            "Lisans public anahtarı olmadan uygulama başlatılamaz.");
 
     public static LicenseInfo Validate(string licenseToken)
     {
@@ -48,7 +47,15 @@ public static class LicenseValidator
         }
 
         using var rsa = RSA.Create();
-        rsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(PublicKeyBase64), out _);
+        try
+        {
+            rsa.ImportSubjectPublicKeyInfo(Convert.FromBase64String(GetPublicKey()), out _);
+        }
+        catch (LicenseException) { throw; }
+        catch
+        {
+            throw new LicenseException("ECOM_PUBLIC_KEY geçersiz formatta. SPKI DER base64 olmalıdır.");
+        }
 
         bool valid = rsa.VerifyData(payloadBytes, signatureBytes,
             HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -84,13 +91,50 @@ public static class LicenseValidator
         if (today > exp)
             throw new LicenseException($"Lisans süresi dolmuş ({exp:yyyy-MM-dd}). Yenileme için geliştirici ile iletişime geçin.");
 
-        return new LicenseInfo(app, iss, nbf, exp, payloadJson);
+        // ── Host doğrulama ────────────────────────────────────────────────────
+        // Lisans payload'ında "host" alanı varsa, bu sunucuda çalışıp çalışmadığı kontrol edilir.
+        string? licHost = null;
+        if (root.TryGetProperty("host", out var hostEl))
+            licHost = hostEl.GetString();
+
+        if (!string.IsNullOrWhiteSpace(licHost))
+        {
+            var currentHostname = Dns.GetHostName();
+            var currentIps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var ip in Dns.GetHostAddresses(currentHostname))
+                    currentIps.Add(ip.ToString());
+            }
+            catch { /* DNS çözümlenemezse IP listesi boş kalır */ }
+
+            bool hostMatch =
+                string.Equals(licHost, currentHostname, StringComparison.OrdinalIgnoreCase) ||
+                currentIps.Contains(licHost) ||
+                licHost is "localhost" or "127.0.0.1" or "::1";
+
+            if (!hostMatch)
+                throw new LicenseException(
+                    $"Lisans bu sunucuya ait değil. " +
+                    $"Beklenen host: '{licHost}', Mevcut: '{currentHostname}'. " +
+                    $"Bu sunucu için yeni lisans üretilmesi gerekir.");
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        return new LicenseInfo(app, iss, nbf, exp, licHost, payloadJson);
     }
 
     public static byte[] DeriveJwtKey(LicenseInfo license)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(JwtSalt));
         return hmac.ComputeHash(Encoding.UTF8.GetBytes(license.PayloadRaw));
+    }
+
+    // Aktivasyon sunucusuna gönderilen hash — token'ın kendisi değil, SHA-256'sı iletilir.
+    public static string ComputeActivationHash(string licenseToken)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(licenseToken.Trim()));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     public static string MaskToken(string token)
