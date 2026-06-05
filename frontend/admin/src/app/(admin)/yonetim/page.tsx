@@ -1203,7 +1203,7 @@ export default function YonetimPage() {
   const [renewing, setRenewing] = useState(false);
   const [renewError, setRenewError] = useState("");
 
-  const [devKeyStatus, setDevKeyStatus] = useState<{ isConfigured: boolean; maskedKey: string | null; revealPasswordSet: boolean } | null>(null);
+  const [devKeyStatus, setDevKeyStatus] = useState<{ isConfigured: boolean; maskedKey: string | null; fullKey?: string; issuer?: string; notBefore?: string; expiresAt?: string; isValid?: boolean; validationError?: string; revealPasswordSet: boolean } | null>(null);
   const [devKeyLoading, setDevKeyLoading] = useState(false);
 
   // Lisans üretici state (SuperAdmin only)
@@ -1220,12 +1220,37 @@ export default function YonetimPage() {
   const [licGenError, setLicGenError] = useState("");
   const [licGenLoading, setLicGenLoading] = useState(false);
   const [licGenCopied, setLicGenCopied] = useState(false);
-  const [revealModal, setRevealModal] = useState(false);
-  const [revealPassword, setRevealPassword] = useState("");
-  const [revealedKey, setRevealedKey] = useState<string | null>(null);
-  const [revealError, setRevealError] = useState("");
-  const [revealLoading, setRevealLoading] = useState(false);
-  const [keyCopied, setKeyCopied] = useState(false);
+
+  // License assignment state (SuperAdmin)
+  const [licAssignEmail, setLicAssignEmail]   = useState("");
+  const [licAssignToken, setLicAssignToken]   = useState("");
+  const [licAssignNotes, setLicAssignNotes]   = useState("");
+  const [licAssignLoading, setLicAssignLoading] = useState(false);
+  const [licAssignError, setLicAssignError]   = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [licAssignResult, setLicAssignResult] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [licAssignments, setLicAssignments]   = useState<any[]>([]);
+  const [licAssignmentsLoading, setLicAssignmentsLoading] = useState(false);
+
+  // My license reveal state (regular Admin)
+  const [myViewPassword, setMyViewPassword]   = useState("");
+  const [myViewLoading, setMyViewLoading]     = useState(false);
+  const [myViewError, setMyViewError]         = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [myLicense, setMyLicense]             = useState<any>(null);
+  const [myLicCopied, setMyLicCopied]         = useState(false);
+
+  // Full key copy (SuperAdmin)
+  const [fullKeyCopied, setFullKeyCopied]     = useState(false);
+
+  // Legacy state — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
+  const [revealModal]                          = useState(false);
+  const [revealPassword, setRevealPassword]   = useState("");
+  const [revealedKey]                          = useState<string | null>(null);
+  const [revealError, setRevealError]         = useState("");
+  const [revealLoading, setRevealLoading]     = useState(false);
+  const [keyCopied, setKeyCopied]             = useState(false);
   const logoRef    = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
   const adminLogoNamedRef  = useRef<HTMLInputElement>(null);
@@ -1300,12 +1325,13 @@ export default function YonetimPage() {
 
 
   useEffect(() => {
-    if (tab !== "sistem") return;
+    if (tab !== "lisans") return;
     setDevKeyLoading(true);
-    api.get<{ isConfigured: boolean; maskedKey: string | null; revealPasswordSet: boolean }>("/api/admin/dev-key")
+    api.get<{ isConfigured: boolean; maskedKey: string | null; fullKey?: string; issuer?: string; notBefore?: string; expiresAt?: string; revealPasswordSet: boolean }>("/api/admin/dev-key")
       .then(setDevKeyStatus)
       .catch(() => {})
       .finally(() => setDevKeyLoading(false));
+    if (isSuperAdmin) loadLicenseAssignments();
   }, [tab]);
 
   // ── Bildirimler tab state ───────────────────────────────────────────────────
@@ -1356,28 +1382,61 @@ export default function YonetimPage() {
     }
   }
 
-  async function handleRevealKey() {
-    if (!revealPassword.trim()) { setRevealError("Şifre boş olamaz."); return; }
-    setRevealLoading(true); setRevealError("");
+  // Legacy functions — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
+  function openRevealModal() { setRevealPassword(""); setRevealLoading(false); setRevealError(""); setKeyCopied(false); }
+  function closeRevealModal() { setRevealPassword(""); setRevealError(""); setKeyCopied(false); }
+  async function handleRevealKey() { if (!revealPassword.trim()) { setRevealError(""); return; } setRevealLoading(true); setRevealLoading(false); }
+
+  function loadLicenseAssignments() {
+    setLicAssignmentsLoading(true);
+    api.get<unknown[]>("/api/admin/license-assignments")
+      .then(setLicAssignments)
+      .catch(() => {})
+      .finally(() => setLicAssignmentsLoading(false));
+  }
+
+  async function handleAssignLicense() {
+    setLicAssignError(""); setLicAssignResult(null);
+    if (!licAssignEmail.trim()) { setLicAssignError("E-posta adresi zorunludur."); return; }
+    if (!licAssignToken.trim()) { setLicAssignError("Lisans token zorunludur."); return; }
+    setLicAssignLoading(true);
     try {
-      const res = await api.post<{ key: string }>("/api/admin/dev-key/reveal", { password: revealPassword });
-      setRevealedKey(res.key);
+      const res = await api.post<{ viewPassword: string; message: string }>("/api/admin/license-assignments", {
+        adminEmail: licAssignEmail.trim(),
+        licenseToken: licAssignToken.trim(),
+        notes: licAssignNotes.trim() || null,
+      });
+      setLicAssignResult(res);
+      setLicAssignEmail(""); setLicAssignToken(""); setLicAssignNotes("");
+      loadLicenseAssignments();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setRevealError(msg ?? "Geçersiz şifre.");
+      setLicAssignError(msg ?? "Atama başarısız.");
     } finally {
-      setRevealLoading(false);
+      setLicAssignLoading(false);
     }
   }
 
-  function openRevealModal() {
-    setRevealPassword(""); setRevealedKey(null); setRevealError(""); setKeyCopied(false);
-    setRevealModal(true);
+  async function handleRevokeAssignment(id: string) {
+    if (!confirm("Bu lisans atamasını iptal etmek istediğinizden emin misiniz?")) return;
+    try {
+      await api.delete(`/api/admin/license-assignments/${id}`);
+      loadLicenseAssignments();
+    } catch { }
   }
 
-  function closeRevealModal() {
-    setRevealModal(false);
-    setRevealPassword(""); setRevealedKey(null); setRevealError(""); setKeyCopied(false);
+  async function handleRevealMyLicense() {
+    if (!myViewPassword.trim()) { setMyViewError("Şifre boş olamaz."); return; }
+    setMyViewLoading(true); setMyViewError("");
+    try {
+      const res = await api.post<{ licenseToken: string; issuer: string; notBefore: string; expiresAt: string; app: string }>("/api/admin/license-assignments/my-license", { password: myViewPassword });
+      setMyLicense(res);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setMyViewError(msg ?? "Geçersiz şifre.");
+    } finally {
+      setMyViewLoading(false);
+    }
   }
 
   async function handleGenerateLicense() {
@@ -3412,8 +3471,8 @@ export default function YonetimPage() {
             )}
           </Section>
 
-          <Section title="Aktivasyon Anahtarı" icon={<KeyRound size={16} />}
-            subtitle="Uygulamayı çalıştırmak için gereken lisans anahtarı. Geçersiz veya eksik lisansta sistem başlamaz ve API yanıt vermez.">
+          {false && <Section title="__removed__" icon={<span/>}
+            subtitle="">
 
             {/* Durum kartı */}
             {devKeyLoading ? (
@@ -3437,12 +3496,12 @@ export default function YonetimPage() {
                 <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Aktivasyon Anahtarı</p>
-                    <p className="font-mono text-sm font-semibold text-slate-700 tracking-widest">{devKeyStatus.maskedKey ?? "****-****-****-****"}</p>
-                    {!devKeyStatus.revealPasswordSet && (
+                    <p className="font-mono text-sm font-semibold text-slate-700 tracking-widest">{devKeyStatus!.maskedKey ?? "****-****-****-****"}</p>
+                    {!devKeyStatus!.revealPasswordSet && (
                       <p className="text-[10px] text-amber-600 mt-1">Görüntüleme şifresi henüz ayarlanmamış (DevRevealPassword eksik).</p>
                     )}
                   </div>
-                  <button onClick={openRevealModal} disabled={!devKeyStatus.revealPasswordSet}
+                  <button onClick={openRevealModal} disabled={!devKeyStatus!.revealPasswordSet}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
                     <Eye size={13} /> Görüntüle
                   </button>
@@ -3521,7 +3580,7 @@ export default function YonetimPage() {
               </div>
             </div>
 
-          </Section>
+          </Section>}
 
           {/* ── Lisans Üretici (yalnızca SuperAdmin) ── */}
           {isSuperAdmin && (
@@ -3693,7 +3752,406 @@ export default function YonetimPage() {
       {/* ── Lisans ── */}
       {tab === "lisans" && (
         <div className="space-y-5">
-          <Section title="Lisans Yönetimi" icon={<KeyRound size={16} />}
+
+          {/* ── 1. Aktivasyon Anahtarı ── */}
+          <Section title="Aktivasyon Anahtarı" icon={<KeyRound size={16} />}
+            subtitle={isSuperAdmin ? "Platform lisans anahtarı — SuperAdmin olarak şifresiz görüntülüyorsunuz." : "Size atanmış lisans anahtarını görüntülemek için sistem yöneticinizden aldığınız şifreyi girin."}>
+
+            {devKeyLoading ? (
+              <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
+                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
+              </div>
+            ) : !devKeyStatus?.isConfigured ? (
+              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                <Shield size={15} className="mt-0.5 shrink-0 text-amber-500" />
+                <div>
+                  <p className="font-semibold">Platform lisansı yapılandırılmamış</p>
+                  <p className="text-xs mt-1 text-amber-700">Sunucuda <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam değişkeni eksik. Lisans Üretici bölümünden token üretin ve sunucuya ekleyin.</p>
+                </div>
+              </div>
+            ) : isSuperAdmin ? (
+              /* SuperAdmin: tam anahtarı şifresiz göster */
+              <div className="space-y-3">
+                {/* Durum bandı */}
+                <div className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold border ${devKeyStatus.isValid ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                  <Shield size={12} className="shrink-0" />
+                  {devKeyStatus.isValid
+                    ? `Lisans geçerli · Yayıncı: ${devKeyStatus.issuer ?? "—"} · Geçerlilik: ${devKeyStatus.notBefore} – ${devKeyStatus.expiresAt}`
+                    : `Lisans geçersiz: ${devKeyStatus.validationError}`}
+                </div>
+
+                {/* Tam anahtar */}
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5">Platform Lisans Token</p>
+                  <div className="relative bg-slate-900 rounded-xl p-4">
+                    <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{devKeyStatus.fullKey}</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(devKeyStatus.fullKey ?? ""); setFullKeyCopied(true); setTimeout(() => setFullKeyCopied(false), 2000); }}
+                      className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
+                      {fullKeyCopied ? <CheckCircle size={11} /> : <Save size={11} />}
+                      {fullKeyCopied ? "Kopyalandı" : "Kopyala"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                  Bu token sunucudaki <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam değişkeninde saklanmalıdır. Token değiştirilirse API yeniden başlatılmalıdır.
+                </div>
+              </div>
+            ) : (
+              /* Regular Admin: atanan lisansı görüntüle */
+              <div className="space-y-4">
+                {!myLicense ? (
+                  <>
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+                      <Shield size={12} className="shrink-0 mt-0.5" />
+                      Sistem yöneticiniz size bir lisans atadıysa, e-posta ile iletilen görüntüleme şifrenizi girerek erişebilirsiniz.
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-600">Görüntüleme Şifresi</label>
+                      <input
+                        type="password"
+                        value={myViewPassword}
+                        onChange={e => { setMyViewPassword(e.target.value); setMyViewError(""); }}
+                        onKeyDown={e => e.key === "Enter" && handleRevealMyLicense()}
+                        placeholder="XXXX-XXXX-XXXX-XXXX"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono tracking-widest"
+                      />
+                      {myViewError && (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <XCircle size={11} /> {myViewError}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={handleRevealMyLicense} disabled={myViewLoading || !myViewPassword.trim()}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                      {myViewLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                      Lisansımı Görüntüle
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <div className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold border bg-emerald-50 border-emerald-200 text-emerald-700`}>
+                      <Shield size={12} className="shrink-0" />
+                      Lisans görüntülendi · Uygulama: {myLicense.app} · Yayıncı: {myLicense.issuer} · Geçerlilik: {myLicense.notBefore} – {myLicense.expiresAt}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5">Lisans Token</p>
+                      <div className="relative bg-slate-900 rounded-xl p-4">
+                        <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{myLicense.licenseToken}</p>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(myLicense.licenseToken); setMyLicCopied(true); setTimeout(() => setMyLicCopied(false), 2000); }}
+                          className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
+                          {myLicCopied ? <CheckCircle size={11} /> : <Save size={11} />}
+                          {myLicCopied ? "Kopyalandı" : "Kopyala"}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Bu token güvenli bir yerde saklayın. Tekrar şifre girmeniz gerekirse sayfayı yenileyin.</p>
+                    <button onClick={() => { setMyLicense(null); setMyViewPassword(""); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 underline transition">
+                      Gizle
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </Section>
+
+          {/* ── 2. Lisans Üretici (yalnızca SuperAdmin) ── */}
+          {isSuperAdmin && (
+            <Section title="Lisans Üretici" icon={<KeyRound size={16} />}
+              subtitle="RSA-2048 private key ile yeni lisans token'ı üretir. Private key tarayıcıdan çıkmaz — imzalama tamamen client-side yapılır.">
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Private Key (PKCS8 DER, Base64)</label>
+                  <textarea
+                    rows={4}
+                    value={licGenPrivKey}
+                    onChange={e => { setLicGenPrivKey(e.target.value); setLicGenError(""); setLicGenToken(null); }}
+                    placeholder="MIIEvgIBADANBgkqhkiG9w0BAQEFAASC..."
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Issuer</label>
+                    <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Geçerlilik Başlangıcı</label>
+                    <input type="date" value={licGenNbf} onChange={e => setLicGenNbf(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Son Geçerlilik</label>
+                    <input type="date" value={licGenExp} onChange={e => setLicGenExp(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                </div>
+
+                <button onClick={handleGenerateLicense} disabled={licGenLoading || !licGenPrivKey.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {licGenLoading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+                  Token Üret
+                </button>
+
+                {licGenError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    {licGenError}
+                  </div>
+                )}
+
+                {licGenToken && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={14} className="text-emerald-500" />
+                      <span className="text-xs font-semibold text-emerald-700">Token üretildi — Lisans Atama bölümüne yapıştırabilirsiniz.</span>
+                    </div>
+                    <div className="relative bg-slate-900 rounded-xl p-4">
+                      <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{licGenToken}</p>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(licGenToken!); setLicGenCopied(true); setTimeout(() => setLicGenCopied(false), 2000); }}
+                        className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
+                        {licGenCopied ? <CheckCircle size={11} /> : <Save size={11} />}
+                        {licGenCopied ? "Kopyalandı" : "Kopyala"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-start gap-2">
+                  <Lock size={11} className="shrink-0 mt-0.5 text-slate-400" />
+                  Private key yalnızca bu tarayıcı sekmesinde kullanılır. Sunucuya gönderilmez.
+                </div>
+              </div>
+            </Section>
+          )}
+
+          {/* ── 3. Kullanıcıya Lisans Ata (yalnızca SuperAdmin) ── */}
+          {isSuperAdmin && (
+            <Section title="Kullanıcıya Lisans Ata" icon={<Users size={16} />}
+              subtitle="Ürettiğiniz lisans tokenini bir admin kullanıcıya atayın. Sistem otomatik şifre üretir ve kullanıcıya e-posta gönderir.">
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Admin Kullanıcı E-postası</label>
+                    <input
+                      type="email"
+                      value={licAssignEmail}
+                      onChange={e => { setLicAssignEmail(e.target.value); setLicAssignError(""); setLicAssignResult(null); }}
+                      placeholder="admin@example.com"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notlar (isteğe bağlı)</label>
+                    <input
+                      value={licAssignNotes}
+                      onChange={e => setLicAssignNotes(e.target.value)}
+                      placeholder="Bu lisansın amacı..."
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Lisans Token</label>
+                  <textarea
+                    rows={3}
+                    value={licAssignToken}
+                    onChange={e => { setLicAssignToken(e.target.value); setLicAssignError(""); setLicAssignResult(null); }}
+                    placeholder="eyJhcHAi... (Lisans Üretici'den kopyalanan token)"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  />
+                </div>
+
+                <button onClick={handleAssignLicense} disabled={licAssignLoading || !licAssignEmail.trim() || !licAssignToken.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {licAssignLoading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  Lisansı Ata ve Mail Gönder
+                </button>
+
+                {licAssignError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    {licAssignError}
+                  </div>
+                )}
+
+                {licAssignResult && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+                      <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                      {licAssignResult.message}
+                    </div>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Yedek Görüntüleme Şifresi (tek sefer görünür)</p>
+                      <p className="font-mono text-base font-bold text-amber-900 tracking-widest">{licAssignResult.viewPassword}</p>
+                      <p className="text-[10px] text-amber-700">Bu şifre e-posta ile kullanıcıya gönderildi. İsterseniz buradan da not alabilirsiniz.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+          {/* ── 4. Kullanıcı Atamaları (yalnızca SuperAdmin) ── */}
+          {isSuperAdmin && (
+            <Section title="Kullanıcı Atamaları" icon={<Users size={16} />}
+              subtitle="Sisteme atanmış tüm lisanslar. İptal edilen atamalar o kullanıcının erişimini sona erdirir.">
+
+              {licAssignmentsLoading ? (
+                <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
+                  <Loader2 size={15} className="animate-spin mr-2" /> Yükleniyor...
+                </div>
+              ) : licAssignments.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+                  Henüz lisans ataması yapılmadı.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {licAssignments.map((a: { id: string; adminEmail: string; adminName: string; maskedToken: string; isRevoked: boolean; createdDate: string; licenseInfo?: { Issuer: string; ExpiresAt: string } }) => (
+                    <div key={a.id} className={`flex items-start justify-between gap-3 p-3 rounded-xl border ${a.isRevoked ? "bg-slate-50 border-slate-200 opacity-60" : "bg-white border-slate-200"}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-800">{a.adminName || a.adminEmail}</p>
+                          <span className="text-[10px] text-slate-400">{a.adminEmail}</span>
+                          {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">İptal Edildi</span>}
+                        </div>
+                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{a.maskedToken}</p>
+                        {a.licenseInfo && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Yayıncı: {a.licenseInfo.Issuer} · Son: {a.licenseInfo.ExpiresAt}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-300 mt-0.5">{new Date(a.createdDate).toLocaleDateString("tr-TR")}</p>
+                      </div>
+                      {!a.isRevoked && (
+                        <button onClick={() => handleRevokeAssignment(a.id)}
+                          className="shrink-0 text-[10px] text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 rounded-lg px-2 py-1 transition font-semibold">
+                          İptal Et
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={loadLicenseAssignments} disabled={licAssignmentsLoading}
+                className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+                <RefreshCw size={11} className={licAssignmentsLoading ? "animate-spin" : ""} /> Yenile
+              </button>
+            </Section>
+          )}
+
+          {/* ── 5. Süreç Dokümantasyonu ── */}
+          <Section title="Lisans Süreçleri — Kılavuz" icon={<BookOpen size={16} />}
+            subtitle="Platform lisanslama sistemi nasıl çalışır, hangi adımlar izlenir ve hangi hatalar nasıl giderilir.">
+
+            <div className="space-y-5 text-xs text-slate-600">
+
+              {/* Genel Bakış */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Genel Bakış</p>
+                <p>Bu platform RSA-2048 tabanlı lisans sistemi kullanır. Lisans token'ı, yalnızca private key ile imzalanabilir ve public key ile doğrulanır. Private key olmadan geçerli token üretilemez.</p>
+                <p>Lisanslama iki farklı senaryo için kullanılır: <strong>Platform aktivasyonu</strong> (sunucunun çalışması için zorunlu ECOM_LICENSE) ve <strong>Kullanıcı lisansları</strong> (SuperAdmin'in diğer admin kullanıcılara atadığı kişisel lisanslar).</p>
+              </div>
+
+              {/* SuperAdmin akışı */}
+              {isSuperAdmin && (
+                <div className="space-y-3">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SuperAdmin İş Akışı</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {[
+                      { step: "1", title: "Lisans Üret", desc: "Private key'i 'Lisans Üretici' bölümüne girin. Issuer (kim tarafından verildi), NotBefore ve ExpiresAt tarihlerini belirleyin. 'Token Üret' butonuna basın. İmzalama tarayıcıda gerçekleşir — private key sunucuya gönderilmez." },
+                      { step: "2", title: "Platform Aktivasyonu", desc: "Üretilen token'ı sunucuda ECOM_LICENSE ortam değişkenine yapıştırın. Docker ortamında .env dosyasını güncelleyin, API konteynerini yeniden başlatın. Token geçerliyse API başlar; geçersizse başlamaz." },
+                      { step: "3", title: "Kullanıcıya Ata", desc: "'Kullanıcıya Lisans Ata' bölümünden admin kullanıcının e-postasını ve lisans token'ını girin. Sistem otomatik olarak güçlü bir görüntüleme şifresi üretir ve kullanıcıya e-posta gönderir." },
+                      { step: "4", title: "Atamayı Yönet", desc: "'Kullanıcı Atamaları' listesinden tüm atamaları görebilir, gerektiğinde iptal edebilirsiniz. İptal edilen lisanslar o kullanıcının erişimini anında keser." },
+                    ].map(item => (
+                      <div key={item.step} className="flex gap-3 p-3 bg-teal-50 border border-teal-100 rounded-xl">
+                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
+                        <div>
+                          <p className="font-bold text-slate-700 mb-0.5">{item.title}</p>
+                          <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin kullanıcı akışı */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Admin Kullanıcı Akışı</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {[
+                    { step: "1", title: "Mail Bekleyin", desc: "SuperAdmin size bir lisans atadığında e-posta alırsınız. Mail'de lisans token'ınız ve görüntüleme şifreniz yer alır." },
+                    { step: "2", title: "Şifreyle Görüntüle", desc: "Bu sayfadaki 'Aktivasyon Anahtarı' bölümüne görüntüleme şifrenizi girin. Lisans token'ınız ekranda belirir." },
+                    { step: "3", title: "Token'ı Kullanın", desc: "Token'ı kopyalayıp kendi deployment'ınızın ECOM_LICENSE değişkenine yapıştırın. API'yi yeniden başlatın." },
+                  ].map(item => (
+                    <div key={item.step} className="flex gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
+                      <div>
+                        <p className="font-bold text-slate-700 mb-0.5">{item.title}</p>
+                        <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Teknik notlar */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Teknik Detaylar</p>
+                </div>
+                <div className="p-4 space-y-2">
+                  {[
+                    { label: "İmzalama algoritması", value: "RSA-2048, PKCS1v15 padding, SHA-256" },
+                    { label: "Token formatı", value: "base64url(payload) + \".\" + base64url(signature)" },
+                    { label: "Payload içeriği", value: "{ app, iss, nbf, exp } — JSON, UTF-8, base64url" },
+                    { label: "JWT bağlantısı", value: "JWT signing key, lisans payload'ından HMAC-SHA256 ile türetilir — token değişirse tüm oturumlar geçersiz olur" },
+                    { label: "Görüntüleme şifresi", value: "16 karakterli rastgele alfanumerik, SHA-256 hash ile saklanır, tek yönlü" },
+                    { label: "Private key güvenliği", value: "Private key sunucuya gönderilmez, tüm imzalama WebCrypto API (browser) ile yapılır" },
+                  ].map(r => (
+                    <div key={r.label} className="flex gap-2">
+                      <span className="text-slate-400 font-semibold shrink-0 w-44">{r.label}</span>
+                      <span className="text-slate-600">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sorun giderme */}
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
+                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
+                {[
+                  { s: "API başlamıyor", c: "ECOM_LICENSE eksik veya imzası hatalı. Terminal'deki LicenseException mesajını okuyun." },
+                  { s: "Giriş 401 veriyor", c: "JWT anahtarı lisanstan türetilir. Token değiştiyse tüm kullanıcıların oturumu kapatıp tekrar giriş yapması gerekir." },
+                  { s: "Tüm endpoint'ler 503", c: "LicenseMiddleware engelledi. Token tam ve tek satır olmalı, baştaki/sondaki boşluklar temizlenmeli." },
+                  { s: "Görüntüleme şifresi çalışmıyor", c: "Şifre büyük/küçük harf duyarlıdır. Mail'deki tam değeri kopyalayın. Birden fazla atama varsa en son atanan şifre geçerlidir." },
+                  { s: "Token üretilemiyor", c: "Private key PKCS8 DER formatında, Base64 kodlanmış olmalıdır. PEM başlıkları (-----BEGIN PRIVATE KEY-----) olmadan yalnızca base64 kısmı girilmeli." },
+                ].map(r => (
+                  <div key={r.s} className="flex gap-2 text-xs">
+                    <span className="text-red-500 font-semibold shrink-0 w-48">{r.s}</span>
+                    <span className="text-red-700">{r.c}</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </Section>
+
+          {/* ── 6. Modül Lisansları ── */}
+          <Section title="Modül Lisansları" icon={<KeyRound size={16} />}
             subtitle="Modül lisanslarını buradan yönetin. Süresi dolan veya yaklaşan lisanslar uyarı rozeti gösterir.">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500">{licenses.length} lisans kayıtlı</p>

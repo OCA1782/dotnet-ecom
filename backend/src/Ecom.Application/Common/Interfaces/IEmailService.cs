@@ -13,4 +13,5 @@ public interface IEmailService
     Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default);
     Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default);
     Task SendAlertAsync(IEnumerable<string> toEmails, string subject, string htmlBody, CancellationToken ct = default);
+    Task SendLicenseAssignmentAsync(string toEmail, string toName, string licenseToken, string viewPassword, string issuer, string expiresAt, CancellationToken ct = default);
 }

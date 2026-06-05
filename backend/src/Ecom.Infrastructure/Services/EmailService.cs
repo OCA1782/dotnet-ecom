@@ -103,6 +103,13 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, ct);
     }
 
+    public async Task SendLicenseAssignmentAsync(string toEmail, string toName, string licenseToken, string viewPassword, string issuer, string expiresAt, CancellationToken ct = default)
+    {
+        var subject = "Ecom Platform Lisansınız Hazır";
+        var body = EmailTemplates.LicenseAssignment(toName, licenseToken, viewPassword, issuer, expiresAt);
+        await SendAsync(toEmail, toName, subject, body, ct);
+    }
+
     public async Task SendTestEmailAsync(string toEmail, CancellationToken ct = default)
     {
         var body = $"""

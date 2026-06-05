@@ -54,6 +54,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<AlertCondition> AlertConditions => Set<AlertCondition>();
+    public DbSet<LicenseAssignment> LicenseAssignments => Set<LicenseAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

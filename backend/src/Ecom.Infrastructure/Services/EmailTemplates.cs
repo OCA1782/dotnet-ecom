@@ -146,4 +146,41 @@ internal static class EmailTemplates
             </table>
             <p style="color:#3f3f46;font-size:14px;">Stok yönetimi panelinden yeni stok girişi yapabilirsiniz.</p>
         """);
+
+    public static string LicenseAssignment(string name, string licenseToken, string viewPassword, string issuer, string expiresAt) =>
+        Wrap("Lisans Anahtarınız Hazır", $"""
+            <h2 style="color:#18181b;margin:0 0 8px;">Merhaba {name},</h2>
+            <p style="color:#3f3f46;line-height:1.6;margin:0 0 24px;">
+              Size bir Ecom platform lisansı atandı. Aşağıdaki bilgileri güvenli bir yerde saklayın.
+            </p>
+
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px 24px;margin:0 0 20px;">
+              <p style="margin:0 0 6px;font-size:12px;color:#16a34a;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">✓ Lisans Bilgileri</p>
+              <table width="100%" style="font-size:13px;">
+                <tr><td style="padding:4px 0;color:#71717a;width:140px;">Yayıncı (Issuer)</td><td style="color:#18181b;font-weight:600;">{issuer}</td></tr>
+                <tr><td style="padding:4px 0;color:#71717a;">Son Geçerlilik</td><td style="color:#18181b;font-weight:600;">{expiresAt}</td></tr>
+              </table>
+            </div>
+
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:20px 24px;margin:0 0 20px;">
+              <p style="margin:0 0 10px;font-size:12px;color:#c2410c;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">🔑 Görüntüleme Şifresi</p>
+              <p style="margin:0;font-family:monospace;font-size:22px;font-weight:bold;color:#18181b;letter-spacing:.1em;">{viewPassword}</p>
+              <p style="margin:8px 0 0;font-size:12px;color:#9a3412;">
+                Bu şifreyi Admin Paneli → Yönetim → Lisans sekmesindeki "Aktivasyon" alanında kullanın.
+              </p>
+            </div>
+
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
+              <p style="margin:0 0 8px;font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">📋 Lisans Token</p>
+              <p style="margin:0;font-family:monospace;font-size:11px;color:#0f172a;word-break:break-all;line-height:1.6;">{licenseToken}</p>
+            </div>
+
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 18px;">
+              <p style="margin:0;font-size:12px;color:#b91c1c;line-height:1.6;">
+                ⚠ <strong>Güvenlik Uyarısı:</strong> Bu e-postayı üçüncü şahıslarla paylaşmayın.
+                Görüntüleme şifrenizi başkasına vermeyin. Token, deployment'ınızda
+                <code style="background:#fee2e2;padding:1px 4px;border-radius:3px;">ECOM_LICENSE</code> ortam değişkeni olarak kullanılır.
+              </p>
+            </div>
+        """);
 }
