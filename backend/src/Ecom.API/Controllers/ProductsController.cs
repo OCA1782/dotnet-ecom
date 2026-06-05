@@ -44,6 +44,15 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("suggestions")]
+    public async Task<IActionResult> GetSuggestions([FromQuery] string q = "", [FromQuery] int limit = 8, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+            return Ok(new { items = Array.Empty<object>(), totalProducts = 0 });
+        var result = await mediator.Send(new GetSearchSuggestionsQuery(q, limit), ct);
+        return Ok(result);
+    }
+
     [HttpGet("{slug}")]
     public async Task<IActionResult> GetBySlug(string slug, CancellationToken ct)
     {

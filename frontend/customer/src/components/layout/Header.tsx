@@ -2,12 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, User, Search } from "lucide-react";
+import { ShoppingCart, User, Search, Loader2, Tag, Layers } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import BrandLogo from "@/components/BrandLogo";
+
+type SuggestionItem = {
+  type: "product" | "brand" | "category";
+  name: string;
+  slug: string;
+  imageUrl?: string;
+  price?: number;
+  subText?: string;
+};
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
 export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteName?: string }) {
   const { itemCount, fetchCart } = useCart();
@@ -18,7 +29,17 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
+
+  // Live search state
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -32,10 +53,39 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
       const inButton = buttonRef.current?.contains(target);
       const inDropdown = dropdownRef.current?.contains(target);
       if (!inButton && !inDropdown) setMenuOpen(false);
+      // Close suggestions if click is outside search area
+      if (!searchRef.current?.contains(target)) {
+        setSuggestOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Debounced search suggestions
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (search.length < 2) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+    setSuggestLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/products/suggestions?q=${encodeURIComponent(search)}&limit=9`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data.items ?? []);
+          setTotalProducts(data.totalProducts ?? 0);
+          setSuggestOpen(true);
+          setActiveIdx(-1);
+        }
+      } catch { /* ignore */ }
+      finally { setSuggestLoading(false); }
+    }, 280);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
 
   const openMenu = useCallback(() => {
     if (buttonRef.current) {
@@ -49,7 +99,33 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (search.trim()) router.push(`/urunler?s=${encodeURIComponent(search)}`);
+    if (search.trim()) {
+      setSuggestOpen(false);
+      router.push(`/urunler?s=${encodeURIComponent(search)}`);
+    }
+  };
+
+  const handleSuggestionClick = (item: SuggestionItem) => {
+    setSuggestOpen(false);
+    setSearch("");
+    router.push(item.slug);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestOpen || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === "Enter" && activeIdx >= 0) {
+      e.preventDefault();
+      handleSuggestionClick(suggestions[activeIdx]);
+    } else if (e.key === "Escape") {
+      setSuggestOpen(false);
+      setActiveIdx(-1);
+    }
   };
 
   const dropdown = menuOpen && menuPos && mounted ? createPortal(
@@ -164,17 +240,87 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
 
             {/* Search */}
             <form onSubmit={handleSearch} data-slot="search" className="flex-1 max-w-2xl hidden sm:flex">
-              <div className="relative w-full">
+              <div ref={searchRef} className="relative w-full">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
                   placeholder="Ürün, kategori veya marka ara..."
+                  autoComplete="off"
                   className="w-full pl-5 pr-12 py-3 rounded-2xl text-sm bg-white text-slate-900 placeholder-slate-400 border-2 border-teal-200 focus:outline-none focus:border-teal-400 transition"
                 />
                 <button type="submit" className="absolute right-3 top-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl p-1.5 transition">
-                  <Search size={16} />
+                  {suggestLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                 </button>
+
+                {/* Suggestions dropdown */}
+                {suggestOpen && suggestions.length > 0 && mounted && (
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] overflow-hidden">
+                    {/* Group: kategoriler + markalar */}
+                    {suggestions.filter(s => s.type !== "product").length > 0 && (
+                      <div className="px-3 pt-2 pb-1 flex flex-wrap gap-2">
+                        {suggestions.filter(s => s.type !== "product").map((item, i) => (
+                          <button key={i} onClick={() => handleSuggestionClick(item)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-xs font-medium text-slate-600 transition">
+                            {item.type === "category"
+                              ? <Layers size={11} className="shrink-0" />
+                              : <Tag size={11} className="shrink-0" />}
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Ürünler */}
+                    {suggestions.filter(s => s.type === "product").length > 0 && (
+                      <>
+                        {suggestions.filter(s => s.type !== "product").length > 0 && (
+                          <div className="mx-3 border-t border-slate-100 mt-1" />
+                        )}
+                        <div className="py-1">
+                          {suggestions.filter(s => s.type === "product").map((item, i) => {
+                            const globalIdx = suggestions.indexOf(item);
+                            return (
+                              <button key={i} onClick={() => handleSuggestionClick(item)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}>
+                                {item.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
+                                    <Search size={14} className="text-slate-300" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                                  {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}
+                                </div>
+                                {item.price != null && (
+                                  <span className="text-sm font-semibold text-teal-600 shrink-0">
+                                    {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Tüm sonuçlar */}
+                    <div className="border-t border-slate-100 px-3 py-2">
+                      <button onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
+                        className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-1 transition">
+                        {totalProducts > 0
+                          ? `${totalProducts} ürünün tamamını gör →`
+                          : `"${search}" için tüm sonuçlara git →`}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </form>
 
