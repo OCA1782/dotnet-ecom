@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -17,14 +17,9 @@ import {
   ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle,
 } from "lucide-react";
 
-/* ─── Types ──────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 type SiteSettings = Record<string, string>;
 type FaqItem = { q: string; a: string };
-type LicenseDto = {
-  id: string; module: string; licenseKey: string; description?: string;
-  expiresAt: string; isActive: boolean; notes?: string;
-  isExpired: boolean; daysRemaining: number;
-};
 
 const DEFAULTS: SiteSettings = {
   SiteName: "", SiteUrl: "", AdminTitle: "", Currency: "TRY",
@@ -32,20 +27,20 @@ const DEFAULTS: SiteSettings = {
   SocialInstagram: "", SocialTwitter: "", SocialFacebook: "",
   SocialYoutube: "", SocialLinkedin: "",
   LogoUrl: "", FaviconUrl: "",
-  // Admin panel görselleri
-  AdminLogoNamed: "",   // sidebar genişken (isimli — marka logosu)
-  AdminLogoIcon: "",    // sidebar daraltılmışken (isimsiz — sadece ikon)
-  AdminFaviconUrl: "",  // admin tarayıcı sekmesi ikonu
-  // Müşteri sitesi görselleri
+  // Admin panel gÃ¶rselleri
+  AdminLogoNamed: "",   // sidebar geniÅŸken (isimli â€” marka logosu)
+  AdminLogoIcon: "",    // sidebar daraltÄ±lmÄ±ÅŸken (isimsiz â€” sadece ikon)
+  AdminFaviconUrl: "",  // admin tarayÄ±cÄ± sekmesi ikonu
+  // MÃ¼ÅŸteri sitesi gÃ¶rselleri
   CustomerLogoIcon: "",   // header'da isimsiz logo (sadece ikon)
   CustomerLogoNamed: "",  // header'da isimli logo (metin dahil)
-  CustomerFaviconUrl: "", // müşteri tarayıcı sekmesi ikonu
-  // Renkler — Customer
+  CustomerFaviconUrl: "", // mÃ¼ÅŸteri tarayÄ±cÄ± sekmesi ikonu
+  // Renkler â€” Customer
   PrimaryColor: "#0d9488", AccentColor: "#7c3aed",
   CustomerBgColor: "#F7FAFA", CustomerTextColor: "#1c2044",
   CustomerCardBgColor: "#ffffff", CustomerHeaderBgColor: "#ffffff",
   CustomerBorderColor: "#ccfbf1", CustomerButtonTextColor: "#ffffff",
-  // Renkler — Admin
+  // Renkler â€” Admin
   AdminSidebarColor: "#1c2044", AdminPrimaryColor: "#0d9488",
   AdminAccentColor: "#7c3aed", AdminBgColor: "#f8fafc",
   // Fontlar
@@ -54,7 +49,7 @@ const DEFAULTS: SiteSettings = {
   // Kargo
   FreeShippingLimit: "", DefaultShippingCost: "",
   MaintenanceMode: "false", AdminMenuOrder: "", AdminMenuConfig: "", AdminRbacMatrix: "",
-  // Şablon
+  // Åžablon
   CustomerTemplate: "modern",
   // Ortam
   AppEnvironment: "development",
@@ -74,12 +69,12 @@ const DEFAULTS: SiteSettings = {
   ChatbotEnabled: "false",
   ChatbotProvider: "whatsapp",
   WhatsAppNumber: "",
-  WhatsAppWelcomeMessage: "Merhaba! Size nasıl yardımcı olabilirim?",
+  WhatsAppWelcomeMessage: "Merhaba! Size nasÄ±l yardÄ±mcÄ± olabilirim?",
   TelegramBotUsername: "",
   TelegramBotToken: "",
   N8nWebhookUrl: "",
   N8nApiKey: "",
-  // Ödeme
+  // Ã–deme
   PaymentHavaleEnabled: "false",
   PaymentHavaleBankName: "",
   PaymentHavaleAccountName: "",
@@ -92,8 +87,8 @@ const DEFAULTS: SiteSettings = {
   PaymentSanalPosApiSecret: "",
   PaymentSanalPosTestMode: "true",
   // Footer
-  Footer_Tagline: "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.",
-  // Sayfa içerikleri
+  Footer_Tagline: "Keyifli alÄ±ÅŸveriÅŸin yeni adresi.\nSevdiÄŸin Ã¼rÃ¼nler, gÃ¼venli Ã¶deme.",
+  // Sayfa iÃ§erikleri
   Page_SSS: "[]",
   Page_IadeVeDegisim: "",
   Page_KargoTakibi: "",
@@ -103,56 +98,56 @@ const DEFAULTS: SiteSettings = {
   Page_Hakkimizda: "",
   Page_KVKK: "",
   Page_Gizlilik: "",
-  // Özelleştirilebilir mesajlar
+  // Ã–zelleÅŸtirilebilir mesajlar
   Msg_RequiredField: "Bu alan zorunludur.",
-  Msg_InvalidEmail: "Geçerli bir e-posta adresi girin.",
-  Msg_PasswordMin: "Şifre en az 8 karakter olmalıdır.",
-  Msg_PasswordMatch: "Şifreler eşleşmiyor.",
-  Msg_OrderSuccess: "Siparişiniz başarıyla oluşturuldu.",
-  Msg_OrderCancelled: "Siparişiniz iptal edildi.",
-  Msg_OrderShipped: "Siparişiniz kargoya verildi.",
-  Msg_CartItemAdded: "Ürün sepete eklendi.",
-  Msg_OutOfStock: "Bu üründen yeterli stok bulunmuyor.",
-  Msg_CartEmpty: "Sepetinizde ürün bulunmuyor.",
-  Msg_CouponApplied: "Kupon kodu uygulandı.",
-  Msg_CouponInvalid: "Geçersiz veya süresi dolmuş kupon kodu.",
-  Msg_GenericError: "Bir hata oluştu. Lütfen tekrar deneyin.",
-  Msg_NetworkError: "İnternet bağlantısı kesildi. Lütfen kontrol edin.",
-  Msg_Unauthorized: "Bu işlem için giriş yapmanız gerekiyor.",
-  Msg_LoginSuccess: "Başarıyla giriş yaptınız. Hoş geldiniz!",
-  Msg_RegisterSuccess: "Hesabınız oluşturuldu. E-postanızı doğrulayın.",
-  Msg_ProfileUpdated: "Profiliniz başarıyla güncellendi.",
-  Msg_PasswordChanged: "Şifreniz başarıyla değiştirildi.",
-  Msg_MaintenanceMode: "Site bakım çalışması yapılıyor. Lütfen daha sonra tekrar deneyin.",
-  Msg_LowStockWarning: "Bu üründe sınırlı stok kalmıştır.",
-  Msg_FreeShipping: "Ücretsiz kargo için ₺{limit} üzeri alışveriş yapın.",
-  Msg_ReviewSuccess: "Yorumunuz alındı. İnceleme sonrası yayınlanacaktır.",
+  Msg_InvalidEmail: "GeÃ§erli bir e-posta adresi girin.",
+  Msg_PasswordMin: "Åžifre en az 8 karakter olmalÄ±dÄ±r.",
+  Msg_PasswordMatch: "Åžifreler eÅŸleÅŸmiyor.",
+  Msg_OrderSuccess: "SipariÅŸiniz baÅŸarÄ±yla oluÅŸturuldu.",
+  Msg_OrderCancelled: "SipariÅŸiniz iptal edildi.",
+  Msg_OrderShipped: "SipariÅŸiniz kargoya verildi.",
+  Msg_CartItemAdded: "ÃœrÃ¼n sepete eklendi.",
+  Msg_OutOfStock: "Bu Ã¼rÃ¼nden yeterli stok bulunmuyor.",
+  Msg_CartEmpty: "Sepetinizde Ã¼rÃ¼n bulunmuyor.",
+  Msg_CouponApplied: "Kupon kodu uygulandÄ±.",
+  Msg_CouponInvalid: "GeÃ§ersiz veya sÃ¼resi dolmuÅŸ kupon kodu.",
+  Msg_GenericError: "Bir hata oluÅŸtu. LÃ¼tfen tekrar deneyin.",
+  Msg_NetworkError: "Ä°nternet baÄŸlantÄ±sÄ± kesildi. LÃ¼tfen kontrol edin.",
+  Msg_Unauthorized: "Bu iÅŸlem iÃ§in giriÅŸ yapmanÄ±z gerekiyor.",
+  Msg_LoginSuccess: "BaÅŸarÄ±yla giriÅŸ yaptÄ±nÄ±z. HoÅŸ geldiniz!",
+  Msg_RegisterSuccess: "HesabÄ±nÄ±z oluÅŸturuldu. E-postanÄ±zÄ± doÄŸrulayÄ±n.",
+  Msg_ProfileUpdated: "Profiliniz baÅŸarÄ±yla gÃ¼ncellendi.",
+  Msg_PasswordChanged: "Åžifreniz baÅŸarÄ±yla deÄŸiÅŸtirildi.",
+  Msg_MaintenanceMode: "Site bakÄ±m Ã§alÄ±ÅŸmasÄ± yapÄ±lÄ±yor. LÃ¼tfen daha sonra tekrar deneyin.",
+  Msg_LowStockWarning: "Bu Ã¼rÃ¼nde sÄ±nÄ±rlÄ± stok kalmÄ±ÅŸtÄ±r.",
+  Msg_FreeShipping: "Ãœcretsiz kargo iÃ§in â‚º{limit} Ã¼zeri alÄ±ÅŸveriÅŸ yapÄ±n.",
+  Msg_ReviewSuccess: "Yorumunuz alÄ±ndÄ±. Ä°nceleme sonrasÄ± yayÄ±nlanacaktÄ±r.",
 };
 
 const ALL_MENU_ITEMS = [
   { href: "/dashboard",     label: "Dashboard",     group: "genel" },
   { href: "/raporlar",      label: "Analiz",        group: "genel" },
   { href: "/hedefler",      label: "Hedefler",      group: "genel" },
-  { href: "/urunler",       label: "Ürünler",       group: "katalog" },
+  { href: "/urunler",       label: "ÃœrÃ¼nler",       group: "katalog" },
   { href: "/kategoriler",   label: "Kategoriler",   group: "katalog" },
   { href: "/markalar",      label: "Markalar",      group: "katalog" },
   { href: "/stok",          label: "Stok",          group: "katalog" },
   { href: "/yorumlar",      label: "Yorumlar",      group: "katalog" },
-  { href: "/siparisler",    label: "Siparişler",    group: "satis" },
-  { href: "/odemeler",      label: "Ödemeler",      group: "satis" },
-  { href: "/iade",          label: "İadeler",       group: "satis" },
+  { href: "/siparisler",    label: "SipariÅŸler",    group: "satis" },
+  { href: "/odemeler",      label: "Ã–demeler",      group: "satis" },
+  { href: "/iade",          label: "Ä°adeler",       group: "satis" },
   { href: "/kuponlar",      label: "Kuponlar",      group: "satis" },
-  { href: "/kullanicilar",  label: "Kullanıcılar",  group: "kullanici" },
-  { href: "/ziyaretciler",  label: "Ziyaretçiler",  group: "kullanici" },
+  { href: "/kullanicilar",  label: "KullanÄ±cÄ±lar",  group: "kullanici" },
+  { href: "/ziyaretciler",  label: "ZiyaretÃ§iler",  group: "kullanici" },
   { href: "/hareketler",    label: "Hareketler",    group: "sistem" },
   { href: "/takip",         label: "Takip",         group: "sistem" },
-  { href: "/dis-kaynaklar", label: "Dış Kaynaklar", group: "sistem" },
+  { href: "/dis-kaynaklar", label: "DÄ±ÅŸ Kaynaklar", group: "sistem" },
   { href: "/servisler",     label: "Servisler",     group: "sistem" },
   { href: "/kuyruklar",     label: "Kuyruklar",     group: "sistem" },
-  { href: "/dokuman",       label: "Dokümanlar",    group: "sistem" },
+  { href: "/dokuman",       label: "DokÃ¼manlar",    group: "sistem" },
 ] as const;
 
-/* ─── Menu Group Config ──────────────────────────────────────────────── */
+/* â”€â”€â”€ Menu Group Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 type MenuGroupConfig = {
   groupOrder: string[];
   groupLabels: Record<string, string>;
@@ -162,7 +157,7 @@ type MenuGroupConfig = {
 
 const DEFAULT_GROUP_ORDER = ["genel", "katalog", "satis", "kullanici", "sistem"];
 const DEFAULT_GROUP_LABELS: Record<string, string> = {
-  genel: "Genel", katalog: "Katalog", satis: "Satış", kullanici: "Kullanıcı", sistem: "Sistem",
+  genel: "Genel", katalog: "Katalog", satis: "SatÄ±ÅŸ", kullanici: "KullanÄ±cÄ±", sistem: "Sistem",
 };
 const DEFAULT_GROUP_ICONS: Record<string, string> = {
   genel: "LayoutDashboard", katalog: "Package", satis: "ShoppingCart", kullanici: "Users", sistem: "Settings",
@@ -186,7 +181,7 @@ const MENU_ICON_OPTIONS: { name: string; icon: React.ComponentType<{ size?: numb
   { name: "MessageSquare",   icon: MessageSquare },
 ];
 
-/* ─── Color Swatches ─────────────────────────────────────────────────── */
+/* â”€â”€â”€ Color Swatches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const COLOR_SWATCHES: Record<string, string[]> = {
   PrimaryColor:         ["#0d9488", "#0891b2", "#2563eb", "#7c3aed", "#dc2626", "#16a34a", "#d97706", "#e11d48", "#06b6d4", "#8b5cf6", "#059669", "#b91c1c"],
   AccentColor:          ["#7c3aed", "#db2777", "#0d9488", "#f97316", "#eab308", "#06b6d4", "#84cc16", "#6366f1", "#ec4899", "#f43f5e", "#14b8a6", "#a855f7"],
@@ -199,7 +194,7 @@ const COLOR_SWATCHES: Record<string, string[]> = {
   AdminAccentColor:     ["#7c3aed", "#0d9488", "#db2777", "#f97316", "#eab308", "#06b6d4", "#84cc16", "#6366f1", "#ec4899", "#f43f5e", "#14b8a6", "#a855f7"],
 };
 
-/* ─── Font Options ────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Font Options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const FONT_OPTIONS = [
   { value: "Inter",             label: "Inter",              category: "Sans-serif" },
   { value: "Roboto",            label: "Roboto",             category: "Sans-serif" },
@@ -228,143 +223,143 @@ const FONT_OPTIONS = [
   { value: "Crimson Text",      label: "Crimson Text",       category: "Serif" },
 ];
 
-/* ─── Theme Presets ──────────────────────────────────────────────────── */
+/* â”€â”€â”€ Theme Presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const THEME_PRESETS: { name: string; emoji: string; values: Record<string, string> }[] = [
-  { name: "Teal (Varsayılan)", emoji: "🩵", values: { PrimaryColor: "#0d9488", AccentColor: "#7c3aed", AdminSidebarColor: "#1c2044", CustomerBgColor: "#F7FAFA" } },
-  { name: "Ocean Blue",       emoji: "🌊", values: { PrimaryColor: "#0284c7", AccentColor: "#f97316", AdminSidebarColor: "#0c1a2e", CustomerBgColor: "#f0f9ff" } },
-  { name: "Forest Green",     emoji: "🌿", values: { PrimaryColor: "#166534", AccentColor: "#b45309", AdminSidebarColor: "#0f2318", CustomerBgColor: "#f0fdf4" } },
-  { name: "Berry Purple",     emoji: "🍇", values: { PrimaryColor: "#7c3aed", AccentColor: "#db2777", AdminSidebarColor: "#1a0533", CustomerBgColor: "#fdf4ff" } },
-  { name: "Rose Red",         emoji: "🌹", values: { PrimaryColor: "#e11d48", AccentColor: "#7c3aed", AdminSidebarColor: "#1a0a0a", CustomerBgColor: "#fff1f2" } },
-  { name: "Midnight Slate",   emoji: "🌙", values: { PrimaryColor: "#6366f1", AccentColor: "#06b6d4", AdminSidebarColor: "#0d1117", CustomerBgColor: "#f8fafc" } },
-  { name: "Warm Amber",       emoji: "🌅", values: { PrimaryColor: "#d97706", AccentColor: "#059669", AdminSidebarColor: "#1c1204", CustomerBgColor: "#fffbeb" } },
-  { name: "Coral Orange",     emoji: "🍊", values: { PrimaryColor: "#ea580c", AccentColor: "#7c3aed", AdminSidebarColor: "#1c0a04", CustomerBgColor: "#fff7ed" } },
+  { name: "Teal (VarsayÄ±lan)", emoji: "ðŸ©µ", values: { PrimaryColor: "#0d9488", AccentColor: "#7c3aed", AdminSidebarColor: "#1c2044", CustomerBgColor: "#F7FAFA" } },
+  { name: "Ocean Blue",       emoji: "ðŸŒŠ", values: { PrimaryColor: "#0284c7", AccentColor: "#f97316", AdminSidebarColor: "#0c1a2e", CustomerBgColor: "#f0f9ff" } },
+  { name: "Forest Green",     emoji: "ðŸŒ¿", values: { PrimaryColor: "#166534", AccentColor: "#b45309", AdminSidebarColor: "#0f2318", CustomerBgColor: "#f0fdf4" } },
+  { name: "Berry Purple",     emoji: "ðŸ‡", values: { PrimaryColor: "#7c3aed", AccentColor: "#db2777", AdminSidebarColor: "#1a0533", CustomerBgColor: "#fdf4ff" } },
+  { name: "Rose Red",         emoji: "ðŸŒ¹", values: { PrimaryColor: "#e11d48", AccentColor: "#7c3aed", AdminSidebarColor: "#1a0a0a", CustomerBgColor: "#fff1f2" } },
+  { name: "Midnight Slate",   emoji: "ðŸŒ™", values: { PrimaryColor: "#6366f1", AccentColor: "#06b6d4", AdminSidebarColor: "#0d1117", CustomerBgColor: "#f8fafc" } },
+  { name: "Warm Amber",       emoji: "ðŸŒ…", values: { PrimaryColor: "#d97706", AccentColor: "#059669", AdminSidebarColor: "#1c1204", CustomerBgColor: "#fffbeb" } },
+  { name: "Coral Orange",     emoji: "ðŸŠ", values: { PrimaryColor: "#ea580c", AccentColor: "#7c3aed", AdminSidebarColor: "#1c0a04", CustomerBgColor: "#fff7ed" } },
 ];
 
-/* ─── Template Definitions ───────────────────────────────────────── */
+/* â”€â”€â”€ Template Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const TEMPLATES = [
   {
-    id: "modern", name: "Modern", emoji: "✨",
-    description: "4 sütun, teal vurgular, yuvarlak köşeler. Varsayılan evrensel tasarım.",
-    tags: ["Varsayılan", "4 Sütun"],
+    id: "modern", name: "Modern", emoji: "âœ¨",
+    description: "4 sÃ¼tun, teal vurgular, yuvarlak kÃ¶ÅŸeler. VarsayÄ±lan evrensel tasarÄ±m.",
+    tags: ["VarsayÄ±lan", "4 SÃ¼tun"],
     columns: 4, headerLayout: "standard",
     headerColor: "#ffffff", bgColor: "#F7FAFA", cardBg: "#ffffff", textColor: "#1c2044", svgRadius: 6, hasShadow: true,
   },
   {
-    id: "minimal", name: "Minimalist", emoji: "◻️",
-    description: "4 sütun, gölgesiz, ince kenarlık, bol beyaz alan. Apple-esintili sade tasarım.",
+    id: "minimal", name: "Minimalist", emoji: "â—»ï¸",
+    description: "4 sÃ¼tun, gÃ¶lgesiz, ince kenarlÄ±k, bol beyaz alan. Apple-esintili sade tasarÄ±m.",
     tags: ["Sade", "Apple"],
     columns: 4, headerLayout: "standard",
     headerColor: "#ffffff", bgColor: "#ffffff", cardBg: "#ffffff", textColor: "#111827", svgRadius: 3, hasShadow: false,
   },
   {
-    id: "bold", name: "Güçlü & Cesur", emoji: "💪",
-    description: "Renkli başlık, pill şekiller, güçlü gölgeler. Kampanya ve spor siteleri için.",
-    tags: ["Enerjik", "Dikkat Çekici"],
+    id: "bold", name: "GÃ¼Ã§lÃ¼ & Cesur", emoji: "ðŸ’ª",
+    description: "Renkli baÅŸlÄ±k, pill ÅŸekiller, gÃ¼Ã§lÃ¼ gÃ¶lgeler. Kampanya ve spor siteleri iÃ§in.",
+    tags: ["Enerjik", "Dikkat Ã‡ekici"],
     columns: 4, headerLayout: "standard",
     headerColor: "#0d9488", bgColor: "#f8fafc", cardBg: "#ffffff", textColor: "#0f172a", svgRadius: 10, hasShadow: true,
   },
   {
-    id: "dark", name: "Koyu Tema", emoji: "🌙",
-    description: "Tam gece modu, derin koyu arka plan. Gaming, müzik ve teknoloji için.",
+    id: "dark", name: "Koyu Tema", emoji: "ðŸŒ™",
+    description: "Tam gece modu, derin koyu arka plan. Gaming, mÃ¼zik ve teknoloji iÃ§in.",
     tags: ["Koyu", "Gece"],
     columns: 4, headerLayout: "standard",
     headerColor: "#1e293b", bgColor: "#0f172a", cardBg: "#1e293b", textColor: "#f1f5f9", svgRadius: 6, hasShadow: true,
   },
   {
-    id: "showcase", name: "Vitrin", emoji: "🖼️",
-    description: "2 sütun, çok uzun kart görselleri, nefes alan düzen. Lüks moda için.",
-    tags: ["Premium", "2 Sütun"],
+    id: "showcase", name: "Vitrin", emoji: "ðŸ–¼ï¸",
+    description: "2 sÃ¼tun, Ã§ok uzun kart gÃ¶rselleri, nefes alan dÃ¼zen. LÃ¼ks moda iÃ§in.",
+    tags: ["Premium", "2 SÃ¼tun"],
     columns: 2, headerLayout: "standard",
     headerColor: "#ffffff", bgColor: "#fafaf9", cardBg: "#ffffff", textColor: "#1c1917", svgRadius: 10, hasShadow: true,
   },
   {
-    id: "luxe", name: "Lüks", emoji: "👑",
-    description: "3 sütun, 2 satırlı ortalanmış başlık, sıcak altın tonları. Butik ve mücevher için.",
-    tags: ["Lüks", "Ortalanmış"],
+    id: "luxe", name: "LÃ¼ks", emoji: "ðŸ‘‘",
+    description: "3 sÃ¼tun, 2 satÄ±rlÄ± ortalanmÄ±ÅŸ baÅŸlÄ±k, sÄ±cak altÄ±n tonlarÄ±. Butik ve mÃ¼cevher iÃ§in.",
+    tags: ["LÃ¼ks", "OrtalanmÄ±ÅŸ"],
     columns: 3, headerLayout: "centered",
     headerColor: "#fffef9", bgColor: "#faf9f6", cardBg: "#fffbeb", textColor: "#78350f", svgRadius: 6, hasShadow: true,
   },
   {
-    id: "sport", name: "Spor", emoji: "⚡",
-    description: "5 sütun, tam genişlik koyu başlık, turuncu vurgular. Spor ve outdoor için.",
-    tags: ["Spor", "5 Sütun"],
+    id: "sport", name: "Spor", emoji: "âš¡",
+    description: "5 sÃ¼tun, tam geniÅŸlik koyu baÅŸlÄ±k, turuncu vurgular. Spor ve outdoor iÃ§in.",
+    tags: ["Spor", "5 SÃ¼tun"],
     columns: 5, headerLayout: "fullwidth-dark",
     headerColor: "#0f172a", bgColor: "#f1f5f9", cardBg: "#ffffff", textColor: "#0f172a", svgRadius: 4, hasShadow: true,
   },
   {
-    id: "retro", name: "Retro", emoji: "🕰️",
-    description: "2 sütun, sıcak sarı tonlar, kalın köşeli çerçeve. Vintage ve el yapımı için.",
-    tags: ["Vintage", "2 Sütun"],
+    id: "retro", name: "Retro", emoji: "ðŸ•°ï¸",
+    description: "2 sÃ¼tun, sÄ±cak sarÄ± tonlar, kalÄ±n kÃ¶ÅŸeli Ã§erÃ§eve. Vintage ve el yapÄ±mÄ± iÃ§in.",
+    tags: ["Vintage", "2 SÃ¼tun"],
     columns: 2, headerLayout: "retro",
     headerColor: "#fef3c7", bgColor: "#fef9ef", cardBg: "#fffbeb", textColor: "#92400e", svgRadius: 2, hasShadow: false,
   },
   {
-    id: "instagram", name: "Instagram", emoji: "📸",
-    description: "3 sütun kare ızgara, metin hover'da ortaya çıkar. Görsel odaklı, sosyal medya hissi.",
-    tags: ["Görsel", "Hover"],
+    id: "instagram", name: "Instagram", emoji: "ðŸ“¸",
+    description: "3 sÃ¼tun kare Ä±zgara, metin hover'da ortaya Ã§Ä±kar. GÃ¶rsel odaklÄ±, sosyal medya hissi.",
+    tags: ["GÃ¶rsel", "Hover"],
     columns: 3, headerLayout: "standard",
     headerColor: "#ffffff", bgColor: "#fafafa", cardBg: "#e8e8e8", textColor: "#262626", svgRadius: 0, hasShadow: false,
   },
   {
-    id: "masonry", name: "Masonry", emoji: "🧱",
-    description: "Pinterest tarzı CSS columns, değişken kart yükseklikleri. Doğal, akıcı düzen.",
+    id: "masonry", name: "Masonry", emoji: "ðŸ§±",
+    description: "Pinterest tarzÄ± CSS columns, deÄŸiÅŸken kart yÃ¼kseklikleri. DoÄŸal, akÄ±cÄ± dÃ¼zen.",
     tags: ["Pinterest", "Dinamik"],
     columns: 3, headerLayout: "standard",
     headerColor: "#ffffff", bgColor: "#f8f7f4", cardBg: "#ffffff", textColor: "#1a1a1a", svgRadius: 8, hasShadow: true,
   },
   {
-    id: "brutalist", name: "Brutalist", emoji: "🏗️",
-    description: "Kalın siyah kenarlıklar, offset gölge, köşeli tasarım. Ham, güçlü estetik.",
-    tags: ["Ham", "Güçlü"],
+    id: "brutalist", name: "Brutalist", emoji: "ðŸ—ï¸",
+    description: "KalÄ±n siyah kenarlÄ±klar, offset gÃ¶lge, kÃ¶ÅŸeli tasarÄ±m. Ham, gÃ¼Ã§lÃ¼ estetik.",
+    tags: ["Ham", "GÃ¼Ã§lÃ¼"],
     columns: 3, headerLayout: "bordered",
     headerColor: "#ffffff", bgColor: "#f5f5f5", cardBg: "#ffffff", textColor: "#000000", svgRadius: 0, hasShadow: false,
   },
   {
-    id: "glassmorphism", name: "Cam Efekti", emoji: "🫧",
-    description: "Mor gradient arka plan üzerinde buzlu cam kartlar. Modern ve derinlikli görünüm.",
+    id: "glassmorphism", name: "Cam Efekti", emoji: "ðŸ«§",
+    description: "Mor gradient arka plan Ã¼zerinde buzlu cam kartlar. Modern ve derinlikli gÃ¶rÃ¼nÃ¼m.",
     tags: ["Glassmorphism", "Gradient"],
     columns: 4, headerLayout: "glass",
     headerColor: "rgba(255,255,255,0.12)", bgColor: "#3d0066", cardBg: "rgba(255,255,255,0.13)", textColor: "#ffffff", svgRadius: 10, hasShadow: true,
   },
   {
-    id: "neon", name: "Neon / Siber Punk", emoji: "🌆",
-    description: "Siyah arka plan, magenta ışıltılı kenarlıklar. Gaming ve müzik siteleri için.",
+    id: "neon", name: "Neon / Siber Punk", emoji: "ðŸŒ†",
+    description: "Siyah arka plan, magenta Ä±ÅŸÄ±ltÄ±lÄ± kenarlÄ±klar. Gaming ve mÃ¼zik siteleri iÃ§in.",
     tags: ["Neon", "Siber Punk"],
     columns: 4, headerLayout: "dark",
     headerColor: "#0a0020", bgColor: "#050010", cardBg: "#0d0025", textColor: "#f0e6ff", svgRadius: 6, hasShadow: false,
   },
   {
-    id: "pastel", name: "Pastel", emoji: "🎨",
-    description: "Her kart farklı pastel renk, pill şekiller, tatlı görünüm. Çocuk ve hediye için.",
-    tags: ["Renkli", "Eğlenceli"],
+    id: "pastel", name: "Pastel", emoji: "ðŸŽ¨",
+    description: "Her kart farklÄ± pastel renk, pill ÅŸekiller, tatlÄ± gÃ¶rÃ¼nÃ¼m. Ã‡ocuk ve hediye iÃ§in.",
+    tags: ["Renkli", "EÄŸlenceli"],
     columns: 4, headerLayout: "pastel",
     headerColor: "#fce7f3", bgColor: "#fdf4ff", cardBg: "#fce7f3", textColor: "#831843", svgRadius: 12, hasShadow: true,
   },
   {
-    id: "catalog", name: "Katalog", emoji: "🛒",
-    description: "5 sütun, koyu başlık, sarı arama kutusu. Amazon tarzı yoğun ürün listeleme.",
-    tags: ["Katalog", "5 Sütun"],
+    id: "catalog", name: "Katalog", emoji: "ðŸ›’",
+    description: "5 sÃ¼tun, koyu baÅŸlÄ±k, sarÄ± arama kutusu. Amazon tarzÄ± yoÄŸun Ã¼rÃ¼n listeleme.",
+    tags: ["Katalog", "5 SÃ¼tun"],
     columns: 5, headerLayout: "amazon",
     headerColor: "#131921", bgColor: "#eaeded", cardBg: "#ffffff", textColor: "#0f1111", svgRadius: 1, hasShadow: true,
   },
   {
-    id: "atolye", name: "Atölye", emoji: "🌷",
-    description: "3 sütun, krem arka plan, ortalanmış başlık. Türk halk sanatı estetiği, el işi dükkanları için.",
-    tags: ["El İşi", "Krem", "3 Sütun"],
+    id: "atolye", name: "AtÃ¶lye", emoji: "ðŸŒ·",
+    description: "3 sÃ¼tun, krem arka plan, ortalanmÄ±ÅŸ baÅŸlÄ±k. TÃ¼rk halk sanatÄ± estetiÄŸi, el iÅŸi dÃ¼kkanlarÄ± iÃ§in.",
+    tags: ["El Ä°ÅŸi", "Krem", "3 SÃ¼tun"],
     columns: 3, headerLayout: "centered",
     headerColor: "#F5F0E8", bgColor: "#F5F0E8", cardBg: "#FEFCF7", textColor: "#2C1A10", svgRadius: 8, hasShadow: true,
   },
   {
-    id: "anadolu", name: "Anadolu", emoji: "🔵",
-    description: "3 sütun, lacivert başlık, krem zemin. Geleneksel Türk renk paleti, butik ve kültürel markalar için.",
-    tags: ["Geleneksel", "Lacivert", "3 Sütun"],
+    id: "anadolu", name: "Anadolu", emoji: "ðŸ”µ",
+    description: "3 sÃ¼tun, lacivert baÅŸlÄ±k, krem zemin. Geleneksel TÃ¼rk renk paleti, butik ve kÃ¼ltÃ¼rel markalar iÃ§in.",
+    tags: ["Geleneksel", "Lacivert", "3 SÃ¼tun"],
     columns: 3, headerLayout: "standard",
     headerColor: "#1E5B8C", bgColor: "#F5F0E8", cardBg: "#FEFCF7", textColor: "#1E3A5F", svgRadius: 4, hasShadow: true,
   },
   {
-    id: "cini", name: "Çini", emoji: "🏺",
-    description: "4 sütun, terracotta başlık, düz köşeler. Türk çini sanatından ilham, seramik ve el sanatları için.",
-    tags: ["Çini", "Terracotta", "Düz"],
+    id: "cini", name: "Ã‡ini", emoji: "ðŸº",
+    description: "4 sÃ¼tun, terracotta baÅŸlÄ±k, dÃ¼z kÃ¶ÅŸeler. TÃ¼rk Ã§ini sanatÄ±ndan ilham, seramik ve el sanatlarÄ± iÃ§in.",
+    tags: ["Ã‡ini", "Terracotta", "DÃ¼z"],
     columns: 4, headerLayout: "standard",
     headerColor: "#C74B2A", bgColor: "#F0EBE3", cardBg: "#FEFCF7", textColor: "#2C1A10", svgRadius: 2, hasShadow: false,
   },
@@ -389,7 +384,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "cini" ? "#1E5B8C" :
     "#0d9488";
 
-  /* Görsel arka plan */
+  /* GÃ¶rsel arka plan */
   const imgBg =
     id === "dark" ? "#334155" :
     id === "luxe" || id === "retro" ? "#fde68a" :
@@ -400,7 +395,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "atolye" || id === "anadolu" || id === "cini" ? "#E8DFD0" :
     "#e2e8f0";
 
-  /* Header açık mı koyu mu */
+  /* Header aÃ§Ä±k mÄ± koyu mu */
   const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A"];
   const isLightHdr = !darkHeaders.some(c => headerColor.startsWith(c));
   const searchBg = isLightHdr ? "#f1f5f9" : id === "catalog" ? "#ffffff" : "rgba(255,255,255,0.18)";
@@ -453,16 +448,16 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
         <rect width="180" height="112" fill={bgColor} />
       )}
 
-      {/* Başlık */}
+      {/* BaÅŸlÄ±k */}
       <rect width="180" height={headerH} fill={headerColor} opacity={id === "glassmorphism" ? 0.4 : 1} />
-      {/* Brutalist başlık alt çizgisi */}
+      {/* Brutalist baÅŸlÄ±k alt Ã§izgisi */}
       {id === "brutalist" && <rect width="180" y={headerH - 3} height="3" fill="#000" />}
-      {/* Retro başlık alt çizgisi */}
+      {/* Retro baÅŸlÄ±k alt Ã§izgisi */}
       {id === "retro" && <rect width="180" y={headerH - 3} height="3" fill="#d97706" />}
-      {/* Catalog ince alt şerit */}
+      {/* Catalog ince alt ÅŸerit */}
       {id === "catalog" && <rect width="180" y={headerH} height="3" fill="#febd69" />}
 
-      {/* Başlık içeriği */}
+      {/* BaÅŸlÄ±k iÃ§eriÄŸi */}
       {isCentered ? (
         <>
           <rect x="75" y="3" width="30" height="6" rx={2} fill={logoBg} />
@@ -472,7 +467,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
       ) : (
         <>
           <rect x="6" y="7" width="22" height="8" rx={svgRadius > 0 ? 4 : 0} fill={logoBg} />
-          {/* Catalog: sarı bordered arama kutusu */}
+          {/* Catalog: sarÄ± bordered arama kutusu */}
           {id === "catalog"
             ? <rect x="36" y="5" width="86" height="12" rx={0} fill="#ffffff" stroke="#febd69" strokeWidth="2" />
             : <rect x="36" y="6" width="86" height="10" rx={Math.min(svgRadius * 2, 8)} fill={searchBg} />
@@ -489,14 +484,14 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
       <rect x="12" y={heroY + Math.floor(heroH * 0.3)} width="38" height="3" rx="1"
         fill={id === "glassmorphism" || id === "neon" || id === "sport" || id === "dark" ? "rgba(255,255,255,0.7)" : accent} opacity="0.75" />
 
-      {/* Ürün kartları */}
+      {/* ÃœrÃ¼n kartlarÄ± */}
       {Array.from({ length: displayCols }, (_, i) => {
         const cx = 6 + i * (cw + gap);
         const cy = cardsY;
         const h  = id === "masonry" ? cardH + (i % 3 === 0 ? 14 : i % 3 === 1 ? -8 : 4) : cardH;
         const ih = id === "instagram" ? h : Math.floor(h * 0.55);
 
-        /* Kart arka plan rengi (masonry için hepsi aynı, pastel için farklı) */
+        /* Kart arka plan rengi (masonry iÃ§in hepsi aynÄ±, pastel iÃ§in farklÄ±) */
         const pastels = ["#fce7f3","#ecfdf5","#eff6ff","#fefce8","#fff7ed"];
         const cBg = id === "pastel" ? pastels[i % 5] : cardBg;
 
@@ -505,7 +500,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
 
         return (
           <g key={i}>
-            {/* Gölge */}
+            {/* GÃ¶lge */}
             {id !== "brutalist" && id !== "neon" && hasShadow && (
               <rect x={cx + 1} y={cy + 1} width={cw} height={h} rx={cr} fill="rgba(0,0,0,0.08)" />
             )}
@@ -515,12 +510,12 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
               stroke={id === "brutalist" ? "#000" : id === "neon" ? "#cc00ff" : id === "retro" ? "#92400e" : "none"}
               strokeWidth={id === "brutalist" ? "2" : id === "neon" || id === "retro" ? "1" : "0"}
             />
-            {/* Brutalist offset gölge */}
+            {/* Brutalist offset gÃ¶lge */}
             {id === "brutalist" && <rect x={cx + 3} y={cy + 3} width={cw} height={h} rx={0} fill="rgba(0,0,0,0.15)" style={{ zIndex: -1 }} />}
-            {/* Neon ışıltı */}
+            {/* Neon Ä±ÅŸÄ±ltÄ± */}
             {id === "neon" && <rect x={cx - 1} y={cy - 1} width={cw + 2} height={h + 2} rx={cr + 1} fill="none" stroke={neonGlow} strokeWidth="3" />}
 
-            {/* Görsel alanı */}
+            {/* GÃ¶rsel alanÄ± */}
             <rect x={cx + 1} y={cy + 1} width={cw - 2} height={ih} rx={id === "brutalist" ? 0 : Math.max(cr - 1, 0)} fill={imgBg} />
 
             {/* Instagram: overlay karartma */}
@@ -529,7 +524,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
                 fill="rgba(0,0,0,0.55)" opacity="0.8" />
             )}
 
-            {/* Metin satırları */}
+            {/* Metin satÄ±rlarÄ± */}
             {cw > 18 && id !== "instagram" && (
               <>
                 <rect x={cx + 2} y={cy + ih + 3} width={Math.floor(cw * 0.65)} height="2" rx="0.5"
@@ -557,13 +552,13 @@ type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatb
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "genel",    label: "Genel",    icon: <Globe size={14} /> },
-  { id: "gorunum",  label: "Görünüm",  icon: <Palette size={14} /> },
-  { id: "sablon",   label: "Şablon",   icon: <Layers size={14} /> },
+  { id: "gorunum",  label: "GÃ¶rÃ¼nÃ¼m",  icon: <Palette size={14} /> },
+  { id: "sablon",   label: "Åžablon",   icon: <Layers size={14} /> },
   { id: "kargo",    label: "Kargo",    icon: <Truck size={14} /> },
-  { id: "menu",     label: "Menü",     icon: <Menu size={14} /> },
-  { id: "icerik",   label: "İçerik",   icon: <FileText size={14} /> },
+  { id: "menu",     label: "MenÃ¼",     icon: <Menu size={14} /> },
+  { id: "icerik",   label: "Ä°Ã§erik",   icon: <FileText size={14} /> },
   { id: "chatbot",  label: "Chatbot",  icon: <MessageCircle size={14} /> },
-  { id: "odeme",    label: "Ödeme",    icon: <CreditCard size={14} /> },
+  { id: "odeme",    label: "Ã–deme",    icon: <CreditCard size={14} /> },
   { id: "mesajlar", label: "Mesajlar", icon: <MessageSquare size={14} /> },
   { id: "yetkiler", label: "Yetkiler", icon: <Shield size={14} /> },
   { id: "lisans",   label: "Lisans",   icon: <KeyRound size={14} /> },
@@ -574,53 +569,53 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 type ContentSub = "sss" | "iade" | "kargo" | "iletisim" | "hakkimizda" | "kvkk" | "gizlilik" | "footer";
 const CONTENT_SUBS: { id: ContentSub; label: string }[] = [
   { id: "sss",       label: "SSS" },
-  { id: "iade",      label: "İade & Değişim" },
+  { id: "iade",      label: "Ä°ade & DeÄŸiÅŸim" },
   { id: "kargo",     label: "Kargo Takibi" },
-  { id: "iletisim",  label: "İletişim" },
-  { id: "hakkimizda",label: "Hakkımızda" },
+  { id: "iletisim",  label: "Ä°letiÅŸim" },
+  { id: "hakkimizda",label: "HakkÄ±mÄ±zda" },
   { id: "kvkk",      label: "KVKK" },
   { id: "gizlilik",  label: "Gizlilik" },
   { id: "footer",    label: "Footer" },
 ];
 
-/* ─── RBAC Matrix ────────────────────────────────────────────────────── */
-// ROLE_COLUMNS → @/lib/roles.ts ADMIN_ROLE_COLUMNS'dan beslenir (tutarlılık için)
+/* â”€â”€â”€ RBAC Matrix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+// ROLE_COLUMNS â†’ @/lib/roles.ts ADMIN_ROLE_COLUMNS'dan beslenir (tutarlÄ±lÄ±k iÃ§in)
 const ROLE_COLUMNS = ADMIN_ROLE_COLUMNS;
 
 // module names MUST match nav item labels in layout.tsx exactly
 const PERMISSION_MATRIX: { module: string; group: string; roles: string[] }[] = [
-  // ── Genel
+  // â”€â”€ Genel
   { module: "Dashboard",     group: "Genel",     roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
   { module: "Analiz",        group: "Genel",     roles: ["SuperAdmin","Admin","FinanceUser"] },
   { module: "Hedefler",      group: "Genel",     roles: ["SuperAdmin","Admin","FinanceUser"] },
-  // ── Katalog
-  { module: "Ürünler",       group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager"] },
+  // â”€â”€ Katalog
+  { module: "ÃœrÃ¼nler",       group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager"] },
   { module: "Kategoriler",   group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
   { module: "Markalar",      group: "Katalog",   roles: ["SuperAdmin","Admin","ProductManager","ContentManager"] },
   { module: "Stok",          group: "Katalog",   roles: ["SuperAdmin","Admin","StockManager","ProductManager"] },
   { module: "Yorumlar",      group: "Katalog",   roles: ["SuperAdmin","Admin","CustomerSupport","ContentManager"] },
   { module: "Duyurular",     group: "Katalog",   roles: ["SuperAdmin","Admin","ContentManager"] },
-  // ── Satış
-  { module: "Siparişler",    group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
-  { module: "Ödemeler",      group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
-  { module: "İadeler",       group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
-  { module: "Kuponlar",      group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
-  { module: "Kargo",         group: "Satış",     roles: ["SuperAdmin","Admin","OrderManager"] },
-  { module: "Faturalar",     group: "Satış",     roles: ["SuperAdmin","Admin","FinanceUser"] },
-  // ── Kullanıcı
-  { module: "Kullanıcılar",  group: "Kullanıcı", roles: ["SuperAdmin","Admin","CustomerSupport"] },
-  { module: "Ziyaretçiler",  group: "Kullanıcı", roles: ["SuperAdmin","Admin"] },
-  // ── Sistem
+  // â”€â”€ SatÄ±ÅŸ
+  { module: "SipariÅŸler",    group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { module: "Ã–demeler",      group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  { module: "Ä°adeler",       group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","OrderManager","CustomerSupport","FinanceUser"] },
+  { module: "Kuponlar",      group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  { module: "Kargo",         group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","OrderManager"] },
+  { module: "Faturalar",     group: "SatÄ±ÅŸ",     roles: ["SuperAdmin","Admin","FinanceUser"] },
+  // â”€â”€ KullanÄ±cÄ±
+  { module: "KullanÄ±cÄ±lar",  group: "KullanÄ±cÄ±", roles: ["SuperAdmin","Admin","CustomerSupport"] },
+  { module: "ZiyaretÃ§iler",  group: "KullanÄ±cÄ±", roles: ["SuperAdmin","Admin"] },
+  // â”€â”€ Sistem
   { module: "Hareketler",    group: "Sistem",    roles: ["SuperAdmin","Admin"] },
   { module: "Takip",         group: "Sistem",    roles: ["SuperAdmin","Admin"] },
-  { module: "Dış Kaynaklar", group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "DÄ±ÅŸ Kaynaklar", group: "Sistem",    roles: ["SuperAdmin","Admin"] },
   { module: "Servisler",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
   { module: "Kuyruklar",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
-  { module: "Dokümanlar",    group: "Sistem",    roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
-  { module: "Yönetim",       group: "Sistem",    roles: ["SuperAdmin","Admin"] },
+  { module: "DokÃ¼manlar",    group: "Sistem",    roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
+  { module: "YÃ¶netim",       group: "Sistem",    roles: ["SuperAdmin","Admin"] },
 ];
 
-/* ─── MenuSorter ─────────────────────────────────────────────────────── */
+/* â”€â”€â”€ MenuSorter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function MenuSorter({
   order, onOrderChange, groupConfig, onGroupConfigChange,
 }: {
@@ -766,7 +761,7 @@ function MenuSorter({
                   onDragOver={e => { e.preventDefault(); setOverInfo({ groupId: group.groupId, idx: 0 }); }}
                   onDrop={() => handleDrop(group.groupId, 0)}
                 >
-                  Boş grup — buraya sürükleyin
+                  BoÅŸ grup â€” buraya sÃ¼rÃ¼kleyin
                 </div>
               )}
               {group.items.map((href, itemIdx) => {
@@ -792,7 +787,7 @@ function MenuSorter({
                       value={groupConfig.itemGroups[href] ?? group.groupId}
                       onChange={e => moveItemToGroup(href, e.target.value)}
                       onClick={e => e.stopPropagation()}
-                      title="Grubu değiştir"
+                      title="Grubu deÄŸiÅŸtir"
                       className="text-[10px] border border-slate-200 rounded-lg px-1.5 py-0.5 bg-white text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400 cursor-pointer shrink-0"
                     >
                       {groupConfig.groupOrder.map(gId => (
@@ -822,7 +817,7 @@ function MenuSorter({
   );
 }
 
-/* ─── FAQ editor ─────────────────────────────────────────────────────── */
+/* â”€â”€â”€ FAQ editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [items, setItems] = useState<FaqItem[]>(() => {
     try { return JSON.parse(value) as FaqItem[]; } catch { return []; }
@@ -852,7 +847,7 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
     <div className="space-y-3">
       {items.length === 0 && (
         <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
-          Henüz soru yok. Eklemek için aşağıdaki butonu kullanın.
+          HenÃ¼z soru yok. Eklemek iÃ§in aÅŸaÄŸÄ±daki butonu kullanÄ±n.
         </div>
       )}
       {items.map((item, i) => (
@@ -883,7 +878,7 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-/* ─── Text page editor ───────────────────────────────────────────────── */
+/* â”€â”€â”€ Text page editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function TextEditor({ label, settingKey, value, onChange, hint }: {
   label: string; settingKey: string; value: string;
   onChange: (key: string, val: string) => void;
@@ -892,13 +887,13 @@ function TextEditor({ label, settingKey, value, onChange, hint }: {
   return (
     <div className="space-y-2">
       <label className="text-xs font-semibold text-slate-600 block">{label}</label>
-      <RichTextEditor value={value} onChange={v => onChange(settingKey, v)} placeholder="İçerik buraya girilecek..." />
+      <RichTextEditor value={value} onChange={v => onChange(settingKey, v)} placeholder="Ä°Ã§erik buraya girilecek..." />
       {hint && <p className="text-xs text-slate-400">{hint}</p>}
     </div>
   );
 }
 
-/* ─── Carrier Manager (Kargo Firmaları CRUD) ─────────────────────────── */
+/* â”€â”€â”€ Carrier Manager (Kargo FirmalarÄ± CRUD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 interface ShippingCarrier {
   id: string; name: string; code: string; isActive: boolean;
   basePrice: number; freeShippingThreshold: number | null;
@@ -969,7 +964,7 @@ function CarrierManager() {
   }
 
   async function handleSave() {
-    if (!form.name.trim() || !form.code.trim()) { setFormError("Firma adı ve kod zorunludur."); return; }
+    if (!form.name.trim() || !form.code.trim()) { setFormError("Firma adÄ± ve kod zorunludur."); return; }
     setSaving(true); setFormError("");
     try {
       const body = {
@@ -983,14 +978,14 @@ function CarrierManager() {
       if (modal === "create") await api.post("/api/admin/shipping-carriers", body);
       else await api.put(`/api/admin/shipping-carriers/${editing!.id}`, body);
       setModal(null); await load();
-    } catch (e: unknown) { setFormError(e instanceof Error ? e.message : "Kayıt başarısız."); }
+    } catch (e: unknown) { setFormError(e instanceof Error ? e.message : "KayÄ±t baÅŸarÄ±sÄ±z."); }
     finally { setSaving(false); }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
     try { await api.delete(`/api/admin/shipping-carriers/${deleteTarget.id}`); setDeleteTarget(null); await load(); }
-    catch (e: unknown) { alert(e instanceof Error ? e.message : "Silme başarısız."); }
+    catch (e: unknown) { alert(e instanceof Error ? e.message : "Silme baÅŸarÄ±sÄ±z."); }
   }
 
   const ci = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-800";
@@ -1000,8 +995,8 @@ function CarrierManager() {
     <div className="space-y-4 mt-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold text-slate-700">Kargo Firmaları</p>
-          <p className="text-xs text-slate-400 mt-0.5">Alternatif kargo firmalarını, fiyatları ve takip URL şablonlarını yönetin.</p>
+          <p className="text-sm font-bold text-slate-700">Kargo FirmalarÄ±</p>
+          <p className="text-xs text-slate-400 mt-0.5">Alternatif kargo firmalarÄ±nÄ±, fiyatlarÄ± ve takip URL ÅŸablonlarÄ±nÄ± yÃ¶netin.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={load} className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:bg-slate-50 transition">
@@ -1014,12 +1009,12 @@ function CarrierManager() {
       </div>
 
       {loading ? (
-        <p className="text-xs text-slate-400 py-4 text-center">Yükleniyor...</p>
+        <p className="text-xs text-slate-400 py-4 text-center">YÃ¼kleniyor...</p>
       ) : carriers.length === 0 ? (
         <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center">
           <Truck size={24} className="mx-auto text-slate-300 mb-2" />
-          <p className="text-sm text-slate-400">Henüz kargo firması eklenmemiş.</p>
-          <button onClick={openCreate} className="mt-3 px-4 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition">İlk Firmayı Ekle</button>
+          <p className="text-sm text-slate-400">HenÃ¼z kargo firmasÄ± eklenmemiÅŸ.</p>
+          <button onClick={openCreate} className="mt-3 px-4 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition">Ä°lk FirmayÄ± Ekle</button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -1029,8 +1024,8 @@ function CarrierManager() {
                 <th className="text-left px-4 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Firma</th>
                 <th className="text-left px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Kod</th>
                 <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Baz Fiyat</th>
-                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Ücretsiz Eşik</th>
-                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Gün</th>
+                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Ãœcretsiz EÅŸik</th>
+                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">GÃ¼n</th>
                 <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
                 <th className="px-3 py-2.5" />
               </tr>
@@ -1053,7 +1048,7 @@ function CarrierManager() {
                     <span className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{c.code}</span>
                   </td>
                   <td className="px-3 py-2.5 text-right font-semibold text-slate-700">{fmtTry(c.basePrice)}</td>
-                  <td className="px-3 py-2.5 text-right text-slate-500">{c.freeShippingThreshold ? fmtTry(c.freeShippingThreshold) : <span className="text-slate-300">—</span>}</td>
+                  <td className="px-3 py-2.5 text-right text-slate-500">{c.freeShippingThreshold ? fmtTry(c.freeShippingThreshold) : <span className="text-slate-300">â€”</span>}</td>
                   <td className="px-3 py-2.5 text-center">
                     <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{c.estimatedDays}g</span>
                   </td>
@@ -1082,28 +1077,28 @@ function CarrierManager() {
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <Truck size={16} className="text-teal-600" />
-                {modal === "create" ? "Yeni Kargo Firması" : "Firma Düzenle"}
+                {modal === "create" ? "Yeni Kargo FirmasÄ±" : "Firma DÃ¼zenle"}
               </h2>
-              <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
+              <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">Ã—</button>
             </div>
             <div className="p-6 space-y-4">
               {formError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{formError}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={cl}>Firma Adı <span className="text-red-500">*</span></label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className={ci} placeholder="Yurtiçi Kargo" /></div>
+                <div><label className={cl}>Firma AdÄ± <span className="text-red-500">*</span></label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className={ci} placeholder="YurtiÃ§i Kargo" /></div>
                 <div><label className={cl}>Kod <span className="text-red-500">*</span></label><input value={form.code} onChange={e => setForm(f => ({...f, code: e.target.value.toLowerCase()}))} className={ci} placeholder="yurtici" /></div>
                 <div><label className={cl}>Baz Fiyat (TRY)</label><input type="number" min={0} step={0.01} value={form.basePrice} onChange={e => setForm(f => ({...f, basePrice: +e.target.value}))} className={ci} /></div>
-                <div><label className={cl}>Ücretsiz Kargo Eşiği (TRY)</label><input type="number" min={0} step={0.01} value={form.freeShippingThreshold ?? ""} onChange={e => setForm(f => ({...f, freeShippingThreshold: e.target.value ? +e.target.value : null}))} className={ci} placeholder="Boş = yok" /></div>
-                <div><label className={cl}>Tahmini Teslimat (gün)</label><input type="number" min={1} max={30} value={form.estimatedDays} onChange={e => setForm(f => ({...f, estimatedDays: +e.target.value}))} className={ci} /></div>
-                <div><label className={cl}>Maks. Ağırlık (kg)</label><input type="number" min={0} step={0.1} value={form.maxWeightKg ?? ""} onChange={e => setForm(f => ({...f, maxWeightKg: e.target.value ? +e.target.value : null}))} className={ci} placeholder="Boş = sınırsız" /></div>
+                <div><label className={cl}>Ãœcretsiz Kargo EÅŸiÄŸi (TRY)</label><input type="number" min={0} step={0.01} value={form.freeShippingThreshold ?? ""} onChange={e => setForm(f => ({...f, freeShippingThreshold: e.target.value ? +e.target.value : null}))} className={ci} placeholder="BoÅŸ = yok" /></div>
+                <div><label className={cl}>Tahmini Teslimat (gÃ¼n)</label><input type="number" min={1} max={30} value={form.estimatedDays} onChange={e => setForm(f => ({...f, estimatedDays: +e.target.value}))} className={ci} /></div>
+                <div><label className={cl}>Maks. AÄŸÄ±rlÄ±k (kg)</label><input type="number" min={0} step={0.1} value={form.maxWeightKg ?? ""} onChange={e => setForm(f => ({...f, maxWeightKg: e.target.value ? +e.target.value : null}))} className={ci} placeholder="BoÅŸ = sÄ±nÄ±rsÄ±z" /></div>
               </div>
-              <div><label className={cl}>Takip URL Şablonu</label><input value={form.trackingUrlTemplate} onChange={e => setForm(f => ({...f, trackingUrlTemplate: e.target.value}))} className={ci} placeholder="https://track.example.com/{0}" /></div>
+              <div><label className={cl}>Takip URL Åžablonu</label><input value={form.trackingUrlTemplate} onChange={e => setForm(f => ({...f, trackingUrlTemplate: e.target.value}))} className={ci} placeholder="https://track.example.com/{0}" /></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className={cl}>Logo URL</label><input value={form.logoUrl} onChange={e => setForm(f => ({...f, logoUrl: e.target.value}))} className={ci} /></div>
                 <div><label className={cl}>API Endpoint</label><input value={form.apiEndpoint} onChange={e => setForm(f => ({...f, apiEndpoint: e.target.value}))} className={ci} /></div>
               </div>
               <div><label className={cl}>Notlar</label><textarea rows={2} value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={ci + " resize-none"} /></div>
               <div>
-                <label className={cl}>Ağırlık Bazlı Fiyatlandırma (JSON)</label>
+                <label className={cl}>AÄŸÄ±rlÄ±k BazlÄ± FiyatlandÄ±rma (JSON)</label>
                 <textarea rows={3} value={form.weightPricingJson} onChange={e => setForm(f => ({...f, weightPricingJson: e.target.value}))} className={ci + " resize-none font-mono text-xs"} placeholder='[{"minKg":0,"maxKg":1,"price":29.90}]' />
               </div>
               {modal === "edit" && (
@@ -1117,7 +1112,7 @@ function CarrierManager() {
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModal(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">İptal</button>
+                <button onClick={() => setModal(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">Ä°ptal</button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-60">
                   {saving ? "Kaydediliyor..." : modal === "create" ? "Ekle" : "Kaydet"}
                 </button>
@@ -1133,11 +1128,11 @@ function CarrierManager() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center"><Trash2 size={18} className="text-red-600" /></div>
-              <div><h3 className="font-bold text-slate-800">Firmayı Sil</h3><p className="text-sm text-slate-500">{deleteTarget.name}</p></div>
+              <div><h3 className="font-bold text-slate-800">FirmayÄ± Sil</h3><p className="text-sm text-slate-500">{deleteTarget.name}</p></div>
             </div>
-            <p className="text-sm text-slate-600">Bu kargo firması kalıcı olarak silinecek. Emin misiniz?</p>
+            <p className="text-sm text-slate-600">Bu kargo firmasÄ± kalÄ±cÄ± olarak silinecek. Emin misiniz?</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">İptal</button>
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">Ä°ptal</button>
               <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition">Sil</button>
             </div>
           </div>
@@ -1147,7 +1142,7 @@ function CarrierManager() {
   );
 }
 
-/* ─── Ana sayfa ─────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Ana sayfa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","sistem"];
 
 export default function YonetimPage() {
@@ -1175,7 +1170,7 @@ export default function YonetimPage() {
   const [testEmailResult, setTestEmailResult]   = useState<{ ok: boolean; msg: string } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sysInfo, setSysInfo] = useState<any>(null);
-  const [openMsgGroups, setOpenMsgGroups] = useState<Set<string>>(new Set(["Doğrulama Mesajları"]));
+  const [openMsgGroups, setOpenMsgGroups] = useState<Set<string>>(new Set(["DoÄŸrulama MesajlarÄ±"]));
   const [newMsgOpen, setNewMsgOpen] = useState(false);
   const [newMsgLabel, setNewMsgLabel] = useState("");
   const [newMsgValue, setNewMsgValue] = useState("");
@@ -1185,21 +1180,11 @@ export default function YonetimPage() {
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [newRoleOpen, setNewRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
-  const [licenses, setLicenses] = useState<LicenseDto[]>([]);
-  const [licensesLoading, setLicensesLoading] = useState(false);
-  const [licenseModal, setLicenseModal] = useState<{ open: boolean; license?: LicenseDto }>({ open: false });
-  const [licenseForm, setLicenseForm] = useState({ module: "", description: "", expiresAt: "", isActive: true, notes: "" });
-  const [licenseSaving, setLicenseSaving] = useState(false);
-  const [licenseError, setLicenseError] = useState("");
-  const [renewModal, setRenewModal] = useState<{ open: boolean; license?: LicenseDto }>({ open: false });
-  const [renewMonths, setRenewMonths] = useState(12);
-  const [renewing, setRenewing] = useState(false);
-  const [renewError, setRenewError] = useState("");
 
   const [devKeyStatus, setDevKeyStatus] = useState<{ isConfigured: boolean; maskedKey: string | null; fullKey?: string; issuer?: string; notBefore?: string; expiresAt?: string; isValid?: boolean; validationError?: string; revealPasswordSet: boolean } | null>(null);
   const [devKeyLoading, setDevKeyLoading] = useState(false);
 
-  // Lisans üretici state (SuperAdmin only)
+  // Lisans Ã¼retici state (SuperAdmin only)
   const isSuperAdmin = (() => {
     if (typeof window === "undefined") return false;
     try { return (JSON.parse(localStorage.getItem("admin_user") ?? "{}") as { roles?: string[] }).roles?.includes("SuperAdmin") ?? false; }
@@ -1213,9 +1198,12 @@ export default function YonetimPage() {
   const [licGenError, setLicGenError] = useState("");
   const [licGenLoading, setLicGenLoading] = useState(false);
   const [licGenCopied, setLicGenCopied] = useState(false);
+  const [licGenPubKey, setLicGenPubKey] = useState<string | null>(null);
+  const [licGenKeyPairLoading, setLicGenKeyPairLoading] = useState(false);
+  const [licGenPubKeyCopied, setLicGenPubKeyCopied] = useState(false);
 
   // License assignment state (SuperAdmin)
-  const [licAssignEmail, setLicAssignEmail]   = useState("");
+  const [licAssignEmail, setLicAssignEmail]   = useState(""); // e-posta veya Ad Soyad
   const [licAssignToken, setLicAssignToken]   = useState("");
   const [licAssignNotes, setLicAssignNotes]   = useState("");
   const [licAssignLoading, setLicAssignLoading] = useState(false);
@@ -1237,7 +1225,7 @@ export default function YonetimPage() {
   // Full key copy (SuperAdmin)
   const [fullKeyCopied, setFullKeyCopied]     = useState(false);
 
-  // Legacy state — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
+  // Legacy state â€” referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
   const [revealModal]                          = useState(false);
   const [revealPassword, setRevealPassword]   = useState("");
   const [revealedKey]                          = useState<string | null>(null);
@@ -1304,19 +1292,6 @@ export default function YonetimPage() {
     setRbacMatrix(defaultMatrix);
   }
 
-  function loadLicenses() {
-    setLicensesLoading(true);
-    api.get<LicenseDto[]>("/api/admin/licenses")
-      .then(setLicenses)
-      .catch(() => {})
-      .finally(() => setLicensesLoading(false));
-  }
-
-  useEffect(() => {
-    if (tab === "lisans") loadLicenses();
-  }, [tab]);
-
-
   useEffect(() => {
     if (tab !== "lisans") return;
     setDevKeyLoading(true);
@@ -1327,7 +1302,7 @@ export default function YonetimPage() {
     if (isSuperAdmin) loadLicenseAssignments();
   }, [tab]);
 
-  // ── Bildirimler tab state ───────────────────────────────────────────────────
+  // â”€â”€ Bildirimler tab state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [alertEnabled, setAlertEnabled]   = useState(false);
   const [alertEmails, setAlertEmails]     = useState<string[]>([]);
   const [alertNewEmail, setAlertNewEmail] = useState("");
@@ -1367,15 +1342,15 @@ export default function YonetimPage() {
     setAlertTestMsg(null);
     try {
       await api.post("/api/admin/settings/test-alert", { emails: alertEmails });
-      setAlertTestMsg("Test maili gönderildi!");
+      setAlertTestMsg("Test maili gÃ¶nderildi!");
     } catch (e: unknown) {
-      setAlertTestMsg(e instanceof Error ? e.message : "Gönderilemedi");
+      setAlertTestMsg(e instanceof Error ? e.message : "GÃ¶nderilemedi");
     } finally {
       setAlertTesting(false);
     }
   }
 
-  // Legacy functions — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
+  // Legacy functions â€” referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
   function openRevealModal() { setRevealPassword(""); setRevealLoading(false); setRevealError(""); setKeyCopied(false); }
   function closeRevealModal() { setRevealPassword(""); setRevealError(""); setKeyCopied(false); }
   async function handleRevealKey() { if (!revealPassword.trim()) { setRevealError(""); return; } setRevealLoading(true); setRevealLoading(false); }
@@ -1390,12 +1365,12 @@ export default function YonetimPage() {
 
   async function handleAssignLicense() {
     setLicAssignError(""); setLicAssignResult(null);
-    if (!licAssignEmail.trim()) { setLicAssignError("E-posta adresi zorunludur."); return; }
+    if (!licAssignEmail.trim()) { setLicAssignError("E-posta veya kullanÄ±cÄ± adÄ± zorunludur."); return; }
     if (!licAssignToken.trim()) { setLicAssignError("Lisans token zorunludur."); return; }
     setLicAssignLoading(true);
     try {
       const res = await api.post<{ viewPassword: string; message: string }>("/api/admin/license-assignments", {
-        adminEmail: licAssignEmail.trim(),
+        adminIdentifier: licAssignEmail.trim(),
         licenseToken: licAssignToken.trim(),
         notes: licAssignNotes.trim() || null,
       });
@@ -1404,14 +1379,14 @@ export default function YonetimPage() {
       loadLicenseAssignments();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setLicAssignError(msg ?? "Atama başarısız.");
+      setLicAssignError(msg ?? "Atama baÅŸarÄ±sÄ±z.");
     } finally {
       setLicAssignLoading(false);
     }
   }
 
   async function handleRevokeAssignment(id: string) {
-    if (!confirm("Bu lisans atamasını iptal etmek istediğinizden emin misiniz?")) return;
+    if (!confirm("Bu lisans atamasÄ±nÄ± iptal etmek istediÄŸinizden emin misiniz?")) return;
     try {
       await api.delete(`/api/admin/license-assignments/${id}`);
       loadLicenseAssignments();
@@ -1419,22 +1394,45 @@ export default function YonetimPage() {
   }
 
   async function handleRevealMyLicense() {
-    if (!myViewPassword.trim()) { setMyViewError("Şifre boş olamaz."); return; }
+    if (!myViewPassword.trim()) { setMyViewError("Åžifre boÅŸ olamaz."); return; }
     setMyViewLoading(true); setMyViewError("");
     try {
       const res = await api.post<{ licenseToken: string; issuer: string; notBefore: string; expiresAt: string; app: string }>("/api/admin/license-assignments/my-license", { password: myViewPassword });
       setMyLicense(res);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setMyViewError(msg ?? "Geçersiz şifre.");
+      setMyViewError(msg ?? "GeÃ§ersiz ÅŸifre.");
     } finally {
       setMyViewLoading(false);
     }
   }
 
+  async function handleGenerateKeyPair() {
+    setLicGenKeyPairLoading(true);
+    setLicGenPubKey(null);
+    setLicGenPrivKey("");
+    setLicGenError("");
+    setLicGenToken(null);
+    try {
+      const keyPair = await crypto.subtle.generateKey(
+        { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+        true, ["sign", "verify"]
+      );
+      const privDer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+      const pubDer  = await crypto.subtle.exportKey("spki",  keyPair.publicKey);
+      const toB64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+      setLicGenPrivKey(toB64(privDer));
+      setLicGenPubKey(toB64(pubDer));
+    } catch (e) {
+      setLicGenError(`Anahtar Ã¼retim hatasÄ±: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLicGenKeyPairLoading(false);
+    }
+  }
+
   async function handleGenerateLicense() {
     setLicGenError(""); setLicGenToken(null);
-    if (!licGenPrivKey.trim()) { setLicGenError("Private key boş olamaz."); return; }
+    if (!licGenPrivKey.trim()) { setLicGenError("Private key boÅŸ olamaz."); return; }
     setLicGenLoading(true);
     try {
       const keyB64 = licGenPrivKey.trim().replace(/\s/g, "");
@@ -1453,83 +1451,9 @@ export default function YonetimPage() {
       const b64url = (arr: Uint8Array) => btoa(String.fromCharCode(...arr)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
       setLicGenToken(`${b64url(payloadBytes)}.${b64url(new Uint8Array(sigBytes))}`);
     } catch (e) {
-      setLicGenError(`Hata: ${e instanceof Error ? e.message : String(e)} — Private key PKCS8 DER base64 formatında olmalı.`);
+      setLicGenError(`Hata: ${e instanceof Error ? e.message : String(e)} â€” Private key PKCS8 DER base64 formatÄ±nda olmalÄ±.`);
     } finally {
       setLicGenLoading(false);
-    }
-  }
-
-  function openLicenseAdd() {
-    setLicenseForm({ module: "", description: "", expiresAt: "", isActive: true, notes: "" });
-    setLicenseError("");
-    setLicenseModal({ open: true });
-  }
-
-  function openLicenseEdit(lic: LicenseDto) {
-    setLicenseForm({
-      module: lic.module,
-      description: lic.description ?? "",
-      expiresAt: lic.expiresAt.substring(0, 10),
-      isActive: lic.isActive,
-      notes: lic.notes ?? "",
-    });
-    setLicenseError("");
-    setLicenseModal({ open: true, license: lic });
-  }
-
-  async function saveLicense() {
-    if (!licenseForm.module.trim()) { setLicenseError("Modül adı zorunludur."); return; }
-    if (!licenseForm.expiresAt) { setLicenseError("Bitiş tarihi zorunludur."); return; }
-    setLicenseSaving(true);
-    setLicenseError("");
-    try {
-      const body = {
-        module: licenseForm.module.trim(),
-        description: licenseForm.description || null,
-        expiresAt: new Date(licenseForm.expiresAt).toISOString(),
-        isActive: licenseForm.isActive,
-        notes: licenseForm.notes || null,
-      };
-      if (licenseModal.license) {
-        await api.put(`/api/admin/licenses/${licenseModal.license.id}`, body);
-      } else {
-        await api.post("/api/admin/licenses", body);
-      }
-      setLicenseModal({ open: false });
-      loadLicenses();
-    } catch (e: unknown) {
-      setLicenseError(e instanceof Error ? e.message : "Kaydedilemedi.");
-    } finally {
-      setLicenseSaving(false);
-    }
-  }
-
-  async function deleteLicense(id: string) {
-    if (!confirm("Bu lisansı silmek istediğinizden emin misiniz?")) return;
-    try {
-      await api.delete(`/api/admin/licenses/${id}`);
-      loadLicenses();
-    } catch { }
-  }
-
-  function openRenewModal(lic: LicenseDto) {
-    setRenewMonths(12);
-    setRenewError("");
-    setRenewModal({ open: true, license: lic });
-  }
-
-  async function submitRenew() {
-    if (!renewModal.license) return;
-    setRenewing(true);
-    setRenewError("");
-    try {
-      await api.post(`/api/admin/licenses/${renewModal.license.id}/renew`, { months: renewMonths });
-      setRenewModal({ open: false });
-      loadLicenses();
-    } catch (e: unknown) {
-      setRenewError(e instanceof Error ? e.message : "Yenileme başarısız.");
-    } finally {
-      setRenewing(false);
     }
   }
 
@@ -1563,9 +1487,9 @@ export default function YonetimPage() {
     setTestEmailResult(null);
     try {
       await api.post("/api/admin/email/test", { toEmail: testEmail });
-      setTestEmailResult({ ok: true, msg: `Test e-postası ${testEmail} adresine gönderildi.` });
+      setTestEmailResult({ ok: true, msg: `Test e-postasÄ± ${testEmail} adresine gÃ¶nderildi.` });
     } catch {
-      setTestEmailResult({ ok: false, msg: "Gönderilemedi. SMTP ayarlarını kontrol edin." });
+      setTestEmailResult({ ok: false, msg: "GÃ¶nderilemedi. SMTP ayarlarÄ±nÄ± kontrol edin." });
     } finally {
       setTestEmailSending(false);
     }
@@ -1595,8 +1519,8 @@ export default function YonetimPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Yönetim</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Site, panel ve içerik ayarları</p>
+          <h1 className="text-2xl font-bold text-slate-900">YÃ¶netim</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Site, panel ve iÃ§erik ayarlarÄ±</p>
         </div>
         <button onClick={save} disabled={saving}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition shadow">
@@ -1605,7 +1529,7 @@ export default function YonetimPage() {
         </button>
       </div>
 
-      {/* Ana sekmeler — yatay kaydırılabilir */}
+      {/* Ana sekmeler â€” yatay kaydÄ±rÄ±labilir */}
       <div className="flex items-center gap-1">
         <button onClick={() => tabsRef.current?.scrollBy({ left: -120, behavior: "smooth" })}
           className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
@@ -1629,36 +1553,36 @@ export default function YonetimPage() {
         </button>
       </div>
 
-      {/* ── Genel ── */}
+      {/* â”€â”€ Genel â”€â”€ */}
       {tab === "genel" && (
         <div className="space-y-5">
           <Section title="Site Bilgileri" icon={<Globe size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Site Adı" hint="Müşteri sitesi tarayıcı sekmesi, başlık ve tüm sayfalarda görünür">
-                <input value={settings.SiteName} onChange={e => set("SiteName", e.target.value)} className={inp} placeholder="Örn: Keyvora Store" />
+              <Field label="Site AdÄ±" hint="MÃ¼ÅŸteri sitesi tarayÄ±cÄ± sekmesi, baÅŸlÄ±k ve tÃ¼m sayfalarda gÃ¶rÃ¼nÃ¼r">
+                <input value={settings.SiteName} onChange={e => set("SiteName", e.target.value)} className={inp} placeholder="Ã–rn: Keyvora Store" />
               </Field>
-              <Field label="Admin Panel Başlığı" hint="Admin paneli sol üst köşesi ve tarayıcı sekmesinde görünür">
-                <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Örn: Keyvora" />
+              <Field label="Admin Panel BaÅŸlÄ±ÄŸÄ±" hint="Admin paneli sol Ã¼st kÃ¶ÅŸesi ve tarayÄ±cÄ± sekmesinde gÃ¶rÃ¼nÃ¼r">
+                <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Ã–rn: Keyvora" />
               </Field>
               <Field label="Para Birimi">
                 <select value={settings.Currency} onChange={e => set("Currency", e.target.value)} className={inp}>
-                  <option value="TRY">TRY — Türk Lirası</option>
-                  <option value="USD">USD — Amerikan Doları</option>
-                  <option value="EUR">EUR — Euro</option>
-                  <option value="GBP">GBP — İngiliz Sterlini</option>
+                  <option value="TRY">TRY â€” TÃ¼rk LirasÄ±</option>
+                  <option value="USD">USD â€” Amerikan DolarÄ±</option>
+                  <option value="EUR">EUR â€” Euro</option>
+                  <option value="GBP">GBP â€” Ä°ngiliz Sterlini</option>
                 </select>
               </Field>
-              <Field label="KDV Oranı (%)" hint="Varsayılan vergi oranı">
+              <Field label="KDV OranÄ± (%)" hint="VarsayÄ±lan vergi oranÄ±">
                 <input type="number" value={settings.DefaultTaxRate} onChange={e => set("DefaultTaxRate", e.target.value)} className={inp} min="0" max="100" />
               </Field>
             </div>
           </Section>
-          <Section title="İletişim Bilgileri" icon={<Settings size={16} />}>
+          <Section title="Ä°letiÅŸim Bilgileri" icon={<Settings size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="İletişim E-postası">
+              <Field label="Ä°letiÅŸim E-postasÄ±">
                 <input type="email" value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp} placeholder="info@keyvora.com" />
               </Field>
-              <Field label="İletişim Telefonu">
+              <Field label="Ä°letiÅŸim Telefonu">
                 <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp} placeholder="+90 532 000 00 00" />
               </Field>
             </div>
@@ -1684,57 +1608,57 @@ export default function YonetimPage() {
         </div>
       )}
 
-      {/* ── Görünüm ── */}
+      {/* â”€â”€ GÃ¶rÃ¼nÃ¼m â”€â”€ */}
       {tab === "gorunum" && (
         <div className="space-y-5">
 
-          {/* ── Logo Sistemi Kullanım Kılavuzu ── */}
+          {/* â”€â”€ Logo Sistemi KullanÄ±m KÄ±lavuzu â”€â”€ */}
           <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-xl bg-teal-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                 <ImageIcon size={14} />
               </div>
               <div>
-                <p className="text-sm font-bold text-teal-900">Logo Sistemi Nasıl Çalışır?</p>
+                <p className="text-sm font-bold text-teal-900">Logo Sistemi NasÄ±l Ã‡alÄ±ÅŸÄ±r?</p>
                 <p className="text-xs text-teal-700 mt-0.5 leading-relaxed">
-                  Sistem iki mod arasında otomatik geçiş yapar: <strong>Görsel Logo</strong> (yüklediğiniz PNG/JPG/SVG) veya <strong>Metin Logo</strong> (site adınız şık bir yazı tipinde).
+                  Sistem iki mod arasÄ±nda otomatik geÃ§iÅŸ yapar: <strong>GÃ¶rsel Logo</strong> (yÃ¼klediÄŸiniz PNG/JPG/SVG) veya <strong>Metin Logo</strong> (site adÄ±nÄ±z ÅŸÄ±k bir yazÄ± tipinde).
                 </p>
               </div>
             </div>
 
-            {/* Öncelik akışı */}
+            {/* Ã–ncelik akÄ±ÅŸÄ± */}
             <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Müşteri Sitesi — Header Logo Öncelik Sırası</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">MÃ¼ÅŸteri Sitesi â€” Header Logo Ã–ncelik SÄ±rasÄ±</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-teal-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">İsimli Logo yüklüyse → görsel gösterilir</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoNamed</code> dolu ise bu resim header'da öncelikli olarak görünür. En fazla 280 × 72 px alan kullanır.</p>
+                    <p className="text-xs font-semibold text-slate-700">Ä°simli Logo yÃ¼klÃ¼yse â†’ gÃ¶rsel gÃ¶sterilir</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoNamed</code> dolu ise bu resim header'da Ã¶ncelikli olarak gÃ¶rÃ¼nÃ¼r. En fazla 280 Ã— 72 px alan kullanÄ±r.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-teal-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">İsimli yoksa, İsimsiz Logo yüklüyse → o gösterilir</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoIcon</code> dolu ise ikon resmi header'da görünür.</p>
+                    <p className="text-xs font-semibold text-slate-700">Ä°simli yoksa, Ä°simsiz Logo yÃ¼klÃ¼yse â†’ o gÃ¶sterilir</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoIcon</code> dolu ise ikon resmi header'da gÃ¶rÃ¼nÃ¼r.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Her ikisi de boşsa → Metin Logo otomatik devreye girer</p>
+                    <p className="text-xs font-semibold text-slate-700">Her ikisi de boÅŸsa â†’ Metin Logo otomatik devreye girer</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Site adınız (<code className="bg-slate-100 px-1 rounded">SiteName</code>) Pacifico yazı tipiyle logo gibi işlenir.
-                      Üç ve daha fazla kelimeli adlarda son kelime vurgu rengiyle ayrı satırda gösterilir.
-                      Örnek: <em className="text-teal-600">"Neslinin Rengi&nbsp;<span className="text-orange-500">Atölyesi</span>"</em>
+                      Site adÄ±nÄ±z (<code className="bg-slate-100 px-1 rounded">SiteName</code>) Pacifico yazÄ± tipiyle logo gibi iÅŸlenir.
+                      ÃœÃ§ ve daha fazla kelimeli adlarda son kelime vurgu rengiyle ayrÄ± satÄ±rda gÃ¶sterilir.
+                      Ã–rnek: <em className="text-teal-600">"Neslinin Rengi&nbsp;<span className="text-orange-500">AtÃ¶lyesi</span>"</em>
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Tablo: alan → nerede kullanılır */}
+            {/* Tablo: alan â†’ nerede kullanÄ±lÄ±r */}
             <div className="bg-white rounded-xl border border-teal-100 overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
@@ -1747,28 +1671,28 @@ export default function YonetimPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimli Logo</td>
-                    <td className="px-3 py-2 text-teal-600">✓ Öncelikli</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">MÃ¼ÅŸteri Ä°simli Logo</td>
+                    <td className="px-3 py-2 text-teal-600">âœ“ Ã–ncelikli</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
                   </tr>
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimsiz Logo</td>
-                    <td className="px-3 py-2 text-teal-500">✓ Yedek</td>
-                    <td className="px-3 py-2 text-teal-600">✓ İkon kutusu</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">MÃ¼ÅŸteri Ä°simsiz Logo</td>
+                    <td className="px-3 py-2 text-teal-500">âœ“ Yedek</td>
+                    <td className="px-3 py-2 text-teal-600">âœ“ Ä°kon kutusu</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
                   </tr>
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri Favicon</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
-                    <td className="px-3 py-2 text-teal-600">✓ Sekme ikonu</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">MÃ¼ÅŸteri Favicon</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
+                    <td className="px-3 py-2 text-teal-600">âœ“ Sekme ikonu</td>
                   </tr>
                   <tr className="bg-orange-50">
                     <td className="px-3 py-2 font-medium text-slate-700">Metin Logo <span className="text-[10px] text-orange-500 font-normal">(otomatik)</span></td>
-                    <td className="px-3 py-2 text-orange-500">✓ İkisi de boşsa</td>
-                    <td className="px-3 py-2 text-orange-500">✓ Her zaman</td>
-                    <td className="px-3 py-2 text-slate-400">—</td>
+                    <td className="px-3 py-2 text-orange-500">âœ“ Ä°kisi de boÅŸsa</td>
+                    <td className="px-3 py-2 text-orange-500">âœ“ Her zaman</td>
+                    <td className="px-3 py-2 text-slate-400">â€”</td>
                   </tr>
                 </tbody>
               </table>
@@ -1776,57 +1700,57 @@ export default function YonetimPage() {
 
             {/* Admin sidebar notu */}
             <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admin Paneli — Sidebar Logo</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admin Paneli â€” Sidebar Logo</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">◀</span>
+                  <span className="w-5 h-5 rounded-full bg-indigo-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">â—€</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Daraltılmış sidebar → her zaman Admin İsimsiz Logo ikonu</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boşsa <code className="bg-slate-100 px-1 rounded">/logo-icon.png</code> gösterilir.</p>
+                    <p className="text-xs font-semibold text-slate-700">DaraltÄ±lmÄ±ÅŸ sidebar â†’ her zaman Admin Ä°simsiz Logo ikonu</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boÅŸsa <code className="bg-slate-100 px-1 rounded">/logo-icon.png</code> gÃ¶sterilir.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
+                  <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">â–¶</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + Admin İsimli Logo yüklüyse → görsel</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoNamed</code> dolu olduğunda tam logo görseli gösterilir.</p>
+                    <p className="text-xs font-semibold text-slate-700">GeniÅŸletilmiÅŸ + Admin Ä°simli Logo yÃ¼klÃ¼yse â†’ gÃ¶rsel</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoNamed</code> dolu olduÄŸunda tam logo gÃ¶rseli gÃ¶sterilir.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
+                  <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">â–¶</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + İsimli Logo boşsa → Metin Logo</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Site adı Inter Bold yazı tipiyle beyaz renkte, 3+ kelimeli adlarda son kelime teal vurguyla alt satırda gösterilir.</p>
+                    <p className="text-xs font-semibold text-slate-700">GeniÅŸletilmiÅŸ + Ä°simli Logo boÅŸsa â†’ Metin Logo</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Site adÄ± Inter Bold yazÄ± tipiyle beyaz renkte, 3+ kelimeli adlarda son kelime teal vurguyla alt satÄ±rda gÃ¶sterilir.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-[11px] text-teal-600 bg-teal-100 rounded-xl px-3 py-2">
-              <span>💡</span>
+              <span>ðŸ’¡</span>
               <span>
-                <strong>Metin logoya geçmek için:</strong> Müşteri İsimli Logo ve İsimsiz Logo alanlarını boşaltın (URL'yi silin + Kaydet).
-                Site adınız otomatik olarak Pacifico yazı tipiyle logo gibi görünecektir.
+                <strong>Metin logoya geÃ§mek iÃ§in:</strong> MÃ¼ÅŸteri Ä°simli Logo ve Ä°simsiz Logo alanlarÄ±nÄ± boÅŸaltÄ±n (URL'yi silin + Kaydet).
+                Site adÄ±nÄ±z otomatik olarak Pacifico yazÄ± tipiyle logo gibi gÃ¶rÃ¼necektir.
               </span>
             </div>
           </div>
 
-          {/* Admin Panel Görselleri */}
-          <Section title="Admin Panel Görselleri" icon={<ImageIcon size={16} />}
-            subtitle="Admin panelinin sidebar'ında ve tarayıcı sekmesinde görünen görseller.">
+          {/* Admin Panel GÃ¶rselleri */}
+          <Section title="Admin Panel GÃ¶rselleri" icon={<ImageIcon size={16} />}
+            subtitle="Admin panelinin sidebar'Ä±nda ve tarayÄ±cÄ± sekmesinde gÃ¶rÃ¼nen gÃ¶rseller.">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* İsimli Logo */}
+              {/* Ä°simli Logo */}
               {(() => {
                 const key = "AdminLogoNamed";
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
-                    <p className="text-[11px] text-slate-400">Marka adı içeren tam logo (sidebar genişken).</p>
+                    <p className="text-xs font-bold text-slate-700">Ä°simli Logo</p>
+                    <p className="text-[11px] text-slate-400">Marka adÄ± iÃ§eren tam logo (sidebar geniÅŸken).</p>
                     <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
+                        ? <img src={settings[key]} alt="Ä°simli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
+                        : <span className="text-slate-500 text-xs">YÃ¼klenmedi</span>}
                     </div>
                     <input ref={adminLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1834,7 +1758,7 @@ export default function YonetimPage() {
                       <button onClick={() => adminLogoNamedRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
@@ -1850,18 +1774,18 @@ export default function YonetimPage() {
                   </div>
                 );
               })()}
-              {/* İsimsiz Logo */}
+              {/* Ä°simsiz Logo */}
               {(() => {
                 const key = "AdminLogoIcon";
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
-                    <p className="text-[11px] text-slate-400">Sadece ikon (sidebar daraltılmışken).</p>
+                    <p className="text-xs font-bold text-slate-700">Ä°simsiz Logo</p>
+                    <p className="text-[11px] text-slate-400">Sadece ikon (sidebar daraltÄ±lmÄ±ÅŸken).</p>
                     <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
+                        ? <img src={settings[key]} alt="Ä°simsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
+                        : <span className="text-slate-500 text-xs">YÃ¼klenmedi</span>}
                     </div>
                     <input ref={adminLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1869,7 +1793,7 @@ export default function YonetimPage() {
                       <button onClick={() => adminLogoIconRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
@@ -1893,19 +1817,19 @@ export default function YonetimPage() {
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
-                    <p className="text-[11px] text-slate-400">Admin paneli tarayıcı sekmesi ikonu.</p>
-                    {/* Büyük önizleme */}
+                    <p className="text-[11px] text-slate-400">Admin paneli tarayÄ±cÄ± sekmesi ikonu.</p>
+                    {/* BÃ¼yÃ¼k Ã¶nizleme */}
                     <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
                         ? <img src={settings[key]} alt="Favicon" className="w-32 h-32 object-contain" /> // eslint-disable-line
                         : <Globe size={48} className="text-slate-300" />}
                     </div>
-                    {/* Sekme simülasyonu */}
+                    {/* Sekme simÃ¼lasyonu */}
                     {settings[key] && (
                       <div className="flex items-center gap-1.5 bg-slate-200 rounded-t-lg px-2 py-1.5 w-fit max-w-full">
                         <img src={settings[key]} alt="" className="w-3.5 h-3.5 object-contain shrink-0" /> {/* eslint-disable-line */}
                         <span className="text-[10px] text-slate-600 truncate max-w-[100px]">{title}</span>
-                        <span className="text-slate-400 ml-0.5 text-[10px]">×</span>
+                        <span className="text-slate-400 ml-0.5 text-[10px]">Ã—</span>
                       </div>
                     )}
                     <input ref={adminFaviconRef} type="file" accept="image/*,image/x-icon,image/vnd.microsoft.icon,.ico" className="hidden"
@@ -1913,7 +1837,7 @@ export default function YonetimPage() {
                     <button type="button" onClick={() => adminFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
+                      {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                     </button>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
@@ -1925,22 +1849,22 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          {/* Müşteri Sitesi Görselleri */}
-          <Section title="Müşteri Sitesi Görselleri" icon={<ImageIcon size={16} />}
-            subtitle="Müşteri mağazasının header'ında ve tarayıcı sekmesinde görünen görseller.">
+          {/* MÃ¼ÅŸteri Sitesi GÃ¶rselleri */}
+          <Section title="MÃ¼ÅŸteri Sitesi GÃ¶rselleri" icon={<ImageIcon size={16} />}
+            subtitle="MÃ¼ÅŸteri maÄŸazasÄ±nÄ±n header'Ä±nda ve tarayÄ±cÄ± sekmesinde gÃ¶rÃ¼nen gÃ¶rseller.">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* İsimli Logo */}
+              {/* Ä°simli Logo */}
               {(() => {
                 const key = "CustomerLogoNamed";
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
-                    <p className="text-[11px] text-slate-400">Marka adı dahil tam logo (header'da öncelikli).</p>
+                    <p className="text-xs font-bold text-slate-700">Ä°simli Logo</p>
+                    <p className="text-[11px] text-slate-400">Marka adÄ± dahil tam logo (header'da Ã¶ncelikli).</p>
                     <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
+                        ? <img src={settings[key]} alt="Ä°simli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
+                        : <span className="text-slate-400 text-xs">YÃ¼klenmedi</span>}
                     </div>
                     <input ref={customerLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1948,7 +1872,7 @@ export default function YonetimPage() {
                       <button onClick={() => customerLogoNamedRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
@@ -1964,18 +1888,18 @@ export default function YonetimPage() {
                   </div>
                 );
               })()}
-              {/* İsimsiz Logo */}
+              {/* Ä°simsiz Logo */}
               {(() => {
                 const key = "CustomerLogoIcon";
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
-                    <p className="text-[11px] text-slate-400">Sadece marka ikonu / sembolü.</p>
+                    <p className="text-xs font-bold text-slate-700">Ä°simsiz Logo</p>
+                    <p className="text-[11px] text-slate-400">Sadece marka ikonu / sembolÃ¼.</p>
                     <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
-                        ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
+                        ? <img src={settings[key]} alt="Ä°simsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
+                        : <span className="text-slate-400 text-xs">YÃ¼klenmedi</span>}
                     </div>
                     <input ref={customerLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1983,7 +1907,7 @@ export default function YonetimPage() {
                       <button onClick={() => customerLogoIconRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
@@ -2007,19 +1931,19 @@ export default function YonetimPage() {
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
-                    <p className="text-[11px] text-slate-400">Müşteri sitesi tarayıcı sekmesi ikonu.</p>
-                    {/* Büyük önizleme */}
+                    <p className="text-[11px] text-slate-400">MÃ¼ÅŸteri sitesi tarayÄ±cÄ± sekmesi ikonu.</p>
+                    {/* BÃ¼yÃ¼k Ã¶nizleme */}
                     <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
                         ? <img src={settings[key]} alt="Favicon" className="w-32 h-32 object-contain" /> // eslint-disable-line
                         : <Globe size={48} className="text-slate-300" />}
                     </div>
-                    {/* Sekme simülasyonu */}
+                    {/* Sekme simÃ¼lasyonu */}
                     {settings[key] && (
                       <div className="flex items-center gap-1.5 bg-slate-200 rounded-t-lg px-2 py-1.5 w-fit max-w-full">
                         <img src={settings[key]} alt="" className="w-3.5 h-3.5 object-contain shrink-0" /> {/* eslint-disable-line */}
                         <span className="text-[10px] text-slate-600 truncate max-w-[100px]">{siteName}</span>
-                        <span className="text-slate-400 ml-0.5 text-[10px]">×</span>
+                        <span className="text-slate-400 ml-0.5 text-[10px]">Ã—</span>
                       </div>
                     )}
                     <input ref={customerFaviconRef} type="file" accept="image/*,image/x-icon,image/vnd.microsoft.icon,.ico" className="hidden"
@@ -2027,7 +1951,7 @@ export default function YonetimPage() {
                     <button type="button" onClick={() => customerFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
+                      {busy ? "YÃ¼kleniyor..." : "YÃ¼kle"}
                     </button>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
@@ -2038,8 +1962,8 @@ export default function YonetimPage() {
               })()}
             </div>
           </Section>
-          <Section title="Tema Ön Ayarları" icon={<Palette size={16} />}>
-            <p className="text-xs text-slate-500 mb-3">Hazır tema paketlerinden birini seçerek tüm renkleri tek seferde uygulayın.</p>
+          <Section title="Tema Ã–n AyarlarÄ±" icon={<Palette size={16} />}>
+            <p className="text-xs text-slate-500 mb-3">HazÄ±r tema paketlerinden birini seÃ§erek tÃ¼m renkleri tek seferde uygulayÄ±n.</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {THEME_PRESETS.map(preset => (
                 <button
@@ -2058,8 +1982,8 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          <Section title="Müşteri Sitesi Renkleri" icon={<Palette size={16} />}>
-            {/* Canlı kontrast önizlemesi */}
+          <Section title="MÃ¼ÅŸteri Sitesi Renkleri" icon={<Palette size={16} />}>
+            {/* CanlÄ± kontrast Ã¶nizlemesi */}
             {(() => {
               const bg   = settings.CustomerBgColor   || "#F7FAFA";
               const text = settings.CustomerTextColor || "#1c2044";
@@ -2069,12 +1993,12 @@ export default function YonetimPage() {
               return (
                 <div className="mb-4 rounded-xl border overflow-hidden" style={{ borderColor: ok ? "#bbf7d0" : aa ? "#fde68a" : "#fca5a5" }}>
                   <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: bg }}>
-                    <span className="text-sm font-semibold" style={{ color: text }}>Örnek Sayfa Metni</span>
+                    <span className="text-sm font-semibold" style={{ color: text }}>Ã–rnek Sayfa Metni</span>
                     <span className="text-xs opacity-60" style={{ color: text }}>Aa 123</span>
                   </div>
                   <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : aa ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
-                    <span>{ok ? "✓" : aa ? "⚠" : "✗"}</span>
-                    <span>Kontrast oranı: {ratio.toFixed(1)}:1 — {ok ? "WCAG AA/AAA geçer" : aa ? "Yalnızca büyük metin için yeterli" : "Kontrast yetersiz — yazı görünmeyebilir"}</span>
+                    <span>{ok ? "âœ“" : aa ? "âš " : "âœ—"}</span>
+                    <span>Kontrast oranÄ±: {ratio.toFixed(1)}:1 â€” {ok ? "WCAG AA/AAA geÃ§er" : aa ? "YalnÄ±zca bÃ¼yÃ¼k metin iÃ§in yeterli" : "Kontrast yetersiz â€” yazÄ± gÃ¶rÃ¼nmeyebilir"}</span>
                   </div>
                 </div>
               );
@@ -2082,13 +2006,13 @@ export default function YonetimPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 { label: "Birincil Renk (Butonlar, linkler)", key: "PrimaryColor", default: "#0d9488" },
-                { label: "Vurgu Rengi (Rozetler, öne çıkan)", key: "AccentColor", default: "#7c3aed" },
+                { label: "Vurgu Rengi (Rozetler, Ã¶ne Ã§Ä±kan)", key: "AccentColor", default: "#7c3aed" },
                 { label: "Arka Plan Rengi", key: "CustomerBgColor", default: "#F7FAFA" },
-                { label: "Yazı Rengi", key: "CustomerTextColor", default: "#1c2044" },
-                { label: "Kart / İçerik Arka Planı", key: "CustomerCardBgColor", default: "#ffffff" },
-                { label: "Header Arka Planı", key: "CustomerHeaderBgColor", default: "#ffffff" },
-                { label: "Kenarlık / Border Rengi", key: "CustomerBorderColor", default: "#ccfbf1" },
-                { label: "Buton Yazı Rengi", key: "CustomerButtonTextColor", default: "#ffffff" },
+                { label: "YazÄ± Rengi", key: "CustomerTextColor", default: "#1c2044" },
+                { label: "Kart / Ä°Ã§erik Arka PlanÄ±", key: "CustomerCardBgColor", default: "#ffffff" },
+                { label: "Header Arka PlanÄ±", key: "CustomerHeaderBgColor", default: "#ffffff" },
+                { label: "KenarlÄ±k / Border Rengi", key: "CustomerBorderColor", default: "#ccfbf1" },
+                { label: "Buton YazÄ± Rengi", key: "CustomerButtonTextColor", default: "#ffffff" },
               ].map(({ label, key, default: def }) => (
                 <div key={key} className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
                   <div className="flex items-center gap-2.5">
@@ -2115,7 +2039,7 @@ export default function YonetimPage() {
           </Section>
 
           <Section title="Admin Panel Renkleri" icon={<Palette size={16} />}>
-            {/* Sidebar önizlemesi */}
+            {/* Sidebar Ã¶nizlemesi */}
             {(() => {
               const sidebar  = settings.AdminSidebarColor  || "#1c2044";
               const primary  = settings.AdminPrimaryColor  || "#0d9488";
@@ -2128,8 +2052,8 @@ export default function YonetimPage() {
                     <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: primary, color: "#fff" }}>Birincil</span>
                   </div>
                   <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                    <span>{ok ? "✓" : "✗"}</span>
-                    <span>Sidebar ↔ Beyaz metin kontrastı: {ratio.toFixed(1)}:1 — {ok ? "Okunabilir" : "Yazılar görünmeyebilir"}</span>
+                    <span>{ok ? "âœ“" : "âœ—"}</span>
+                    <span>Sidebar â†” Beyaz metin kontrastÄ±: {ratio.toFixed(1)}:1 â€” {ok ? "Okunabilir" : "YazÄ±lar gÃ¶rÃ¼nmeyebilir"}</span>
                   </div>
                 </div>
               );
@@ -2139,7 +2063,7 @@ export default function YonetimPage() {
                 { label: "Sidebar Rengi", key: "AdminSidebarColor", default: "#1c2044" },
                 { label: "Birincil Renk", key: "AdminPrimaryColor", default: "#0d9488" },
                 { label: "Vurgu Rengi", key: "AdminAccentColor", default: "#7c3aed" },
-                { label: "İçerik Arka Planı", key: "AdminBgColor", default: "#f8fafc" },
+                { label: "Ä°Ã§erik Arka PlanÄ±", key: "AdminBgColor", default: "#f8fafc" },
               ].map(({ label, key, default: def }) => (
                 <div key={key} className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
                   <div className="flex items-center gap-2.5">
@@ -2165,38 +2089,38 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          <Section title="Yazı Tipi & Boyutu" icon={<Palette size={16} />}>
+          <Section title="YazÄ± Tipi & Boyutu" icon={<Palette size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Customer font */}
               <div className="space-y-4">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> Müşteri Sitesi
+                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> MÃ¼ÅŸteri Sitesi
                 </p>
-                <Field label="Yazı Tipi">
+                <Field label="YazÄ± Tipi">
                   <select value={settings.CustomerFontFamily || "Inter"} onChange={e => set("CustomerFontFamily", e.target.value)} className={inp}>
-                    {["— Sans-serif —", ...FONT_OPTIONS.filter(f => f.category === "Sans-serif").map(f => f.value)].map(f =>
-                      f.startsWith("—") ? <option key={f} disabled>{f}</option> : <option key={f} value={f}>{f}</option>
+                    {["â€” Sans-serif â€”", ...FONT_OPTIONS.filter(f => f.category === "Sans-serif").map(f => f.value)].map(f =>
+                      f.startsWith("â€”") ? <option key={f} disabled>{f}</option> : <option key={f} value={f}>{f}</option>
                     )}
-                    <option disabled>— Serif —</option>
+                    <option disabled>â€” Serif â€”</option>
                     {FONT_OPTIONS.filter(f => f.category === "Serif").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    <option disabled>— Monospace —</option>
+                    <option disabled>â€” Monospace â€”</option>
                     {FONT_OPTIONS.filter(f => f.category === "Monospace").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Yazı Boyutu">
+                <Field label="YazÄ± Boyutu">
                   <select value={settings.CustomerFontSize || "base"} onChange={e => set("CustomerFontSize", e.target.value)} className={inp}>
-                    <option value="sm">Küçük (sm) — 14px temel</option>
-                    <option value="base">Normal (base) — 16px temel</option>
-                    <option value="lg">Büyük (lg) — 18px temel</option>
-                    <option value="xl">Çok Büyük (xl) — 20px temel</option>
+                    <option value="sm">KÃ¼Ã§Ã¼k (sm) â€” 14px temel</option>
+                    <option value="base">Normal (base) â€” 16px temel</option>
+                    <option value="lg">BÃ¼yÃ¼k (lg) â€” 18px temel</option>
+                    <option value="xl">Ã‡ok BÃ¼yÃ¼k (xl) â€” 20px temel</option>
                   </select>
                 </Field>
                 {/* Preview */}
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Ã–nizleme</p>
                   <div style={{ fontFamily: `"${settings.CustomerFontFamily || "Inter"}", sans-serif` }}>
-                    <p className="text-lg font-bold mb-1" style={{ color: settings.PrimaryColor || "#0d9488" }}>Başlık Metni</p>
-                    <p className="text-sm text-slate-600">Normal paragraf metni. Ürün açıklamaları ve sayfa içerikleri bu fontla görünür.</p>
+                    <p className="text-lg font-bold mb-1" style={{ color: settings.PrimaryColor || "#0d9488" }}>BaÅŸlÄ±k Metni</p>
+                    <p className="text-sm text-slate-600">Normal paragraf metni. ÃœrÃ¼n aÃ§Ä±klamalarÄ± ve sayfa iÃ§erikleri bu fontla gÃ¶rÃ¼nÃ¼r.</p>
                     <p className="text-xs mt-2" style={{ color: settings.AccentColor || "#7c3aed" }}>Vurgu metni ve rozetler</p>
                   </div>
                 </div>
@@ -2206,48 +2130,48 @@ export default function YonetimPage() {
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" /> Admin Panel
                 </p>
-                <Field label="Yazı Tipi">
+                <Field label="YazÄ± Tipi">
                   <select value={settings.AdminFontFamily || "Inter"} onChange={e => set("AdminFontFamily", e.target.value)} className={inp}>
                     {FONT_OPTIONS.filter(f => f.category === "Sans-serif").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    <option disabled>— Serif —</option>
+                    <option disabled>â€” Serif â€”</option>
                     {FONT_OPTIONS.filter(f => f.category === "Serif").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    <option disabled>— Monospace —</option>
+                    <option disabled>â€” Monospace â€”</option>
                     {FONT_OPTIONS.filter(f => f.category === "Monospace").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Yazı Boyutu">
+                <Field label="YazÄ± Boyutu">
                   <select value={settings.AdminFontSize || "base"} onChange={e => set("AdminFontSize", e.target.value)} className={inp}>
-                    <option value="sm">Küçük (sm) — 14px temel</option>
-                    <option value="base">Normal (base) — 16px temel</option>
-                    <option value="lg">Büyük (lg) — 18px temel</option>
-                    <option value="xl">Çok Büyük (xl) — 20px temel</option>
+                    <option value="sm">KÃ¼Ã§Ã¼k (sm) â€” 14px temel</option>
+                    <option value="base">Normal (base) â€” 16px temel</option>
+                    <option value="lg">BÃ¼yÃ¼k (lg) â€” 18px temel</option>
+                    <option value="xl">Ã‡ok BÃ¼yÃ¼k (xl) â€” 20px temel</option>
                   </select>
                 </Field>
                 {/* Preview */}
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Ã–nizleme</p>
                   <div style={{ fontFamily: `"${settings.AdminFontFamily || "Inter"}", sans-serif` }}>
-                    <p className="text-lg font-bold mb-1" style={{ color: settings.AdminPrimaryColor || "#0d9488" }}>Panel Başlığı</p>
-                    <p className="text-sm text-slate-600">Dashboard ve yönetim ekranlarında bu font kullanılır.</p>
-                    <p className="text-xs mt-2 font-mono" style={{ color: settings.AdminAccentColor || "#7c3aed" }}>BADGE · ETİKET · UYARI</p>
+                    <p className="text-lg font-bold mb-1" style={{ color: settings.AdminPrimaryColor || "#0d9488" }}>Panel BaÅŸlÄ±ÄŸÄ±</p>
+                    <p className="text-sm text-slate-600">Dashboard ve yÃ¶netim ekranlarÄ±nda bu font kullanÄ±lÄ±r.</p>
+                    <p className="text-xs mt-2 font-mono" style={{ color: settings.AdminAccentColor || "#7c3aed" }}>BADGE Â· ETÄ°KET Â· UYARI</p>
                   </div>
                 </div>
               </div>
             </div>
             <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-              Font ve renk değişiklikleri kaydedildikten sonra sayfa yenilenince tam olarak uygulanır.
+              Font ve renk deÄŸiÅŸiklikleri kaydedildikten sonra sayfa yenilenince tam olarak uygulanÄ±r.
             </div>
           </Section>
         </div>
       )}
 
-      {/* ── Şablon ── */}
+      {/* â”€â”€ Åžablon â”€â”€ */}
       {tab === "sablon" && (
         <div className="space-y-5">
-          <Section title="Müşteri Sitesi Şablonu" icon={<Layers size={16} />}>
+          <Section title="MÃ¼ÅŸteri Sitesi Åžablonu" icon={<Layers size={16} />}>
             <p className="text-xs text-slate-500 mb-5">
-              Şablon, müşteri sitesinin genel yerleşimini, başlık stilini, köşe yuvarlaklığını ve arka plan renklerini belirler.
-              Görünüm sekmesindeki renk ve font özelleştirmeleri seçtiğiniz şablonun üzerine uygulanır.
+              Åžablon, mÃ¼ÅŸteri sitesinin genel yerleÅŸimini, baÅŸlÄ±k stilini, kÃ¶ÅŸe yuvarlaklÄ±ÄŸÄ±nÄ± ve arka plan renklerini belirler.
+              GÃ¶rÃ¼nÃ¼m sekmesindeki renk ve font Ã¶zelleÅŸtirmeleri seÃ§tiÄŸiniz ÅŸablonun Ã¼zerine uygulanÄ±r.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TEMPLATES.map(tmpl => {
@@ -2269,7 +2193,7 @@ export default function YonetimPage() {
                       </div>
                       {isActive && (
                         <div className="absolute top-2 right-2 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          ✓ Aktif
+                          âœ“ Aktif
                         </div>
                       )}
                     </div>
@@ -2295,45 +2219,45 @@ export default function YonetimPage() {
             </div>
 
             <div className="mt-5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
-              <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
+              <span className="text-amber-500 shrink-0 mt-0.5">âš </span>
               <p className="text-xs text-amber-800">
-                <strong>Not:</strong> Şablon değişikliği kaydedildikten sonra müşteri sitesinin yenilenmesi gerekebilir (Next.js cache).
-                Koyu tema şablonunda bazı bileşenler henüz tam uyumlu olmayabilir — zamanla iyileştirilecektir.
+                <strong>Not:</strong> Åžablon deÄŸiÅŸikliÄŸi kaydedildikten sonra mÃ¼ÅŸteri sitesinin yenilenmesi gerekebilir (Next.js cache).
+                Koyu tema ÅŸablonunda bazÄ± bileÅŸenler henÃ¼z tam uyumlu olmayabilir â€” zamanla iyileÅŸtirilecektir.
               </p>
             </div>
           </Section>
 
-          {/* Canlı Önizleme */}
-          <Section title="Şablon Karşılaştırması" icon={<Eye size={16} />}>
-            <p className="text-xs text-slate-500 mb-4">Her şablonun görsel farklılıkları aşağıda özetlenmiştir.</p>
+          {/* CanlÄ± Ã–nizleme */}
+          <Section title="Åžablon KarÅŸÄ±laÅŸtÄ±rmasÄ±" icon={<Eye size={16} />}>
+            <p className="text-xs text-slate-500 mb-4">Her ÅŸablonun gÃ¶rsel farklÄ±lÄ±klarÄ± aÅŸaÄŸÄ±da Ã¶zetlenmiÅŸtir.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Şablon</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Åžablon</th>
                     <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Kart Tipi</th>
                     <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Izgara</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Başlık</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Uygun Kullanım</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">BaÅŸlÄ±k</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Uygun KullanÄ±m</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { name: "✨ Modern",         card: "Yuvarlak + gölge",      grid: "4 sütun",  header: "Beyaz",             use: "Genel amaçlı" },
-                    { name: "◻️ Minimalist",     card: "Sade + ince kenarlık",  grid: "4 sütun",  header: "Beyaz/düz",         use: "Moda, tasarım, Apple" },
-                    { name: "💪 Güçlü",          card: "Pill şekil",            grid: "4 sütun",  header: "Renkli (teal)",     use: "Spor, kampanya" },
-                    { name: "🌙 Koyu Tema",       card: "Koyu + mavi vurgu",    grid: "4 sütun",  header: "Gece mavisi",       use: "Gaming, müzik, tech" },
-                    { name: "🖼️ Vitrin",         card: "Çok uzun görsel",       grid: "2 sütun",  header: "Beyaz",             use: "Lüks, moda, koleksiyon" },
-                    { name: "👑 Lüks",           card: "Altın kenarlık",        grid: "3 sütun",  header: "2 satır + ortalı",  use: "Butik, mücevher" },
-                    { name: "⚡ Spor",           card: "Sert köşe + turuncu",   grid: "5 sütun",  header: "Tam genişlik/koyu", use: "Spor, outdoor" },
-                    { name: "🕰️ Retro",          card: "Kalın kenarlık offset", grid: "2 sütun",  header: "Sarı/sıcak",       use: "Vintage, el yapımı" },
-                    { name: "📸 Instagram",      card: "Kare + hover overlay",  grid: "3 sütun",  header: "İnce/beyaz",        use: "Görsel ürünler" },
-                    { name: "🧱 Masonry",        card: "Değişken yükseklik",    grid: "CSS col.", header: "Doğal/beyaz",       use: "El yapımı, sanat" },
-                    { name: "🏗️ Brutalist",      card: "Siyah çerçeve + offset",grid: "3 sütun",  header: "Siyah çizgili",    use: "Tasarım, mimari" },
-                    { name: "🫧 Cam Efekti",     card: "Buzlu cam",             grid: "4 sütun",  header: "Şeffaf blur",       use: "Tech, ajans, lüks" },
-                    { name: "🌆 Neon",           card: "Mor ışıltılı çerçeve",  grid: "4 sütun",  header: "Siyah/neon",        use: "Gaming, müzik, gece" },
-                    { name: "🎨 Pastel",         card: "Her kart farklı renk",  grid: "4 sütun",  header: "Pembe/yumuşak",    use: "Çocuk, hediye, kozmetik" },
-                    { name: "🛒 Katalog",        card: "Sade + Amazon stili",   grid: "5 sütun",  header: "Koyu + sarı arama", use: "Market, toptan" },
+                    { name: "âœ¨ Modern",         card: "Yuvarlak + gÃ¶lge",      grid: "4 sÃ¼tun",  header: "Beyaz",             use: "Genel amaÃ§lÄ±" },
+                    { name: "â—»ï¸ Minimalist",     card: "Sade + ince kenarlÄ±k",  grid: "4 sÃ¼tun",  header: "Beyaz/dÃ¼z",         use: "Moda, tasarÄ±m, Apple" },
+                    { name: "ðŸ’ª GÃ¼Ã§lÃ¼",          card: "Pill ÅŸekil",            grid: "4 sÃ¼tun",  header: "Renkli (teal)",     use: "Spor, kampanya" },
+                    { name: "ðŸŒ™ Koyu Tema",       card: "Koyu + mavi vurgu",    grid: "4 sÃ¼tun",  header: "Gece mavisi",       use: "Gaming, mÃ¼zik, tech" },
+                    { name: "ðŸ–¼ï¸ Vitrin",         card: "Ã‡ok uzun gÃ¶rsel",       grid: "2 sÃ¼tun",  header: "Beyaz",             use: "LÃ¼ks, moda, koleksiyon" },
+                    { name: "ðŸ‘‘ LÃ¼ks",           card: "AltÄ±n kenarlÄ±k",        grid: "3 sÃ¼tun",  header: "2 satÄ±r + ortalÄ±",  use: "Butik, mÃ¼cevher" },
+                    { name: "âš¡ Spor",           card: "Sert kÃ¶ÅŸe + turuncu",   grid: "5 sÃ¼tun",  header: "Tam geniÅŸlik/koyu", use: "Spor, outdoor" },
+                    { name: "ðŸ•°ï¸ Retro",          card: "KalÄ±n kenarlÄ±k offset", grid: "2 sÃ¼tun",  header: "SarÄ±/sÄ±cak",       use: "Vintage, el yapÄ±mÄ±" },
+                    { name: "ðŸ“¸ Instagram",      card: "Kare + hover overlay",  grid: "3 sÃ¼tun",  header: "Ä°nce/beyaz",        use: "GÃ¶rsel Ã¼rÃ¼nler" },
+                    { name: "ðŸ§± Masonry",        card: "DeÄŸiÅŸken yÃ¼kseklik",    grid: "CSS col.", header: "DoÄŸal/beyaz",       use: "El yapÄ±mÄ±, sanat" },
+                    { name: "ðŸ—ï¸ Brutalist",      card: "Siyah Ã§erÃ§eve + offset",grid: "3 sÃ¼tun",  header: "Siyah Ã§izgili",    use: "TasarÄ±m, mimari" },
+                    { name: "ðŸ«§ Cam Efekti",     card: "Buzlu cam",             grid: "4 sÃ¼tun",  header: "Åžeffaf blur",       use: "Tech, ajans, lÃ¼ks" },
+                    { name: "ðŸŒ† Neon",           card: "Mor Ä±ÅŸÄ±ltÄ±lÄ± Ã§erÃ§eve",  grid: "4 sÃ¼tun",  header: "Siyah/neon",        use: "Gaming, mÃ¼zik, gece" },
+                    { name: "ðŸŽ¨ Pastel",         card: "Her kart farklÄ± renk",  grid: "4 sÃ¼tun",  header: "Pembe/yumuÅŸak",    use: "Ã‡ocuk, hediye, kozmetik" },
+                    { name: "ðŸ›’ Katalog",        card: "Sade + Amazon stili",   grid: "5 sÃ¼tun",  header: "Koyu + sarÄ± arama", use: "Market, toptan" },
                   ].map((row, i) => (
                     <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
                       <td className="p-2 border border-slate-200 font-semibold text-slate-700">{row.name}</td>
@@ -2350,43 +2274,43 @@ export default function YonetimPage() {
         </div>
       )}
 
-      {/* ── Kargo ── */}
+      {/* â”€â”€ Kargo â”€â”€ */}
       {tab === "kargo" && (
         <div className="space-y-4">
-          <Section title="Kargo Ayarları" icon={<Truck size={16} />}>
+          <Section title="Kargo AyarlarÄ±" icon={<Truck size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Ücretsiz Kargo Limiti" hint="Bu tutarın üzerindeki siparişlere ücretsiz kargo">
+              <Field label="Ãœcretsiz Kargo Limiti" hint="Bu tutarÄ±n Ã¼zerindeki sipariÅŸlere Ã¼cretsiz kargo">
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₺</span>
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">â‚º</span>
                   <input type="number" value={settings.FreeShippingLimit} onChange={e => set("FreeShippingLimit", e.target.value)} className={inp + " pl-8"} placeholder="500" min="0" />
                 </div>
               </Field>
-              <Field label="Varsayılan Kargo Ücreti" hint="Limiti geçmeyen siparişlere uygulanır">
+              <Field label="VarsayÄ±lan Kargo Ãœcreti" hint="Limiti geÃ§meyen sipariÅŸlere uygulanÄ±r">
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₺</span>
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">â‚º</span>
                   <input type="number" value={settings.DefaultShippingCost} onChange={e => set("DefaultShippingCost", e.target.value)} className={inp + " pl-8"} placeholder="29.90" min="0" step="0.01" />
                 </div>
               </Field>
             </div>
             <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
               <p className="text-sm text-slate-600">
-                <span className="font-semibold">Özet: </span>
-                ₺{settings.FreeShippingLimit || "—"} ve üzeri siparişler ücretsiz, altındakiler ₺{settings.DefaultShippingCost || "—"} kargo ücreti öder.
+                <span className="font-semibold">Ã–zet: </span>
+                â‚º{settings.FreeShippingLimit || "â€”"} ve Ã¼zeri sipariÅŸler Ã¼cretsiz, altÄ±ndakiler â‚º{settings.DefaultShippingCost || "â€”"} kargo Ã¼creti Ã¶der.
               </p>
             </div>
           </Section>
 
-          <Section title="Kargo Firmaları" icon={<Truck size={16} />}
-            subtitle="Alternatif kargo firmalarını, fiyatları ve takip ayarlarını buradan yönetin. Kargo süreçlerini ve sevkiyat takibini Kargo Takip sayfasından yapabilirsiniz.">
+          <Section title="Kargo FirmalarÄ±" icon={<Truck size={16} />}
+            subtitle="Alternatif kargo firmalarÄ±nÄ±, fiyatlarÄ± ve takip ayarlarÄ±nÄ± buradan yÃ¶netin. Kargo sÃ¼reÃ§lerini ve sevkiyat takibini Kargo Takip sayfasÄ±ndan yapabilirsiniz.">
             <CarrierManager />
           </Section>
         </div>
       )}
 
-      {/* ── Menü ── */}
+      {/* â”€â”€ MenÃ¼ â”€â”€ */}
       {tab === "menu" && (
-        <Section title="Menü Sıralaması" icon={<Menu size={16} />}
-          subtitle="Grupları ve öğeleri sürükle-bırak ya da ok butonlarıyla sıralayın. Grup adını ve ikonunu düzenleyebilir, öğeleri başka gruba taşıyabilirsiniz. Kaydet'e basınca sol menüye yansır.">
+        <Section title="MenÃ¼ SÄ±ralamasÄ±" icon={<Menu size={16} />}
+          subtitle="GruplarÄ± ve Ã¶ÄŸeleri sÃ¼rÃ¼kle-bÄ±rak ya da ok butonlarÄ±yla sÄ±ralayÄ±n. Grup adÄ±nÄ± ve ikonunu dÃ¼zenleyebilir, Ã¶ÄŸeleri baÅŸka gruba taÅŸÄ±yabilirsiniz. Kaydet'e basÄ±nca sol menÃ¼ye yansÄ±r.">
           <MenuSorter
             order={menuOrder}
             onOrderChange={setMenuOrder}
@@ -2398,13 +2322,13 @@ export default function YonetimPage() {
               setMenuOrder(ALL_MENU_ITEMS.map(m => m.href));
               setMenuGroupConfig({ groupOrder: DEFAULT_GROUP_ORDER, groupLabels: { ...DEFAULT_GROUP_LABELS }, groupIcons: { ...DEFAULT_GROUP_ICONS }, itemGroups: {} });
             }} className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition">
-              Tümünü varsayılana sıfırla
+              TÃ¼mÃ¼nÃ¼ varsayÄ±lana sÄ±fÄ±rla
             </button>
           </div>
         </Section>
       )}
 
-      {/* ── İçerik ── */}
+      {/* â”€â”€ Ä°Ã§erik â”€â”€ */}
       {tab === "icerik" && (
         <div className="space-y-4">
           {/* Alt sekmeler */}
@@ -2423,38 +2347,38 @@ export default function YonetimPage() {
 
           {/* SSS */}
           {contentSub === "sss" && (
-            <Section title="Sık Sorulan Sorular" icon={<HelpCircle size={16} />}
-              subtitle="Müşteri sitesinde /sss sayfasında görünür. Soru ve cevapları düzenleyebilirsiniz.">
+            <Section title="SÄ±k Sorulan Sorular" icon={<HelpCircle size={16} />}
+              subtitle="MÃ¼ÅŸteri sitesinde /sss sayfasÄ±nda gÃ¶rÃ¼nÃ¼r. Soru ve cevaplarÄ± dÃ¼zenleyebilirsiniz.">
               <FaqEditor value={settings.Page_SSS} onChange={v => set("Page_SSS", v)} />
             </Section>
           )}
 
-          {/* İade & Değişim */}
+          {/* Ä°ade & DeÄŸiÅŸim */}
           {contentSub === "iade" && (
-            <Section title="İade & Değişim" icon={<RefreshCw size={16} />}
-              subtitle="/iade-degisim sayfasında görünür. Paragraflar arasında boş satır bırakın.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_IadeVeDegisim"
+            <Section title="Ä°ade & DeÄŸiÅŸim" icon={<RefreshCw size={16} />}
+              subtitle="/iade-degisim sayfasÄ±nda gÃ¶rÃ¼nÃ¼r. Paragraflar arasÄ±nda boÅŸ satÄ±r bÄ±rakÄ±n.">
+              <TextEditor label="Sayfa Ä°Ã§eriÄŸi" settingKey="Page_IadeVeDegisim"
                 value={settings.Page_IadeVeDegisim} onChange={set} rows={16}
-                hint="Paragrafları boş satırla ayırın. İpucu: başlık satırı için satır başına # koyabilirsiniz." />
+                hint="ParagraflarÄ± boÅŸ satÄ±rla ayÄ±rÄ±n. Ä°pucu: baÅŸlÄ±k satÄ±rÄ± iÃ§in satÄ±r baÅŸÄ±na # koyabilirsiniz." />
             </Section>
           )}
 
           {/* Kargo Takibi */}
           {contentSub === "kargo" && (
             <Section title="Kargo Takibi" icon={<Truck size={16} />}
-              subtitle="/kargo-takibi sayfasında görünür.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_KargoTakibi"
+              subtitle="/kargo-takibi sayfasÄ±nda gÃ¶rÃ¼nÃ¼r.">
+              <TextEditor label="Sayfa Ä°Ã§eriÄŸi" settingKey="Page_KargoTakibi"
                 value={settings.Page_KargoTakibi} onChange={set} rows={14} />
             </Section>
           )}
 
-          {/* İletişim */}
+          {/* Ä°letiÅŸim */}
           {contentSub === "iletisim" && (
-            <Section title="İletişim Sayfası" icon={<Phone size={16} />}
-              subtitle="/iletisim sayfasında görünür. Genel e-posta ve telefon Genel sekmesinden alınır.">
+            <Section title="Ä°letiÅŸim SayfasÄ±" icon={<Phone size={16} />}
+              subtitle="/iletisim sayfasÄ±nda gÃ¶rÃ¼nÃ¼r. Genel e-posta ve telefon Genel sekmesinden alÄ±nÄ±r.">
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="E-posta" hint="Genel sekmedeki ContactEmail kullanılır">
+                  <Field label="E-posta" hint="Genel sekmedeki ContactEmail kullanÄ±lÄ±r">
                     <div className="relative">
                       <Mail size={14} className="absolute left-3 top-3 text-slate-400" />
                       <input value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp + " pl-9"} placeholder="destek@keyvora.com" />
@@ -2467,21 +2391,21 @@ export default function YonetimPage() {
                     </div>
                   </Field>
                 </div>
-                <Field label="Çalışma Saatleri">
+                <Field label="Ã‡alÄ±ÅŸma Saatleri">
                   <div className="relative">
                     <Clock size={14} className="absolute left-3 top-3 text-slate-400" />
                     <input value={settings.Page_Iletisim_Hours} onChange={e => set("Page_Iletisim_Hours", e.target.value)}
-                      className={inp + " pl-9"} placeholder="Hafta içi 09:00 – 18:00, Cumartesi 10:00 – 16:00" />
+                      className={inp + " pl-9"} placeholder="Hafta iÃ§i 09:00 â€“ 18:00, Cumartesi 10:00 â€“ 16:00" />
                   </div>
                 </Field>
                 <Field label="Adres">
                   <div className="relative">
                     <MapPin size={14} className="absolute left-3 top-3 text-slate-400" />
                     <textarea value={settings.Page_Iletisim_Address} onChange={e => set("Page_Iletisim_Address", e.target.value)}
-                      rows={3} className={inp + " pl-9 resize-none"} placeholder="Şirket adresi..." />
+                      rows={3} className={inp + " pl-9 resize-none"} placeholder="Åžirket adresi..." />
                   </div>
                 </Field>
-                <Field label="Google Maps Embed URL" hint="Google Maps'ten 'Haritayı Göm' > iframe src değeri">
+                <Field label="Google Maps Embed URL" hint="Google Maps'ten 'HaritayÄ± GÃ¶m' > iframe src deÄŸeri">
                   <div className="relative">
                     <MapPin size={14} className="absolute left-3 top-3 text-slate-400" />
                     <input value={settings.Page_Iletisim_MapUrl} onChange={e => set("Page_Iletisim_MapUrl", e.target.value)}
@@ -2492,11 +2416,11 @@ export default function YonetimPage() {
             </Section>
           )}
 
-          {/* Hakkımızda */}
+          {/* HakkÄ±mÄ±zda */}
           {contentSub === "hakkimizda" && (
-            <Section title="Hakkımızda" icon={<FileText size={16} />}
-              subtitle="/hakkimizda sayfasında görünür.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_Hakkimizda"
+            <Section title="HakkÄ±mÄ±zda" icon={<FileText size={16} />}
+              subtitle="/hakkimizda sayfasÄ±nda gÃ¶rÃ¼nÃ¼r.">
+              <TextEditor label="Sayfa Ä°Ã§eriÄŸi" settingKey="Page_Hakkimizda"
                 value={settings.Page_Hakkimizda} onChange={set} rows={16} />
             </Section>
           )}
@@ -2504,17 +2428,17 @@ export default function YonetimPage() {
           {/* KVKK */}
           {contentSub === "kvkk" && (
             <Section title="KVKK Metni" icon={<FileText size={16} />}
-              subtitle="/kvkk sayfasında görünür. Hukuki metni buraya yapıştırabilirsiniz.">
-              <TextEditor label="KVKK İçeriği" settingKey="Page_KVKK"
+              subtitle="/kvkk sayfasÄ±nda gÃ¶rÃ¼nÃ¼r. Hukuki metni buraya yapÄ±ÅŸtÄ±rabilirsiniz.">
+              <TextEditor label="KVKK Ä°Ã§eriÄŸi" settingKey="Page_KVKK"
                 value={settings.Page_KVKK} onChange={set} rows={20} />
             </Section>
           )}
 
           {/* Gizlilik */}
           {contentSub === "gizlilik" && (
-            <Section title="Gizlilik Politikası" icon={<FileText size={16} />}
-              subtitle="/gizlilik sayfasında görünür.">
-              <TextEditor label="Gizlilik Politikası İçeriği" settingKey="Page_Gizlilik"
+            <Section title="Gizlilik PolitikasÄ±" icon={<FileText size={16} />}
+              subtitle="/gizlilik sayfasÄ±nda gÃ¶rÃ¼nÃ¼r.">
+              <TextEditor label="Gizlilik PolitikasÄ± Ä°Ã§eriÄŸi" settingKey="Page_Gizlilik"
                 value={settings.Page_Gizlilik} onChange={set} rows={20} />
             </Section>
           )}
@@ -2522,15 +2446,15 @@ export default function YonetimPage() {
           {/* Footer */}
           {contentSub === "footer" && (
             <Section title="Footer Bilgileri" icon={<Globe size={16} />}
-              subtitle="Müşteri sitesinin alt bölümünde görünen bilgiler.">
+              subtitle="MÃ¼ÅŸteri sitesinin alt bÃ¶lÃ¼mÃ¼nde gÃ¶rÃ¼nen bilgiler.">
               <div className="space-y-4">
-                <Field label="Marka Sloganı" hint="Logo altında görünen kısa açıklama. Yeni satır için Enter kullanın.">
+                <Field label="Marka SloganÄ±" hint="Logo altÄ±nda gÃ¶rÃ¼nen kÄ±sa aÃ§Ä±klama. Yeni satÄ±r iÃ§in Enter kullanÄ±n.">
                   <textarea value={settings.Footer_Tagline} onChange={e => set("Footer_Tagline", e.target.value)}
-                    rows={3} className={inp + " resize-none"} placeholder="Keyifli alışverişin yeni adresi." />
+                    rows={3} className={inp + " resize-none"} placeholder="Keyifli alÄ±ÅŸveriÅŸin yeni adresi." />
                 </Field>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
-                  Sosyal medya bağlantıları için <button className="text-teal-600 underline" onClick={() => setTab("genel")}>Genel sekmesine</button> gidin.
-                  İletişim bilgileri (e-posta & telefon) <button className="text-teal-600 underline" onClick={() => setContentSub("iletisim")}>İletişim bölümünden</button> yönetilir.
+                  Sosyal medya baÄŸlantÄ±larÄ± iÃ§in <button className="text-teal-600 underline" onClick={() => setTab("genel")}>Genel sekmesine</button> gidin.
+                  Ä°letiÅŸim bilgileri (e-posta & telefon) <button className="text-teal-600 underline" onClick={() => setContentSub("iletisim")}>Ä°letiÅŸim bÃ¶lÃ¼mÃ¼nden</button> yÃ¶netilir.
                 </div>
               </div>
             </Section>
@@ -2538,11 +2462,11 @@ export default function YonetimPage() {
         </div>
       )}
 
-      {/* ── Chatbot ── */}
+      {/* â”€â”€ Chatbot â”€â”€ */}
       {tab === "chatbot" && (
         <div className="space-y-5">
           <Section title="Chatbot & Destek" icon={<MessageCircle size={16} />}
-            subtitle="WhatsApp veya Telegram üzerinden müşteri desteği sağlayın. n8n entegrasyonu ile akıllı bot yanıtları ekleyebilirsiniz.">
+            subtitle="WhatsApp veya Telegram Ã¼zerinden mÃ¼ÅŸteri desteÄŸi saÄŸlayÄ±n. n8n entegrasyonu ile akÄ±llÄ± bot yanÄ±tlarÄ± ekleyebilirsiniz.">
             <div className="space-y-5">
               {/* Enable/disable */}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -2550,8 +2474,8 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-slate-700">Chatbot Widget</p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {settings.ChatbotEnabled === "true"
-                      ? "Widget aktif — müşteri sitesinde sohbet butonu görünür."
-                      : "Widget pasif — müşteri sitesinde hiç görünmez."}
+                      ? "Widget aktif â€” mÃ¼ÅŸteri sitesinde sohbet butonu gÃ¶rÃ¼nÃ¼r."
+                      : "Widget pasif â€” mÃ¼ÅŸteri sitesinde hiÃ§ gÃ¶rÃ¼nmez."}
                   </p>
                 </div>
                 <button
@@ -2566,11 +2490,11 @@ export default function YonetimPage() {
               </div>
 
               {/* Provider */}
-              <Field label="Kanal" hint="Hangi kanallar gösterilsin?">
+              <Field label="Kanal" hint="Hangi kanallar gÃ¶sterilsin?">
                 <select value={settings.ChatbotProvider} onChange={e => set("ChatbotProvider", e.target.value)} className={inp}>
                   <option value="whatsapp">WhatsApp</option>
                   <option value="telegram">Telegram</option>
-                  <option value="both">Her İkisi</option>
+                  <option value="both">Her Ä°kisi</option>
                 </select>
               </Field>
 
@@ -2580,11 +2504,11 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
                     <MessageCircle size={15} /> WhatsApp
                   </p>
-                  <Field label="Numara" hint="Uluslararası format: +905xxxxxxxxx">
+                  <Field label="Numara" hint="UluslararasÄ± format: +905xxxxxxxxx">
                     <input value={settings.WhatsAppNumber} onChange={e => set("WhatsAppNumber", e.target.value)}
                       className={inp} placeholder="+905321234567" />
                   </Field>
-                  <Field label="Karşılama Mesajı" hint="Müşteri tıkladığında önceden dolu gelecek mesaj">
+                  <Field label="KarÅŸÄ±lama MesajÄ±" hint="MÃ¼ÅŸteri tÄ±kladÄ±ÄŸÄ±nda Ã¶nceden dolu gelecek mesaj">
                     <input value={settings.WhatsAppWelcomeMessage} onChange={e => set("WhatsAppWelcomeMessage", e.target.value)}
                       className={inp} />
                   </Field>
@@ -2597,11 +2521,11 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
                     <MessageCircle size={15} /> Telegram
                   </p>
-                  <Field label="Bot Kullanıcı Adı" hint="Örn: @KeyvoraBot">
+                  <Field label="Bot KullanÄ±cÄ± AdÄ±" hint="Ã–rn: @KeyvoraBot">
                     <input value={settings.TelegramBotUsername} onChange={e => set("TelegramBotUsername", e.target.value)}
                       className={inp} placeholder="@KeyvoraBot" />
                   </Field>
-                  <Field label="Bot Token" hint="BotFather'dan alınan token. Asla halka açık edilmez.">
+                  <Field label="Bot Token" hint="BotFather'dan alÄ±nan token. Asla halka aÃ§Ä±k edilmez.">
                     <input type="password" value={settings.TelegramBotToken} onChange={e => set("TelegramBotToken", e.target.value)}
                       className={inp} placeholder="1234567890:AABBCCDDEEFFaabbccddeeff" />
                   </Field>
@@ -2612,13 +2536,13 @@ export default function YonetimPage() {
               <div className="space-y-3 p-4 border border-violet-200 rounded-xl bg-violet-50/50">
                 <p className="text-sm font-semibold text-violet-700 flex items-center gap-2">
                   <Settings size={15} /> n8n / Antigravity Webhook
-                  <span className="text-xs font-normal text-violet-500">(İsteğe bağlı — inline chat için)</span>
+                  <span className="text-xs font-normal text-violet-500">(Ä°steÄŸe baÄŸlÄ± â€” inline chat iÃ§in)</span>
                 </p>
-                <Field label="Webhook URL" hint="n8n Webhook node URL'si. Doldurulursa widget içi mesajlaşma aktif olur.">
+                <Field label="Webhook URL" hint="n8n Webhook node URL'si. Doldurulursa widget iÃ§i mesajlaÅŸma aktif olur.">
                   <input value={settings.N8nWebhookUrl} onChange={e => set("N8nWebhookUrl", e.target.value)}
                     className={inp} placeholder="https://n8n.example.com/webhook/chatbot" />
                 </Field>
-                <Field label="API Key" hint="Opsiyonel. X-Api-Key header'ında gönderilir.">
+                <Field label="API Key" hint="Opsiyonel. X-Api-Key header'Ä±nda gÃ¶nderilir.">
                   <input type="password" value={settings.N8nApiKey} onChange={e => set("N8nApiKey", e.target.value)}
                     className={inp} placeholder="sk-..." />
                 </Field>
@@ -2628,19 +2552,19 @@ export default function YonetimPage() {
         </div>
       )}
 
-      {/* ── Ödeme ── */}
+      {/* â”€â”€ Ã–deme â”€â”€ */}
       {tab === "odeme" && (
         <div className="space-y-5">
           {/* Banka/Havale */}
           <Section title="Banka Havalesi / EFT" icon={<Building2 size={16} />}
-            subtitle="Müşteriler sipariş sonrası IBAN'a havale yaparak ödeme yapabilir.">
+            subtitle="MÃ¼ÅŸteriler sipariÅŸ sonrasÄ± IBAN'a havale yaparak Ã¶deme yapabilir.">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Havale ile Ödeme</p>
+                <p className="text-sm font-semibold text-slate-700">Havale ile Ã–deme</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {settings.PaymentHavaleEnabled === "true"
-                    ? "Aktif — ödeme seçeneklerinde görünür."
-                    : "Pasif — ödeme seçeneklerinde gösterilmez."}
+                    ? "Aktif â€” Ã¶deme seÃ§eneklerinde gÃ¶rÃ¼nÃ¼r."
+                    : "Pasif â€” Ã¶deme seÃ§eneklerinde gÃ¶sterilmez."}
                 </p>
               </div>
               <button onClick={() => set("PaymentHavaleEnabled", settings.PaymentHavaleEnabled === "true" ? "false" : "true")}
@@ -2649,31 +2573,31 @@ export default function YonetimPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Banka Adı">
+              <Field label="Banka AdÄ±">
                 <input value={settings.PaymentHavaleBankName} onChange={e => set("PaymentHavaleBankName", e.target.value)}
-                  className={inp} placeholder="Örn: Ziraat Bankası" />
+                  className={inp} placeholder="Ã–rn: Ziraat BankasÄ±" />
               </Field>
-              <Field label="Hesap Sahibi Adı">
+              <Field label="Hesap Sahibi AdÄ±">
                 <input value={settings.PaymentHavaleAccountName} onChange={e => set("PaymentHavaleAccountName", e.target.value)}
-                  className={inp} placeholder="Şirket / Ad Soyad" />
+                  className={inp} placeholder="Åžirket / Ad Soyad" />
               </Field>
-              <Field label="IBAN" hint="TR ile başlayan 26 haneli numara">
+              <Field label="IBAN" hint="TR ile baÅŸlayan 26 haneli numara">
                 <input value={settings.PaymentHavaleIBAN} onChange={e => set("PaymentHavaleIBAN", e.target.value)}
                   className={inp + " font-mono"} placeholder="TR00 0000 0000 0000 0000 0000 00" />
               </Field>
-              <Field label="Açıklama" hint="Müşteriye gösterilecek havale açıklaması">
+              <Field label="AÃ§Ä±klama" hint="MÃ¼ÅŸteriye gÃ¶sterilecek havale aÃ§Ä±klamasÄ±">
                 <input value={settings.PaymentHavaleDescription} onChange={e => set("PaymentHavaleDescription", e.target.value)}
-                  className={inp} placeholder="Sipariş numarasını açıklamaya yazınız" />
+                  className={inp} placeholder="SipariÅŸ numarasÄ±nÄ± aÃ§Ä±klamaya yazÄ±nÄ±z" />
               </Field>
             </div>
           </Section>
 
           {/* SanalPos */}
-          <Section title="Sanal POS / Kredi Kartı" icon={<CreditCard size={16} />}
-            subtitle="Ödeme altyapısı entegrasyonu. API bilgileri güvende saklanır.">
+          <Section title="Sanal POS / Kredi KartÄ±" icon={<CreditCard size={16} />}
+            subtitle="Ã–deme altyapÄ±sÄ± entegrasyonu. API bilgileri gÃ¼vende saklanÄ±r.">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Kredi / Banka Kartı ile Ödeme</p>
+                <p className="text-sm font-semibold text-slate-700">Kredi / Banka KartÄ± ile Ã–deme</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {settings.PaymentSanalPosEnabled === "true" ? "Aktif" : "Pasif"}
                 </p>
@@ -2684,9 +2608,9 @@ export default function YonetimPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Ödeme Sağlayıcı">
+              <Field label="Ã–deme SaÄŸlayÄ±cÄ±">
                 <select value={settings.PaymentSanalPosProvider} onChange={e => set("PaymentSanalPosProvider", e.target.value)} className={inp}>
-                  <option value="iyzico">İyzico</option>
+                  <option value="iyzico">Ä°yzico</option>
                   <option value="paytr">PayTR</option>
                   <option value="param">Param</option>
                   <option value="sipay">Sipay</option>
@@ -2701,11 +2625,11 @@ export default function YonetimPage() {
                     <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.PaymentSanalPosTestMode === "true" ? "left-7" : "left-1"}`} />
                   </button>
                   <span className="text-xs text-slate-500">
-                    {settings.PaymentSanalPosTestMode === "true" ? "Test modu açık — gerçek para çekilmez" : "Canlı mod — gerçek işlemler yapılır"}
+                    {settings.PaymentSanalPosTestMode === "true" ? "Test modu aÃ§Ä±k â€” gerÃ§ek para Ã§ekilmez" : "CanlÄ± mod â€” gerÃ§ek iÅŸlemler yapÄ±lÄ±r"}
                   </span>
                 </div>
               </Field>
-              <Field label="Merchant ID / Mağaza ID">
+              <Field label="Merchant ID / MaÄŸaza ID">
                 <input value={settings.PaymentSanalPosMerchantId} onChange={e => set("PaymentSanalPosMerchantId", e.target.value)}
                   className={inp} placeholder="12345678" />
               </Field>
@@ -2716,83 +2640,83 @@ export default function YonetimPage() {
                     className={inp + " pl-8"} placeholder="api_key_..." />
                 </div>
               </Field>
-              <Field label="API Secret / Private Key" hint="Şifreli saklanır.">
+              <Field label="API Secret / Private Key" hint="Åžifreli saklanÄ±r.">
                 <div className="relative">
                   <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
                   <input type="password" value={settings.PaymentSanalPosApiSecret} onChange={e => set("PaymentSanalPosApiSecret", e.target.value)}
-                    className={inp + " pl-8"} placeholder="••••••••••••••••" />
+                    className={inp + " pl-8"} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
                 </div>
               </Field>
             </div>
             {settings.PaymentSanalPosTestMode !== "true" && settings.PaymentSanalPosEnabled === "true" && (
               <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-                <CreditCard size={14} /> Canlı mod aktif — gerçek kart bilgileri işlenecek. Entegrasyon testini tamamladığınızdan emin olun.
+                <CreditCard size={14} /> CanlÄ± mod aktif â€” gerÃ§ek kart bilgileri iÅŸlenecek. Entegrasyon testini tamamladÄ±ÄŸÄ±nÄ±zdan emin olun.
               </div>
             )}
           </Section>
         </div>
       )}
 
-      {/* ── Mesajlar ── */}
+      {/* â”€â”€ Mesajlar â”€â”€ */}
       {tab === "mesajlar" && (
         <div className="space-y-5">
           {[
             {
-              title: "Doğrulama Mesajları",
+              title: "DoÄŸrulama MesajlarÄ±",
               color: "violet",
-              icon: "🔒",
+              icon: "ðŸ”’",
               items: [
-                { key: "Msg_RequiredField",  label: "Zorunlu Alan",         hint: "Form alanları boş bırakıldığında" },
-                { key: "Msg_InvalidEmail",   label: "Geçersiz E-posta",     hint: "E-posta formatı yanlış olduğunda" },
-                { key: "Msg_PasswordMin",    label: "Şifre Çok Kısa",       hint: "Şifre minimum uzunluğu karşılamıyor" },
-                { key: "Msg_PasswordMatch",  label: "Şifre Uyuşmuyor",      hint: "Şifre tekrar alanı eşleşmiyor" },
+                { key: "Msg_RequiredField",  label: "Zorunlu Alan",         hint: "Form alanlarÄ± boÅŸ bÄ±rakÄ±ldÄ±ÄŸÄ±nda" },
+                { key: "Msg_InvalidEmail",   label: "GeÃ§ersiz E-posta",     hint: "E-posta formatÄ± yanlÄ±ÅŸ olduÄŸunda" },
+                { key: "Msg_PasswordMin",    label: "Åžifre Ã‡ok KÄ±sa",       hint: "Åžifre minimum uzunluÄŸu karÅŸÄ±lamÄ±yor" },
+                { key: "Msg_PasswordMatch",  label: "Åžifre UyuÅŸmuyor",      hint: "Åžifre tekrar alanÄ± eÅŸleÅŸmiyor" },
               ],
             },
             {
-              title: "Sipariş Mesajları",
+              title: "SipariÅŸ MesajlarÄ±",
               color: "teal",
-              icon: "📦",
+              icon: "ðŸ“¦",
               items: [
-                { key: "Msg_OrderSuccess",   label: "Sipariş Oluşturuldu",  hint: "Başarılı sipariş sonrası gösterilir" },
-                { key: "Msg_OrderCancelled", label: "Sipariş İptal Edildi", hint: "İptal işlemi sonrası gösterilir" },
-                { key: "Msg_OrderShipped",   label: "Kargoya Verildi",      hint: "Kargo durumu güncellenince" },
+                { key: "Msg_OrderSuccess",   label: "SipariÅŸ OluÅŸturuldu",  hint: "BaÅŸarÄ±lÄ± sipariÅŸ sonrasÄ± gÃ¶sterilir" },
+                { key: "Msg_OrderCancelled", label: "SipariÅŸ Ä°ptal Edildi", hint: "Ä°ptal iÅŸlemi sonrasÄ± gÃ¶sterilir" },
+                { key: "Msg_OrderShipped",   label: "Kargoya Verildi",      hint: "Kargo durumu gÃ¼ncellenince" },
               ],
             },
             {
-              title: "Sepet Mesajları",
+              title: "Sepet MesajlarÄ±",
               color: "amber",
-              icon: "🛒",
+              icon: "ðŸ›’",
               items: [
-                { key: "Msg_CartItemAdded",  label: "Ürün Eklendi",         hint: "Sepete ürün eklenince" },
-                { key: "Msg_OutOfStock",     label: "Stok Yetersiz",        hint: "İstenen miktar stokta yok" },
-                { key: "Msg_CartEmpty",      label: "Sepet Boş",            hint: "Sepet sayfasında ürün yoksa" },
-                { key: "Msg_CouponApplied",  label: "Kupon Uygulandı",      hint: "Geçerli kupon girilince" },
-                { key: "Msg_CouponInvalid",  label: "Geçersiz Kupon",       hint: "Hatalı veya süresi dolmuş kupon" },
+                { key: "Msg_CartItemAdded",  label: "ÃœrÃ¼n Eklendi",         hint: "Sepete Ã¼rÃ¼n eklenince" },
+                { key: "Msg_OutOfStock",     label: "Stok Yetersiz",        hint: "Ä°stenen miktar stokta yok" },
+                { key: "Msg_CartEmpty",      label: "Sepet BoÅŸ",            hint: "Sepet sayfasÄ±nda Ã¼rÃ¼n yoksa" },
+                { key: "Msg_CouponApplied",  label: "Kupon UygulandÄ±",      hint: "GeÃ§erli kupon girilince" },
+                { key: "Msg_CouponInvalid",  label: "GeÃ§ersiz Kupon",       hint: "HatalÄ± veya sÃ¼resi dolmuÅŸ kupon" },
               ],
             },
             {
-              title: "Sistem & Hata Mesajları",
+              title: "Sistem & Hata MesajlarÄ±",
               color: "red",
-              icon: "⚠️",
+              icon: "âš ï¸",
               items: [
-                { key: "Msg_GenericError",   label: "Genel Hata",           hint: "Beklenmeyen hatalar için" },
-                { key: "Msg_NetworkError",   label: "Bağlantı Hatası",      hint: "İnternet kesilince" },
-                { key: "Msg_Unauthorized",   label: "Yetkisiz Erişim",      hint: "Giriş gerektiren sayfalarda" },
-                { key: "Msg_MaintenanceMode",label: "Bakım Modu",           hint: "Site bakımda iken" },
-                { key: "Msg_LowStockWarning",label: "Düşük Stok",          hint: "Az miktarda ürün kaldığında" },
+                { key: "Msg_GenericError",   label: "Genel Hata",           hint: "Beklenmeyen hatalar iÃ§in" },
+                { key: "Msg_NetworkError",   label: "BaÄŸlantÄ± HatasÄ±",      hint: "Ä°nternet kesilince" },
+                { key: "Msg_Unauthorized",   label: "Yetkisiz EriÅŸim",      hint: "GiriÅŸ gerektiren sayfalarda" },
+                { key: "Msg_MaintenanceMode",label: "BakÄ±m Modu",           hint: "Site bakÄ±mda iken" },
+                { key: "Msg_LowStockWarning",label: "DÃ¼ÅŸÃ¼k Stok",          hint: "Az miktarda Ã¼rÃ¼n kaldÄ±ÄŸÄ±nda" },
               ],
             },
             {
-              title: "Başarı & Bilgi Mesajları",
+              title: "BaÅŸarÄ± & Bilgi MesajlarÄ±",
               color: "emerald",
-              icon: "✅",
+              icon: "âœ…",
               items: [
-                { key: "Msg_LoginSuccess",    label: "Giriş Başarılı",       hint: "Kullanıcı girişinden sonra" },
-                { key: "Msg_RegisterSuccess", label: "Kayıt Başarılı",       hint: "Yeni üyelik oluşturulunca" },
-                { key: "Msg_ProfileUpdated",  label: "Profil Güncellendi",   hint: "Hesap bilgileri değiştirilince" },
-                { key: "Msg_PasswordChanged", label: "Şifre Değiştirildi",   hint: "Şifre başarıyla güncellenince" },
-                { key: "Msg_FreeShipping",    label: "Ücretsiz Kargo Uyarısı", hint: "{limit} placeholder ile" },
-                { key: "Msg_ReviewSuccess",   label: "Yorum Alındı",         hint: "Yorum gönderimi sonrası" },
+                { key: "Msg_LoginSuccess",    label: "GiriÅŸ BaÅŸarÄ±lÄ±",       hint: "KullanÄ±cÄ± giriÅŸinden sonra" },
+                { key: "Msg_RegisterSuccess", label: "KayÄ±t BaÅŸarÄ±lÄ±",       hint: "Yeni Ã¼yelik oluÅŸturulunca" },
+                { key: "Msg_ProfileUpdated",  label: "Profil GÃ¼ncellendi",   hint: "Hesap bilgileri deÄŸiÅŸtirilince" },
+                { key: "Msg_PasswordChanged", label: "Åžifre DeÄŸiÅŸtirildi",   hint: "Åžifre baÅŸarÄ±yla gÃ¼ncellenince" },
+                { key: "Msg_FreeShipping",    label: "Ãœcretsiz Kargo UyarÄ±sÄ±", hint: "{limit} placeholder ile" },
+                { key: "Msg_ReviewSuccess",   label: "Yorum AlÄ±ndÄ±",         hint: "Yorum gÃ¶nderimi sonrasÄ±" },
               ],
             },
           ].map(group => {
@@ -2846,12 +2770,12 @@ export default function YonetimPage() {
                             <p className="text-xs font-semibold text-slate-700">{label}</p>
                             <div className="flex items-center gap-2">
                               {isCustomized && (
-                                <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-semibold">Özelleştirildi</span>
+                                <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-semibold">Ã–zelleÅŸtirildi</span>
                               )}
                               {isCustomized && (
                                 <button onClick={() => set(key, defaultVal)}
                                   className="text-[10px] text-slate-400 hover:text-red-500 transition underline">
-                                  Sıfırla
+                                  SÄ±fÄ±rla
                                 </button>
                               )}
                             </div>
@@ -2865,7 +2789,7 @@ export default function YonetimPage() {
                           />
                           {defaultVal && current !== defaultVal && (
                             <p className="text-[10px] text-slate-400 mt-1">
-                              <span className="font-semibold">Varsayılan:</span> {defaultVal}
+                              <span className="font-semibold">VarsayÄ±lan:</span> {defaultVal}
                             </p>
                           )}
                         </div>
@@ -2876,19 +2800,19 @@ export default function YonetimPage() {
               </div>
             );
           })}
-          {/* Özel Mesajlar */}
+          {/* Ã–zel Mesajlar */}
           {Object.keys(settings).filter(k => k.startsWith("Msg_Custom_")).length > 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-              <button type="button" onClick={() => setOpenMsgGroups(prev => { const s = new Set(prev); s.has("Özel Mesajlar") ? s.delete("Özel Mesajlar") : s.add("Özel Mesajlar"); return s; })}
+              <button type="button" onClick={() => setOpenMsgGroups(prev => { const s = new Set(prev); s.has("Ã–zel Mesajlar") ? s.delete("Ã–zel Mesajlar") : s.add("Ã–zel Mesajlar"); return s; })}
                 className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-slate-50 transition">
-                <span className="text-lg">✏️</span>
-                <h3 className="text-sm font-bold text-slate-800">Özel Mesajlar</h3>
+                <span className="text-lg">âœï¸</span>
+                <h3 className="text-sm font-bold text-slate-800">Ã–zel Mesajlar</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                   {Object.keys(settings).filter(k => k.startsWith("Msg_Custom_")).length} mesaj
                 </span>
-                <ChevronDown size={15} className={`ml-auto text-slate-400 transition-transform duration-200 ${openMsgGroups.has("Özel Mesajlar") ? "rotate-180" : ""}`} />
+                <ChevronDown size={15} className={`ml-auto text-slate-400 transition-transform duration-200 ${openMsgGroups.has("Ã–zel Mesajlar") ? "rotate-180" : ""}`} />
               </button>
-              {openMsgGroups.has("Özel Mesajlar") && (
+              {openMsgGroups.has("Ã–zel Mesajlar") && (
                 <div className="px-5 pb-5 space-y-3">
                   {Object.keys(settings).filter(k => k.startsWith("Msg_Custom_")).map(k => (
                     <div key={k} className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex gap-2 items-start">
@@ -2913,14 +2837,14 @@ export default function YonetimPage() {
             <button type="button" onClick={() => setNewMsgOpen(v => !v)}
               className="w-full flex items-center gap-2 px-5 py-3.5 text-left hover:bg-slate-50 transition text-slate-600">
               <Plus size={15} className="text-teal-600" />
-              <span className="text-sm font-semibold text-teal-700">Yeni Özel Mesaj Ekle</span>
+              <span className="text-sm font-semibold text-teal-700">Yeni Ã–zel Mesaj Ekle</span>
               <ChevronDown size={13} className={`ml-auto text-slate-400 transition-transform duration-200 ${newMsgOpen ? "rotate-180" : ""}`} />
             </button>
             {newMsgOpen && (
               <div className="px-5 pb-5 bg-teal-50/40">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Anahtar Adı <span className="text-slate-400">(boşluksuz)</span></label>
+                    <label className="block text-xs text-slate-500 mb-1">Anahtar AdÄ± <span className="text-slate-400">(boÅŸluksuz)</span></label>
                     <input value={newMsgLabel} onChange={e => setNewMsgLabel(e.target.value.replace(/\s+/g, "_"))}
                       className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
                       placeholder="Ornegin_Mesaj_Adi" />
@@ -2929,7 +2853,7 @@ export default function YonetimPage() {
                     <label className="block text-xs text-slate-500 mb-1">Mesaj Metni</label>
                     <input value={newMsgValue} onChange={e => setNewMsgValue(e.target.value)}
                       className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
-                      placeholder="Gösterilecek mesaj..." />
+                      placeholder="GÃ¶sterilecek mesaj..." />
                   </div>
                 </div>
                 <button
@@ -2939,7 +2863,7 @@ export default function YonetimPage() {
                     const key = `Msg_Custom_${newMsgLabel.trim()}`;
                     set(key, newMsgValue.trim());
                     setNewMsgLabel(""); setNewMsgValue(""); setNewMsgOpen(false);
-                    setOpenMsgGroups(prev => new Set([...prev, "Özel Mesajlar"]));
+                    setOpenMsgGroups(prev => new Set([...prev, "Ã–zel Mesajlar"]));
                   }}
                   className="mt-3 bg-teal-600 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-40"
                 >
@@ -2950,20 +2874,20 @@ export default function YonetimPage() {
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">
-            <p className="font-semibold mb-1">Geliştirici Notu</p>
-            <p>Bu mesajlar SiteSettings tablosunda saklanır. Frontend bileşenler <code className="font-mono bg-blue-100 px-1 rounded">GET /api/settings/theme</code> endpoint'inden okuyabilir ya da hardcoded varsayılan değerleri kullanabilir. Kaydet butonuna bastıktan sonra aktif olur.</p>
+            <p className="font-semibold mb-1">GeliÅŸtirici Notu</p>
+            <p>Bu mesajlar SiteSettings tablosunda saklanÄ±r. Frontend bileÅŸenler <code className="font-mono bg-blue-100 px-1 rounded">GET /api/settings/theme</code> endpoint'inden okuyabilir ya da hardcoded varsayÄ±lan deÄŸerleri kullanabilir. Kaydet butonuna bastÄ±ktan sonra aktif olur.</p>
           </div>
         </div>
       )}
 
-      {/* ── Yetkiler ── */}
+      {/* â”€â”€ Yetkiler â”€â”€ */}
       {tab === "yetkiler" && (
         <div className="space-y-5">
-          <Section title="Rol Bazlı Erişim Kontrolü" icon={<KeyRound size={16} />}
-            subtitle="Her modül için rollerin erişim yetkisini açıp kapatın. Kaydet butonuna basarak değişiklikleri uygulayın.">
+          <Section title="Rol BazlÄ± EriÅŸim KontrolÃ¼" icon={<KeyRound size={16} />}
+            subtitle="Her modÃ¼l iÃ§in rollerin eriÅŸim yetkisini aÃ§Ä±p kapatÄ±n. Kaydet butonuna basarak deÄŸiÅŸiklikleri uygulayÄ±n.">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <Lock size={11} /> Süper Admin her zaman tam yetkilidir — değiştirilemez.
+                <Lock size={11} /> SÃ¼per Admin her zaman tam yetkilidir â€” deÄŸiÅŸtirilemez.
               </p>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => { setNewRoleOpen(v => !v); setNewRoleName(""); }}
@@ -2972,16 +2896,16 @@ export default function YonetimPage() {
                 </button>
                 <button type="button" onClick={resetRbacMatrix}
                   className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 rounded-lg px-2.5 py-1 transition">
-                  <RefreshCw size={11} /> Sıfırla
+                  <RefreshCw size={11} /> SÄ±fÄ±rla
                 </button>
               </div>
             </div>
             {newRoleOpen && (
               <div className="mb-3 p-3 bg-teal-50 border border-teal-200 rounded-xl flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="block text-xs text-slate-600 mb-1 font-medium">Yeni Rol Adı</label>
+                  <label className="block text-xs text-slate-600 mb-1 font-medium">Yeni Rol AdÄ±</label>
                   <input value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
-                    placeholder="Örn: ContentEditor"
+                    placeholder="Ã–rn: ContentEditor"
                     className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white" />
                 </div>
                 <button type="button"
@@ -3019,7 +2943,7 @@ export default function YonetimPage() {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left py-2.5 px-4 text-slate-500 font-semibold whitespace-nowrap w-36">Modül</th>
+                    <th className="text-left py-2.5 px-4 text-slate-500 font-semibold whitespace-nowrap w-36">ModÃ¼l</th>
                     {[...ROLE_COLUMNS, ...customRoles.map(r => ({ key: r, label: r }))].map(r => (
                       <th key={r.key} className={`text-center py-2.5 px-2 font-semibold whitespace-nowrap ${
                         r.key === "SuperAdmin" ? "text-violet-400" : "text-slate-500"
@@ -3054,7 +2978,7 @@ export default function YonetimPage() {
                         <tr key={row.module} className={`border-b border-slate-100 transition ${isChanged ? "bg-amber-50/50" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
                           <td className="py-2 px-4 font-medium whitespace-nowrap flex items-center gap-1.5">
                             {row.module}
-                            {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
+                            {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">deÄŸiÅŸti</span>}
                           </td>
                           {allCols.map(r => {
                             const hasRole = currentRoles.includes(r.key);
@@ -3062,21 +2986,21 @@ export default function YonetimPage() {
                             return (
                               <td key={r.key} className="py-2 px-2 text-center">
                                 {isLocked ? (
-                                  <span className="inline-flex w-6 h-6 rounded-full bg-violet-100 text-violet-500 items-center justify-center cursor-not-allowed" title="Süper Admin her zaman tam yetkili">
-                                    ✓
+                                  <span className="inline-flex w-6 h-6 rounded-full bg-violet-100 text-violet-500 items-center justify-center cursor-not-allowed" title="SÃ¼per Admin her zaman tam yetkili">
+                                    âœ“
                                   </span>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => togglePerm(row.module, r.key)}
-                                    title={hasRole ? `${r.label} yetkisini kaldır` : `${r.label} yetkisini ekle`}
+                                    title={hasRole ? `${r.label} yetkisini kaldÄ±r` : `${r.label} yetkisini ekle`}
                                     className={`inline-flex w-6 h-6 rounded-full items-center justify-center transition-all duration-150 ${
                                       hasRole
                                         ? "bg-teal-100 text-teal-600 hover:bg-red-100 hover:text-red-500 border border-teal-200 hover:border-red-200"
                                         : "bg-slate-100 text-slate-300 hover:bg-teal-50 hover:text-teal-400 border border-slate-200 hover:border-teal-200"
                                     }`}
                                   >
-                                    {hasRole ? "✓" : "—"}
+                                    {hasRole ? "âœ“" : "â€”"}
                                   </button>
                                 )}
                               </td>
@@ -3091,25 +3015,25 @@ export default function YonetimPage() {
               </table>
             </div>
             <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
-              <Users size={12} /> Kullanıcıya rol atamak için <button className="text-teal-600 underline underline-offset-2" onClick={() => window.open("/kullanicilar", "_self")}>Kullanıcılar</button> sayfasına gidin.
+              <Users size={12} /> KullanÄ±cÄ±ya rol atamak iÃ§in <button className="text-teal-600 underline underline-offset-2" onClick={() => window.open("/kullanicilar", "_self")}>KullanÄ±cÄ±lar</button> sayfasÄ±na gidin.
             </p>
           </Section>
         </div>
       )}
 
-      {/* ── Bildirimler ── */}
+      {/* â”€â”€ Bildirimler â”€â”€ */}
       {tab === "bildirimler" && (
         <div className="space-y-5">
-          <Section title="Uyarı & Bildirim Ayarları" icon={<BellRing size={16} />}
-            subtitle="Modül sağlık kontrolleri ve sistem uyarıları için yetkili e-posta adreslerini yönetin.">
+          <Section title="UyarÄ± & Bildirim AyarlarÄ±" icon={<BellRing size={16} />}
+            subtitle="ModÃ¼l saÄŸlÄ±k kontrolleri ve sistem uyarÄ±larÄ± iÃ§in yetkili e-posta adreslerini yÃ¶netin.">
 
             {/* Etkin/Pasif toggle */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center gap-3">
                 {alertEnabled ? <Bell size={18} className="text-teal-600" /> : <BellOff size={18} className="text-slate-400" />}
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">Uyarı E-postaları</p>
-                  <p className="text-xs text-slate-400">Modül sağlık job&apos;ı sorun tespit ettiğinde aşağıdaki adreslere otomatik uyarı gönderir</p>
+                  <p className="text-sm font-semibold text-slate-700">UyarÄ± E-postalarÄ±</p>
+                  <p className="text-xs text-slate-400">ModÃ¼l saÄŸlÄ±k job&apos;Ä± sorun tespit ettiÄŸinde aÅŸaÄŸÄ±daki adreslere otomatik uyarÄ± gÃ¶nderir</p>
                 </div>
               </div>
               <button
@@ -3123,7 +3047,7 @@ export default function YonetimPage() {
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Yetkili E-posta Adresleri</p>
               {alertEmails.length === 0 && (
-                <p className="text-xs text-slate-400 italic">Henüz adres eklenmedi. Eklenen adresler uyarı alır.</p>
+                <p className="text-xs text-slate-400 italic">HenÃ¼z adres eklenmedi. Eklenen adresler uyarÄ± alÄ±r.</p>
               )}
               {alertEmails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
@@ -3161,7 +3085,7 @@ export default function YonetimPage() {
               </div>
             </div>
 
-            {/* Aksiyon butonları */}
+            {/* Aksiyon butonlarÄ± */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={saveAlertSettings}
@@ -3175,26 +3099,26 @@ export default function YonetimPage() {
                 disabled={alertTesting || alertEmails.length === 0}
                 className="flex items-center gap-2 text-sm font-medium text-slate-600 border border-slate-200 hover:border-slate-300 bg-white px-4 py-2.5 rounded-xl disabled:opacity-50 transition">
                 {alertTesting ? <Loader2 size={14} className="animate-spin" /> : <TestTube size={14} />}
-                Test Maili Gönder
+                Test Maili GÃ¶nder
               </button>
               {alertTestMsg && (
-                <span className={`text-xs font-medium px-2.5 py-1.5 rounded-lg ${alertTestMsg.includes("gönderildi") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                <span className={`text-xs font-medium px-2.5 py-1.5 rounded-lg ${alertTestMsg.includes("gÃ¶nderildi") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                   {alertTestMsg}
                 </span>
               )}
             </div>
           </Section>
 
-          <Section title="Uyarı Koşulları" icon={<AlertTriangle size={16} />}
-            subtitle="ModuleHealthCheckJob saatlik çalışır ve aşağıdaki koşullardan herhangi biri gerçekleştiğinde uyarı gönderir.">
+          <Section title="UyarÄ± KoÅŸullarÄ±" icon={<AlertTriangle size={16} />}
+            subtitle="ModuleHealthCheckJob saatlik Ã§alÄ±ÅŸÄ±r ve aÅŸaÄŸÄ±daki koÅŸullardan herhangi biri gerÃ§ekleÅŸtiÄŸinde uyarÄ± gÃ¶nderir.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { icon: "💬", label: "Onay bekleyen yorumlar", detail: "7 günden uzun süre bekleyen yorumlar" },
-                { icon: "↩️", label: "Açık iade talepleri", detail: "5 günden uzun süre bekleyen RefundRequested siparişler" },
-                { icon: "🧾", label: "Hata durumundaki faturalar", detail: "InvoiceStatus = Error" },
-                { icon: "💳", label: "Başarısız ödemeler", detail: "Son 24 saatte Failed ödeme" },
-                { icon: "📦", label: "Kritik stok altı ürünler", detail: "Miktar ≤ CriticalStockLevel" },
-                { icon: "🚚", label: "Teslimat başarısız", detail: "FailedDelivery durumundaki kargolar" },
+                { icon: "ðŸ’¬", label: "Onay bekleyen yorumlar", detail: "7 gÃ¼nden uzun sÃ¼re bekleyen yorumlar" },
+                { icon: "â†©ï¸", label: "AÃ§Ä±k iade talepleri", detail: "5 gÃ¼nden uzun sÃ¼re bekleyen RefundRequested sipariÅŸler" },
+                { icon: "ðŸ§¾", label: "Hata durumundaki faturalar", detail: "InvoiceStatus = Error" },
+                { icon: "ðŸ’³", label: "BaÅŸarÄ±sÄ±z Ã¶demeler", detail: "Son 24 saatte Failed Ã¶deme" },
+                { icon: "ðŸ“¦", label: "Kritik stok altÄ± Ã¼rÃ¼nler", detail: "Miktar â‰¤ CriticalStockLevel" },
+                { icon: "ðŸšš", label: "Teslimat baÅŸarÄ±sÄ±z", detail: "FailedDelivery durumundaki kargolar" },
               ].map(({ icon, label, detail }) => (
                 <div key={label} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
                   <span className="text-lg">{icon}</span>
@@ -3205,23 +3129,23 @@ export default function YonetimPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-slate-400 mt-2">Job ayarlarını değiştirmek için Admin &gt; Job Yönetimi &gt; ModuleHealthCheckJob sayfasına gidin.</p>
+            <p className="text-xs text-slate-400 mt-2">Job ayarlarÄ±nÄ± deÄŸiÅŸtirmek iÃ§in Admin &gt; Job YÃ¶netimi &gt; ModuleHealthCheckJob sayfasÄ±na gidin.</p>
           </Section>
         </div>
       )}
 
-      {/* ── Sistem ── */}
+      {/* â”€â”€ Sistem â”€â”€ */}
       {tab === "sistem" && (
         <div className="space-y-5">
-          <Section title="Bakım Modu" icon={<Shield size={16} />}
-            subtitle="Aktif edildiğinde müşteri sitesi bakım sayfası gösterir. Admin paneli etkilenmez.">
+          <Section title="BakÄ±m Modu" icon={<Shield size={16} />}
+            subtitle="Aktif edildiÄŸinde mÃ¼ÅŸteri sitesi bakÄ±m sayfasÄ± gÃ¶sterir. Admin paneli etkilenmez.">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Bakım Modu</p>
+                <p className="text-sm font-semibold text-slate-700">BakÄ±m Modu</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {settings.MaintenanceMode === "true"
-                    ? "Site şu anda bakımda. Müşteriler siteye erişemiyor."
-                    : "Site aktif. Müşteriler normal şekilde erişebiliyor."}
+                    ? "Site ÅŸu anda bakÄ±mda. MÃ¼ÅŸteriler siteye eriÅŸemiyor."
+                    : "Site aktif. MÃ¼ÅŸteriler normal ÅŸekilde eriÅŸebiliyor."}
                 </p>
               </div>
               <button onClick={() => set("MaintenanceMode", settings.MaintenanceMode === "true" ? "false" : "true")}
@@ -3231,18 +3155,18 @@ export default function YonetimPage() {
             </div>
             {settings.MaintenanceMode === "true" && (
               <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <Shield size={14} /> Dikkat: Bakım modu aktif. Müşteri sitesi şu anda erişilemez.
+                <Shield size={14} /> Dikkat: BakÄ±m modu aktif. MÃ¼ÅŸteri sitesi ÅŸu anda eriÅŸilemez.
               </div>
             )}
           </Section>
           <Section title="E-posta / SMTP Test" icon={<Mail size={16} />}
-            subtitle="SMTP yapılandırmanızın çalıştığını doğrulamak için test e-postası gönderin. appsettings.json → Email bölümünü doldurun.">
+            subtitle="SMTP yapÄ±landÄ±rmanÄ±zÄ±n Ã§alÄ±ÅŸtÄ±ÄŸÄ±nÄ± doÄŸrulamak iÃ§in test e-postasÄ± gÃ¶nderin. appsettings.json â†’ Email bÃ¶lÃ¼mÃ¼nÃ¼ doldurun.">
             <div className="space-y-3">
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs text-slate-600 space-y-1 font-mono">
-                <p>SmtpHost → <span className="text-slate-900">appsettings.json : Email:SmtpHost</span></p>
-                <p>SmtpPort → <span className="text-slate-900">587 (StartTLS) veya 465 (SSL — UseSsl: true)</span></p>
-                <p>Gmail    → host: smtp.gmail.com, port: 587, UseSsl: false</p>
-                <p>Mailtrap → host: sandbox.smtp.mailtrap.io, port: 587</p>
+                <p>SmtpHost â†’ <span className="text-slate-900">appsettings.json : Email:SmtpHost</span></p>
+                <p>SmtpPort â†’ <span className="text-slate-900">587 (StartTLS) veya 465 (SSL â€” UseSsl: true)</span></p>
+                <p>Gmail    â†’ host: smtp.gmail.com, port: 587, UseSsl: false</p>
+                <p>Mailtrap â†’ host: sandbox.smtp.mailtrap.io, port: 587</p>
               </div>
               <div className="flex gap-2">
                 <input
@@ -3256,7 +3180,7 @@ export default function YonetimPage() {
                 <button onClick={sendTestEmail} disabled={testEmailSending || !testEmail.trim()}
                   className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
                   {testEmailSending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
-                  Gönder
+                  GÃ¶nder
                 </button>
               </div>
               {testEmailResult && (
@@ -3271,18 +3195,18 @@ export default function YonetimPage() {
               )}
             </div>
           </Section>
-          <Section title="Ortam Konfigürasyonu" icon={<Database size={16} />}
-            subtitle="Her servis için dev / staging / prod URL'lerini tanımlayın. 'Aktif Et' ile ortam geçişi yapın — Kaydet butonuyla uygulanır.">
+          <Section title="Ortam KonfigÃ¼rasyonu" icon={<Database size={16} />}
+            subtitle="Her servis iÃ§in dev / staging / prod URL'lerini tanÄ±mlayÄ±n. 'Aktif Et' ile ortam geÃ§iÅŸi yapÄ±n â€” Kaydet butonuyla uygulanÄ±r.">
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50">
                 <Shield size={14} className="text-amber-600 shrink-0" />
                 <p className="text-xs text-amber-700">
-                  <span className="font-semibold">Dikkat:</span> Ortam değişikliği API yeniden başlatılana kadar tam etkili olmaz.
-                  Frontend env değişkenleri (.env.local) ayrıca güncellenmesi gerekebilir.
+                  <span className="font-semibold">Dikkat:</span> Ortam deÄŸiÅŸikliÄŸi API yeniden baÅŸlatÄ±lana kadar tam etkili olmaz.
+                  Frontend env deÄŸiÅŸkenleri (.env.local) ayrÄ±ca gÃ¼ncellenmesi gerekebilir.
                 </p>
               </div>
 
-              {/* Aktif ortam özeti */}
+              {/* Aktif ortam Ã¶zeti */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-xs font-semibold text-slate-500">Aktif Ortam:</span>
                 {(["dev","staging","prod"] as const).map(env => {
@@ -3299,7 +3223,7 @@ export default function YonetimPage() {
                             : "bg-emerald-600 text-white border-emerald-600"
                           : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
                       }`}>
-                      {active && <span className="mr-1">✓</span>}{label}
+                      {active && <span className="mr-1">âœ“</span>}{label}
                     </button>
                   );
                 })}
@@ -3308,7 +3232,7 @@ export default function YonetimPage() {
               {/* URL tablosu */}
               {[
                 { label: "Admin Panel", devKey: "AdminBaseUrl_dev", stagingKey: "AdminBaseUrl_staging", prodKey: "AdminBaseUrl_prod", activeKey: "AdminBaseUrl", devPlaceholder: "http://localhost:3001", stagingPlaceholder: "https://admin-staging.example.com", prodPlaceholder: "https://admin.example.com" },
-                { label: "Müşteri Sitesi", devKey: "CustomerBaseUrl_dev", stagingKey: "CustomerBaseUrl_staging", prodKey: "CustomerBaseUrl_prod", activeKey: "CustomerBaseUrl", devPlaceholder: "http://localhost:3000", stagingPlaceholder: "https://staging.example.com", prodPlaceholder: "https://example.com" },
+                { label: "MÃ¼ÅŸteri Sitesi", devKey: "CustomerBaseUrl_dev", stagingKey: "CustomerBaseUrl_staging", prodKey: "CustomerBaseUrl_prod", activeKey: "CustomerBaseUrl", devPlaceholder: "http://localhost:3000", stagingPlaceholder: "https://staging.example.com", prodPlaceholder: "https://example.com" },
                 { label: "API", devKey: "ApiBaseUrl_dev", stagingKey: "ApiBaseUrl_staging", prodKey: "ApiBaseUrl_prod", activeKey: "ApiBaseUrl", devPlaceholder: "http://localhost:5124", stagingPlaceholder: "https://api-staging.example.com", prodPlaceholder: "https://api.example.com" },
               ].map(row => (
                 <div key={row.label} className="border border-slate-200 rounded-xl overflow-hidden">
@@ -3360,19 +3284,19 @@ export default function YonetimPage() {
 
               {settings.AppEnvironment === "production" && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  <Shield size={14} /> Canlı ortam seçili — tüm değişiklikler gerçek kullanıcıları etkiler.
+                  <Shield size={14} /> CanlÄ± ortam seÃ§ili â€” tÃ¼m deÄŸiÅŸiklikler gerÃ§ek kullanÄ±cÄ±larÄ± etkiler.
                 </div>
               )}
               {settings.AppEnvironment === "staging" && (
                 <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
-                  <Database size={14} /> Hazırlık ortamı — test verileri kullanılabilir, canlı etkilenmez.
+                  <Database size={14} /> HazÄ±rlÄ±k ortamÄ± â€” test verileri kullanÄ±labilir, canlÄ± etkilenmez.
                 </div>
               )}
             </div>
           </Section>
 
-          <Section title="Ortam & Konfigürasyon" icon={<Settings size={16} />}
-            subtitle="Sunucu tarafındaki çalışma zamanı bilgileri. Hassas veriler maskelendi.">
+          <Section title="Ortam & KonfigÃ¼rasyon" icon={<Settings size={16} />}
+            subtitle="Sunucu tarafÄ±ndaki Ã§alÄ±ÅŸma zamanÄ± bilgileri. Hassas veriler maskelendi.">
             {sysInfo ? (
               <div className="space-y-4">
                 {/* Ortam */}
@@ -3380,8 +3304,8 @@ export default function YonetimPage() {
                   {[
                     { label: "Ortam", value: sysInfo.environment },
                     { label: "Uygulama Versiyonu", value: sysInfo.appVersion },
-                    { label: ".NET Versiyonu", value: sysInfo.runtime?.dotNetVersion?.replace("Microsoft .NET ", "") ?? "—" },
-                    { label: "İşlemci Sayısı", value: `${sysInfo.runtime?.processorCount ?? "—"} çekirdek` },
+                    { label: ".NET Versiyonu", value: sysInfo.runtime?.dotNetVersion?.replace("Microsoft .NET ", "") ?? "â€”" },
+                    { label: "Ä°ÅŸlemci SayÄ±sÄ±", value: `${sysInfo.runtime?.processorCount ?? "â€”"} Ã§ekirdek` },
                   ].map(r => (
                     <div key={r.label} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
                       <p className="text-[10px] text-slate-400 mb-1 uppercase tracking-wide">{r.label}</p>
@@ -3393,18 +3317,18 @@ export default function YonetimPage() {
                 {/* DB */}
                 <div className="p-4 border border-slate-200 rounded-xl space-y-2">
                   <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                    <Database size={13} /> Veritabanı
+                    <Database size={13} /> VeritabanÄ±
                     <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${sysInfo.database?.isConfigured ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                      {sysInfo.database?.isConfigured ? "Bağlı" : "Yapılandırılmamış"}
+                      {sysInfo.database?.isConfigured ? "BaÄŸlÄ±" : "YapÄ±landÄ±rÄ±lmamÄ±ÅŸ"}
                     </span>
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg p-2.5">
-                      <p className="text-[10px] text-slate-400 mb-0.5">Sağlayıcı</p>
+                      <p className="text-[10px] text-slate-400 mb-0.5">SaÄŸlayÄ±cÄ±</p>
                       <p className="text-xs font-semibold text-slate-700">{sysInfo.database?.provider}</p>
                     </div>
                     <div className="bg-slate-50 rounded-lg p-2.5">
-                      <p className="text-[10px] text-slate-400 mb-0.5">Bağlantı</p>
+                      <p className="text-[10px] text-slate-400 mb-0.5">BaÄŸlantÄ±</p>
                       <p className="text-xs font-mono text-slate-500 truncate">{sysInfo.database?.connectionMasked}</p>
                     </div>
                   </div>
@@ -3416,15 +3340,15 @@ export default function YonetimPage() {
                     {
                       title: "Cache", icon: <Wifi size={13} />,
                       items: [
-                        { label: "Sağlayıcı", value: sysInfo.cache?.provider },
-                        { label: "Bağlantı", value: sysInfo.cache?.connectionMasked ?? "(InMemory)" },
+                        { label: "SaÄŸlayÄ±cÄ±", value: sysInfo.cache?.provider },
+                        { label: "BaÄŸlantÄ±", value: sysInfo.cache?.connectionMasked ?? "(InMemory)" },
                       ],
                       ok: sysInfo.cache?.isConfigured,
                     },
                     {
                       title: "Kuyruk (MassTransit)", icon: <Activity size={13} />,
                       items: [
-                        { label: "Sağlayıcı", value: sysInfo.queue?.provider },
+                        { label: "SaÄŸlayÄ±cÄ±", value: sysInfo.queue?.provider },
                         { label: "Host", value: sysInfo.queue?.host },
                         { label: "VHost", value: sysInfo.queue?.virtualHost },
                       ],
@@ -3435,7 +3359,7 @@ export default function YonetimPage() {
                       items: [
                         { label: "SMTP Host", value: sysInfo.email?.smtpHost },
                         { label: "Port", value: sysInfo.email?.smtpPort },
-                        { label: "Gönderen", value: sysInfo.email?.senderEmail ?? "—" },
+                        { label: "GÃ¶nderen", value: sysInfo.email?.senderEmail ?? "â€”" },
                       ],
                       ok: sysInfo.email?.isConfigured,
                     },
@@ -3450,7 +3374,7 @@ export default function YonetimPage() {
                       {card.items.map(i => (
                         <div key={i.label} className="flex justify-between text-xs gap-2">
                           <span className="text-slate-400 shrink-0">{i.label}</span>
-                          <span className="font-mono text-slate-600 truncate text-right">{i.value ?? "—"}</span>
+                          <span className="font-mono text-slate-600 truncate text-right">{i.value ?? "â€”"}</span>
                         </div>
                       ))}
                     </div>
@@ -3459,7 +3383,7 @@ export default function YonetimPage() {
               </div>
             ) : (
               <div className="flex items-center justify-center h-24 text-slate-400 text-sm">
-                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
+                <Loader2 size={16} className="animate-spin mr-2" /> YÃ¼kleniyor...
               </div>
             )}
           </Section>
@@ -3467,20 +3391,20 @@ export default function YonetimPage() {
           {false && <Section title="__removed__" icon={<span/>}
             subtitle="">
 
-            {/* Durum kartı */}
+            {/* Durum kartÄ± */}
             {devKeyLoading ? (
               <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
-                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
+                <Loader2 size={16} className="animate-spin mr-2" /> YÃ¼kleniyor...
               </div>
             ) : !devKeyStatus?.isConfigured ? (
               <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
                 <Shield size={15} className="mt-0.5 shrink-0 text-amber-500" />
                 <div>
-                  <p className="font-semibold">Anahtar yapılandırılmamış</p>
+                  <p className="font-semibold">Anahtar yapÄ±landÄ±rÄ±lmamÄ±ÅŸ</p>
                   <p className="text-xs mt-1 text-amber-700">
-                    <code className="bg-amber-100 px-1 rounded">appsettings.Development.json</code> dosyasında{" "}
-                    <code className="bg-amber-100 px-1 rounded">"License"</code> anahtarı eksik veya boş.
-                    Aşağıdaki rehberi takip ederek yapılandır.
+                    <code className="bg-amber-100 px-1 rounded">appsettings.Development.json</code> dosyasÄ±nda{" "}
+                    <code className="bg-amber-100 px-1 rounded">"License"</code> anahtarÄ± eksik veya boÅŸ.
+                    AÅŸaÄŸÄ±daki rehberi takip ederek yapÄ±landÄ±r.
                   </p>
                 </div>
               </div>
@@ -3488,39 +3412,39 @@ export default function YonetimPage() {
               <div className="space-y-3">
                 <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Aktivasyon Anahtarı</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Aktivasyon AnahtarÄ±</p>
                     <p className="font-mono text-sm font-semibold text-slate-700 tracking-widest">{devKeyStatus!.maskedKey ?? "****-****-****-****"}</p>
                     {!devKeyStatus!.revealPasswordSet && (
-                      <p className="text-[10px] text-amber-600 mt-1">Görüntüleme şifresi henüz ayarlanmamış (DevRevealPassword eksik).</p>
+                      <p className="text-[10px] text-amber-600 mt-1">GÃ¶rÃ¼ntÃ¼leme ÅŸifresi henÃ¼z ayarlanmamÄ±ÅŸ (DevRevealPassword eksik).</p>
                     )}
                   </div>
                   <button onClick={openRevealModal} disabled={!devKeyStatus!.revealPasswordSet}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                    <Eye size={13} /> Görüntüle
+                    <Eye size={13} /> GÃ¶rÃ¼ntÃ¼le
                   </button>
                 </div>
                 <div className="flex items-start gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
                   <Shield size={12} className="shrink-0 mt-0.5" />
-                  <span>Lisans geçerli · RSA-2048 imzası doğrulandı · Geçerlilik: 2026-01-01 – 2028-12-31</span>
+                  <span>Lisans geÃ§erli Â· RSA-2048 imzasÄ± doÄŸrulandÄ± Â· GeÃ§erlilik: 2026-01-01 â€“ 2028-12-31</span>
                 </div>
               </div>
             )}
 
-            {/* Kullanım rehberi */}
+            {/* KullanÄ±m rehberi */}
             <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center gap-2">
                 <BookOpen size={13} className="text-slate-400" />
-                <p className="text-xs font-semibold text-slate-600">Bu anahtarı nasıl kullanırım?</p>
+                <p className="text-xs font-semibold text-slate-600">Bu anahtarÄ± nasÄ±l kullanÄ±rÄ±m?</p>
               </div>
               <div className="p-4 space-y-4">
 
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 1 — Token'ı Görüntüle</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">AdÄ±m 1 â€” Token'Ä± GÃ¶rÃ¼ntÃ¼le</p>
                   <ol className="space-y-1">
                     {[
-                      '"Görüntüle" butonuna tıkla',
-                      'Açılan modalda görüntüleme şifresini gir (sistem yöneticisinden al)',
-                      'Tam token ekranda belirir — "Kopyala" butonuna bas',
+                      '"GÃ¶rÃ¼ntÃ¼le" butonuna tÄ±kla',
+                      'AÃ§Ä±lan modalda gÃ¶rÃ¼ntÃ¼leme ÅŸifresini gir (sistem yÃ¶neticisinden al)',
+                      'Tam token ekranda belirir â€” "Kopyala" butonuna bas',
                     ].map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
                         <span className="w-4 h-4 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">{i + 1}</span>
@@ -3531,37 +3455,37 @@ export default function YonetimPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 2 — Yapılandırma Dosyasına Yapıştır</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">AdÄ±m 2 â€” YapÄ±landÄ±rma DosyasÄ±na YapÄ±ÅŸtÄ±r</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono space-y-1">
                       <p className="text-slate-400">{'// appsettings.Development.json'}</p>
-                      <p className="text-amber-300">{'"License": "<buraya yapıştır>"'}</p>
+                      <p className="text-amber-300">{'"License": "<buraya yapÄ±ÅŸtÄ±r>"'}</p>
                     </div>
                     <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono space-y-1">
-                      <p className="text-slate-400">{'# Production ortam değişkeni'}</p>
-                      <p className="text-emerald-300">{'ECOM_LICENSE=<buraya yapıştır>'}</p>
+                      <p className="text-slate-400">{'# Production ortam deÄŸiÅŸkeni'}</p>
+                      <p className="text-emerald-300">{'ECOM_LICENSE=<buraya yapÄ±ÅŸtÄ±r>'}</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-amber-600 flex items-center gap-1">
-                    <Shield size={10} /> appsettings.Development.json gitignore'dadır — token git'e commit edilmez.
+                    <Shield size={10} /> appsettings.Development.json gitignore'dadÄ±r â€” token git'e commit edilmez.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 3 — Uygulamayı Yeniden Başlat</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">AdÄ±m 3 â€” UygulamayÄ± Yeniden BaÅŸlat</p>
                   <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] font-mono">
                     <p className="text-slate-400">{'# backend/ dizininden'}</p>
                     <p className="text-teal-300">{'dotnet run --project src/Ecom.API'}</p>
                   </div>
-                  <p className="text-xs text-slate-500">Başarılıysa bu sayfaya geri dön — durum "Yapılandırılmış" olarak güncellenir.</p>
+                  <p className="text-xs text-slate-500">BaÅŸarÄ±lÄ±ysa bu sayfaya geri dÃ¶n â€” durum "YapÄ±landÄ±rÄ±lmÄ±ÅŸ" olarak gÃ¼ncellenir.</p>
                 </div>
 
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
                   <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
                   {[
-                    { s: "Uygulama başlamıyor", c: "Token eksik veya imzası hatalı. Terminal'deki hatayı oku ve token'ı tekrar kopyala/yapıştır." },
-                    { s: "Giriş 401 veriyor", c: "JWT anahtarı lisanstan türetilir. Token değişmişse oturumu kapatıp tekrar giriş yap." },
-                    { s: "Tüm API'ler 503 veriyor", c: "LicenseMiddleware engelledi. Dosyaya yapıştırılan token tam ve tek satır olmalı." },
+                    { s: "Uygulama baÅŸlamÄ±yor", c: "Token eksik veya imzasÄ± hatalÄ±. Terminal'deki hatayÄ± oku ve token'Ä± tekrar kopyala/yapÄ±ÅŸtÄ±r." },
+                    { s: "GiriÅŸ 401 veriyor", c: "JWT anahtarÄ± lisanstan tÃ¼retilir. Token deÄŸiÅŸmiÅŸse oturumu kapatÄ±p tekrar giriÅŸ yap." },
+                    { s: "TÃ¼m API'ler 503 veriyor", c: "LicenseMiddleware engelledi. Dosyaya yapÄ±ÅŸtÄ±rÄ±lan token tam ve tek satÄ±r olmalÄ±." },
                   ].map(r => (
                     <div key={r.s} className="flex gap-2 text-xs">
                       <span className="text-red-500 font-semibold shrink-0 w-40">{r.s}</span>
@@ -3575,10 +3499,10 @@ export default function YonetimPage() {
 
           </Section>}
 
-          {/* ── Lisans Üretici Sistem tabından Lisans tabına taşındı ── */}
+          {/* â”€â”€ Lisans Ãœretici Sistem tabÄ±ndan Lisans tabÄ±na taÅŸÄ±ndÄ± â”€â”€ */}
           {false && isSuperAdmin && (
-            <Section title="Lisans Üretici" icon={<KeyRound size={16} />}
-              subtitle="RSA-2048 private key ile yeni lisans token'ı üretir. Private key tarayıcıdan çıkmaz — imzalama tamamen client-side yapılır.">
+            <Section title="Lisans Ãœretici" icon={<KeyRound size={16} />}
+              subtitle="RSA-2048 private key ile yeni lisans token'Ä± Ã¼retir. Private key tarayÄ±cÄ±dan Ã§Ä±kmaz â€” imzalama tamamen client-side yapÄ±lÄ±r.">
 
               <div className="space-y-4">
                 {/* Private key */}
@@ -3596,17 +3520,18 @@ export default function YonetimPage() {
                 {/* Parameters */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Issuer</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-0.5">Issuer</label>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Kim verdi? Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanÄ±r â€” izlenebilirlik iÃ§indir, doÄŸrulamayÄ± etkilemez.</p>
                     <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Geçerlilik Başlangıcı</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">GeÃ§erlilik BaÅŸlangÄ±cÄ±</label>
                     <input type="date" value={licGenNbf} onChange={e => setLicGenNbf(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Son Geçerlilik</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Son GeÃ§erlilik</label>
                     <input type="date" value={licGenExp} onChange={e => setLicGenExp(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
@@ -3616,7 +3541,7 @@ export default function YonetimPage() {
                 <button onClick={handleGenerateLicense} disabled={licGenLoading || !licGenPrivKey.trim()}
                   className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {licGenLoading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
-                  Token Üret
+                  Token Ãœret
                 </button>
 
                 {/* Error */}
@@ -3632,7 +3557,7 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <CheckCircle size={14} className="text-emerald-500" />
-                      <span className="text-xs font-semibold text-emerald-700">Token üretildi</span>
+                      <span className="text-xs font-semibold text-emerald-700">Token Ã¼retildi</span>
                     </div>
                     <div className="relative bg-slate-900 rounded-xl p-4">
                       <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{licGenToken}</p>
@@ -3640,19 +3565,19 @@ export default function YonetimPage() {
                         onClick={() => { navigator.clipboard.writeText(licGenToken!); setLicGenCopied(true); setTimeout(() => setLicGenCopied(false), 2000); }}
                         className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
                         {licGenCopied ? <CheckCircle size={11} /> : <Save size={11} />}
-                        {licGenCopied ? "Kopyalandı" : "Kopyala"}
+                        {licGenCopied ? "KopyalandÄ±" : "Kopyala"}
                       </button>
                     </div>
                     <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-start gap-2">
                       <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                      Bu token, sunucudaki <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam değişkenine veya <code className="bg-amber-100 px-1 rounded">appsettings</code> dosyasına yapıştırın. API yeniden başlatılmalıdır.
+                      Bu token, sunucudaki <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam deÄŸiÅŸkenine veya <code className="bg-amber-100 px-1 rounded">appsettings</code> dosyasÄ±na yapÄ±ÅŸtÄ±rÄ±n. API yeniden baÅŸlatÄ±lmalÄ±dÄ±r.
                     </div>
                   </div>
                 )}
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-start gap-2">
                   <Lock size={11} className="shrink-0 mt-0.5 text-slate-400" />
-                  Private key yalnızca bu tarayıcı sekmesinde kullanılır. Sunucuya gönderilmez.
+                  Private key yalnÄ±zca bu tarayÄ±cÄ± sekmesinde kullanÄ±lÄ±r. Sunucuya gÃ¶nderilmez.
                 </div>
               </div>
             </Section>
@@ -3661,7 +3586,7 @@ export default function YonetimPage() {
         </div>
       )}
 
-      {/* ── Reveal Key Modal ── */}
+      {/* â”€â”€ Reveal Key Modal â”€â”€ */}
       {revealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
@@ -3671,8 +3596,8 @@ export default function YonetimPage() {
                   <KeyRound size={16} className="text-teal-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Aktivasyon Anahtarı</h3>
-                  <p className="text-[10px] text-slate-400">Görüntülemek için şifrenizi girin</p>
+                  <h3 className="text-sm font-bold text-slate-800">Aktivasyon AnahtarÄ±</h3>
+                  <p className="text-[10px] text-slate-400">GÃ¶rÃ¼ntÃ¼lemek iÃ§in ÅŸifrenizi girin</p>
                 </div>
               </div>
               <button onClick={closeRevealModal} className="text-slate-400 hover:text-slate-700 transition p-1 rounded-lg">
@@ -3683,13 +3608,13 @@ export default function YonetimPage() {
             {!revealedKey ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Görüntüleme Şifresi</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">GÃ¶rÃ¼ntÃ¼leme Åžifresi</label>
                   <input
                     type="password"
                     value={revealPassword}
                     onChange={e => { setRevealPassword(e.target.value); setRevealError(""); }}
                     onKeyDown={e => e.key === "Enter" && handleRevealKey()}
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     autoFocus
                   />
@@ -3700,24 +3625,24 @@ export default function YonetimPage() {
                   )}
                 </div>
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                  Bu şifre, admin giriş şifrenizden bağımsız olarak tanımlanmış özel bir görüntüleme şifresidir.
+                  Bu ÅŸifre, admin giriÅŸ ÅŸifrenizden baÄŸÄ±msÄ±z olarak tanÄ±mlanmÄ±ÅŸ Ã¶zel bir gÃ¶rÃ¼ntÃ¼leme ÅŸifresidir.
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button onClick={closeRevealModal}
                     className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition font-medium">
-                    İptal
+                    Ä°ptal
                   </button>
                   <button onClick={handleRevealKey} disabled={revealLoading || !revealPassword.trim()}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition disabled:opacity-50">
                     {revealLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                    Görüntüle
+                    GÃ¶rÃ¼ntÃ¼le
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl">
-                  <p className="text-[10px] text-teal-500 uppercase tracking-wide mb-2 font-semibold">Aktivasyon Anahtarı</p>
+                  <p className="text-[10px] text-teal-500 uppercase tracking-wide mb-2 font-semibold">Aktivasyon AnahtarÄ±</p>
                   <p className="font-mono text-sm font-bold text-teal-800 tracking-widest break-all select-all">{revealedKey}</p>
                 </div>
                 <div className="flex gap-2">
@@ -3728,49 +3653,67 @@ export default function YonetimPage() {
                   }}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-700 text-sm font-semibold transition">
                     {keyCopied ? <CheckCircle size={14} className="text-emerald-600" /> : <Lock size={14} />}
-                    {keyCopied ? "Kopyalandı!" : "Kopyala"}
+                    {keyCopied ? "KopyalandÄ±!" : "Kopyala"}
                   </button>
                   <button onClick={closeRevealModal}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold transition">
                     Kapat
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400 text-center">Bu anahtarı güvenli bir yerde saklayın. Pencereyi kapatırsanız tekrar şifre girmeniz gerekecektir.</p>
+                <p className="text-[10px] text-slate-400 text-center">Bu anahtarÄ± gÃ¼venli bir yerde saklayÄ±n. Pencereyi kapatÄ±rsanÄ±z tekrar ÅŸifre girmeniz gerekecektir.</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── Lisans ── */}
+      {/* â”€â”€ Lisans â”€â”€ */}
       {tab === "lisans" && (
         <div className="space-y-5">
 
-          {/* ── 1. Aktivasyon Anahtarı ── */}
-          <Section title="Aktivasyon Anahtarı" icon={<KeyRound size={16} />}
-            subtitle={isSuperAdmin ? "Platform lisans anahtarı — SuperAdmin olarak şifresiz görüntülüyorsunuz." : "Size atanmış lisans anahtarını görüntülemek için sistem yöneticinizden aldığınız şifreyi girin."}>
+          {/* â”€â”€ 1. Aktivasyon AnahtarÄ± â”€â”€ */}
+          <Section title="Aktivasyon AnahtarÄ±" icon={<KeyRound size={16} />}
+            subtitle={isSuperAdmin ? "Platform lisans anahtarÄ± â€” SuperAdmin olarak ÅŸifresiz gÃ¶rÃ¼ntÃ¼lÃ¼yorsunuz." : "Size atanmÄ±ÅŸ lisans anahtarÄ±nÄ± gÃ¶rÃ¼ntÃ¼lemek iÃ§in sistem yÃ¶neticinizden aldÄ±ÄŸÄ±nÄ±z ÅŸifreyi girin."}>
+
+            {/* Bilgi paneli */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Aktivasyon AnahtarÄ± Nedir?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-blue-700">
+                {[
+                  { icon: "ðŸ”‘", label: "Ne?",            value: "RSA-2048 imzalÄ± platform lisans token'Ä±. JSON payload (uygulama/yayÄ±ncÄ±/tarih) + dijital imza iÃ§erir." },
+                  { icon: "âš™ï¸", label: "Ne iÃ§in?",       value: "API baÅŸlamasÄ± iÃ§in zorunlu (ECOM_LICENSE). JWT signing key de bu token'dan tÃ¼retilir; token deÄŸiÅŸirse tÃ¼m oturumlar geÃ§ersiz olur." },
+                  { icon: "ðŸ‘", label: "Kim gÃ¶rebilir?", value: "SuperAdmin ÅŸifresiz gÃ¶rÃ¼r. Regular Admin, SuperAdmin'in atadÄ±ÄŸÄ± lisansÄ± gÃ¶rÃ¼ntÃ¼leme ÅŸifresiyle eriÅŸebilir." },
+                  { icon: "ðŸ“‹", label: "Format?",        value: "base64url(JSON payload) + \".\" + base64url(RSA imza). Tek satÄ±r, baÅŸtaki/sondaki boÅŸluklar geÃ§ersiz kÄ±lar." },
+                ].map(r => (
+                  <div key={r.label} className="flex gap-1.5">
+                    <span className="shrink-0">{r.icon}</span>
+                    <span><span className="font-semibold">{r.label} </span>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {devKeyLoading ? (
               <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
-                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
+                <Loader2 size={16} className="animate-spin mr-2" /> YÃ¼kleniyor...
               </div>
             ) : !devKeyStatus?.isConfigured ? (
               <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
                 <Shield size={15} className="mt-0.5 shrink-0 text-amber-500" />
                 <div>
-                  <p className="font-semibold">Platform lisansı yapılandırılmamış</p>
-                  <p className="text-xs mt-1 text-amber-700">Sunucuda <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam değişkeni eksik. Lisans Üretici bölümünden token üretin ve sunucuya ekleyin.</p>
+                  <p className="font-semibold">Platform lisansÄ± yapÄ±landÄ±rÄ±lmamÄ±ÅŸ</p>
+                  <p className="text-xs mt-1 text-amber-700">Sunucuda <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam deÄŸiÅŸkeni eksik. Lisans Ãœretici bÃ¶lÃ¼mÃ¼nden token Ã¼retin ve sunucuya ekleyin.</p>
                 </div>
               </div>
             ) : isSuperAdmin ? (
-              /* SuperAdmin: tam anahtarı şifresiz göster */
+              /* SuperAdmin: tam anahtarÄ± ÅŸifresiz gÃ¶ster */
               <div className="space-y-3">
-                {/* Durum bandı */}
+                {/* Durum bandÄ± */}
                 <div className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold border ${devKeyStatus.isValid ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
                   <Shield size={12} className="shrink-0" />
                   {devKeyStatus.isValid
-                    ? `Lisans geçerli · Yayıncı: ${devKeyStatus.issuer ?? "—"} · Geçerlilik: ${devKeyStatus.notBefore} – ${devKeyStatus.expiresAt}`
-                    : `Lisans geçersiz: ${devKeyStatus.validationError}`}
+                    ? `Lisans geÃ§erli Â· YayÄ±ncÄ±: ${devKeyStatus.issuer ?? "â€”"} Â· GeÃ§erlilik: ${devKeyStatus.notBefore} â€“ ${devKeyStatus.expiresAt}`
+                    : `Lisans geÃ§ersiz: ${devKeyStatus.validationError}`}
                 </div>
 
                 {/* Tam anahtar */}
@@ -3782,27 +3725,27 @@ export default function YonetimPage() {
                       onClick={() => { navigator.clipboard.writeText(devKeyStatus.fullKey ?? ""); setFullKeyCopied(true); setTimeout(() => setFullKeyCopied(false), 2000); }}
                       className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
                       {fullKeyCopied ? <CheckCircle size={11} /> : <Save size={11} />}
-                      {fullKeyCopied ? "Kopyalandı" : "Kopyala"}
+                      {fullKeyCopied ? "KopyalandÄ±" : "Kopyala"}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
                   <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                  Bu token sunucudaki <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam değişkeninde saklanmalıdır. Token değiştirilirse API yeniden başlatılmalıdır.
+                  Bu token sunucudaki <code className="bg-amber-100 px-1 rounded">ECOM_LICENSE</code> ortam deÄŸiÅŸkeninde saklanmalÄ±dÄ±r. Token deÄŸiÅŸtirilirse API yeniden baÅŸlatÄ±lmalÄ±dÄ±r.
                 </div>
               </div>
             ) : (
-              /* Regular Admin: atanan lisansı görüntüle */
+              /* Regular Admin: atanan lisansÄ± gÃ¶rÃ¼ntÃ¼le */
               <div className="space-y-4">
                 {!myLicense ? (
                   <>
                     <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
                       <Shield size={12} className="shrink-0 mt-0.5" />
-                      Sistem yöneticiniz size bir lisans atadıysa, e-posta ile iletilen görüntüleme şifrenizi girerek erişebilirsiniz.
+                      Sistem yÃ¶neticiniz size bir lisans atadÄ±ysa, e-posta ile iletilen gÃ¶rÃ¼ntÃ¼leme ÅŸifrenizi girerek eriÅŸebilirsiniz.
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Görüntüleme Şifresi</label>
+                      <label className="block text-xs font-semibold text-slate-600">GÃ¶rÃ¼ntÃ¼leme Åžifresi</label>
                       <input
                         type="password"
                         value={myViewPassword}
@@ -3820,14 +3763,14 @@ export default function YonetimPage() {
                     <button onClick={handleRevealMyLicense} disabled={myViewLoading || !myViewPassword.trim()}
                       className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
                       {myViewLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                      Lisansımı Görüntüle
+                      LisansÄ±mÄ± GÃ¶rÃ¼ntÃ¼le
                     </button>
                   </>
                 ) : (
                   <div className="space-y-3">
                     <div className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold border bg-emerald-50 border-emerald-200 text-emerald-700`}>
                       <Shield size={12} className="shrink-0" />
-                      Lisans görüntülendi · Uygulama: {myLicense.app} · Yayıncı: {myLicense.issuer} · Geçerlilik: {myLicense.notBefore} – {myLicense.expiresAt}
+                      Lisans gÃ¶rÃ¼ntÃ¼lendi Â· Uygulama: {myLicense.app} Â· YayÄ±ncÄ±: {myLicense.issuer} Â· GeÃ§erlilik: {myLicense.notBefore} â€“ {myLicense.expiresAt}
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5">Lisans Token</p>
@@ -3837,11 +3780,11 @@ export default function YonetimPage() {
                           onClick={() => { navigator.clipboard.writeText(myLicense.licenseToken); setMyLicCopied(true); setTimeout(() => setMyLicCopied(false), 2000); }}
                           className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
                           {myLicCopied ? <CheckCircle size={11} /> : <Save size={11} />}
-                          {myLicCopied ? "Kopyalandı" : "Kopyala"}
+                          {myLicCopied ? "KopyalandÄ±" : "Kopyala"}
                         </button>
                       </div>
                     </div>
-                    <p className="text-[10px] text-slate-400">Bu token güvenli bir yerde saklayın. Tekrar şifre girmeniz gerekirse sayfayı yenileyin.</p>
+                    <p className="text-[10px] text-slate-400">Bu token gÃ¼venli bir yerde saklayÄ±n. Tekrar ÅŸifre girmeniz gerekirse sayfayÄ± yenileyin.</p>
                     <button onClick={() => { setMyLicense(null); setMyViewPassword(""); }}
                       className="text-xs text-slate-400 hover:text-slate-600 underline transition">
                       Gizle
@@ -3852,36 +3795,68 @@ export default function YonetimPage() {
             )}
           </Section>
 
-          {/* ── 2. Lisans Üretici (yalnızca SuperAdmin) ── */}
+          {/* â”€â”€ 2. Lisans Ãœretici (yalnÄ±zca SuperAdmin) â”€â”€ */}
           {isSuperAdmin && (
-            <Section title="Lisans Üretici" icon={<KeyRound size={16} />}
-              subtitle="RSA-2048 private key ile yeni lisans token'ı üretir. Private key tarayıcıdan çıkmaz — imzalama tamamen client-side yapılır.">
+            <Section title="Lisans Ãœretici" icon={<KeyRound size={16} />}
+              subtitle="RSA-2048 private key ile yeni lisans token'Ä± Ã¼retir. Private key tarayÄ±cÄ±dan Ã§Ä±kmaz â€” imzalama tamamen client-side yapÄ±lÄ±r.">
 
               <div className="space-y-4">
+
+                {/* Anahtar Ã‡ifti Ãœretici */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 mb-0.5">Yeni RSA-2048 Anahtar Ã‡ifti Ãœret</p>
+                    <p className="text-[11px] text-slate-500">HiÃ§ private key'iniz yoksa buradan Ã¼retin. Private key aÅŸaÄŸÄ±ya, public key LicenseValidator.cs'e yapÄ±ÅŸtÄ±rÄ±lÄ±r.</p>
+                  </div>
+                  <button onClick={handleGenerateKeyPair} disabled={licGenKeyPairLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#12304A] hover:bg-[#1a4670] text-white text-xs font-semibold rounded-xl transition disabled:opacity-50">
+                    {licGenKeyPairLoading ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                    {licGenKeyPairLoading ? "Ãœretiliyor..." : "Anahtar Ã‡ifti Ãœret"}
+                  </button>
+                  {licGenPubKey && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest">
+                        <AlertTriangle size={11} /> Public key â€” LicenseValidator.cs'e yapÄ±ÅŸtÄ±rÄ±n
+                      </div>
+                      <div className="relative bg-slate-900 rounded-xl p-3">
+                        <p className="font-mono text-[10px] text-amber-300 break-all leading-relaxed pr-16">{licGenPubKey}</p>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(licGenPubKey); setLicGenPubKeyCopied(true); setTimeout(() => setLicGenPubKeyCopied(false), 2000); }}
+                          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
+                          {licGenPubKeyCopied ? <CheckCircle size={11} /> : <Save size={11} />}
+                          {licGenPubKeyCopied ? "KopyalandÄ±" : "Kopyala"}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">Private key aÅŸaÄŸÄ±da otomatik dolduruldu. SayfayÄ± kapatmadan not alÄ±n â€” bir daha gÃ¶remezsiniz.</p>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">Private Key (PKCS8 DER, Base64)</label>
                   <textarea
                     rows={4}
                     value={licGenPrivKey}
                     onChange={e => { setLicGenPrivKey(e.target.value); setLicGenError(""); setLicGenToken(null); }}
-                    placeholder="MIIEvgIBADANBgkqhkiG9w0BAQEFAASC..."
+                    placeholder="MIIEvgIBADANBgkqhkiG9w0BAQEFAASC... (yukarÄ±daki buton ile Ã¼retin veya mevcut key'i yapÄ±ÅŸtÄ±rÄ±n)"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Issuer</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-0.5">Issuer</label>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Kim verdi? Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanÄ±r â€” izlenebilirlik iÃ§indir, doÄŸrulamayÄ± etkilemez.</p>
                     <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Geçerlilik Başlangıcı</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">GeÃ§erlilik BaÅŸlangÄ±cÄ±</label>
                     <input type="date" value={licGenNbf} onChange={e => setLicGenNbf(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Son Geçerlilik</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Son GeÃ§erlilik</label>
                     <input type="date" value={licGenExp} onChange={e => setLicGenExp(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
@@ -3890,7 +3865,7 @@ export default function YonetimPage() {
                 <button onClick={handleGenerateLicense} disabled={licGenLoading || !licGenPrivKey.trim()}
                   className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {licGenLoading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
-                  Token Üret
+                  Token Ãœret
                 </button>
 
                 {licGenError && (
@@ -3904,7 +3879,7 @@ export default function YonetimPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <CheckCircle size={14} className="text-emerald-500" />
-                      <span className="text-xs font-semibold text-emerald-700">Token üretildi — Lisans Atama bölümüne yapıştırabilirsiniz.</span>
+                      <span className="text-xs font-semibold text-emerald-700">Token Ã¼retildi â€” Lisans Atama bÃ¶lÃ¼mÃ¼ne yapÄ±ÅŸtÄ±rabilirsiniz.</span>
                     </div>
                     <div className="relative bg-slate-900 rounded-xl p-4">
                       <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{licGenToken}</p>
@@ -3912,7 +3887,7 @@ export default function YonetimPage() {
                         onClick={() => { navigator.clipboard.writeText(licGenToken!); setLicGenCopied(true); setTimeout(() => setLicGenCopied(false), 2000); }}
                         className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
                         {licGenCopied ? <CheckCircle size={11} /> : <Save size={11} />}
-                        {licGenCopied ? "Kopyalandı" : "Kopyala"}
+                        {licGenCopied ? "KopyalandÄ±" : "Kopyala"}
                       </button>
                     </div>
                   </div>
@@ -3920,35 +3895,36 @@ export default function YonetimPage() {
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-start gap-2">
                   <Lock size={11} className="shrink-0 mt-0.5 text-slate-400" />
-                  Private key yalnızca bu tarayıcı sekmesinde kullanılır. Sunucuya gönderilmez.
+                  Private key yalnÄ±zca bu tarayÄ±cÄ± sekmesinde kullanÄ±lÄ±r. Sunucuya gÃ¶nderilmez.
                 </div>
               </div>
             </Section>
           )}
 
-          {/* ── 3. Kullanıcıya Lisans Ata (yalnızca SuperAdmin) ── */}
+          {/* â”€â”€ 3. KullanÄ±cÄ±ya Lisans Ata (yalnÄ±zca SuperAdmin) â”€â”€ */}
           {isSuperAdmin && (
-            <Section title="Kullanıcıya Lisans Ata" icon={<Users size={16} />}
-              subtitle="Ürettiğiniz lisans tokenini bir admin kullanıcıya atayın. Sistem otomatik şifre üretir ve kullanıcıya e-posta gönderir.">
+            <Section title="KullanÄ±cÄ±ya Lisans Ata" icon={<Users size={16} />}
+              subtitle="ÃœrettiÄŸiniz lisans tokenini bir admin kullanÄ±cÄ±ya atayÄ±n. Sistem otomatik ÅŸifre Ã¼retir ve kullanÄ±cÄ±ya e-posta gÃ¶nderir.">
 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Admin Kullanıcı E-postası</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-0.5">Admin KullanÄ±cÄ±</label>
+                    <p className="text-[10px] text-slate-400 mb-1.5">E-posta adresi veya kullanÄ±cÄ±nÄ±n tam adÄ± (Ad Soyad) girilebilir.</p>
                     <input
-                      type="email"
+                      type="text"
                       value={licAssignEmail}
                       onChange={e => { setLicAssignEmail(e.target.value); setLicAssignError(""); setLicAssignResult(null); }}
-                      placeholder="admin@example.com"
+                      placeholder="admin@example.com veya Ad Soyad"
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notlar (isteğe bağlı)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notlar (isteÄŸe baÄŸlÄ±)</label>
                     <input
                       value={licAssignNotes}
                       onChange={e => setLicAssignNotes(e.target.value)}
-                      placeholder="Bu lisansın amacı..."
+                      placeholder="Bu lisansÄ±n amacÄ±..."
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
@@ -3960,7 +3936,7 @@ export default function YonetimPage() {
                     rows={3}
                     value={licAssignToken}
                     onChange={e => { setLicAssignToken(e.target.value); setLicAssignError(""); setLicAssignResult(null); }}
-                    placeholder="eyJhcHAi... (Lisans Üretici'den kopyalanan token)"
+                    placeholder="eyJhcHAi... (Lisans Ãœretici'den kopyalanan token)"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                   />
                 </div>
@@ -3968,7 +3944,7 @@ export default function YonetimPage() {
                 <button onClick={handleAssignLicense} disabled={licAssignLoading || !licAssignEmail.trim() || !licAssignToken.trim()}
                   className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {licAssignLoading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                  Lisansı Ata ve Mail Gönder
+                  LisansÄ± Ata ve Mail GÃ¶nder
                 </button>
 
                 {licAssignError && (
@@ -3985,9 +3961,9 @@ export default function YonetimPage() {
                       {licAssignResult.message}
                     </div>
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Yedek Görüntüleme Şifresi (tek sefer görünür)</p>
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Yedek GÃ¶rÃ¼ntÃ¼leme Åžifresi (tek sefer gÃ¶rÃ¼nÃ¼r)</p>
                       <p className="font-mono text-base font-bold text-amber-900 tracking-widest">{licAssignResult.viewPassword}</p>
-                      <p className="text-[10px] text-amber-700">Bu şifre e-posta ile kullanıcıya gönderildi. İsterseniz buradan da not alabilirsiniz.</p>
+                      <p className="text-[10px] text-amber-700">Bu ÅŸifre e-posta ile kullanÄ±cÄ±ya gÃ¶nderildi. Ä°sterseniz buradan da not alabilirsiniz.</p>
                     </div>
                   </div>
                 )}
@@ -3995,18 +3971,18 @@ export default function YonetimPage() {
             </Section>
           )}
 
-          {/* ── 4. Kullanıcı Atamaları (yalnızca SuperAdmin) ── */}
+          {/* â”€â”€ 4. KullanÄ±cÄ± AtamalarÄ± (yalnÄ±zca SuperAdmin) â”€â”€ */}
           {isSuperAdmin && (
-            <Section title="Kullanıcı Atamaları" icon={<Users size={16} />}
-              subtitle="Sisteme atanmış tüm lisanslar. İptal edilen atamalar o kullanıcının erişimini sona erdirir.">
+            <Section title="KullanÄ±cÄ± AtamalarÄ±" icon={<Users size={16} />}
+              subtitle="Sisteme atanmÄ±ÅŸ tÃ¼m lisanslar. Ä°ptal edilen atamalar o kullanÄ±cÄ±nÄ±n eriÅŸimini sona erdirir.">
 
               {licAssignmentsLoading ? (
                 <div className="flex items-center justify-center h-16 text-slate-400 text-sm">
-                  <Loader2 size={15} className="animate-spin mr-2" /> Yükleniyor...
+                  <Loader2 size={15} className="animate-spin mr-2" /> YÃ¼kleniyor...
                 </div>
               ) : licAssignments.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
-                  Henüz lisans ataması yapılmadı.
+                  HenÃ¼z lisans atamasÄ± yapÄ±lmadÄ±.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -4016,12 +3992,12 @@ export default function YonetimPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-slate-800">{a.adminName || a.adminEmail}</p>
                           <span className="text-[10px] text-slate-400">{a.adminEmail}</span>
-                          {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">İptal Edildi</span>}
+                          {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">Ä°ptal Edildi</span>}
                         </div>
                         <p className="text-[10px] font-mono text-slate-400 mt-0.5">{a.maskedToken}</p>
                         {a.licenseInfo && (
                           <p className="text-[10px] text-slate-400 mt-0.5">
-                            Yayıncı: {a.licenseInfo.Issuer} · Son: {a.licenseInfo.ExpiresAt}
+                            YayÄ±ncÄ±: {a.licenseInfo.Issuer} Â· Son: {a.licenseInfo.ExpiresAt}
                           </p>
                         )}
                         <p className="text-[10px] text-slate-300 mt-0.5">{new Date(a.createdDate).toLocaleDateString("tr-TR")}</p>
@@ -4029,7 +4005,7 @@ export default function YonetimPage() {
                       {!a.isRevoked && (
                         <button onClick={() => handleRevokeAssignment(a.id)}
                           className="shrink-0 text-[10px] text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 rounded-lg px-2 py-1 transition font-semibold">
-                          İptal Et
+                          Ä°ptal Et
                         </button>
                       )}
                     </div>
@@ -4044,30 +4020,32 @@ export default function YonetimPage() {
             </Section>
           )}
 
-          {/* ── 5. Süreç Dokümantasyonu ── */}
-          <Section title="Lisans Süreçleri — Kılavuz" icon={<BookOpen size={16} />}
-            subtitle="Platform lisanslama sistemi nasıl çalışır, hangi adımlar izlenir ve hangi hatalar nasıl giderilir.">
+          {/* â”€â”€ 5. SÃ¼reÃ§ DokÃ¼mantasyonu â”€â”€ */}
+          <Section title="Lisans SÃ¼reÃ§leri â€” KÄ±lavuz" icon={<BookOpen size={16} />}
+            subtitle="Platform lisanslama sistemi nasÄ±l Ã§alÄ±ÅŸÄ±r, hangi adÄ±mlar izlenir ve hangi hatalar nasÄ±l giderilir.">
 
             <div className="space-y-5 text-xs text-slate-600">
 
-              {/* Genel Bakış */}
+              {/* Genel BakÄ±ÅŸ */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Genel Bakış</p>
-                <p>Bu platform RSA-2048 tabanlı lisans sistemi kullanır. Lisans token'ı, yalnızca private key ile imzalanabilir ve public key ile doğrulanır. Private key olmadan geçerli token üretilemez.</p>
-                <p>Lisanslama iki farklı senaryo için kullanılır: <strong>Platform aktivasyonu</strong> (sunucunun çalışması için zorunlu ECOM_LICENSE) ve <strong>Kullanıcı lisansları</strong> (SuperAdmin'in diğer admin kullanıcılara atadığı kişisel lisanslar).</p>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Genel BakÄ±ÅŸ</p>
+                <p>Bu platform RSA-2048 tabanlÄ± lisans sistemi kullanÄ±r. Lisans token'Ä± yalnÄ±zca private key ile imzalanabilir ve public key ile doÄŸrulanÄ±r. Private key olmadan geÃ§erli token Ã¼retilemez.</p>
+                <p>Lisanslama iki senaryo iÃ§in kullanÄ±lÄ±r: <strong>Platform aktivasyonu</strong> (ECOM_LICENSE â€” API baÅŸlamasÄ± iÃ§in zorunlu) ve <strong>KullanÄ±cÄ± lisanslarÄ±</strong> (SuperAdmin'in diÄŸer admin kullanÄ±cÄ±lara atadÄ±ÄŸÄ± kiÅŸisel lisanslar).</p>
+                <p className="text-slate-400">Private key gÃ¼venli bir yerde saklanmalÄ±. Public key backend'de <code className="bg-slate-200 px-1 rounded">LicenseValidator.cs</code>'e gÃ¶mÃ¼lÃ¼dÃ¼r â€” key rotasyonu sÄ±rasÄ±nda hem public key hem de tÃ¼m aktif token'lar deÄŸiÅŸtirilmelidir.</p>
               </div>
 
-              {/* SuperAdmin akışı */}
+              {/* SuperAdmin akÄ±ÅŸÄ± */}
               {isSuperAdmin && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SuperAdmin İş Akışı</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SuperAdmin Ä°ÅŸ AkÄ±ÅŸÄ±</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {[
-                      { step: "1", title: "Lisans Üret", desc: "Private key'i 'Lisans Üretici' bölümüne girin. Issuer (kim tarafından verildi), NotBefore ve ExpiresAt tarihlerini belirleyin. 'Token Üret' butonuna basın. İmzalama tarayıcıda gerçekleşir — private key sunucuya gönderilmez." },
-                      { step: "2", title: "Platform Aktivasyonu", desc: "Üretilen token'ı sunucuda ECOM_LICENSE ortam değişkenine yapıştırın. Docker ortamında .env dosyasını güncelleyin, API konteynerini yeniden başlatın. Token geçerliyse API başlar; geçersizse başlamaz." },
-                      { step: "3", title: "Kullanıcıya Ata", desc: "'Kullanıcıya Lisans Ata' bölümünden admin kullanıcının e-postasını ve lisans token'ını girin. Sistem otomatik olarak güçlü bir görüntüleme şifresi üretir ve kullanıcıya e-posta gönderir." },
-                      { step: "4", title: "Atamayı Yönet", desc: "'Kullanıcı Atamaları' listesinden tüm atamaları görebilir, gerektiğinde iptal edebilirsiniz. İptal edilen lisanslar o kullanıcının erişimini anında keser." },
+                      { step: "1", title: "Anahtar Ã‡ifti Ãœret (ilk kurulum)", desc: "'Lisans Ãœretici > Yeni RSA-2048 Anahtar Ã‡ifti Ãœret' butonuna basÄ±n. Private key (PKCS8 DER base64) otomatik textarea'ya dolar. Public key (SPKI DER base64) LicenseValidator.cs'deki _publicKeyBase64 alanÄ±na yapÄ±ÅŸtÄ±rÄ±lÄ±r. Private key'i gÃ¼venli yerde saklayÄ±n â€” bir daha gÃ¶remezsiniz." },
+                      { step: "2", title: "Token Ãœret", desc: "Private key alanÄ±nda key mevcutsa Issuer, NotBefore, ExpiresAt deÄŸerlerini girin. 'Token Ãœret'e basÄ±n. Ä°mzalama tarayÄ±cÄ±da WebCrypto ile yapÄ±lÄ±r â€” private key sunucuya gÃ¶nderilmez." },
+                      { step: "3", title: "Platform Aktivasyonu", desc: "Ãœretilen token'Ä± sunucuda ECOM_LICENSE ortam deÄŸiÅŸkenine yapÄ±ÅŸtÄ±rÄ±n (.env). API konteynerini yeniden baÅŸlatÄ±n. Token geÃ§erliyse API baÅŸlar; geÃ§ersizse LicenseException ile baÅŸlamaz." },
+                      { step: "4", title: "KullanÄ±cÄ±ya Ata", desc: "'KullanÄ±cÄ±ya Lisans Ata' bÃ¶lÃ¼mÃ¼nden admin kullanÄ±cÄ±nÄ±n e-postasÄ±nÄ± veya Ad SoyadÄ±nÄ± girin. Sistem otomatik gÃ¶rÃ¼ntÃ¼leme ÅŸifresi Ã¼retir ve kullanÄ±cÄ±ya e-posta gÃ¶nderir." },
+                      { step: "5", title: "AtamayÄ± YÃ¶net", desc: "'KullanÄ±cÄ± AtamalarÄ±' listesinden tÃ¼m atamalarÄ± gÃ¶rebilir, iptal edebilirsiniz. Ä°ptal edilen lisanslar o kullanÄ±cÄ±nÄ±n eriÅŸimini anÄ±nda keser." },
                     ].map(item => (
                       <div key={item.step} className="flex gap-3 p-3 bg-teal-50 border border-teal-100 rounded-xl">
                         <span className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
@@ -4081,14 +4059,14 @@ export default function YonetimPage() {
                 </div>
               )}
 
-              {/* Admin kullanıcı akışı */}
+              {/* Admin kullanÄ±cÄ± akÄ±ÅŸÄ± */}
               <div className="space-y-3">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Admin Kullanıcı Akışı</p>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Admin KullanÄ±cÄ± AkÄ±ÅŸÄ±</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   {[
-                    { step: "1", title: "Mail Bekleyin", desc: "SuperAdmin size bir lisans atadığında e-posta alırsınız. Mail'de lisans token'ınız ve görüntüleme şifreniz yer alır." },
-                    { step: "2", title: "Şifreyle Görüntüle", desc: "Bu sayfadaki 'Aktivasyon Anahtarı' bölümüne görüntüleme şifrenizi girin. Lisans token'ınız ekranda belirir." },
-                    { step: "3", title: "Token'ı Kullanın", desc: "Token'ı kopyalayıp kendi deployment'ınızın ECOM_LICENSE değişkenine yapıştırın. API'yi yeniden başlatın." },
+                    { step: "1", title: "Mail Bekleyin", desc: "SuperAdmin size bir lisans atadÄ±ÄŸÄ±nda e-posta alÄ±rsÄ±nÄ±z. Mail'de lisans token'Ä±nÄ±z ve gÃ¶rÃ¼ntÃ¼leme ÅŸifreniz (XXXX-XXXX-XXXX-XXXX formatÄ±nda) yer alÄ±r." },
+                    { step: "2", title: "Åžifreyle GÃ¶rÃ¼ntÃ¼le", desc: "'Aktivasyon AnahtarÄ±' bÃ¶lÃ¼mÃ¼ne gÃ¶rÃ¼ntÃ¼leme ÅŸifrenizi girin. Lisans token'Ä±nÄ±z ekranda belirir. Kopyala butonuyla alÄ±n." },
+                    { step: "3", title: "Token'Ä± KullanÄ±n", desc: "Token'Ä± kendi deployment'Ä±nÄ±zÄ±n ECOM_LICENSE deÄŸiÅŸkenine yapÄ±ÅŸtÄ±rÄ±n. API'yi yeniden baÅŸlatÄ±n. JWT key de bu token'dan tÃ¼retilir." },
                   ].map(item => (
                     <div key={item.step} className="flex gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
                       <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
@@ -4108,12 +4086,14 @@ export default function YonetimPage() {
                 </div>
                 <div className="p-4 space-y-2">
                   {[
-                    { label: "İmzalama algoritması", value: "RSA-2048, PKCS1v15 padding, SHA-256" },
-                    { label: "Token formatı", value: "base64url(payload) + \".\" + base64url(signature)" },
-                    { label: "Payload içeriği", value: "{ app, iss, nbf, exp } — JSON, UTF-8, base64url" },
-                    { label: "JWT bağlantısı", value: "JWT signing key, lisans payload'ından HMAC-SHA256 ile türetilir — token değişirse tüm oturumlar geçersiz olur" },
-                    { label: "Görüntüleme şifresi", value: "16 karakterli rastgele alfanumerik, SHA-256 hash ile saklanır, tek yönlü" },
-                    { label: "Private key güvenliği", value: "Private key sunucuya gönderilmez, tüm imzalama WebCrypto API (browser) ile yapılır" },
+                    { label: "Ä°mzalama",          value: "RSA-2048 PKCS1v15, SHA-256 â€” WebCrypto API (tarayÄ±cÄ±, client-side)" },
+                    { label: "Token formatÄ±",      value: "base64url(JSON payload) + \".\" + base64url(RSA imza) â€” tek satÄ±r" },
+                    { label: "Payload alanlarÄ±",   value: "{ app, iss, nbf, exp } â€” app: uygulama adÄ±, iss: yayÄ±ncÄ±, nbf: baÅŸlangÄ±Ã§, exp: bitiÅŸ" },
+                    { label: "Issuer (iss)",        value: "Kim tarafÄ±ndan verildiÄŸi bilgisi â€” izlenebilirlik iÃ§indir, doÄŸrulamayÄ± etkilemez. Ã–rn: OCA1782" },
+                    { label: "Key pair formatÄ±",   value: "Private: PKCS8 DER base64 Â· Public: SPKI DER base64 (LicenseValidator.cs'e gÃ¶mÃ¼lÃ¼)" },
+                    { label: "JWT baÄŸlantÄ±sÄ±",     value: "JWT signing key, payload'dan HMAC-SHA256 ile tÃ¼retilir â€” token deÄŸiÅŸirse tÃ¼m oturumlar geÃ§ersiz olur" },
+                    { label: "GÃ¶rÃ¼ntÃ¼leme ÅŸifresi",value: "XXXX-XXXX-XXXX-XXXX formatlÄ± 16 karakter â€” SHA-256 hash ile saklanÄ±r, geri dÃ¶ndÃ¼rÃ¼lemez" },
+                    { label: "KullanÄ±cÄ± arama",    value: "Atama sÄ±rasÄ±nda e-posta veya Ad Soyad eÅŸleÅŸmesi denenir â€” bÃ¼yÃ¼k/kÃ¼Ã§Ã¼k harf duyarlÄ±dÄ±r" },
                   ].map(r => (
                     <div key={r.label} className="flex gap-2">
                       <span className="text-slate-400 font-semibold shrink-0 w-44">{r.label}</span>
@@ -4127,14 +4107,16 @@ export default function YonetimPage() {
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
                 <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
                 {[
-                  { s: "API başlamıyor", c: "ECOM_LICENSE eksik veya imzası hatalı. Terminal'deki LicenseException mesajını okuyun." },
-                  { s: "Giriş 401 veriyor", c: "JWT anahtarı lisanstan türetilir. Token değiştiyse tüm kullanıcıların oturumu kapatıp tekrar giriş yapması gerekir." },
-                  { s: "Tüm endpoint'ler 503", c: "LicenseMiddleware engelledi. Token tam ve tek satır olmalı, baştaki/sondaki boşluklar temizlenmeli." },
-                  { s: "Görüntüleme şifresi çalışmıyor", c: "Şifre büyük/küçük harf duyarlıdır. Mail'deki tam değeri kopyalayın. Birden fazla atama varsa en son atanan şifre geçerlidir." },
-                  { s: "Token üretilemiyor", c: "Private key PKCS8 DER formatında, Base64 kodlanmış olmalıdır. PEM başlıkları (-----BEGIN PRIVATE KEY-----) olmadan yalnızca base64 kısmı girilmeli." },
+                  { s: "API baÅŸlamÄ±yor",                   c: "ECOM_LICENSE eksik veya imzasÄ± hatalÄ±. Terminal'deki LicenseException mesajÄ±nÄ± okuyun. Token tek satÄ±r ve boÅŸluksuz olmalÄ±." },
+                  { s: "GiriÅŸ 401 veriyor",                c: "JWT anahtarÄ± lisanstan tÃ¼retilir. Token deÄŸiÅŸtiyse tÃ¼m kullanÄ±cÄ±larÄ±n oturumu kapatÄ±p tekrar giriÅŸ yapmasÄ± gerekir." },
+                  { s: "TÃ¼m endpoint'ler 503",             c: "LicenseMiddleware engelledi. Token baÅŸtaki/sondaki boÅŸluklardan temizlenmeli, .env'de tÄ±rnak iÃ§inde olmamalÄ±." },
+                  { s: "GÃ¶rÃ¼ntÃ¼leme ÅŸifresi Ã§alÄ±ÅŸmÄ±yor",  c: "BÃ¼yÃ¼k/kÃ¼Ã§Ã¼k harf duyarlÄ±dÄ±r. Birden fazla atama varsa en son atanan ÅŸifre geÃ§erlidir." },
+                  { s: "Token Ã¼retilemiyor",               c: "Private key PKCS8 DER base64 olmalÄ±. PEM baÅŸlÄ±klarÄ± (-----BEGIN PRIVATE KEY-----) girilmemeli â€” yalnÄ±zca base64 iÃ§eriÄŸi." },
+                  { s: "KullanÄ±cÄ± bulunamadÄ± hatasÄ±",      c: "E-posta tam eÅŸleÅŸmeli (bÃ¼yÃ¼k/kÃ¼Ã§Ã¼k duyarlÄ±) veya Ad Soyad tam girilmeli (Ã¶rn: 'Ahmet YÄ±lmaz'). BoÅŸluk karakterlerine dikkat edin." },
+                  { s: "Public key nereye yapÄ±ÅŸtÄ±rÄ±lÄ±r?",  c: "backend/src/Ecom.API/Services/LicenseValidator.cs â€” _publicKeyBase64 string alanÄ±. DeÄŸiÅŸtirince API yeniden derlenmeli ve deploy edilmeli." },
                 ].map(r => (
                   <div key={r.s} className="flex gap-2 text-xs">
-                    <span className="text-red-500 font-semibold shrink-0 w-48">{r.s}</span>
+                    <span className="text-red-500 font-semibold shrink-0 w-52">{r.s}</span>
                     <span className="text-red-700">{r.c}</span>
                   </div>
                 ))}
@@ -4143,236 +4125,13 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          {/* ── 6. Modül Lisansları ── */}
-          <Section title="Modül Lisansları" icon={<KeyRound size={16} />}
-            subtitle="Modül lisanslarını buradan yönetin. Süresi dolan veya yaklaşan lisanslar uyarı rozeti gösterir.">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-slate-500">{licenses.length} lisans kayıtlı</p>
-              <button onClick={openLicenseAdd}
-                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition">
-                <Plus size={13} /> Yeni Lisans
-              </button>
-            </div>
-
-            {licensesLoading ? (
-              <div className="flex items-center justify-center h-24 text-slate-400 text-sm">
-                <Loader2 size={16} className="animate-spin mr-2" /> Yükleniyor...
-              </div>
-            ) : licenses.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
-                Henüz lisans kaydı yok.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {licenses.map(lic => {
-                  const cardCls = !lic.isActive
-                    ? "bg-slate-50 border-slate-200"
-                    : lic.isExpired
-                    ? "bg-red-50 border-red-200"
-                    : lic.daysRemaining <= 30
-                    ? "bg-amber-50 border-amber-200"
-                    : "bg-emerald-50 border-emerald-200";
-                  return (
-                    <div key={lic.id} className={`p-4 rounded-xl border ${cardCls} flex flex-col gap-2`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">{lic.module}</p>
-                          {lic.description && <p className="text-xs text-slate-500 mt-0.5">{lic.description}</p>}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => openLicenseEdit(lic)}
-                            className="text-slate-400 hover:text-teal-600 transition p-1 rounded-lg hover:bg-white/60">
-                            <Settings size={13} />
-                          </button>
-                          <button onClick={() => deleteLicense(lic.id)}
-                            className="text-slate-400 hover:text-red-600 transition p-1 rounded-lg hover:bg-white/60">
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {lic.licenseKey && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono bg-white/60 rounded px-2 py-0.5 w-fit">
-                          <KeyRound size={9} />
-                          {lic.licenseKey}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">
-                          Bitiş: {new Date(lic.expiresAt).toLocaleDateString("tr-TR")}
-                        </span>
-                        {!lic.isActive ? (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 font-semibold text-[10px]">Pasif</span>
-                        ) : lic.isExpired ? (
-                          <span className="px-2 py-0.5 rounded-full bg-red-200 text-red-700 font-semibold text-[10px]">Süresi Dolmuş</span>
-                        ) : lic.daysRemaining <= 30 ? (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-700 font-semibold text-[10px]">{lic.daysRemaining} gün kaldı</span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-700 font-semibold text-[10px]">{lic.daysRemaining} gün kaldı</span>
-                        )}
-                      </div>
-
-                      {lic.notes && (
-                        <p className="text-[10px] text-slate-400 bg-white/60 rounded-lg px-2 py-1 italic">{lic.notes}</p>
-                      )}
-
-                      {(lic.isExpired || lic.daysRemaining <= 30) && (
-                        <button
-                          onClick={() => openRenewModal(lic)}
-                          className={`w-full mt-1 py-1.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
-                            lic.isExpired
-                              ? "bg-red-600 hover:bg-red-700 text-white"
-                              : "bg-amber-500 hover:bg-amber-600 text-white"
-                          }`}
-                        >
-                          <RefreshCw size={11} />
-                          {lic.isExpired ? "Lisansı Yenile" : "Süreyi Uzat"}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Section>
-
-          {/* Add / Edit Modal */}
-          {licenseModal.open && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-800">
-                    {licenseModal.license ? "Lisans Düzenle" : "Yeni Lisans Ekle"}
-                  </h3>
-                  <button onClick={() => setLicenseModal({ open: false })}
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-                    <XCircle size={16} />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <Field label="Modül Adı *">
-                    <input value={licenseForm.module}
-                      onChange={e => setLicenseForm(p => ({ ...p, module: e.target.value }))}
-                      className={inp} placeholder="Ör: ERP Entegrasyonu" />
-                  </Field>
-                  <Field label="Açıklama">
-                    <input value={licenseForm.description}
-                      onChange={e => setLicenseForm(p => ({ ...p, description: e.target.value }))}
-                      className={inp} placeholder="İsteğe bağlı açıklama" />
-                  </Field>
-                  <Field label="Bitiş Tarihi *">
-                    <input type="date" value={licenseForm.expiresAt}
-                      onChange={e => setLicenseForm(p => ({ ...p, expiresAt: e.target.value }))}
-                      className={inp} />
-                  </Field>
-                  <Field label="Notlar">
-                    <textarea value={licenseForm.notes}
-                      onChange={e => setLicenseForm(p => ({ ...p, notes: e.target.value }))}
-                      className={inp + " resize-none"} rows={2} placeholder="İsteğe bağlı notlar" />
-                  </Field>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-600">Aktif</span>
-                    <button onClick={() => setLicenseForm(p => ({ ...p, isActive: !p.isActive }))}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${licenseForm.isActive ? "bg-teal-500" : "bg-slate-300"}`}>
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${licenseForm.isActive ? "left-5" : "left-0.5"}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {licenseError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-                    <XCircle size={13} /> {licenseError}
-                  </div>
-                )}
-
-                <div className="flex gap-3 justify-end pt-1">
-                  <button onClick={() => setLicenseModal({ open: false })}
-                    className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-100 transition">
-                    İptal
-                  </button>
-                  <button onClick={saveLicense} disabled={licenseSaving}
-                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
-                    {licenseSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                    Kaydet
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Renew Modal */}
-          {renewModal.open && renewModal.license && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-800">Lisans Yenile</h3>
-                  <button onClick={() => setRenewModal({ open: false })}
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-                    <XCircle size={16} />
-                  </button>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-0.5">
-                  <p className="font-semibold text-slate-800">{renewModal.license.module}</p>
-                  {renewModal.license.isExpired ? (
-                    <p className="text-red-600">Lisans süresi dolmuş — yenileme bugünden itibaren başlar.</p>
-                  ) : (
-                    <p>Mevcut bitiş: {new Date(renewModal.license.expiresAt).toLocaleDateString("tr-TR")} — uzatma bu tarihten devam eder.</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-600">Paket Seçin</p>
-                  {[
-                    { months: 1,  label: "1 Ay",   price: "₺99" },
-                    { months: 6,  label: "6 Ay",   price: "₺499" },
-                    { months: 12, label: "1 Yıl",  price: "₺799" },
-                    { months: 24, label: "2 Yıl",  price: "₺1.399" },
-                  ].map(pkg => (
-                    <button
-                      key={pkg.months}
-                      onClick={() => setRenewMonths(pkg.months)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition ${
-                        renewMonths === pkg.months
-                          ? "border-teal-500 bg-teal-50 text-teal-700 font-semibold"
-                          : "border-slate-200 text-slate-600 hover:border-teal-300 hover:bg-teal-50/50"
-                      }`}
-                    >
-                      <span>{pkg.label}</span>
-                      <span className={`font-bold ${renewMonths === pkg.months ? "text-teal-600" : "text-slate-500"}`}>{pkg.price}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {renewError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-                    <XCircle size={13} /> {renewError}
-                  </div>
-                )}
-
-                <div className="flex gap-3 justify-end pt-1">
-                  <button onClick={() => setRenewModal({ open: false })}
-                    className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-100 transition">
-                    İptal
-                  </button>
-                  <button onClick={submitRenew} disabled={renewing}
-                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
-                    {renewing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                    Yenile
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const inp = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 transition";
 
 function Section({ title, subtitle, icon, children }: {

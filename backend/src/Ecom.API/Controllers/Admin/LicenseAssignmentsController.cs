@@ -46,18 +46,22 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Assign([FromBody] AssignLicenseRequest req, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(req.AdminEmail))
-            return BadRequest(new { error = "Kullanıcı e-postası zorunludur." });
+        if (string.IsNullOrWhiteSpace(req.AdminIdentifier))
+            return BadRequest(new { error = "Kullanıcı e-postası veya adı zorunludur." });
 
         if (string.IsNullOrWhiteSpace(req.LicenseToken))
             return BadRequest(new { error = "Lisans token zorunludur." });
 
+        var identifier = req.AdminIdentifier.Trim();
         var user = await db.Users
             .Include(u => u.Roles)
-            .FirstOrDefaultAsync(u => u.Email == req.AdminEmail && !u.IsDeleted, ct);
+            .FirstOrDefaultAsync(u => !u.IsDeleted && (
+                u.Email == identifier ||
+                (u.Name + " " + u.Surname).Trim() == identifier
+            ), ct);
 
         if (user == null)
-            return NotFound(new { error = $"'{req.AdminEmail}' e-postasına sahip kullanıcı bulunamadı." });
+            return NotFound(new { error = $"'{identifier}' e-posta veya adına sahip kullanıcı bulunamadı." });
 
         bool isAdmin = user.Roles.Any(r => r.Role == DomainEnums.UserRole.Admin || r.Role == DomainEnums.UserRole.SuperAdmin);
         if (!isAdmin)
@@ -225,5 +229,5 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
     }
 }
 
-public record AssignLicenseRequest(string AdminEmail, string LicenseToken, string? Notes);
+public record AssignLicenseRequest(string AdminIdentifier, string LicenseToken, string? Notes);
 public record RevealMyLicenseRequest(string Password);
