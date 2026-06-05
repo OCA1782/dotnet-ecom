@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -9,7 +9,7 @@ import {
   MapPin, FlaskConical, Settings, Calendar, Tag, Cpu,
   BarChart3, Palette, KeyRound, Bell, Globe, Code2,
   Warehouse, LayoutDashboard, FileText, AlertCircle, Clock,
-  Image as ImageIcon, Eye,
+  Image as ImageIcon, Eye, Search, Megaphone,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -267,17 +267,47 @@ function SureclerTab() {
 
       {/* Müşteri Akışı */}
       <DocSection title="Müşteri Kayıt & Doğrulama Akışı" icon={Users} defaultOpen={false}>
-        <FlowRow>
-          <FlowStep icon={Users} label="Kayıt Formu" color="blue" />
-          <Arrow />
-          <FlowStep icon={Mail} label="E-posta Kodu" color="violet" />
-          <Arrow />
-          <FlowStep icon={Shield} label="Doğrulama" color="teal" />
-          <Arrow />
-          <FlowStep icon={Shield} label="Hesap Aktif" color="emerald" />
-        </FlowRow>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">E-posta / Şifre</p>
+            <FlowRow>
+              <FlowStep icon={Users} label="Kayıt Formu" color="blue" />
+              <Arrow />
+              <FlowStep icon={Mail} label="E-posta Kodu" color="violet" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Doğrulama" color="teal" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Hesap Aktif" color="emerald" />
+            </FlowRow>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Google OAuth</p>
+            <FlowRow>
+              <FlowStep icon={Globe} label="Google Butonu" color="blue" sub="@react-oauth/google" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Consent Ekranı" color="violet" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="id_token" color="amber" sub="Backend doğrular" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Hesap Aktif" color="emerald" sub="Yeni veya eşleşen" />
+            </FlowRow>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">2FA / TOTP (Opsiyonel)</p>
+          <FlowRow>
+            <FlowStep icon={Shield} label="Giriş Yap" color="blue" sub="E-posta + şifre" />
+            <Arrow />
+            <FlowStep icon={Lock} label="2FA İstenir" color="amber" sub="requiresTwoFactor" />
+            <Arrow />
+            <FlowStep icon={KeyRound} label="TOTP Kodu" color="violet" sub="6 haneli" />
+            <Arrow />
+            <FlowStep icon={Shield} label="JWT Verilir" color="emerald" sub="Giriş tamamlandı" />
+          </FlowRow>
+          <p className="text-xs text-slate-400 mt-2">2FA kurulumu: Hesabım → QR kod tarayıcı uygulamasıyla (Google Authenticator vb.) tarandıktan sonra etkinleştirilir.</p>
+        </div>
         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-          E-posta doğrulanmadan kullanıcı giriş yapabilir, ancak bazı özellikler (adres kaydetme, sipariş geçmişi) kısıtlıdır.
+          Google OAuth ile giriş yapan kullanıcıların şifresi yoktur. 2FA her iki kayıt tipinde de etkinleştirilebilir. Hesap kilitleme: 5 ardışık başarısız giriş → 15 dakika kilit.
         </div>
       </DocSection>
 
@@ -466,6 +496,151 @@ function SureclerTab() {
         </div>
       </DocSection>
 
+      {/* Canlı Arama */}
+      <DocSection title="Canlı Arama Akışı" icon={Search} defaultOpen={false}>
+        <p className="text-xs text-slate-500 mb-3">Müşteri header arama kutusunda yazan karakter sayısı 2&apos;yi geçince tetiklenen anlık öneri akışı.</p>
+        <FlowRow>
+          <FlowStep icon={Users} label="Müşteri Yazar" color="blue" sub="≥2 karakter" />
+          <Arrow />
+          <FlowStep icon={Clock} label="300ms Debounce" color="amber" sub="Fazla istek önlenir" />
+          <Arrow />
+          <FlowStep icon={Search} label="GET /suggestions" color="violet" sub="q parametresi" />
+          <Arrow />
+          <FlowStep icon={Database} label="DB Sorgusu" color="teal" sub="Kategori/Marka/Ürün" />
+          <Arrow />
+          <FlowStep icon={Zap} label="Dropdown" color="emerald" sub="Anında gösterilir" />
+        </FlowRow>
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { state: "Kategoriler", desc: "İsimle eşleşen kategoriler — slug ile filtrelenmiş ürün listesine yönlendirme.", color: "teal" as const },
+            { state: "Markalar", desc: "İsimle eşleşen markalar — markaya göre filtreli ürün listesine yönlendirme.", color: "violet" as const },
+            { state: "Ürünler", desc: "İsim veya açıklamada geçen ürünler — doğrudan ürün detay sayfasına.", color: "emerald" as const },
+          ].map(s => (
+            <div key={s.state} className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <Badge label={s.state} color={s.color} />
+              <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+          Backend: <code className="bg-slate-100 px-1 rounded">GetSearchSuggestionsQuery</code> — EF Core Contains ile 5 kategori + 5 marka + 10 ürün limiti. Sonuçlar birleştirilip tek response&apos;da döner.
+        </div>
+      </DocSection>
+
+      {/* Google OAuth & 2FA */}
+      <DocSection title="Google OAuth & 2FA Kimlik Doğrulama" icon={Shield} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Google OAuth Akışı</p>
+            <FlowRow>
+              <FlowStep icon={Globe} label="Google Butonu" color="blue" sub="Client credential flow" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="id_token alınır" color="violet" />
+              <Arrow />
+              <FlowStep icon={Shield} label="POST /auth/google" color="amber" sub="Backend doğrular" />
+              <Arrow />
+              <FlowStep icon={Lock} label="JWT + Refresh" color="emerald" sub="Hesap oluşturulur" />
+            </FlowRow>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">2FA Kurulum (TOTP)</p>
+            <FlowRow>
+              <FlowStep icon={Settings} label="Hesabım" color="blue" sub="2FA bölümü" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="QR Kod Üretilir" color="violet" sub="TOTP secret" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Authenticator App" color="amber" sub="QR taranır" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Etkinleştir" color="emerald" sub="6 haneli onay" />
+            </FlowRow>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">2FA ile Giriş</p>
+          <FlowRow>
+            <FlowStep icon={Users} label="E-posta + Şifre" color="blue" />
+            <Arrow />
+            <FlowStep icon={Lock} label="requiresTwoFactor" color="amber" sub="true dönerse" />
+            <Arrow />
+            <FlowStep icon={KeyRound} label="TOTP Girişi" color="violet" sub="POST /auth/2fa/login" />
+            <Arrow />
+            <FlowStep icon={Shield} label="JWT Verilir" color="emerald" />
+          </FlowRow>
+        </div>
+        <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-700">
+          TOTP secret <code className="bg-violet-100 px-1 rounded">TotpService</code> (HMACSHA1 tabanlı) ile üretilir, şifreli DB&apos;ye kaydedilir. QR kod <code className="bg-violet-100 px-1 rounded">qrcode</code> paketi ile client-side üretilir. Google OAuth kullanıcıları şifresiz giriş yapar.
+        </div>
+      </DocSection>
+
+      {/* Lisans Atama */}
+      <DocSection title="Lisans Atama & Modül Yönetimi" icon={KeyRound} defaultOpen={false}>
+        <p className="text-xs text-slate-500 mb-3">SuperAdmin, WebCrypto RSA-2048 ile ürettiği lisansı belirli kullanıcılara atayabilir. Regular admin görüntüleyebilir, SuperAdmin şifresiz görür.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Üretimi (SuperAdmin)</p>
+            <FlowRow>
+              <FlowStep icon={Settings} label="Yönetim" color="blue" sub="Sistem sekmesi" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="Lisans Üretici" color="violet" sub="WebCrypto RSA-2048" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Private Key + Parametreler" color="amber" />
+              <Arrow />
+              <FlowStep icon={Code2} label="Token Üretildi" color="emerald" sub="Base64url imza" />
+            </FlowRow>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Atama Akışı</p>
+            <FlowRow>
+              <FlowStep icon={Users} label="Kullanıcı Seç" color="blue" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="Token Yapıştır" color="violet" />
+              <Arrow />
+              <FlowStep icon={Mail} label="E-posta Gönderilir" color="amber" sub="SendLicenseAssignment" />
+              <Arrow />
+              <FlowStep icon={Shield} label="DB&apos;ye Kaydedilir" color="emerald" />
+            </FlowRow>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+          {[
+            { state: "Aktif", desc: "LicenseAssignment.IsActive=true. Regular admin view-password ile kendi lisansını görebilir.", color: "emerald" as const },
+            { state: "İptal Edildi", desc: "Admin iptal ettiğinde IsActive=false. Kullanıcıya bildirim e-postası gönderilir.", color: "red" as const },
+            { state: "SuperAdmin Bypass", desc: "SuperAdmin rolünde DevKeyController tam token'ı şifresiz döner (fullKey=true).", color: "violet" as const },
+          ].map(s => (
+            <div key={s.state} className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <Badge label={s.state} color={s.color} />
+              <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </DocSection>
+
+      {/* Kampanya */}
+      <DocSection title="Kampanya Yönetimi Akışı" icon={Megaphone} defaultOpen={false}>
+        <p className="text-xs text-slate-500 mb-3">Sezonluk / özel kampanyalar oluşturma ve hero slider&apos;da yayınlama süreci.</p>
+        <FlowRow>
+          <FlowStep icon={Megaphone} label="Kampanya Oluştur" color="blue" sub="Admin /kampanyalar" />
+          <Arrow />
+          <FlowStep icon={Palette} label="Stil & Renk Şeması" color="violet" sub="StylesJson" />
+          <Arrow />
+          <FlowStep icon={Shield} label="Kaydet" color="teal" sub="POST /api/admin/campaigns" />
+          <Arrow />
+          <FlowStep icon={Globe} label="Hero Slider" color="emerald" sub="Müşteri ana sayfa" />
+        </FlowRow>
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { state: "Başlık / Açıklama", desc: "Kampanya adı, kısa açıklama ve opsiyonel CTA butonu metni.", color: "teal" as const },
+            { state: "Görsel Şeması", desc: "StylesJson ile renk şeması — campaign-card-{scheme} + hero-slide-0 CSS şablonları.", color: "violet" as const },
+            { state: "Tarih Aralığı", desc: "startDate / endDate ile kampanya yayın dönemi kontrolü — geçmiş kampanyalar gizlenir.", color: "amber" as const },
+          ].map(s => (
+            <div key={s.state} className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <Badge label={s.state} color={s.color} />
+              <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </DocSection>
+
     </div>
   );
 }
@@ -513,9 +688,9 @@ function TeknikTab() {
         <div className="overflow-x-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 min-w-[400px]">
             {[
-              { entity: "User", relations: ["Orders (1:N)", "Addresses (1:N)", "Roles (1:N)", "RefreshTokens (1:N)"] },
-              { entity: "Order", relations: ["OrderItems (1:N)", "Coupon (N:1)", "Shipment (1:1)", "Invoice (1:1)"] },
-              { entity: "Product", relations: ["Category (N:1)", "Brand (N:1)", "Images (1:N)", "Variants (1:N)", "StockMovements (1:N)", "ImportedFromSource (N:1 nullable)"] },
+              { entity: "User", relations: ["Orders (1:N)", "Addresses (1:N)", "Roles (1:N)", "RefreshTokens (1:N)", "Wishlist (1:N)", "LicenseAssignments (1:N)"] },
+              { entity: "Order", relations: ["OrderItems (1:N)", "Coupon (N:1)", "Shipment (1:1)", "Invoice (1:1)", "ReturnRequest (1:1 nullable)"] },
+              { entity: "Product", relations: ["Category (N:1)", "Brand (N:1)", "Images (1:N)", "Variants (1:N)", "StockMovements (1:N)", "Reviews (1:N)", "ImportedFromSource (N:1 nullable)"] },
               { entity: "Category", relations: ["SubCategories (1:N)", "Products (1:N)", "ImportedFromSource (N:1 nullable)"] },
               { entity: "Brand", relations: ["Products (1:N)", "ImportedFromSource (N:1 nullable)"] },
               { entity: "ExternalSource", relations: ["ImportJobs (1:N)", "ImportLogs (1:N)"] },
@@ -525,6 +700,14 @@ function TeknikTab() {
               { entity: "Cart", relations: ["CartItems (1:N)", "User/Session (N:1)"] },
               { entity: "Coupon", relations: ["Orders (1:N)"] },
               { entity: "VisitorLog", relations: ["User (N:1 nullable)"] },
+              { entity: "Wishlist", relations: ["User (N:1)", "Product (N:1)"] },
+              { entity: "UserRefreshToken", relations: ["User (N:1)", "Token, ExpiresAt, IsRevoked"] },
+              { entity: "Review", relations: ["User (N:1)", "Product (N:1)", "Reports (1:N)", "IsApproved, RejectionNote"] },
+              { entity: "LicenseAssignment", relations: ["User (N:1)", "IsActive, AssignedAt, ExpiresAt, Token"] },
+              { entity: "Campaign", relations: ["(standalone)", "Title, StylesJson, StartDate, EndDate, IsActive"] },
+              { entity: "Announcement", relations: ["(standalone)", "StylesJson, IsActive, StartDate, EndDate"] },
+              { entity: "SalesGoal", relations: ["(standalone)", "Month, TargetAmount, ActualAmount"] },
+              { entity: "AuditLog", relations: ["User (N:1 nullable)", "Action, EntityName, EntityId, IPAddress"] },
             ].map(e => (
               <div key={e.entity} className="border border-slate-200 rounded-xl p-3">
                 <p className="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
@@ -547,8 +730,8 @@ function TeknikTab() {
       <DocSection title="Temel API Endpoint Grupları" icon={GitBranch} defaultOpen={false}>
         <div className="space-y-3">
           {[
-            { group: "/api/auth", desc: "Kayıt, giriş, token yenileme, şifre sıfırlama, e-posta doğrulama, hesap kilitleme (5 hatalı giriş)", badge: "Public", color: "emerald" as const },
-            { group: "/api/products", desc: "Ürün listesi, detay, filtreleme, nitelik filtresi (slug bazlı Redis cache)", badge: "Public", color: "emerald" as const },
+            { group: "/api/auth", desc: "Kayıt, giriş, token yenileme, şifre sıfırlama, e-posta doğrulama, hesap kilitleme (5 hatalı giriş). POST /auth/google (OAuth), POST /auth/2fa/setup|enable|disable|login (TOTP)", badge: "Public", color: "emerald" as const },
+            { group: "/api/products", desc: "Ürün listesi, detay, filtreleme, nitelik filtresi (slug bazlı Redis cache). GET /products/suggestions?q= → kategori+marka+ürün canlı arama önerileri (debounced)", badge: "Public", color: "emerald" as const },
             { group: "/api/cart", desc: "Sepet CRUD, kupon uygulama, seçim toggle, misafir sepet merge", badge: "Auth", color: "blue" as const },
             { group: "/api/orders", desc: "Sipariş oluşturma (üye/misafir), listeleme, detay, iptal, durum güncelleme", badge: "Auth", color: "blue" as const },
             { group: "/api/wishlist", desc: "Favori ürün ekle/kaldır/listele", badge: "Auth", color: "blue" as const },
@@ -567,7 +750,10 @@ function TeknikTab() {
             { group: "/api/admin/audit-logs", desc: "Kullanıcı aksiyon geçmişi — giriş, şifre değişikliği, kritik işlemler", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/error-logs", desc: "Sunucu hata kayıtları, istatistik özeti, ErrorLoggingMiddleware besler", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/goals", desc: "Satış hedefi CRUD, gerçekleşen vs hedef karşılaştırma", badge: "Admin", color: "violet" as const },
-            { group: "/api/admin/announcements", desc: "Site duyuruları CRUD (aktif/pasif, tarih aralığı)", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/announcements", desc: "Site duyuruları CRUD — içerik RichTextEditor, StylesJson ile stil (aktif/pasif, tarih aralığı)", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/campaigns", desc: "Kampanya CRUD — başlık, açıklama, StylesJson renk şeması, tarih aralığı. Müşteri hero slider&apos;ı besler.", badge: "Admin", color: "violet" as const },
+            { group: "/api/admin/license-assignments", desc: "Lisans atama CRUD — SuperAdmin kullanıcıya lisans atar/iptal eder. E-posta bildirimi gönderilir.", badge: "SuperAdmin", color: "red" as const },
+            { group: "/api/admin/returns", desc: "İade talepleri listesi, onayla/reddet (not ile), durum akışı — ReturnRequested → Approved/Rejected", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/external-sources", desc: "Dış kaynak CRUD, Excel yükleme/indirme, REST test-fetch, aktarım, async import job takibi", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/shipping-carriers", desc: "Kargo firması CRUD — fiyat, eşik, tahmini gün, ağırlık fiyatlandırma", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/invoices", desc: "e-Arşiv / e-Fatura / e-İrsaliye oluşturma ve durum güncelleme", badge: "Admin", color: "violet" as const },
@@ -622,11 +808,15 @@ function TeknikTab() {
       <DocSection title="Cache Stratejisi" icon={Zap} defaultOpen={false}>
         <div className="space-y-3">
           {[
+            { key: "categories:list", ttl: "10 dakika", invalidate: "Kategori oluşturulunca/güncellenince/silinince", color: "teal" as const },
+            { key: "dashboard:stats", ttl: "1 dakika", invalidate: "TTL sonunda otomatik", color: "blue" as const },
             { key: "product:slug:{slug}", ttl: "5 dakika", invalidate: "Ürün güncellenince", color: "teal" as const },
             { key: "cart:user:{userId}", ttl: "20 saniye", invalidate: "Sepet her mutasyonda", color: "violet" as const },
             { key: "cart:session:{sessionId}", ttl: "20 saniye", invalidate: "Sepet her mutasyonda", color: "violet" as const },
             { key: "visitor:stats:{days}", ttl: "5 dakika", invalidate: "TTL sonunda otomatik", color: "blue" as const },
             { key: "report:product-sales:{days}:{topN}", ttl: "10 dakika", invalidate: "TTL sonunda otomatik", color: "blue" as const },
+            { key: "gh:docs:files (IMemoryCache)", ttl: "60 saniye", invalidate: "Manuel yenile / TTL — DocsController", color: "slate" as const },
+            { key: "gh:docs:file:{name} (IMemoryCache)", ttl: "2 dakika", invalidate: "Manuel yenile / TTL — DocsController", color: "slate" as const },
           ].map(c => (
             <div key={c.key} className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl">
               <Badge label={c.ttl} color={c.color} />
@@ -640,6 +830,36 @@ function TeknikTab() {
         <p className="text-xs text-slate-400 mt-3">
           Redis yapılandırıldıysa dağıtık önbellek, aksi halde bellek içi önbellek kullanılır.
         </p>
+      </DocSection>
+
+      {/* Background Jobs */}
+      <DocSection title="Arka Plan İşleri (Background Jobs)" icon={Activity} defaultOpen={false}>
+        <p className="text-xs text-slate-500 mb-3">
+          <code className="bg-slate-100 px-1 rounded">JobBase</code> sınıfından türetilen zamanlanmış işler.
+          <code className="bg-slate-100 px-1 rounded ml-1">IServiceStateManager</code> ile pause/resume/trigger destekler — Admin → Servisler sayfasından yönetilir.
+        </p>
+        <div className="space-y-3">
+          {[
+            { job: "ModuleHealthCheckJob", interval: "Saatlik", desc: "6 modülü kontrol eder (DB/Redis/RabbitMQ/Email/Telegram/API). Başarısız modül varsa Yönetim → Bildirimler&apos;de tanımlı e-posta adreslerine alert gönderir.", badge: "Sistem", color: "red" as const },
+            { job: "ImportJobConsumer", interval: "Event-driven", desc: "MassTransit ImportJobQueued eventi alınca çalışır. 5.000+ satırlık Excel/REST aktarımını chunk&apos;lara bölerek async işler, import log kaydeder.", badge: "Dış Kaynak", color: "violet" as const },
+            { job: "StockAlertConsumer", interval: "Event-driven", desc: "MassTransit StockAlert eventi alınca çalışır. Stok kritik eşiğin altına düştüğünde admin e-posta + Telegram bildirimi gönderir.", badge: "Stok", color: "amber" as const },
+            { job: "OrderProcessingSaga", interval: "Event-driven", desc: "MassTransit Saga. Ödeme tamamlanınca kargo sürecini başlatır, OrderStatusChanged eventi yayınlar. DLQ: max 5 yeniden deneme, sonra dead-letter queue.", badge: "Sipariş", color: "blue" as const },
+          ].map(j => (
+            <div key={j.job} className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+              <Badge label={j.badge} color={j.color} />
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-xs font-mono font-semibold text-slate-800">{j.job}</p>
+                  <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{j.interval}</span>
+                </div>
+                <p className="text-xs text-slate-500">{j.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-700">
+          Admin → Servisler sayfasından her job&apos;u duraklat / devam ettir / manuel tetikle. Job çalışma geçmişi HealthRing grafiği ile izlenir.
+        </div>
       </DocSection>
 
       {/* Katmanlı Mimari */}
@@ -1209,7 +1429,7 @@ function ChangelogMarkdownTab() {
     setLoading(true); setError(false);
     try {
       const data = await api.get<{ content: string; lastModified: string }>(
-        "/api/admin/docs/file?name=degisiklik-gunlugu.md"
+        "/api/admin/docs/file?name=CHANGELOG.md"
       );
       setContent(data.content);
       setLastModified(data.lastModified);
@@ -1228,7 +1448,7 @@ function ChangelogMarkdownTab() {
         <span className="text-sm font-semibold text-slate-700">Değişiklik Günlüğü</span>
         {lastModified && <span className="text-[10px] text-slate-400">{fmtDate(lastModified)}</span>}
         <span className="text-[10px] bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full font-medium ml-1">
-          5 dk'da bir otomatik güncellenir
+          dotnet-ecom-docs/CHANGELOG.md
         </span>
         <button onClick={fetch} className={`ml-auto p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-400 transition ${loading ? "animate-spin" : ""}`}>
           <RefreshCw size={13} />
@@ -1239,8 +1459,8 @@ function ChangelogMarkdownTab() {
           <div className="text-center text-sm text-slate-400 py-8">Yükleniyor…</div>
         ) : error ? (
           <div className="text-center text-sm text-slate-400 py-8">
-            <p>degisiklik-gunlugu.md bulunamadı.</p>
-            <p className="text-xs mt-1 text-slate-300">ChangelogDocsJob henüz çalışmamış olabilir (5 dakika bekleyin)</p>
+            <p>CHANGELOG.md yüklenemedi.</p>
+            <p className="text-xs mt-1 text-slate-300">GitHub token yapılandırılmamış veya dotnet-ecom-docs repo erişilemiyor olabilir.</p>
           </div>
         ) : content ? renderMarkdown(content) : null}
       </div>
@@ -1250,1068 +1470,6 @@ function ChangelogMarkdownTab() {
 
 /* ─── Yenilikler Tab ─────────────────────────────────────────────────── */
 
-type ChangeType = "frontend" | "backend" | "guvenik" | "ux" | "altyapi" | "ozellik";
-
-interface ChangeEntry {
-  type: ChangeType;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  items: string[];
-}
-
-interface DayLog {
-  date: string;         // "19 Mayıs 2026"
-  label?: string;       // "Adım 33 — ..." gibi
-  defaultOpen?: boolean;
-  changes: ChangeEntry[];
-}
-
-const TYPE_META: Record<ChangeType, { label: string; bg: string; text: string; dot: string }> = {
-  frontend:  { label: "Frontend",  bg: "bg-teal-100",    text: "text-teal-700",    dot: "bg-teal-500"    },
-  backend:   { label: "Backend",   bg: "bg-violet-100",  text: "text-violet-700",  dot: "bg-violet-500"  },
-  guvenik:   { label: "Güvenlik",  bg: "bg-red-100",     text: "text-red-700",     dot: "bg-red-500"     },
-  ux:        { label: "UX",        bg: "bg-orange-100",  text: "text-orange-700",  dot: "bg-orange-500"  },
-  altyapi:   { label: "Altyapı",   bg: "bg-blue-100",    text: "text-blue-700",    dot: "bg-blue-500"    },
-  ozellik:   { label: "Özellik",   bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
-};
-
-const CHANGELOG: DayLog[] = [
-  {
-    date: "29 Mayıs 2026",
-    label: "RSA Lisans Sistemi / Logo & Favicon Yönetimi / Servis Yönetimi UI",
-    defaultOpen: true,
-    changes: [
-      {
-        type: "guvenik", icon: KeyRound, title: "RSA-2048 Lisans Sistemi — Bypass Dayanıklı Aktivasyon",
-        items: [
-          "Eski SHA256 hash yaklaşımı kaldırıldı (tek satır yorum ile atlanabiliyordu)",
-          "LicenseValidator.cs: RSA-2048 public key gömülü — imzayı doğrular, payload'ı ayrıştırır (app, iss, nbf, exp)",
-          "Private key repoya girmez; yalnızca geliştiricide saklanır — private key olmadan geçerli lisans üretilemez",
-          "Startup: RSA doğrulama başarısız → çarpıcı hata + Environment.Exit(1)",
-          "Lisans formatı: Base64Url(payload).Base64Url(RSA-SHA256 imzası) — JSON Web Token benzeri",
-          "Geçerlilik tarihi kontrolü: nbf (notBefore) ve exp (expiry) — süresi dolmuş lisans başlatmayı engeller",
-          "LicenseJwtKey.cs: DI üzerinden paylaşılan wrapper — hem AddJwtBearer hem JwtService aynı anahtarı görür",
-          "LicenseException özel exception tipi — startup ve middleware hata mesajlarını ayrıştırır",
-        ],
-      },
-      {
-        type: "guvenik", icon: Lock, title: "JWT Anahtarı Lisanstan Türetilir — İkinci Savunma Katmanı",
-        items: [
-          "JwtService.cs: configuration['Jwt:Key'] artık kullanılmıyor — LicenseJwtKey'den HMACSHA256 türetilir",
-          "AddJwtBearer token doğrulama: aynı türetilmiş anahtar — oluşturma ile doğrulama senkron",
-          "Startup lisans check kaldırılsa dahi: jwtKeyBytes = RandomNumberGenerator.GetBytes(32) → tüm token'lar geçersiz → login çalışmaz",
-          "Hem startup check hem JWT derivation hem middleware kaldırılıp JWT hardcode edilmediği sürece sistem işlevsel değil",
-          "Program.cs: LicenseJwtKey singleton DI'ya AddJwtBearer kurulumundan önce kaydedilir",
-        ],
-      },
-      {
-        type: "guvenik", icon: Shield, title: "LicenseMiddleware — Her İstekte Runtime Doğrulama",
-        items: [
-          "LicenseMiddleware.cs: pipeline'a UseCors'tan sonra, UseAuthentication'dan önce eklendi",
-          "Her HTTP isteğinde lisans doğrulanır (sonuç 1 dakika cache — thread-safe lock ile)",
-          "Geçersiz lisansta 503 Service Unavailable döner, hata mesajı JSON formatında",
-          "/health ve /openapi path'leri bypass — Docker/K8s health probe'ları engellenmiyor",
-          "Startup check'ten bağımsız: Program.cs değiştirilse bile middleware etkin kalmaya devam eder",
-        ],
-      },
-      {
-        type: "frontend", icon: KeyRound, title: "Admin Panel — Aktivasyon Anahtarı Bölümü",
-        items: [
-          "Yönetim > Sistem sekmesi sonuna 'Aktivasyon Anahtarı' Section eklendi",
-          "Maskelenmiş token gösterimi: ilk 10 karakter + '···' + '***' — tam token görünmez",
-          "isValid / isConfigured / revealPasswordSet durumları badge ile gösterilir",
-          "'Görüntüle' butonu → modal: ayrı şifre girişi (admin şifresinden bağımsız)",
-          "Doğru şifrede tam lisans token'ı teal kartta gösterilir — 'Kopyala' butonu ile panoya",
-          "Modal kapanınca token bellekten silinir — tekrar açmak için şifre yeniden girilmeli",
-          "DevKeyController.cs: License artık config'den okunur (DB'den değil) — RevealPasswordHash DB'de",
-          "DbInitializer: SeedDevKey → SeedRevealPassword olarak güncellendi, DevKeyEncrypted artık seed edilmiyor",
-        ],
-      },
-      {
-        type: "ozellik", icon: ImageIcon, title: "6 Slot Logo & Favicon Sistemi — Admin + Müşteri Ayrı",
-        items: [
-          "Admin Panel Görselleri: İsimli Logo (sidebar genişken), İsimsiz Logo (sidebar daraltılmışken), Favicon (tarayıcı sekmesi)",
-          "Müşteri Sitesi Görselleri: İsimli Logo (header full brand), İsimsiz Logo (header icon-only), Favicon",
-          "Yönetim > Görünüm sekmesinde 2 ayrı 3-sütun upload bölümü — aynı sıralama (İsimli → İsimsiz → Favicon)",
-          "SiteSettings key'leri: AdminLogoNamed, AdminLogoIcon, AdminFaviconUrl, CustomerLogoNamed, CustomerLogoIcon, CustomerFaviconUrl",
-          "Admin sidebar: daraltılmış → AdminLogoIcon, genişletilmiş + named set → AdminLogoNamed, named yok → icon + metin",
-          "Müşteri Header: logoUrl prop (named), logoIconUrl prop (icon) — sunucu bileşeninden geçirilir",
-          "uploadFor(file, settingKey) helper: PUT /api/admin/settings/upload — hangi slot için yüklendiği belirli",
-        ],
-      },
-      {
-        type: "frontend", icon: RefreshCw, title: "Logo & Favicon Tarayıcı Cache Sorunu Çözümü",
-        items: [
-          "Sorun: Ayarlar kaydedilince admin sidebar logosu güncellenmiyordu, favicon eski kalıyordu",
-          "CustomEvent çözümü: save() sonrası window.dispatchEvent(new CustomEvent('ecom:settings-updated', { detail: settings }))",
-          "Admin layout.tsx: 'ecom:settings-updated' dinler → logoUrl ve logoNamedUrl state'leri anında güncellenir",
-          "SettingsVersion: PUT /api/admin/settings her çağrıda Unix ms timestamp yazar (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())",
-          "Favicon cache-bust: generateMetadata() → favicon URL'sine ?v={SettingsVersion} query param eklenir",
-          "Admin root layout.tsx ve Customer layout.tsx her ikisi de SettingsVersion parametresini favicon URL'sine ekler",
-          "Customer Header: logoUrl ve logoIconUrl server component'tan prop olarak geçirilir (no-store fetch)",
-        ],
-      },
-      {
-        type: "ozellik", icon: Activity, title: "Servis Yönetimi UI — Yönetim > Sistem Sekmesi",
-        items: [
-          "IServiceStateManager singleton: pause/resume/trigger durumu ve meta bilgileri tutar",
-          "DependencyInjection.cs: AddSingleton<IServiceStateManager, ServiceStateManager> — AddHostedService'lerden önce kaydedilir",
-          "Yönetim > Sistem > Servis Yönetimi: her servis kart olarak listelenir (isPaused, isRunning, uptime, runCount)",
-          "Duraklatıldı → amber kart / Çalışıyor → teal pulse kart / Bekliyor → gri kart",
-          "Butonlar: Duraklat (amber) / Devam Ettir (emerald) / Tetikle (teal) — işlem sırasında Loader2 spin",
-          "10 saniyede bir otomatik yenileme (useEffect setInterval, tab ayrılınca clearInterval)",
-          "Manuel Yenile butonu: RefreshCw + spin animasyonu",
-        ],
-      },
-      {
-        type: "altyapi", icon: Globe, title: "3 Ortam × 3 Servis URL Tablosu",
-        items: [
-          "Yönetim > Sistem > Ortam URL Konfigürasyonu: Admin Panel, Müşteri Sitesi, API — Development / Staging / Production",
-          "Her hücre düzenlenebilir input — SiteSettings'e ApiBaseUrl_dev/_staging/_prod vb. olarak kaydedilir",
-          "'Aktif Et' butonu: ilgili ortam URL'lerini aktif (ApiBaseUrl, CustomerBaseUrl, AdminBaseUrl) key'lerine kopyalar",
-          "Aktif ortam badge'i (dev=emerald/staging=blue/prod=red) tablo başlığında gösterilir",
-          "AppEnvironment SiteSettings key'i ile seçili ortam takip edilir",
-        ],
-      },
-    ],
-  },
-  {
-    date: "25 Mayıs 2026",
-    label: "Dış Kaynaklar — Kaynak Takibi / Excel İndirme / REST Fetch Modal / Bug Fix",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "ozellik", icon: Database, title: "Dış Kaynaklar — Kaynak Takibi (Source Tracking)",
-        items: [
-          "Product, Category, Brand entity'lerine ImportedFromSourceId (Guid?) nullable FK alanı eklendi",
-          "Migration: AddImportedFromSource — Products, Categories, Brands tablolarına kolon + index eklendi",
-          "ImportBatchProcessor.ProcessAsync: Guid? sourceId parametresi — aktarım sırasında yeni kayıtlara kaynak bağlantısı kaydedilir (güncellemelerde değiştirilmez)",
-          "ImportExternalSourceCommand ve ImportJobConsumer güncellendi: request.SourceId / job.ExternalSourceId iletimi",
-          "GetProductsQuery + GetBrandsQuery: correlated subquery → ImportedFromSourceName string döner",
-          "GetCategoriesQuery: batch dictionary lookup — ağaç oluşturma sırasında kaynak adları ayrı sorgudan yüklenir (N+1 önlendi)",
-          "AdminProduct, CategoryDto, BrandDto: importedFromSourceName?: string alanı eklendi",
-          "Admin Ürünler / Kategoriler / Markalar listeleri: 'Kaynak' sütunu — violet badge ile kaynak adı gösterilir, yoksa '—'",
-        ],
-      },
-      {
-        type: "ozellik", icon: FileText, title: "Dış Kaynaklar — Excel İndirme & 20K Test Excel Seeder",
-        items: [
-          "GET /api/admin/external-sources/{id}/download-excel: sunucudaki dosyayı File() stream ile indirir",
-          "ExternalSourceDto: HasExcelFile bool flag eklendi — frontend yüklü dosya varlığını bilir",
-          "DbInitializer.SeedAsync: imza string contentRootPath parametresi aldı, Program.cs güncellendi",
-          "SeedTestExternalSources: 'Test Excel Kaynağı' (Excel) + 'Test REST Kaynağı DummyJSON' (RestApi) seed edilir",
-          "CreateTestExcel: ClosedXML ile 3 sheet — 5 kategori, 5 marka, 20.000 ürün satırı (random fiyat, döngüsel kategori/marka)",
-          "Yeniden oluşturma: dosya yoksa veya < 50 KB ise her yeniden başlatmada üretilir",
-          "Düzenle modalı: yüklü Excel bilgi kartı (satır sayısı + tarih) + fetch+blob authenticated indirme butonu",
-        ],
-      },
-      {
-        type: "ux", icon: RefreshCw, title: "Dış Kaynaklar — REST Fetch Modala Taşındı",
-        items: [
-          "Liste satırındaki 'Veri Çek' butonu kaldırıldı — REST aktarımı artık yalnızca ekle/düzenle modalinde başlatılır",
-          "POST /api/admin/external-sources/test-fetch: kaydedilmiş kaynak olmadan ad-hoc URL fetch — Url, Headers, DataPath alır, { columns, rows, error } döner",
-          "SourceModal (REST modu): URL + headers alanlarının altına violet 'Veri Çek & Önizle' butonu eklendi",
-          "restFetching ve restPreview state'leri: yükleniyor durumu + önizleme tablosu (sütun adları + ilk 5 satır + toplam sayı)",
-          "Hata durumunda kırmızı hata mesajı, URL boşken buton devre dışı",
-        ],
-      },
-      {
-        type: "backend", icon: AlertCircle, title: "Bug Fix — TestFetchRequest Record Eksikti",
-        items: [
-          "ExternalSourcesController: TestFetch metodu TestFetchRequest record'unu kullanıyordu ancak sınıf tanımı dosyada yoktu",
-          "Sonuç: backend derlenmiyordu — çalışan proses önceki build'dan kalmıştı, endpoint 404 dönüyordu",
-          "Düzeltme: public record TestFetchRequest(string Url, Dictionary<string, string>? Headers, string? DataPath) controller'a eklendi",
-        ],
-      },
-    ],
-  },
-  {
-    date: "21 Mayıs 2026",
-    label: "Kargo Yönetimi / Fatura Yönetimi / Dokümanlar Canlı Aktivite / Ödeme 400 Fix",
-    defaultOpen: true,
-    changes: [
-      {
-        type: "ozellik", icon: Truck, title: "Kargo Yönetimi — ShippingCarriers CRUD",
-        items: [
-          "ShippingCarrier entity: ad, kod, basePrice, freeShippingThreshold, estimatedDays, maxWeightKg, trackingUrlTemplate, logoUrl, apiEndpoint, weightPricingJson",
-          "EF Core migration: AddShippingCarriersAndInvoices — DB'ye uygulandı",
-          "Backend: GET/POST/PUT/DELETE /api/admin/shipping-carriers — Roles: SuperAdmin,Admin,OrderManager",
-          "Frontend /kargo: stats bar (toplam/aktif/pasif/ort.fiyat), logo+kod+fiyat+eşik+gün tablosu",
-          "Oluştur/düzenle/sil modalları — tüm alanlar, isActive toggle, kaydet/sil akışı",
-          "Sidebar'a Kargo menü öğesi eklendi (Truck ikonu, Satış grubu)",
-        ],
-      },
-      {
-        type: "ozellik", icon: FileText, title: "Fatura Yönetimi — e-Arşiv / e-Fatura / e-İrsaliye",
-        items: [
-          "Invoice + InvoiceItem entity: docType (eArchive/eInvoice/eDispatch), status (Draft/Pending/Sent/Cancelled/Error)",
-          "IInvoiceService provider arayüzü: MockInvoiceService test ortamı, gelecekte Luca/eFinans entegrasyonu",
-          "CreateInvoiceCommand: sipariş satırlarından fatura oluşturma, numara: FAT-YYYYMMDD-{seq:D6}",
-          "Backend: GET/POST/PATCH {id}/status /api/admin/invoices — Roles: SuperAdmin,Admin,FinanceUser,OrderManager",
-          "Frontend /faturalar: sayfalı liste, durum/tip/arama filtreleri, test mod banner",
-          "Oluştur modal: orderId+docType+notlar. Detay modal: meta grid, satır kalemler tablosu, durum güncelleme",
-          "Sidebar'a Faturalar menü öğesi eklendi (FileText ikonu, Satış grubu)",
-        ],
-      },
-      {
-        type: "frontend", icon: Activity, title: "Dokümanlar > Son Güncellemeler — 10s Canlı Aktivite",
-        items: [
-          "GET /api/admin/docs/activity endpoint: son N AuditLog, ErrorLog, OrderStatusHistory, Invoice kaydı birleşik timeline",
-          "ActivityFeed bileşeni: 10 saniyede bir setInterval polling (cleanup on unmount)",
-          "'Son güncelleme: HH:MM:SS' zaman damgası başlık satırında canlı gösterilir",
-          "Aktivite türüne göre renk + ikon: AuditLog(teal), ErrorLog(kırmızı), OrderStatus(violet), Invoice(emerald)",
-          "Manuel yenile butonu (RefreshCw), max-h scroll ile 60 kayıt gösterir",
-          "GET /api/admin/docs/files ve /file?name=: DOCS klasörü .md dosyaları API üzerinden erişilebilir",
-        ],
-      },
-      {
-        type: "backend", icon: CreditCard, title: "Ödeme POST 400 Bug Fix — String Enum Deserializasyon",
-        items: [
-          "POST /api/payments/initiate: method: 'CreditCard' string → HTTP 400 veriyordu",
-          "Kök neden: ASP.NET Core varsayılan JSON parser yalnızca integer enum değeri kabul eder",
-          "Düzeltme: [JsonConverter(typeof(JsonStringEnumConverter))] → InitiatePaymentRequest.Method",
-          "PaymentsController + OrdersController: BadRequest(result.Error) → BadRequest(new { error }) — api.ts friendlyError() uyumluluğu",
-        ],
-      },
-    ],
-  },
-  {
-    date: "20 Mayıs 2026",
-    label: "Sipariş Silme / Kategori Modal / Marka-Kategori Filtre Bug / Test Verisi",
-    defaultOpen: true,
-    changes: [
-      {
-        type: "backend", icon: Database, title: "Sipariş Silme — DeleteOrderCommand + DELETE /api/orders/admin/{id}",
-        items: [
-          "DeleteOrderCommand: yalnızca İptal(8)/Tamamlandı(7)/İade Edildi(10)/Başarısız(11) statüsündeki siparişler silinebilir",
-          "Soft-delete: IsDeleted=true, audit logu yazılır",
-          "GetAdminOrdersQuery: !IsDeleted filtresi eklendi — silinen siparişler listede görünmez",
-          "Admin siparişler: Trash2 butonu + ConfirmModal (DELETABLE set: 7,8,10,11 statüsleri için gösterilir)",
-        ],
-      },
-      {
-        type: "backend", icon: Tag, title: "Marka ve Kategori Silme Sonrası Listede Kalıyordu",
-        items: [
-          "GetBrandsQuery: db.Brands.AsQueryable() yerine db.Brands.Where(b => !b.IsDeleted) — soft-delete filtresi eksikti",
-          "GetCategoriesQuery: aynı sorun — db.Categories.Where(c => !c.IsDeleted) ile düzeltildi",
-          "Silinen marka/kategori artık admin listesinde görünmüyor (onlyActive=false ile bile)",
-        ],
-      },
-      {
-        type: "ux", icon: Palette, title: "Kategori Silme — window.confirm() → Kullanıcı Dostu Modal",
-        items: [
-          "Kategoriler sayfası: window.confirm() kaldırıldı — tam ConfirmModal eklendi (başlık, ikon, uyarı metni)",
-          "deleteTarget state + handleDelete() ile async silme akışı",
-          "Alt kategori ve aktif ürün uyarısı modal içinde gösteriliyor",
-        ],
-      },
-      {
-        type: "altyapi", icon: Warehouse, title: "Test Verisi — 22 Marka / 25 Kategori / 23 Ürün / 60+ Stok Hareketi",
-        items: [
-          "22 marka: Apple, Samsung, Sony, LG, Nike, Adidas, Lenovo, ASUS, HP, Dell, Microsoft, Xiaomi, Canon, Philips, Bosch, Dyson, Logitech, Puma, Zara + diğerleri — logo URL ile",
-          "25 kategori: 6 ana + 19 alt/yeni (Bilgisayar & Tablet, Telefon & Aksesuar, TV & Ses, Erkek Giyim, Kadın Giyim, Fitness, Mobilya, Mutfak, vb.) — görsel + açıklama",
-          "23 ürün: iPhone 15 Pro, Galaxy S24 Ultra, Sony XM5, ThinkPad X1, ROG Strix, LG OLED TV, Nike Air Max, Adidas Ultraboost, Canon EOS R8, Dyson V15, PS5 vb. — picsum görsel + tam detay",
-          "Her ürüne 50 başlangıç stoku + ek hareket (StockIn/Adjustment, farklı notlar ve kritik eşik değerleri)",
-        ],
-      },
-    ],
-  },
-  {
-    date: "20 Mayıs 2026",
-    label: "Dış Kaynaklar E2E Testi — REST / Excel Bug Düzeltmeleri / Marka Silme",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "backend", icon: Database, title: "Dış Kaynaklar — REST API JSON Bug Düzeltmesi",
-        items: [
-          "ExternalSourceFetcher: JsonSerializer.Deserialize varsayılan case-sensitive → 'url' JSON key, 'Url' C# property'ye eşleşmiyordu",
-          "Sonuç: her REST API fetch 'Config'de url alanı bulunamadı' hatası veriyordu",
-          "Düzeltme: JsonSerializerOptions { PropertyNameCaseInsensitive = true } eklendi",
-          "E2E test: JSONPlaceholder /users → 10 satır, 8 sütun başarıyla çekildi",
-        ],
-      },
-      {
-        type: "backend", icon: Warehouse, title: "Dış Kaynaklar — Stock Import SKU Field Name Bug",
-        items: [
-          "ImportExternalSourceCommand: Map(row, mapping, 'Sku') — UI'da field adı 'SKU' (büyük harf) olarak tanımlanmış",
-          "Sonuç: SKU mapping dictionary'de 'SKU' key'i var, 'Sku' yok → Quantity eşleşiyor ama SKU bulunamıyor → tüm stok satırları atlanıyordu",
-          "Düzeltme: Map('SKU') ?? Map('Sku') ?? Map('ProductName') ile her üç varyant deneniyor",
-          "E2E test: 2 ürün stoku güncellendi (99, 50), 1 geçersiz SKU atlandı",
-        ],
-      },
-      {
-        type: "backend", icon: Tag, title: "Marka Silme — DeleteBrandCommand + DELETE /api/brands/{id}",
-        items: [
-          "BrandsController: yalnızca GET/POST/PUT vardı — DELETE endpoint eksikti",
-          "DeleteBrandCommand: aktif ürünü varsa 'silinemez' hatası döndürür, yoksa IsActive=false + IsDeleted=true",
-          "Admin markalar sayfası: Trash2 butonu + ConfirmModal (aktif ürün uyarısı)",
-          "E2E test: 10 test markası başarıyla silindi (204 No Content)",
-        ],
-      },
-    ],
-  },
-  {
-    date: "20 Mayıs 2026",
-    label: "Kapsamlı Ekran Testi — Backend Auth Yetki Düzeltmeleri",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "backend", icon: Shield, title: "SuperAdmin Yetki Sorunu — 3 Controller Düzeltildi",
-        items: [
-          "ReportsController: [Authorize(Roles='Admin')] → 'SuperAdmin,Admin,FinanceUser' — analiz ekranı SuperAdmin'e açıldı",
-          "CouponsController: [Authorize(Roles='Admin')] → 'SuperAdmin,Admin,FinanceUser' — kuponlar SuperAdmin'e açıldı",
-          "VisitorController.GetLogs: [Authorize(Roles='Admin')] → 'SuperAdmin,Admin' — ziyaretçi logları açıldı",
-          "Kök neden: ASP.NET Core Authorize(Roles='X') AND değil OR mantığıyla çalışır, SuperAdmin ayrıca belirtilmeli",
-          "23 admin ekranının tümü TypeScript + endpoint tutarlılık testi ile doğrulandı — 0 hata",
-        ],
-      },
-    ],
-  },
-  {
-    date: "20 Mayıs 2026",
-    label: "Bug Fix & Özellik — Yorumlar / Analiz / Chatbot / Test Merkezi",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "frontend", icon: MessageSquare, title: "Admin Yorumlar — Yanıt Detay Modalı",
-        items: [
-          "Etkileşimler kolonunda yanıt sayısı (replyCount > 0) tıklanabilir buton oldu",
-          "Tıklanınca 'Yanıtlar' modalı açılır: avatar baş harfi, kullanıcı adı, tarih, yanıt metni",
-          "Modal tasarımı: teal tema, max-h-80 scroll, kapatma butonu (X) — şikayetler modalı ile tutarlı",
-          "Backend: GET /api/admin/reviews/{id}/replies endpoint admin controller'a eklendi",
-        ],
-      },
-      {
-        type: "backend", icon: Shield, title: "Admin Review Arama + HasReports Pagination Bug Fix",
-        items: [
-          "GetAdminReviewsQuery: arama artık kullanıcı e-posta, ad, soyad ve ürün adında da çalışıyor",
-          "Önceki durum: arama sadece yorum body/title'ında çalışıyordu (placeholder ile tutarsız)",
-          "HasReports filtresi in-memory'den (sayfalama SONRASI) DB-level subquery'ye taşındı",
-          "Önceki durum: filtre uygulanınca sayfa başına düşen kayıt sayısı yanlış hesaplanıyordu",
-          "Düzeltme: db.ReviewReports.Where(!IsDeleted && !IsResolved).Select(ReviewId) subquery",
-        ],
-      },
-      {
-        type: "frontend", icon: BarChart3, title: "Admin Analiz — Canlı/Dinamik Veri Polling",
-        items: [
-          "raporlar/page.tsx: 60 saniyelik setInterval auto-refresh + cleanup on unmount",
-          "Manuel 'Yenile' butonu: RefreshCw ikonu, tıklanınca spin animasyonu gösterir",
-          "'Son güncelleme: HH:MM:SS' zaman damgası header alt metninde canlı gösterilir",
-          "3 API çağrısı (visitor-stats, product-sales, dashboard) Promise.allSettled ile paralel",
-          "useCallback + days dependency: period değişince timer yeniden kurulur",
-        ],
-      },
-      {
-        type: "ozellik", icon: Settings, title: "Chatbot Widget Aktif/Pasif Bug Fix",
-        items: [
-          "ChatWidget.tsx: config.enabled=false olsa da floating buton render ediliyordu",
-          "Düzeltme: if (!config.enabled) return null — widget tamamen gizlenir",
-          "showWhatsApp/showTelegram/showInline hesaplaması sadeleştirildi (enabled garantili)",
-          "Admin toggle: ChatbotEnabled değişince anında api.put ile auto-save",
-          "Önceki durum: toggle sadece local state güncelliyordu, 'Kaydet' basılması gerekiyordu",
-        ],
-      },
-      {
-        type: "frontend", icon: FlaskConical, title: "Test Merkezi — Veri Modeli Genişletme",
-        items: [
-          "TEST_MODELS 4 kategoriden 5'e çıkarıldı: yeni 'Siparişler' kategorisi eklendi",
-          "Kullanıcılar: 3'ten 6'ya — Onaylı alıcı, ContentManager, Kilitli hesap eklendi",
-          "Ürünler: 4'ten 6'ya — Varyantlı ürün ve Öne çıkan ürün eklendi",
-          "Siparişler (YENİ): 5 fikstür — Bekleyen, Onaylı→Kargoda, İptal, İade, Misafir",
-          "Kuponlar: 2'den 4'e — Tek kullanım ve Süresi dolmuş fikstürleri eklendi",
-          "Senaryolar: 2'den 6'ya — Hesap kilit, Token yenileme, Stok alarm, Misafir+hesap akışları",
-          "Her fikstür test beklentisi ve edge case açıklamaları içeriyor",
-        ],
-      },
-      {
-        type: "backend", icon: Warehouse, title: "Stok — Tüm Hareketler Tab",
-        items: [
-          "GetAllStockMovementsQuery: StockMovements JOIN Stocks, ProductId JOIN Products",
-          "GET /api/admin/stocks/movements?page&pageSize&movementType&productId endpoint",
-          "Enum.TryParse ile MovementType filtresi (EF'de ToString() SQL'e çevrilemiyor)",
-          "Frontend: tab state 'stok' | 'hareketler', type renkli badge, miktar +/- işaretli",
-        ],
-      },
-    ],
-  },
-  {
-    date: "19 Mayıs 2026",
-    label: "Adım 33 — Test, UX, Güvenlik & İzleme",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "frontend", icon: FlaskConical, title: "Test Merkezi Tam Yenileme",
-        items: [
-          "57 testten 89 teste çıkarıldı — 9 test grubu, tüm alanlar kapsandı",
-          "Filtre sekmeleri: Tümü / Bekliyor / Başarısız / Geçti + metin arama",
-          "API yanıtları inline gösterilir: süre (ms), veri snippet, yeşil/kırmızı panel",
-          "Adım adım howTo → numaralı adım listesi olarak yeniden tasarlandı",
-          "Tüm API testlerini tek seferde çalıştır butonu eklendi",
-          "Per-grup mini ilerleme çubuğu + global progress ring (%)",
-          "Butonlar sembolik (✓/✗/→) yerine etiketli: Geçti / Başarısız / Atla",
-          "Not alanı her test için her zaman görünür",
-          "Yeni test kategorileri: chatbot, bildirim, stok alarm, RBAC, token yenileme, sidebar accordion",
-        ],
-      },
-      {
-        type: "frontend", icon: KeyRound, title: "RBAC Matrisi Düzenlenebilir Yapıldı",
-        items: [
-          "Yönetim > Yetkiler: her hücre tıklanabilir — yetki ekle/kaldır",
-          "Süper Admin sütunu kilitli (her zaman tam yetkili, değiştirilemez)",
-          "Değişen satırlar amber zemin + 'değişti' badge ile vurgulanır",
-          "Varsayılana Sıfırla butonu tüm matrixi geri alır",
-          "Kaydet butonu AdminRbacMatrix JSON olarak SiteSettings'e yazar",
-          "layout.tsx: settings yüklenince matrixi okur, nav item allowedRoles override edilir",
-        ],
-      },
-      {
-        type: "frontend", icon: LayoutDashboard, title: "Sidebar Grup Accordion",
-        items: [
-          "Her grup başlığı (Genel, Katalog, Satış, Kullanıcı, Sistem) tıklanabilir buton",
-          "ChevronDown ikonu grup açıkken döner (transition-transform 200ms)",
-          "Açık/kapalı durum localStorage'da 'sidebar_open_groups' key'ine kaydedilir",
-          "Daraltılmış (icon-only) moddaki sidebar'da tüm gruplar her zaman açık",
-          "Aktif sayfa olan kapalı bir gruba küçük teal nokta göstergesi eklendi",
-        ],
-      },
-      {
-        type: "backend", icon: Shield, title: "Hassas Alan Audit Log",
-        items: [
-          "ResetPasswordCommand: şifre başarıyla sıfırlanınca 'PasswordReset' audit kaydı",
-          "RefreshTokenCommand: token yenilenince 'TokenRefreshed' audit kaydı",
-          "Her iki kayıt userId ve IP adresi içerir (IAuditService.LogAsync)",
-        ],
-      },
-      {
-        type: "frontend", icon: MessageSquare, title: "Mesajlar Sekmesi Accordion",
-        items: [
-          "Yönetim > Mesajlar: 5 grup başlığı açılır/kapanır accordion yapısına geçirildi",
-          "Varsayılan açık grup: Doğrulama Mesajları",
-          "openMsgGroups: Set<string> state — her grup bağımsız toggle edilir",
-          "ChevronDown ikonu açık/kapalı duruma göre döner",
-        ],
-      },
-      {
-        type: "frontend", icon: Activity, title: "Servis Badge Flash Animasyonu",
-        items: [
-          "prevStatusRef ile her 5 saniyede önceki ve yeni status karşılaştırılır",
-          "Status değişince karta 1 saniye ring flash uygulanır (emerald/amber/red)",
-          "Durum noktası ve etiketi transition-colors duration-700 ile yumuşak geçer",
-          "flashMap state ile birden fazla servis aynı anda animasyon gösterebilir",
-        ],
-      },
-      {
-        type: "frontend", icon: Cpu, title: "Servisler Sayfası Kapsamlı Genişletme",
-        items: [
-          "HealthRing SVG bileşeni: genel sistem sağlık skoru (0–100) canlı olarak header'da dönen grafik",
-          "computeServiceStats(): min / ort. / P95 / max latency + oturum uptime yüzdesi hesaplama",
-          "Her servis kartına hızlı stat satırı: 4 sütun (min/ort./P95/max) at-a-glance",
-          "Detaylar genişletme paneli: SLA hedefi, oturum uptime kartı, meta tablo, threshold açıklaması",
-          "Servis Karşılaştırması tablosu: tüm servislerin yanıt süreleri ve uptime'ları tek tabloda",
-          "Olay Günlüğü bölümü: oturum boyunca status değişikliklerini zaman damgasıyla kaydeder",
-          "IncidentEntry arayüzü: ts, service, from, to — maksimum 40 kayıt saklanır",
-          "MAX_HISTORY 20→30 artırıldı; sparkline daha uzun geçmiş gösteriyor",
-          "SLA hedefleri SERVICE_META'ya eklendi: API %99.9, DB %99.95, Redis %99.9, vs.",
-        ],
-      },
-      {
-        type: "frontend", icon: Layers, title: "Kuyruklar Sayfası Kapsamlı Genişletme",
-        items: [
-          "QueueSnapshot arayüzü: ts, processed, pending, failed — son 24 ölçüm saklanır",
-          "Throughput hesabı: ardışık iki snapshot arasındaki delta / geçen süre → msg/dakika",
-          "4. KPI kartı: Throughput (mesaj/dakika) canlı hesaplanır",
-          "Kuyruk Tarihçesi paneli: işlenen ve bekleyen sayılarının sparkline grafikleri",
-          "Mesaj Akışı diyagramı: Event → Outbox DB → MassTransit → Consumer → Tamamlandı / DLQ",
-          "Tanımlı Event Tipleri tablosu: 6 event (OrderCreated, PaymentCompleted, OrderStatusChanged, OrderCancelled, StockAlert, ReturnRequested) — açıklama, kuyruk adı, ikon",
-          "Consumer Listesi tablosu: 4 consumer + görev açıklaması",
-          "DLQ kartı genişletildi: retry stratejisi, saklama süresi, yeniden gönderme",
-          "Çok-sütun alt panel: DLQ + Broker bilgisi + Outbox tablosu yan yana 3 kart",
-          "Header gradyen rengi: failedCount > 0 → kırmızı, pendingCount > 100 → amber, normal → teal",
-        ],
-      },
-      {
-        type: "ux", icon: BookOpen, title: "Dokümanlar Son Güncellemeler Senkronizasyonu",
-        items: [
-          "CHANGELOG statik verisi her geliştirme adımından sonra güncelleniyor",
-          "Mevcut 19 Mayıs girişi genişletildi: label, 3 yeni ChangeEntry eklendi",
-          "Prensip: her kayda değer değişiklik aynı gün ya da sonraki gün CHANGELOG'a işlenir",
-        ],
-      },
-    ],
-  },
-  {
-    date: "18 Mayıs 2026",
-    label: "Adım 33 — Görünüm, Servisler & Filtreler",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "frontend", icon: Palette, title: "Yönetim > Görünüm Kapsamlı Genişletme",
-        items: [
-          "8 Customer + 4 Admin renk kategorisi (toplam 12 alan), her biri 12 swatch",
-          "COLOR_SWATCHES: 9 key, 12 renk her biri",
-          "FONT_OPTIONS: 25 font (Sans-serif × 19, Serif × 4, Monospace × 2) — kategorize dropdown",
-          "Font boyutu seçimi: xs / sm / base / lg / xl — Admin ve Customer ayrı ayrı",
-          "Canlı önizleme paneli: font ve boyut seçimine göre gerçek zamanlı güncellenir",
-          "THEME_PRESETS: 8 hazır tema (Teal, Ocean Blue, Forest Green, Berry Purple, Rose Red, Midnight Slate, Warm Amber, Coral Orange)",
-          "Tema ön ayarı seçince tüm renk alanları tek tıkla güncellenir",
-        ],
-      },
-      {
-        type: "frontend", icon: MessageSquare, title: "Yönetim > Mesajlar Sekmesi",
-        items: [
-          "5 mesaj grubu: Doğrulama (🔒), Sipariş (📦), Sepet (🛒), Sistem & Hata (⚠️), Başarı & Bilgi (✅)",
-          "Toplam 18 özelleştirilebilir mesaj — SiteSettings Msg_* key'leri",
-          "Her mesaj: etiket, açıklama (hint), özelleştirildi badge, sıfırla butonu, input, varsayılan gösterimi",
-          "Varsayılan değerden farklı her mesaj 'Özelleştirildi' badge'i alır",
-          "Kaydet butonu tüm mesajları API'ye yazar, sayfayı yenilemek gerekmez",
-        ],
-      },
-      {
-        type: "frontend", icon: Activity, title: "Servisler Sayfası Yapısal Meta Panel",
-        items: [
-          "ServiceMeta interface: typeLabel, url, provider, database, port, extra",
-          "Her servis kartına yapılandırılmış meta bilgi bölümü eklendi",
-          "Alanlar: Tür / Sağlayıcı / URL-Bağlantı / Veritabanı / Port / Güvenlik",
-        ],
-      },
-      {
-        type: "backend", icon: Server, title: "HealthController ServiceMeta Record",
-        items: [
-          "ServiceMeta record: TypeLabel, Url, Provider, Database, Port, Extra",
-          "ServiceStatus'a Meta?: ServiceMeta alanı eklendi",
-          "API: ortam URL, versiyon, env; DB: masked connection, DB adı regex; Redis: masked host/port",
-          "RabbitMQ: amqp://host:port/vhost, vhost, port, kullanıcı adı",
-          "E-posta: smtpHost:port, gönderici e-posta, SSL/TLS modu",
-          "MaskConnectionString(), MaskRedis(), ExtractDbName() yardımcı metodları",
-        ],
-      },
-      {
-        type: "frontend", icon: Database, title: "Kuyruklar Sayfası Broker + Outbox Detayları",
-        items: [
-          "GET /api/admin/system-info ile broker bilgisi çekilir",
-          "'Mesaj Broker' kartı: sağlayıcı, host, port, vhost bilgileri",
-          "'Outbox Tablosu' kartı: tablo adı, pattern, yeniden deneme sayısı, event tipleri",
-          "Yeni ikonlar: Server, Database, GitBranch, Package, Zap, Hash",
-        ],
-      },
-      {
-        type: "frontend", icon: MapPin, title: "Ziyaretçiler Tutarlı İkon Seti",
-        items: [
-          "Tüm satır ikonları tek boyut (size=11) ile standardize edildi",
-          "Üye → User (teal), Misafir → UserX (gri), IP → Globe, Konum → MapPin",
-          "Masaüstü → Monitor, Mobil → Smartphone",
-          "browserLabel() fonksiyonu { label, isMobile } tuple döndürecek şekilde güncellendi",
-        ],
-      },
-      {
-        type: "ozellik", icon: Tag, title: "Ürün Nitelik Filtreleri (Attribute Filters)",
-        items: [
-          "GET /api/products/attributes?categorySlug=... → distinct {key: [values]} haritası döner",
-          "GetProductAttributesQuery: ProductVariant.AttributesJson'dan in-memory deserialize",
-          "ProductFilters.tsx: useEffect ile API'den nitelikler yüklenir, kategori değişince yenilenir",
-          "Pill buton UI: her nitelik değeri toggle edilebilir, aktifler teal vurguyla gösterilir",
-          "URL: nitelikler parametresi olarak encode edilir, FilterBadge her çift için eklenir",
-        ],
-      },
-      {
-        type: "frontend", icon: RefreshCw, title: "Müşteri Sitesi Beni Hatırla Düzeltmesi",
-        items: [
-          "Customer api.ts'e tryRefreshToken() interceptor eklendi",
-          "401 yanıtında: POST /api/auth/refresh → başarılıysa orijinal isteği yeniden dene",
-          "Refresh başarısızsa: localStorage temizlenir, kullanıcı login sayfasına yönlendirilir",
-          "REFRESH_TOKEN_KEY: 'refresh_token' — admin api.ts ile aynı yapı",
-        ],
-      },
-      {
-        type: "backend", icon: Shield, title: "InputSanitizationMiddleware Düzeltmesi",
-        items: [
-          "Eksik 'using Microsoft.AspNetCore.Http;' direktifi eklendi",
-          "Build hatası CS0246 (RequestDelegate bulunamadı) giderildi",
-        ],
-      },
-    ],
-  },
-  {
-    date: "15 Mayıs 2026",
-    label: "Adım 33 — Güvenlik, UX & İade",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "frontend", icon: RotateCcw, title: "İade Yönetimi Sayfası",
-        items: [
-          "/iade sayfası: müşteri iade taleplerini listeleme ve aksiyon alma",
-          "İade onayla (status=10) / reddet (status=7) işlemleri ConfirmModal ile",
-          "Admin not girişi — reddetme sebebi müşteriye iletilebilir",
-          "Sidebar'a 'İadeler' (RotateCcw ikonu) menü öğesi eklendi",
-        ],
-      },
-      {
-        type: "ozellik", icon: MessageSquare, title: "Yorum Moderasyon Genişletmesi",
-        items: [
-          "Reddet + Not alanı: admin reddederken mesaj girebilir (RejectionNote)",
-          "E-posta bildir seçeneği: müşteriye reddetme e-postası gönderilir",
-          "RejectionNote alanı Review entity'sine eklendi, migration oluşturuldu",
-        ],
-      },
-      {
-        type: "guvenik", icon: Lock, title: "Hesap Kilitleme (5 Deneme)",
-        items: [
-          "LoginCommandHandler: art arda 5 başarısız giriş → hesap 15 dakika kilitlenir",
-          "User entity: FailedLoginCount ve LockoutUntil alanları eklendi",
-          "Migration: AddUserLockout oluşturuldu",
-          "Başarılı girişte sayaç sıfırlanır (FailedLoginCount=0, LockoutUntil=null)",
-          "AccountLocked audit kaydı yazılır",
-        ],
-      },
-      {
-        type: "guvenik", icon: Shield, title: "Güvenlik Headers Middleware",
-        items: [
-          "SecurityHeadersMiddleware: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection",
-          "CSP (Content Security Policy): script-src, style-src, img-src direktifleri",
-          "HSTS: max-age=31536000, includeSubDomains",
-          "Referrer-Policy: strict-origin-when-cross-origin",
-        ],
-      },
-      {
-        type: "frontend", icon: Bell, title: "Session Timeout Uyarısı",
-        items: [
-          "SessionTimeoutWarning bileşeni: token süresine 5 dakika kala sağ altta toast",
-          "JWT exp claim decode edilerek kalan süre hesaplanır",
-          "'Oturumu Yenile' butonu: onRefresh callback → token yenileme",
-          "'Çıkış Yap' butonu: logout + login yönlendirme",
-          "Admin layout'a sarılı — tüm sayfalarda aktif",
-        ],
-      },
-      {
-        type: "frontend", icon: Settings, title: "Global Error Boundary",
-        items: [
-          "ErrorBoundary React sınıf bileşeni — beklenmeyen hataları yakalar",
-          "Kullanıcı dostu hata mesajı + 'Sayfayı Yenile' butonu",
-          "Admin main content'e sarılı, sidebar etkilenmez",
-          "api.ts'e friendlyError() — 'Failed to fetch' gibi teknik mesajları Türkçeye çevirir",
-        ],
-      },
-      {
-        type: "frontend", icon: CreditCard, title: "Ödeme Yönetimi Sayfası",
-        items: [
-          "/odemeler sayfası: tüm ödemelerin listesi, durum, tutar, yöntem filtresi",
-          "Havale/EFT ödemeler için manuel onay (Onayla / Askıya Al / İptal)",
-          "Ödeme durum geçmişi — her aksiyon timeline olarak kaydedilir",
-          "Detay modalı: sipariş, müşteri, işlem adımları",
-          "Sidebar'a 'Ödemeler' (CreditCard ikonu) menü öğesi eklendi",
-        ],
-      },
-    ],
-  },
-  {
-    date: "10 Mayıs 2026",
-    label: "Adım 33 — Auth, Roller & Rate Limiting",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "guvenik", icon: KeyRound, title: "Rol Tabanlı Admin Nav Guard",
-        items: [
-          "Her NavItem'a allowedRoles dizisi eklendi",
-          "filterByRole(): SuperAdmin/Admin her şeyi görür, diğerleri kısıtlıdır",
-          "Sidebar nav listesi JWT roles claim'ine göre filtrelenir",
-          "Tanımlı roller: SuperAdmin, Admin, ProductManager, StockManager, OrderManager, CustomerSupport, FinanceUser, ContentManager",
-        ],
-      },
-      {
-        type: "ozellik", icon: Users, title: "Kullanıcıya Rol Atama UI",
-        items: [
-          "Kullanıcılar sayfasına ShieldCheck ikonu butonu eklendi",
-          "Violet modal: checkbox listesi ile birden fazla rol seçimi",
-          "PUT /api/admin/users/{id}/roles → UpdateUserRolesCommand",
-          "Mevcut roller önceden seçili gelir",
-        ],
-      },
-      {
-        type: "backend", icon: RefreshCw, title: "Refresh Token (Beni Hatırla)",
-        items: [
-          "UserRefreshToken entity: UserId, Token (64 char), ExpiresAt, IsRevoked",
-          "Migration: AddUserRefreshToken",
-          "LoginCommand: RememberMe=true → 30 günlük token üretilir, DB'ye yazılır",
-          "POST /api/auth/refresh: eski token iptal edilir, yeni token döndürülür",
-          "RefreshTokenCommand: token doğrulama, kullanıcı aktiflik kontrolü",
-        ],
-      },
-      {
-        type: "backend", icon: Mail, title: "Şifremi Unuttum — Çok Kanallı",
-        items: [
-          "/sifre-sifirla sayfası: E-posta / WhatsApp / Telegram kanal seçimi",
-          "E-posta akışı: ForgotPasswordCommand → PasswordResetToken → e-posta",
-          "WhatsApp: wa.me deep link ile destek hattına yönlendirme",
-          "Telegram: t.me deep link ile destek botuna yönlendirme",
-          "Token 1 saat geçerli, kullanılınca sıfırlanır",
-        ],
-      },
-      {
-        type: "guvenik", icon: Shield, title: "Rate Limiting & Input Sanitizasyon",
-        items: [
-          "Tüm public endpoint'lere rate limiting uygulandı (app.MapControllers().RequireRateLimiting)",
-          "InputSanitizationMiddleware: XSS ve SQL injection için string temizleme",
-          "CORS: production'da sadece izin verilen origin'ler (WithOrigins config tabanlı)",
-        ],
-      },
-    ],
-  },
-  {
-    date: "5 Mayıs 2026",
-    label: "Adım 30–32 — İzleme, Sidebar & Dashboard",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "frontend", icon: Activity, title: "Servis & Kuyruk Canlı İzleme",
-        items: [
-          "Servisler ve Kuyruklar sayfaları 5 saniyede bir otomatik yenileme (setInterval)",
-          "Sparkline SVG latency geçmişi (son 20 ölçüm) her servis kartında",
-          "Latency bar: eşik değerlere göre yeşil/amber/kırmızı",
-          "Countdown sayacı ve son güncelleme zamanı göstergesi",
-          "Uptime sayacı: sayfa açıldığından bu yana geçen süre",
-        ],
-      },
-      {
-        type: "frontend", icon: LayoutDashboard, title: "Sidebar Daraltma/Genişletme",
-        items: [
-          "Sol alt köşede PanelLeftClose/PanelLeftOpen toggle butonu",
-          "Daraltılmış halde (w-16): sadece ikonlar, hover tooltip ile label",
-          "Genişletilmiş halde (w-60): gruplar, etiketler, arama çubuğu",
-          "Durum localStorage'da 'sidebar_collapsed' key'ine kaydedilir",
-        ],
-      },
-      {
-        type: "frontend", icon: Settings, title: "Sol Menü Arama Çubuğu",
-        items: [
-          "Genişletilmiş sidebar'da canlı filtreleme input alanı",
-          "Yazarken sonuçlar anında filtrelenir — Yönetim ve Test dahil",
-          "Escape tuşu ile temizlenir, sonuç bulunamazsa 'Sonuç bulunamadı' gösterilir",
-          "Arama modunda grup başlıkları gizlenir, düz liste gösterilir",
-        ],
-      },
-      {
-        type: "frontend", icon: BarChart3, title: "Dashboard Period Filtresi",
-        items: [
-          "Bugün / Bu Hafta / Bu Ay filtre sekmeleri eklendi",
-          "weeklyOrders verisi dönem seçimine göre filtrelenerek gösterilir",
-          "KPI kartları seçili döneme uygun verilerle güncellenir",
-        ],
-      },
-      {
-        type: "frontend", icon: Bell, title: "Bildirimler Paneli",
-        items: [
-          "Üst barda zil ikonu + sayı rozeti (okunmamış bildirim sayısı)",
-          "Dropdown: yeni sipariş / düşük stok / bekleyen yorum bildirimleri",
-          "Bildirime tıklayınca ilgili sayfaya yönlendirme",
-          "Okundu işaretleme ve panel kapama desteği",
-        ],
-      },
-    ],
-  },
-  {
-    date: "25 Nisan 2026",
-    label: "Adım 27–29 — Sepet, Test & UX",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "ozellik", icon: ShoppingCart, title: "Seçici Checkout & Sepet İyileştirmeleri",
-        items: [
-          "CartItem.IsSelected alanı eklendi — seçili/Daha Sonra ayrımı",
-          "Her ürüne checkbox, 'Seçili X Ürünle Devam Et' butonu",
-          "Silme modalı: Favorilere Ekle & Kaldır / Direkt Sil seçeneği",
-          "Header sepet rozeti sadece seçili ürünleri sayar",
-          "Aktif kuponken 'Önce mevcut kuponu kaldırın' uyarısı",
-        ],
-      },
-      {
-        type: "frontend", icon: FlaskConical, title: "Test Merkezi (İlk Sürüm)",
-        items: [
-          "/test sayfası: API & Altyapı / Admin Ekranlar / Müşteri Ekranlar / Özellik Testleri",
-          "Her test adımı: PASS/FAIL/SKIP toggle, not alanı, dış link",
-          "Sonuçlar localStorage'da saklanır",
-          "Özet: geçti/başarısız/bekliyor sayıları + ilerleme çubuğu",
-        ],
-      },
-      {
-        type: "frontend", icon: BookOpen, title: "Dokümanlar Sayfası",
-        items: [
-          "/dokuman sayfası: İş Süreçleri / Teknik Analiz / Son Güncellemeler sekmeleri",
-          "Flow diyagramları: sipariş, ödeme, kargo, iade, yorum, kayıt akışları",
-          "Teknik: mimari katmanlar, entity ilişkileri, API grupları, cache stratejisi",
-        ],
-      },
-    ],
-  },
-  {
-    date: "15 Nisan 2026",
-    label: "Adım 23–26 — Redis, Dapper & Event-Driven",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "altyapi", icon: Cpu, title: "Redis Cache Entegrasyonu",
-        items: [
-          "StackExchangeRedis paketi eklendi",
-          "ICacheService + CacheService: IDistributedCache wrapper",
-          "Kategori listesi (10 dk TTL), dashboard stats (1 dk), ürün detay (5 dk)",
-          "Sepet session cache, Docker Compose'a redis:7-alpine servisi",
-        ],
-      },
-      {
-        type: "altyapi", icon: Database, title: "Dapper Sorgu Optimizasyonu",
-        items: [
-          "IDapperQueryService + DapperQueryService ham SQL sorgu servisi",
-          "Dashboard: TodaySales/OrderCount/MonthSales Dapper ile optimize edildi",
-          "GetVisitorLogsQuery Dapper ile sayfalı sorgu",
-          "Ürün satış raporu GroupBy + JOIN sorgusu",
-        ],
-      },
-      {
-        type: "altyapi", icon: Activity, title: "RabbitMQ Event-Driven Mimari",
-        items: [
-          "MassTransit.RabbitMQ paketi, Outbox pattern",
-          "Events: OrderCreated, OrderStatusChanged, OrderCancelled, PaymentCompleted",
-          "Consumer'lar: OrderCreated, PaymentCompleted, OrderStatusChanged",
-          "OrderProcessingSaga: ödeme → kargo → teslim state machine",
-          "DLQ: MassTransit retry + outbox RetryCount<5 koruması",
-        ],
-      },
-      {
-        type: "altyapi", icon: Globe, title: "PostgreSQL & Fly.io Deployment",
-        items: [
-          "SQL Server → PostgreSQL geçişi: Npgsql.EntityFrameworkCore.PostgreSQL",
-          "Database:Provider config (dev=SqlServer, prod=PostgreSQL)",
-          "fly.toml deployment konfigürasyonu, multi-stage Docker build",
-          "GitHub Actions CI/CD: Fly.io otomatik deploy (.github/workflows/deploy.yml)",
-          "appsettings.Production.json şablonu, seed admin şifresi env'den",
-        ],
-      },
-    ],
-  },
-  {
-    date: "1 Nisan 2026",
-    label: "Adım 19–22 — Chatbot, Lokasyon & Dış Kaynaklar",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "ozellik", icon: MessageSquare, title: "Chatbot Entegrasyonu",
-        items: [
-          "SiteSettings: ChatbotEnabled, ChatbotProvider, WhatsApp/Telegram/n8n alanları",
-          "POST /api/chatbot/message: n8n webhook'a mesaj iletir",
-          "GET /api/chatbot/config: token içermeden widget config",
-          "ChatWidget bileşeni: sağ alt yüzen buton, WhatsApp/Telegram/n8n inline chat",
-          "Sohbet geçmişi sessionStorage'da tutulur",
-          "Müşteri layout'a entegre — tüm sayfalarda aktif",
-        ],
-      },
-      {
-        type: "ozellik", icon: MapPin, title: "Ziyaretçi IP & Lokasyon Takibi",
-        items: [
-          "VisitorLog entity: SessionId, UserId, IP, UserAgent, Page, Country, City, Lat, Lon",
-          "Migration: AddVisitorLogs",
-          "POST /api/visitor/log: sayfa ziyareti + opsiyonel konum kaydı",
-          "IP'den ülke/şehir: ip-api.com free tier async entegrasyonu",
-          "Konum izin banner'ı: sağ altta fixed non-blocking card, localStorage'a kaydedilir",
-          "Admin: Ziyaretçiler sayfası — IP, tarayıcı, konum, Google Maps linki",
-        ],
-      },
-      {
-        type: "ozellik", icon: Database, title: "Dış Veri Kaynakları Modülü",
-        items: [
-          "ExternalSource entity: Id, Name, Type (Excel/RestApi), Config JSON, IsActive",
-          "Migration: AddExternalSources",
-          "Excel: ClosedXML ile .xlsx parse, REST API: HttpClient JSON endpoint",
-          "FetchExternalSourceCommand: ham satırları döndürür (önizleme)",
-          "ImportExternalSourceCommand: Product/Category/Brand/Stock tablolarına yazar",
-          "Çakışma stratejisi: skip/update seçimi, import log kaydı",
-          "/dis-kaynaklar sayfası: kaynak listesi, önizleme tablosu, içe aktarma",
-        ],
-      },
-      {
-        type: "backend", icon: Activity, title: "Başarısız Giriş Audit Log",
-        items: [
-          "LoginCommandHandler: hatalı şifre → 'LoginFailed' audit kaydı",
-          "Pasif hesap girişi → 'LoginFailed' audit kaydı",
-          "IAuditService/AuditFilter: IP adresi audit kaydına eklendi",
-          "Admin Hareketler sayfası: LoginFailed kırmızı satır rengi + filtre seçeneği",
-        ],
-      },
-    ],
-  },
-  {
-    date: "15 Mart 2026",
-    label: "Adım 17–18 — Misafir Checkout & Gelişmiş Filtreler",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "ozellik", icon: ShoppingCart, title: "Misafir Checkout (Üye Olmadan Sipariş)",
-        items: [
-          "GuestAddressInfo inline adres formu checkout adımında",
-          "POST /api/orders/guest: misafir sipariş oluşturma",
-          "Checkout sonrası 'Hesap Oluştur' CTA, üye olunca sepet merge",
-          "/siparis-sorgula: misafir sipariş sorgulama (order number + email)",
-        ],
-      },
-      {
-        type: "ozellik", icon: Tag, title: "Gelişmiş Ürün Filtreleme",
-        items: [
-          "Fiyat aralığı: min-max input, URL param olarak encode",
-          "Puan filtresi: 4+, 3+, 2+, 1+ yıldız — backend minRating param",
-          "Marka çoklu seçim: checkbox listesi, brandIds[] param",
-          "Sıralama: En Yeni, Çok Satan, Fiyat ↑↓",
-          "FilterBadge bileşeni: aktif filtreler için rozet + 'Tümünü Temizle' butonu",
-        ],
-      },
-      {
-        type: "ozellik", icon: Users, title: "Favoriler / Wishlist",
-        items: [
-          "Wishlist entity + migration",
-          "GET/POST/DELETE /api/wishlist/{productId}",
-          "/favoriler sayfası: favori ürün listesi",
-          "ProductCard'a kalp butonu entegrasyonu (toggle, login gerekli)",
-          "Header dropdown'a favoriler linki eklendi",
-        ],
-      },
-    ],
-  },
-  {
-    date: "1 Mart 2026",
-    label: "Adım 1–16 — Platform Temeli",
-    defaultOpen: false,
-    changes: [
-      {
-        type: "altyapi", icon: Server, title: "Clean Architecture Backend",
-        items: [
-          "Domain / Application / Infrastructure / API 4 katmanlı yapı",
-          "MediatR CQRS: Commands ve Queries ayrımı",
-          "EF Core + otomatik migration, seed data",
-          "JWT auth (60 dk access token), FluentValidation",
-        ],
-      },
-      {
-        type: "ozellik", icon: Package, title: "Ürün & Katalog Modülü",
-        items: [
-          "Category, Brand, Product, ProductVariant, ProductImage CRUD",
-          "ProductVariant.AttributesJson: JSON dizisi olarak nitelikler",
-          "SEO: metaTitle/metaDescription, generateMetadata",
-          "Product.IsFeatured, stok uyarı eşiği",
-        ],
-      },
-      {
-        type: "ozellik", icon: ShoppingCart, title: "Sipariş & Ödeme Sistemi",
-        items: [
-          "Sepet: AddToCart, UpdateCartItem, RemoveCartItem, MergeGuestCart",
-          "Sipariş: CreateOrder, CancelOrder, UpdateOrderStatus",
-          "İyzico HMAC-SHA256 Checkout Form API entegrasyonu",
-          "MockPaymentService geliştirme ortamı için",
-          "Kupon/indirim sistemi: min sepet, yüzde/sabit, kullanım limiti",
-        ],
-      },
-      {
-        type: "ozellik", icon: Mail, title: "E-posta & Bildirimler",
-        items: [
-          "MailKit SMTP entegrasyonu, UseSsl config, test endpoint",
-          "Sipariş onayı, kargo takip, şifre sıfırlama, yorum reddetme e-postaları",
-          "HTML e-posta şablonları (EmailTemplates.cs)",
-          "Dev modda e-posta loglanır, prod'da SMTP'ye gönderilir",
-        ],
-      },
-      {
-        type: "frontend", icon: LayoutDashboard, title: "Admin Panel Temel Modüller",
-        items: [
-          "Dark sidebar, responsive layout, role-based nav",
-          "Dashboard: KPI kartları, gelir grafiği, stok uyarıları, hedefler",
-          "Siparişler: listeleme, filtre, detay, durum değiştirme, kargo takip",
-          "Ürünler: CRUD, çoklu görsel yükleme, varyant yönetimi",
-          "Kullanıcılar, Kuponlar, Yorumlar, Hareketler, Hedefler modülleri",
-        ],
-      },
-      {
-        type: "frontend", icon: Globe, title: "Müşteri Sitesi Temel Modüller",
-        items: [
-          "Ana sayfa, ürün listesi, ürün detay, sepet, checkout",
-          "ProductImageGallery: fullscreen + swipe desteği",
-          "Yorum bölümü: ReviewSection, verified purchase kontrolü",
-          "Hesabım: sipariş geçmişi, adresler, profil güncelleme",
-          "Konum izin bileşeni, chatbot widget",
-        ],
-      },
-    ],
-  },
-];
-
-function ChangeTypeBadge({ type }: { type: ChangeType }) {
-  const m = TYPE_META[type];
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.bg} ${m.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
-      {m.label}
-    </span>
-  );
-}
-
-function DayEntry({ day }: { day: DayLog }) {
-  const [open, setOpen] = useState(day.defaultOpen ?? false);
-  const total = day.changes.reduce((s, c) => s + c.items.length, 0);
-
-  return (
-    <div className="relative pl-8">
-      {/* Timeline dot + line */}
-      <div className="absolute left-0 top-0 flex flex-col items-center h-full">
-        <div className={`w-3 h-3 rounded-full border-2 shrink-0 mt-1 ${open ? "border-teal-500 bg-teal-500" : "border-slate-300 bg-white"}`} />
-        <div className="flex-1 w-px bg-slate-200 mt-1" />
-      </div>
-
-      {/* Header */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-start gap-3 pb-3 text-left group"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-              <Calendar size={11} />
-              {day.date}
-            </span>
-            {day.label && (
-              <span className="text-xs font-semibold text-slate-700">{day.label}</span>
-            )}
-            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
-              {day.changes.length} değişiklik · {total} madde
-            </span>
-          </div>
-        </div>
-        <div className={`shrink-0 mt-0.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
-          <ChevronDown size={14} className="text-slate-400" />
-        </div>
-      </button>
-
-      {/* Changes */}
-      {open && (
-        <div className="space-y-3 mb-5">
-          {day.changes.map(change => (
-            <div key={change.title} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-100 bg-slate-50/60">
-                <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                  <change.icon size={14} className="text-slate-600" />
-                </div>
-                <span className="text-sm font-bold text-slate-800 flex-1">{change.title}</span>
-                <ChangeTypeBadge type={change.type} />
-              </div>
-              <ul className="px-4 py-3 space-y-1.5">
-                {change.items.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed">
-                    <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function YeniliklerTab() {
   const [subTab, setSubTab] = useState<"git" | "notlar" | "degisiklikler">("git");
