@@ -4031,58 +4031,36 @@ export default function YonetimPage() {
           )}
 
           {/* ── 5. Süreç Dokümantasyonu ── */}
-          <Section title="Lisans Süreçleri — Kılavuz" icon={<BookOpen size={16} />}
-            subtitle="Platform lisanslama sistemi nasıl çalışır, hangi adımlar izlenir ve hangi hatalar nasıl giderilir.">
+          <Section title="Lisans Sistemi Kılavuzu" icon={<BookOpen size={16} />}
+            subtitle="Güvenlik mimarisi, kurulum adımları ve sorun giderme rehberi.">
 
-            <div className="space-y-5 text-xs text-slate-600">
+            <div className="space-y-8 text-xs text-slate-600">
 
-              {/* Genel Bakış */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Genel Bakış</p>
-                <p>Bu platform RSA-2048 tabanlı lisans sistemi kullanır. Lisans token'ı yalnızca private key ile imzalanabilir ve public key ile doğrulanır. Private key olmadan geçerli token üretilemez.</p>
-                <p>Lisanslama iki senaryo için kullanılır: <strong>Platform aktivasyonu</strong> (ECOM_LICENSE — API başlaması için zorunlu) ve <strong>Kullanıcı lisansları</strong> (SuperAdmin'in diğer admin kullanıcılara atadığı kişisel lisanslar).</p>
-                <p>Güvenlik üç katmandan oluşur: <strong>RSA imza doğrulama</strong> (her istekte, 1 dk cache), <strong>Host binding</strong> (token yalnızca belirtilen sunucuda çalışır — opsiyonel), <strong>Online aktivasyon</strong> (token hash'i Cloudflare Worker'a doğrulatılır, 5 dk cache).</p>
-                <p className="text-slate-400">Private key güvenli yerde saklanmalı. Public key <code className="bg-slate-200 px-1 rounded">ECOM_PUBLIC_KEY</code> ortam değişkeninde tutulur (kaynak kodda değil). Key rotasyonu sırasında hem env var hem de tüm aktif token'lar değiştirilmelidir.</p>
-              </div>
-
-              {/* SuperAdmin akışı */}
-              {isSuperAdmin && (
-                <div className="space-y-3">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SuperAdmin İş Akışı</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {[
-                      { step: "1", title: "Anahtar Çifti Üret (ilk kurulum)", desc: "'Lisans Üretici > Yeni RSA-2048 Anahtar Çifti Üret' butonuna basın. Private key (PKCS8 DER base64) otomatik textarea'ya dolar. Public key'i (SPKI DER base64) kopyalayın ve sunucudaki .env dosyasında ECOM_PUBLIC_KEY değişkenine yapıştırın. Private key'i güvenli yerde saklayın — bir daha göremezsiniz." },
-                      { step: "2", title: "Token Üret", desc: "Private key alanında key mevcutsa Issuer, NotBefore, ExpiresAt ve isteğe bağlı Host değerlerini girin. 'Token Üret'e basın. İmzalama tarayıcıda WebCrypto ile yapılır — private key sunucuya gönderilmez." },
-                      { step: "3", title: "Platform Aktivasyonu", desc: "Token'ı sunucuda ECOM_LICENSE, public key'i ECOM_PUBLIC_KEY ortam değişkenine yapıştırın. Online aktivasyon aktifse token hash'ini Cloudflare Worker VALID_HASHES listesine ekleyin. API konteynerini yeniden başlatın." },
-                      { step: "4", title: "Kullanıcıya Ata", desc: "'Kullanıcıya Lisans Ata' bölümünden admin kullanıcının e-postasını veya Ad Soyadını girin. Sistem otomatik görüntüleme şifresi üretir ve kullanıcıya e-posta gönderir." },
-                      { step: "5", title: "Atamayı Yönet", desc: "'Kullanıcı Atamaları' listesinden tüm atamaları görebilir, iptal edebilirsiniz. İptal edilen lisanslar o kullanıcının erişimini anında keser." },
-                    ].map(item => (
-                      <div key={item.step} className="flex gap-3 p-3 bg-teal-50 border border-teal-100 rounded-xl">
-                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
-                        <div>
-                          <p className="font-bold text-slate-700 mb-0.5">{item.title}</p>
-                          <p className="text-slate-500 leading-relaxed">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Admin kullanıcı akışı */}
-              <div className="space-y-3">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Admin Kullanıcı Akışı</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {/* ── Güvenlik Katmanları ── */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Güvenlik Mimarisi — 3 Katman</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {[
-                    { step: "1", title: "Mail Bekleyin", desc: "SuperAdmin size bir lisans atadığında e-posta alırsınız. Mail'de lisans token'ınız ve görüntüleme şifreniz (XXXX-XXXX-XXXX-XXXX formatında) yer alır." },
-                    { step: "2", title: "Şifreyle Görüntüle", desc: "'Aktivasyon Anahtarı' bölümüne görüntüleme şifrenizi girin. Lisans token'ınız ekranda belirir. Kopyala butonuyla alın." },
-                    { step: "3", title: "Token'ı Kullanın", desc: "Token'ı kendi deployment'ınızın ECOM_LICENSE değişkenine yapıştırın. API'yi yeniden başlatın. JWT key de bu token'dan türetilir." },
+                    { icon: <KeyRound size={14} />, color: "teal",   title: "RSA İmza",          badge: "1 dk cache",    desc: "Her API isteğinde token RSA-2048 PKCS1v15 ile doğrulanır." },
+                    { icon: <Lock    size={14} />, color: "violet", title: "Host Binding",       badge: "Opsiyonel",     desc: "Token payload'ına host girilirse yalnızca o sunucuda çalışır." },
+                    { icon: <Shield  size={14} />, color: "blue",   title: "Online Aktivasyon",  badge: "5 dk cache",    desc: "Token hash'i Cloudflare Worker'a gönderilir; VALID_HASHES'te yoksa istek reddedilir." },
                   ].map(item => (
-                    <div key={item.step} className="flex gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{item.step}</span>
-                      <div>
-                        <p className="font-bold text-slate-700 mb-0.5">{item.title}</p>
+                    <div key={item.title} className={`p-4 rounded-xl border flex gap-3 items-start ${
+                      item.color === "teal"   ? "bg-teal-50 border-teal-100" :
+                      item.color === "violet" ? "bg-violet-50 border-violet-100" :
+                                               "bg-blue-50 border-blue-100"}`}>
+                      <span className={`mt-0.5 shrink-0 ${
+                        item.color === "teal" ? "text-teal-600" : item.color === "violet" ? "text-violet-600" : "text-blue-600"}`}>
+                        {item.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="font-bold text-slate-700 text-[11px]">{item.title}</span>
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                            item.color === "teal" ? "bg-teal-100 text-teal-700" : item.color === "violet" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
+                            {item.badge}
+                          </span>
+                        </div>
                         <p className="text-slate-500 leading-relaxed">{item.desc}</p>
                       </div>
                     </div>
@@ -4090,50 +4068,141 @@ export default function YonetimPage() {
                 </div>
               </div>
 
-              {/* Teknik notlar */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Teknik Detaylar</p>
-                </div>
-                <div className="p-4 space-y-2">
+              {/* ── Ortam Değişkenleri ── */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Gerekli Ortam Değişkenleri</p>
+                <div className="bg-slate-900 rounded-xl p-4 space-y-2.5 font-mono text-[11px]">
                   {[
-                    { label: "İmzalama",            value: "RSA-2048 PKCS1v15, SHA-256 — WebCrypto API (tarayıcı, client-side)" },
-                    { label: "Token formatı",        value: "base64url(JSON payload) + \".\" + base64url(RSA imza) — tek satır" },
-                    { label: "Payload alanları",     value: "{ app, iss, nbf, exp, host? } — host opsiyonel; girilirse token yalnızca o sunucuda çalışır" },
-                    { label: "Issuer (iss)",          value: "Kim tarafından verildiği bilgisi — izlenebilirlik içindir, doğrulamayı etkilemez. Örn: OCA1782" },
-                    { label: "Public key depolama",  value: "ECOM_PUBLIC_KEY ortam değişkeni (SPKI DER base64) — kaynak kodda saklanmaz" },
-                    { label: "Online aktivasyon",    value: "Token SHA-256 hash → Cloudflare Worker → VALID_HASHES kontrolü; 5 dk cache; ulaşılamazsa istek reddedilir" },
-                    { label: "JWT bağlantısı",       value: "JWT signing key, payload'dan HMAC-SHA256 ile türetilir — token değişirse tüm oturumlar geçersiz olur" },
-                    { label: "Görüntüleme şifresi",  value: "XXXX-XXXX-XXXX-XXXX formatlı 16 karakter — SHA-256 hash ile saklanır, geri döndürülemez" },
-                    { label: "Kullanıcı arama",      value: "Atama sırasında e-posta veya Ad Soyad eşleşmesi denenir — büyük/küçük harf duyarlıdır" },
-                  ].map(r => (
-                    <div key={r.label} className="flex gap-2">
-                      <span className="text-slate-400 font-semibold shrink-0 w-44">{r.label}</span>
-                      <span className="text-slate-600">{r.value}</span>
+                    { key: "ECOM_LICENSE",          val: "RSA-2048 lisans token (tek satır, boşluksuz)",       required: true  },
+                    { key: "ECOM_PUBLIC_KEY",        val: "SPKI DER base64 public key (PEM başlıkları olmadan)", required: true  },
+                    { key: "LICENSE_ACTIVATION_URL", val: "Cloudflare Worker URL — boş bırakılırsa devre dışı", required: false },
+                  ].map(v => (
+                    <div key={v.key} className="flex items-start gap-3">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                        v.required ? "bg-red-900 text-red-300" : "bg-slate-700 text-slate-400"}`}>
+                        {v.required ? "ZORUNLU" : "OPS."}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-teal-400">{v.key}</span>
+                        <span className="text-slate-500 font-sans ml-2">{v.val}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Sorun giderme */}
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
-                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
-                {[
-                  { s: "API başlamıyor",                     c: "ECOM_LICENSE veya ECOM_PUBLIC_KEY eksik ya da hatalı. Terminal'deki LicenseException mesajını okuyun. Token tek satır, boşluksuz olmalı." },
-                  { s: "Giriş 401 veriyor",                  c: "JWT anahtarı lisanstan türetilir. Token değiştiyse tüm kullanıcıların oturumu kapatıp tekrar giriş yapması gerekir." },
-                  { s: "Tüm endpoint'ler 503",               c: "LicenseMiddleware engelledi. Token baştaki/sondaki boşluklardan temizlenmeli, .env'de tırnak içinde olmamalı." },
-                  { s: "Aktivasyon sunucusu hatası",          c: "LICENSE_ACTIVATION_URL erişilemiyor veya token hash'i VALID_HASHES listesinde yok. Cloudflare Worker loglarını kontrol edin." },
-                  { s: "Lisans bu sunucuya ait değil",        c: "Host binding aktif; token'daki host alanı sunucu hostname/IP'si ile eşleşmiyor. Yeni token üretip host alanını doğru girin veya boş bırakın." },
-                  { s: "Görüntüleme şifresi çalışmıyor",    c: "Büyük/küçük harf duyarlıdır. Birden fazla atama varsa en son atanan şifre geçerlidir." },
-                  { s: "Token üretilemiyor",                 c: "Private key PKCS8 DER base64 olmalı. PEM başlıkları (-----BEGIN PRIVATE KEY-----) girilmemeli — yalnızca base64 içeriği." },
-                  { s: "Kullanıcı bulunamadı hatası",        c: "E-posta tam eşleşmeli (büyük/küçük duyarlı) veya Ad Soyad tam girilmeli (örn: 'Ahmet Yılmaz'). Boşluk karakterlerine dikkat edin." },
-                  { s: "ECOM_PUBLIC_KEY nasıl ayarlanır?",   c: ".env dosyasına ECOM_PUBLIC_KEY=<SPKI base64> satırı ekleyin. PEM başlık/bitiş satırları olmadan yalnızca base64 içeriği. docker compose up -d api ile yeniden başlatın." },
-                ].map(r => (
-                  <div key={r.s} className="flex gap-2 text-xs">
-                    <span className="text-red-500 font-semibold shrink-0 w-52">{r.s}</span>
-                    <span className="text-red-700">{r.c}</span>
+              {/* ── SuperAdmin İş Akışı ── */}
+              {isSuperAdmin && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SuperAdmin İş Akışı</p>
+                    <span className="text-[9px] bg-teal-100 text-teal-700 font-semibold px-2 py-0.5 rounded-full">Yalnızca siz görebilirsiniz</span>
                   </div>
-                ))}
+                  <div className="space-y-2">
+                    {[
+                      { step: "1", icon: <KeyRound size={11} />, title: "Anahtar Çifti Üret", tag: "İlk kurulum", items: [
+                        "Lisans Üretici > Yeni RSA-2048 Anahtar Çifti Üret butonuna basın",
+                        "Private key otomatik textarea'ya dolar — güvenli yerde saklayın, bir daha göremezsiniz",
+                        "Public key'i kopyalayın → sunucu .env dosyasında ECOM_PUBLIC_KEY değişkenine yapıştırın",
+                      ]},
+                      { step: "2", icon: <FileText size={11} />, title: "Token Üret", tag: "Her lisans için", items: [
+                        "Private key alanı dolu iken Issuer, NotBefore, ExpiresAt değerlerini girin",
+                        "İsteğe bağlı: Host alanına sunucu IP'sini girin — token o sunucuya kilitlenir",
+                        "Token Üret'e basın — imzalama WebCrypto ile tarayıcıda yapılır, private key sunucuya gönderilmez",
+                      ]},
+                      { step: "3", icon: <Shield size={11} />, title: "Platform Aktivasyonu", tag: ".env ayarları", items: [
+                        "ECOM_LICENSE → token'ı tek satır, boşluksuz yapıştırın",
+                        "ECOM_PUBLIC_KEY → public key'i (SPKI base64) yapıştırın",
+                        "Online aktivasyon için: token SHA-256 hash'ini Cloudflare VALID_HASHES listesine ekleyin",
+                        "docker compose up -d api komutuyla API'yi yeniden başlatın",
+                      ]},
+                      { step: "4", icon: <Users size={11} />, title: "Kullanıcıya Ata", tag: "Opsiyonel", items: [
+                        "Kullanıcıya Lisans Ata bölümünden e-posta veya Ad Soyad girin",
+                        "Sistem otomatik görüntüleme şifresi üretir ve kullanıcıya e-posta gönderir",
+                        "Kullanıcı Atamaları listesinden atamaları yönetebilir ve iptal edebilirsiniz",
+                      ]},
+                    ].map(item => (
+                      <div key={item.step} className="flex gap-3 p-4 bg-teal-50 border border-teal-100 rounded-xl">
+                        <div className="flex flex-col items-center gap-1.5 shrink-0">
+                          <span className="w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-[11px]">{item.step}</span>
+                          <span className="text-teal-400">{item.icon}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-bold text-slate-700 text-[11px]">{item.title}</span>
+                            <span className="text-[9px] bg-teal-200 text-teal-700 font-semibold px-2 py-0.5 rounded-full">{item.tag}</span>
+                          </div>
+                          <ul className="space-y-1">
+                            {item.items.map((li, i) => (
+                              <li key={i} className="flex gap-2 text-slate-500">
+                                <span className="text-teal-500 shrink-0 font-bold">›</span>
+                                <span className="leading-relaxed">{li}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Admin Kullanıcı Akışı ── */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Admin Kullanıcı Akışı</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {[
+                    { step: "1", icon: <Mail     size={11} />, title: "Mail Bekleyin",      desc: "SuperAdmin lisans atadığında e-posta alırsınız. Mailinde token ve görüntüleme şifreniz (XXXX-XXXX-XXXX-XXXX) yer alır." },
+                    { step: "2", icon: <Eye      size={11} />, title: "Şifreyle Görüntüle", desc: "Aktivasyon Anahtarı bölümüne görüntüleme şifrenizi girin. Lisans token'ınız ekranda belirir, kopyalayın." },
+                    { step: "3", icon: <KeyRound size={11} />, title: "Token'ı Kullanın",   desc: "Token'ı ECOM_LICENSE değişkenine yapıştırın ve API'yi yeniden başlatın. JWT key bu token'dan türetilir." },
+                  ].map(item => (
+                    <div key={item.step} className="flex gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                      <div className="flex flex-col items-center gap-1.5 shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[11px]">{item.step}</span>
+                        <span className="text-blue-400">{item.icon}</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-700 text-[11px] mb-1.5">{item.title}</p>
+                        <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Sorun Giderme ── */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle size={12} className="text-amber-500" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sorun Giderme</p>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { tag: "API",   color: "red",    s: "API başlamıyor",                   c: "ECOM_LICENSE veya ECOM_PUBLIC_KEY eksik ya da hatalı. Terminal LicenseException mesajını okuyun. Token tek satır, boşluksuz olmalı." },
+                    { tag: "API",   color: "red",    s: "Tüm endpoint'ler 503",             c: "LicenseMiddleware engelledi. .env'de token tırnak içinde olmamalı; baştaki/sondaki boşluklar silinmeli." },
+                    { tag: "AUTH",  color: "amber",  s: "Giriş 401 veriyor",                c: "JWT key lisanstan türetilir. Token değiştiyse tüm kullanıcıların çıkış yapıp tekrar giriş yapması gerekir." },
+                    { tag: "ENV",   color: "amber",  s: "ECOM_PUBLIC_KEY nasıl ayarlanır?", c: ".env dosyasına ECOM_PUBLIC_KEY=<değer> satırı ekleyin. PEM başlık/bitiş satırları olmadan yalnızca base64. docker compose up -d api ile yeniden başlatın." },
+                    { tag: "NET",   color: "amber",  s: "Aktivasyon sunucusu hatası",       c: "LICENSE_ACTIVATION_URL erişilemiyor veya token hash VALID_HASHES'te yok. Cloudflare Worker Settings > Variables'ı kontrol edin." },
+                    { tag: "HOST",  color: "violet", s: "Lisans bu sunucuya ait değil",     c: "Host binding aktif; token'daki host alanı sunucu hostname/IP ile eşleşmiyor. Host boş bırakarak yeni token üretin." },
+                    { tag: "TOKEN", color: "slate",  s: "Token üretilemiyor",               c: "Private key PKCS8 DER base64 olmalı. PEM başlıkları (-----BEGIN PRIVATE KEY-----) girilmemeli, yalnızca base64 içeriği." },
+                    { tag: "ATAMA", color: "slate",  s: "Görüntüleme şifresi çalışmıyor",  c: "Büyük/küçük harf duyarlıdır. Birden fazla atama varsa en son atanan şifre geçerlidir." },
+                    { tag: "ATAMA", color: "slate",  s: "Kullanıcı bulunamadı",            c: "E-posta tam eşleşmeli veya Ad Soyad tam girilmeli (ör: 'Ahmet Yılmaz'). Boşluklara dikkat edin." },
+                  ].map(r => (
+                    <div key={r.s} className="flex gap-3 items-start p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 font-mono ${
+                        r.color === "red"    ? "bg-red-100 text-red-600" :
+                        r.color === "amber"  ? "bg-amber-100 text-amber-700" :
+                        r.color === "violet" ? "bg-violet-100 text-violet-700" :
+                                              "bg-slate-100 text-slate-600"}`}>
+                        {r.tag}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-700 mb-0.5">{r.s}</p>
+                        <p className="text-slate-500 leading-relaxed">{r.c}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
             </div>
