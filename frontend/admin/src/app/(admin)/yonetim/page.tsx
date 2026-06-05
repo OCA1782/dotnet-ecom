@@ -1192,7 +1192,7 @@ export default function YonetimPage() {
   })();
   const [licGenPrivKey, setLicGenPrivKey] = useState("");
   const [licGenIssuer, setLicGenIssuer] = useState("OCA1782");
-  const [licGenHost, setLicGenHost] = useState("");
+  const [licGenHost, setLicGenHost] = useState(""); // sunucu hostname/IP binding
   const [licGenNbf, setLicGenNbf] = useState(() => new Date().toISOString().slice(0, 10));
   const [licGenExp, setLicGenExp] = useState(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 2); return d.toISOString().slice(0, 10); });
   const [licGenToken, setLicGenToken] = useState<string | null>(null);
