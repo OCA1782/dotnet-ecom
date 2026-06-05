@@ -429,6 +429,7 @@ function SureclerTab() {
                   steps: [
                     'backend/src/Ecom.API/appsettings.Development.json dosyasını aç',
                     '"License" anahtarına kopyalanan token\'ı yapıştır',
+                    'ECOM_PUBLIC_KEY ortam değişkenine SPKI base64 public key\'i ekle',
                     'Dosyayı kaydet — git\'e commit etme (gitignore\'da)',
                     'Uygulamayı yeniden başlat: dotnet run --project src/Ecom.API',
                   ],
@@ -437,10 +438,10 @@ function SureclerTab() {
                   env: "Production (Sunucu)",
                   color: "blue" as const,
                   steps: [
-                    'Sunucuda ECOM_LICENSE ortam değişkenini oluştur',
-                    'Değer olarak kopyalanan token\'ı yapıştır',
-                    'Alternatif: appsettings.Production.json içinde "License" anahtarına yaz',
-                    'Uygulamayı yeniden başlat (systemd / Docker / IIS)',
+                    '.env dosyasına ECOM_LICENSE değişkenini ekle (token değeri, tek satır)',
+                    'ECOM_PUBLIC_KEY değişkenine SPKI base64 public key\'i ekle',
+                    'Opsiyonel: LICENSE_ACTIVATION_URL\'ye Cloudflare Worker URL\'ini ekle',
+                    'docker compose up -d api komutuyla API konteynerini yeniden başlat',
                   ],
                 },
               ].map(e => (
@@ -464,9 +465,9 @@ function SureclerTab() {
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">4 — Doğrula</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { check: "Uygulama başladı mı?", ok: "Konsol/log'da hata yok, sunucu ayağa kalktı", fail: "\"License is invalid\" veya Exit(1) hatası → token'ı kontrol et" },
-                { check: "Giriş yapılıyor mu?", ok: "Admin paneline email/şifre ile giriş yapılabiliyor", fail: "401 hatası → JWT anahtarı lisanstan türetilir, token yanlış olabilir" },
-                { check: "Panel açılıyor mu?", ok: "Yönetim → Sistem → 'Yapılandırılmış' badge görünüyor", fail: "503 hatası → LicenseMiddleware engelledi, token eksik/bozuk" },
+                { check: "Uygulama başladı mı?", ok: "Konsol/log'da hata yok, sunucu ayağa kalktı", fail: "LicenseException veya Exit(1) → ECOM_LICENSE veya ECOM_PUBLIC_KEY eksik/hatalı" },
+                { check: "Giriş yapılıyor mu?", ok: "Admin paneline email/şifre ile giriş yapılabiliyor", fail: "401 hatası → JWT anahtarı lisanstan türetilir, token değiştiyse oturumu kapat/aç" },
+                { check: "Panel açılıyor mu?", ok: "Yönetim → Lisans → 'Yapılandırılmış' badge görünüyor", fail: "503 hatası → LicenseMiddleware engelledi, token veya aktivasyon sunucusu sorunu" },
               ].map(c => (
                 <div key={c.check} className="border border-slate-200 rounded-xl p-3 space-y-2 text-xs">
                   <p className="font-semibold text-slate-700">{c.check}</p>
@@ -579,7 +580,7 @@ function SureclerTab() {
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Üretimi (SuperAdmin)</p>
             <FlowRow>
-              <FlowStep icon={Settings} label="Yönetim" color="blue" sub="Sistem sekmesi" />
+              <FlowStep icon={Settings} label="Yönetim" color="blue" sub="Lisans sekmesi" />
               <Arrow />
               <FlowStep icon={KeyRound} label="Lisans Üretici" color="violet" sub="WebCrypto RSA-2048" />
               <Arrow />
@@ -893,10 +894,12 @@ function TeknikTab() {
           <p className="text-xs font-bold text-red-700 flex items-center gap-1.5"><Shield size={13} /> RSA Lisans Zorunluluğu — Tüm Ortamlar</p>
           <div className="space-y-1.5">
             {[
-              { label: "License token", desc: "appsettings.Development.json (git-ignored) → \"License\": \"eyJ...\" veya ECOM_LICENSE env var" },
-              { label: "JWT anahtarı", desc: "Config'deki Jwt:Key artık kullanılmıyor — JWT imzalama anahtarı lisanstan HMACSHA256 ile türetilir" },
-              { label: "LicenseMiddleware", desc: "Her HTTP isteğinde (1 dk cache) doğrulama — geçersiz lisansta 503 döner, /health bypass" },
-              { label: "Private key", desc: "Sadece geliştiricide saklanır, repoya GİRMEZ — yeni lisans üretmek için gerekir (geçerlilik süresi: 2026–2028)" },
+              { label: "ECOM_LICENSE", desc: "Lisans token — .env veya appsettings.Development.json \"License\" anahtarına tek satır, boşluksuz" },
+              { label: "ECOM_PUBLIC_KEY", desc: "RSA-2048 SPKI DER base64 public key — .env ortam değişkeni (kaynak kodda saklanmaz)" },
+              { label: "LICENSE_ACTIVATION_URL", desc: "Cloudflare Worker URL — boş bırakılırsa online aktivasyon devre dışı; prod ortamı için tavsiye edilir" },
+              { label: "JWT anahtarı", desc: "Config'deki Jwt:Key kullanılmıyor — JWT imzalama anahtarı lisans payload'ından HMACSHA256 ile türetilir" },
+              { label: "LicenseMiddleware", desc: "Her HTTP isteğinde RSA (1 dk cache) + online aktivasyon (5 dk cache) — geçersizde 503, /health bypass" },
+              { label: "Private key", desc: "Sadece SuperAdmin'de saklanır, repoya GİRMEZ — yeni lisans üretmek için gerekir (Lisans Üretici bölümü)" },
               { label: "DevRevealPassword", desc: "Admin panelinde lisansı görüntülemek için ayrı şifre — SHA256 hash DB'de (RevealPasswordHash key)" },
             ].map(r => (
               <div key={r.label} className="flex gap-2 text-xs">
@@ -921,14 +924,16 @@ function TeknikTab() {
             <div className="p-3 bg-slate-900 rounded-xl font-mono text-xs text-slate-200 space-y-1 overflow-x-auto">
               <p><span className="text-violet-400">{"{"}</span><span className="text-amber-300">Base64Url(payload)</span><span className="text-violet-400">{"}"}</span><span className="text-slate-500"> . </span><span className="text-violet-400">{"{"}</span><span className="text-teal-300">Base64Url(RSA-2048 imza)</span><span className="text-violet-400">{"}"}</span></p>
               <p className="text-slate-400 mt-2">Payload (decode edilmiş):</p>
-              <p className="text-emerald-300">{'{"app":"Ecom","iss":"OCA1782","nbf":"2026-01-01","exp":"2028-12-31"}'}</p>
+              <p className="text-emerald-300">{'{"app":"Ecom","iss":"OCA1782","nbf":"2026-01-01","exp":"2028-12-31","host":"178.105.230.111"}'}</p>
+              <p className="text-slate-500 text-[10px] mt-1">host alanı opsiyoneldir — girilirse token yalnızca o sunucuda çalışır</p>
             </div>
             <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
-                { field: "app",  desc: "Uygulama adı — başka uygulamaların tokenini geçersiz kılar" },
-                { field: "iss",  desc: "Lisans veren: OCA1782" },
-                { field: "nbf",  desc: "Geçerlilik başlangıcı: 2026-01-01" },
-                { field: "exp",  desc: "Son kullanma: 2028-12-31" },
+                { field: "app",   desc: "Uygulama adı — başka uygulamaların tokenini geçersiz kılar" },
+                { field: "iss",   desc: "Lisans veren — izlenebilirlik için, doğrulamayı etkilemez" },
+                { field: "nbf",   desc: "Geçerlilik başlangıcı (Not Before)" },
+                { field: "exp",   desc: "Son kullanma tarihi (Expires)" },
+                { field: "host?", desc: "Opsiyonel — girilirse token yalnızca bu hostname/IP'de çalışır" },
               ].map(f => (
                 <div key={f.field} className="p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
                   <code className="font-bold text-violet-600">{f.field}</code>
@@ -947,7 +952,7 @@ function TeknikTab() {
                   layer: "1",
                   title: "Startup Doğrulaması",
                   when: "Uygulama başlatılırken (Program.cs)",
-                  how: "LicenseValidator.Validate() — RSA public key gömülü, imza + nbf/exp kontrolü",
+                  how: "LicenseValidator.Validate() — ECOM_PUBLIC_KEY env var'dan RSA public key, imza + nbf/exp + host kontrolü",
                   fail: "Environment.Exit(1) — uygulama hiç ayağa kalkmaz",
                   color: "red" as const,
                 },
@@ -998,9 +1003,12 @@ function TeknikTab() {
                 </thead>
                 <tbody>
                   {[
+                    { s: "ECOM_PUBLIC_KEY eksik",           k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1) — env var tanımlı değil" },
                     { s: "Token eksik (config'de yok)",    k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
                     { s: "Token süresi dolmuş (exp geçti)", k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
                     { s: "İmza geçersiz (sahte token)",     k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
+                    { s: "Host binding uyuşmazlığı",        k: "1 — Startup",        http: "—",   d: "Process başlamaz — token başka sunucu için üretilmiş" },
+                    { s: "Online aktivasyon başarısız",     k: "1 — Startup",        http: "—",   d: "Process başlamaz — Cloudflare Worker 403 veya ulaşılamıyor" },
                     { s: "Lisans değiştiyse JWT uyuşmazlık",k: "2 — JWT Türetme",    http: "401", d: "Tüm login/auth başarısız" },
                     { s: "Runtime'da token bozulursa",      k: "3 — Middleware",     http: "503", d: "Auth geçerli olsa bile engel" },
                     { s: "Geçerli lisans + geçerli JWT",    k: "Tümü geçer",         http: "200", d: "Normal akış" },

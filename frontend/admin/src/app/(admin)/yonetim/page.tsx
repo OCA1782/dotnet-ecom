@@ -4091,6 +4091,40 @@ export default function YonetimPage() {
                 </div>
               </div>
 
+              {/* ── VALID_HASHES Nasıl Üretilir ── */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">VALID_HASHES — Cloudflare Worker İçin Hash Üretimi</p>
+                <div className="space-y-3">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed">
+                    Online aktivasyon şu şekilde çalışır: API her istekte token&apos;ın <strong>SHA-256 hex hash&apos;ini</strong> Cloudflare Worker&apos;a gönderir. Worker bu hash&apos;i <code className="bg-slate-200 px-1 rounded">VALID_HASHES</code> secret listesinde arar — varsa 200, yoksa 403 döner.
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Hash Hesaplama Yöntemleri</p>
+                    {[
+                      { label: "PowerShell", code: `$t = "eyJhcH..."\n[BitConverter]::ToString([SHA256]::Create().ComputeHash([UTF8]::GetBytes($t.Trim()))).Replace('-','').ToLower()` },
+                      { label: "Node.js",    code: `require('crypto').createHash('sha256').update(token.trim()).digest('hex')` },
+                      { label: "Bash",       code: `printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1` },
+                    ].map(m => (
+                      <div key={m.label} className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{m.label}</div>
+                        <pre className="bg-slate-900 text-teal-300 text-[10px] p-3 overflow-x-auto leading-relaxed font-mono">{m.code}</pre>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 space-y-1.5">
+                    <p className="font-semibold">Hash sonrası Cloudflare&apos;e ekleme adımları:</p>
+                    {[
+                      "Cloudflare Dashboard → Workers & Pages → ecom-license-activation",
+                      "Settings → Variables and Secrets → VALID_HASHES",
+                      "Virgülle ayrılmış hex string listesi: hash1,hash2,...",
+                      "Birden fazla lisans varsa hepsini virgülle ekleyin",
+                    ].map((s, i) => (
+                      <p key={i} className="flex gap-2"><span className="text-blue-400 font-bold shrink-0">›</span>{s}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* ── SuperAdmin İş Akışı ── */}
               {isSuperAdmin && (
                 <div>
@@ -4113,7 +4147,7 @@ export default function YonetimPage() {
                       { step: "3", icon: <Shield size={11} />, title: "Platform Aktivasyonu", tag: ".env ayarları", items: [
                         "ECOM_LICENSE → token'ı tek satır, boşluksuz yapıştırın",
                         "ECOM_PUBLIC_KEY → public key'i (SPKI base64) yapıştırın",
-                        "Online aktivasyon için: token SHA-256 hash'ini Cloudflare VALID_HASHES listesine ekleyin",
+                        "Online aktivasyon için: token'ın SHA-256 hash'ini hesaplayın (aşağıdaki VALID_HASHES bölümüne bakın) ve Cloudflare Worker'a ekleyin",
                         "docker compose up -d api komutuyla API'yi yeniden başlatın",
                       ]},
                       { step: "4", icon: <Users size={11} />, title: "Kullanıcıya Ata", tag: "Opsiyonel", items: [
