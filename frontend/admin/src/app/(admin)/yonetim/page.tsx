@@ -4041,7 +4041,8 @@ export default function YonetimPage() {
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Genel Bakış</p>
                 <p>Bu platform RSA-2048 tabanlı lisans sistemi kullanır. Lisans token'ı yalnızca private key ile imzalanabilir ve public key ile doğrulanır. Private key olmadan geçerli token üretilemez.</p>
                 <p>Lisanslama iki senaryo için kullanılır: <strong>Platform aktivasyonu</strong> (ECOM_LICENSE — API başlaması için zorunlu) ve <strong>Kullanıcı lisansları</strong> (SuperAdmin'in diğer admin kullanıcılara atadığı kişisel lisanslar).</p>
-                <p className="text-slate-400">Private key güvenli bir yerde saklanmalı. Public key backend'de <code className="bg-slate-200 px-1 rounded">LicenseValidator.cs</code>'e gömülüdür — key rotasyonu sırasında hem public key hem de tüm aktif token'lar değiştirilmelidir.</p>
+                <p>Güvenlik üç katmandan oluşur: <strong>RSA imza doğrulama</strong> (her istekte, 1 dk cache), <strong>Host binding</strong> (token yalnızca belirtilen sunucuda çalışır — opsiyonel), <strong>Online aktivasyon</strong> (token hash'i Cloudflare Worker'a doğrulatılır, 5 dk cache).</p>
+                <p className="text-slate-400">Private key güvenli yerde saklanmalı. Public key <code className="bg-slate-200 px-1 rounded">ECOM_PUBLIC_KEY</code> ortam değişkeninde tutulur (kaynak kodda değil). Key rotasyonu sırasında hem env var hem de tüm aktif token'lar değiştirilmelidir.</p>
               </div>
 
               {/* SuperAdmin akışı */}
@@ -4051,9 +4052,9 @@ export default function YonetimPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {[
-                      { step: "1", title: "Anahtar Çifti Üret (ilk kurulum)", desc: "'Lisans Üretici > Yeni RSA-2048 Anahtar Çifti Üret' butonuna basın. Private key (PKCS8 DER base64) otomatik textarea'ya dolar. Public key (SPKI DER base64) LicenseValidator.cs'deki _publicKeyBase64 alanına yapıştırılır. Private key'i güvenli yerde saklayın — bir daha göremezsiniz." },
-                      { step: "2", title: "Token Üret", desc: "Private key alanında key mevcutsa Issuer, NotBefore, ExpiresAt değerlerini girin. 'Token Üret'e basın. İmzalama tarayıcıda WebCrypto ile yapılır — private key sunucuya gönderilmez." },
-                      { step: "3", title: "Platform Aktivasyonu", desc: "Üretilen token'ı sunucuda ECOM_LICENSE ortam değişkenine yapıştırın (.env). API konteynerini yeniden başlatın. Token geçerliyse API başlar; geçersizse LicenseException ile başlamaz." },
+                      { step: "1", title: "Anahtar Çifti Üret (ilk kurulum)", desc: "'Lisans Üretici > Yeni RSA-2048 Anahtar Çifti Üret' butonuna basın. Private key (PKCS8 DER base64) otomatik textarea'ya dolar. Public key'i (SPKI DER base64) kopyalayın ve sunucudaki .env dosyasında ECOM_PUBLIC_KEY değişkenine yapıştırın. Private key'i güvenli yerde saklayın — bir daha göremezsiniz." },
+                      { step: "2", title: "Token Üret", desc: "Private key alanında key mevcutsa Issuer, NotBefore, ExpiresAt ve isteğe bağlı Host değerlerini girin. 'Token Üret'e basın. İmzalama tarayıcıda WebCrypto ile yapılır — private key sunucuya gönderilmez." },
+                      { step: "3", title: "Platform Aktivasyonu", desc: "Token'ı sunucuda ECOM_LICENSE, public key'i ECOM_PUBLIC_KEY ortam değişkenine yapıştırın. Online aktivasyon aktifse token hash'ini Cloudflare Worker VALID_HASHES listesine ekleyin. API konteynerini yeniden başlatın." },
                       { step: "4", title: "Kullanıcıya Ata", desc: "'Kullanıcıya Lisans Ata' bölümünden admin kullanıcının e-postasını veya Ad Soyadını girin. Sistem otomatik görüntüleme şifresi üretir ve kullanıcıya e-posta gönderir." },
                       { step: "5", title: "Atamayı Yönet", desc: "'Kullanıcı Atamaları' listesinden tüm atamaları görebilir, iptal edebilirsiniz. İptal edilen lisanslar o kullanıcının erişimini anında keser." },
                     ].map(item => (
@@ -4096,14 +4097,15 @@ export default function YonetimPage() {
                 </div>
                 <div className="p-4 space-y-2">
                   {[
-                    { label: "İmzalama",          value: "RSA-2048 PKCS1v15, SHA-256 — WebCrypto API (tarayıcı, client-side)" },
-                    { label: "Token formatı",      value: "base64url(JSON payload) + \".\" + base64url(RSA imza) — tek satır" },
-                    { label: "Payload alanları",   value: "{ app, iss, nbf, exp } — app: uygulama adı, iss: yayıncı, nbf: başlangıç, exp: bitiş" },
-                    { label: "Issuer (iss)",        value: "Kim tarafından verildiği bilgisi — izlenebilirlik içindir, doğrulamayı etkilemez. Örn: OCA1782" },
-                    { label: "Key pair formatı",   value: "Private: PKCS8 DER base64 · Public: SPKI DER base64 (LicenseValidator.cs'e gömülü)" },
-                    { label: "JWT bağlantısı",     value: "JWT signing key, payload'dan HMAC-SHA256 ile türetilir — token değişirse tüm oturumlar geçersiz olur" },
-                    { label: "Görüntüleme şifresi",value: "XXXX-XXXX-XXXX-XXXX formatlı 16 karakter — SHA-256 hash ile saklanır, geri döndürülemez" },
-                    { label: "Kullanıcı arama",    value: "Atama sırasında e-posta veya Ad Soyad eşleşmesi denenir — büyük/küçük harf duyarlıdır" },
+                    { label: "İmzalama",            value: "RSA-2048 PKCS1v15, SHA-256 — WebCrypto API (tarayıcı, client-side)" },
+                    { label: "Token formatı",        value: "base64url(JSON payload) + \".\" + base64url(RSA imza) — tek satır" },
+                    { label: "Payload alanları",     value: "{ app, iss, nbf, exp, host? } — host opsiyonel; girilirse token yalnızca o sunucuda çalışır" },
+                    { label: "Issuer (iss)",          value: "Kim tarafından verildiği bilgisi — izlenebilirlik içindir, doğrulamayı etkilemez. Örn: OCA1782" },
+                    { label: "Public key depolama",  value: "ECOM_PUBLIC_KEY ortam değişkeni (SPKI DER base64) — kaynak kodda saklanmaz" },
+                    { label: "Online aktivasyon",    value: "Token SHA-256 hash → Cloudflare Worker → VALID_HASHES kontrolü; 5 dk cache; ulaşılamazsa istek reddedilir" },
+                    { label: "JWT bağlantısı",       value: "JWT signing key, payload'dan HMAC-SHA256 ile türetilir — token değişirse tüm oturumlar geçersiz olur" },
+                    { label: "Görüntüleme şifresi",  value: "XXXX-XXXX-XXXX-XXXX formatlı 16 karakter — SHA-256 hash ile saklanır, geri döndürülemez" },
+                    { label: "Kullanıcı arama",      value: "Atama sırasında e-posta veya Ad Soyad eşleşmesi denenir — büyük/küçük harf duyarlıdır" },
                   ].map(r => (
                     <div key={r.label} className="flex gap-2">
                       <span className="text-slate-400 font-semibold shrink-0 w-44">{r.label}</span>
@@ -4117,13 +4119,15 @@ export default function YonetimPage() {
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
                 <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
                 {[
-                  { s: "API başlamıyor",                   c: "ECOM_LICENSE eksik veya imzası hatalı. Terminal'deki LicenseException mesajını okuyun. Token tek satır ve boşluksuz olmalı." },
-                  { s: "Giriş 401 veriyor",                c: "JWT anahtarı lisanstan türetilir. Token değiştiyse tüm kullanıcıların oturumu kapatıp tekrar giriş yapması gerekir." },
-                  { s: "Tüm endpoint'ler 503",             c: "LicenseMiddleware engelledi. Token baştaki/sondaki boşluklardan temizlenmeli, .env'de tırnak içinde olmamalı." },
-                  { s: "Görüntüleme şifresi çalışmıyor",  c: "Büyük/küçük harf duyarlıdır. Birden fazla atama varsa en son atanan şifre geçerlidir." },
-                  { s: "Token üretilemiyor",               c: "Private key PKCS8 DER base64 olmalı. PEM başlıkları (-----BEGIN PRIVATE KEY-----) girilmemeli — yalnızca base64 içeriği." },
-                  { s: "Kullanıcı bulunamadı hatası",      c: "E-posta tam eşleşmeli (büyük/küçük duyarlı) veya Ad Soyad tam girilmeli (örn: 'Ahmet Yılmaz'). Boşluk karakterlerine dikkat edin." },
-                  { s: "Public key nereye yapıştırılır?",  c: "backend/src/Ecom.API/Services/LicenseValidator.cs — _publicKeyBase64 string alanı. Değiştirince API yeniden derlenmeli ve deploy edilmeli." },
+                  { s: "API başlamıyor",                     c: "ECOM_LICENSE veya ECOM_PUBLIC_KEY eksik ya da hatalı. Terminal'deki LicenseException mesajını okuyun. Token tek satır, boşluksuz olmalı." },
+                  { s: "Giriş 401 veriyor",                  c: "JWT anahtarı lisanstan türetilir. Token değiştiyse tüm kullanıcıların oturumu kapatıp tekrar giriş yapması gerekir." },
+                  { s: "Tüm endpoint'ler 503",               c: "LicenseMiddleware engelledi. Token baştaki/sondaki boşluklardan temizlenmeli, .env'de tırnak içinde olmamalı." },
+                  { s: "Aktivasyon sunucusu hatası",          c: "LICENSE_ACTIVATION_URL erişilemiyor veya token hash'i VALID_HASHES listesinde yok. Cloudflare Worker loglarını kontrol edin." },
+                  { s: "Lisans bu sunucuya ait değil",        c: "Host binding aktif; token'daki host alanı sunucu hostname/IP'si ile eşleşmiyor. Yeni token üretip host alanını doğru girin veya boş bırakın." },
+                  { s: "Görüntüleme şifresi çalışmıyor",    c: "Büyük/küçük harf duyarlıdır. Birden fazla atama varsa en son atanan şifre geçerlidir." },
+                  { s: "Token üretilemiyor",                 c: "Private key PKCS8 DER base64 olmalı. PEM başlıkları (-----BEGIN PRIVATE KEY-----) girilmemeli — yalnızca base64 içeriği." },
+                  { s: "Kullanıcı bulunamadı hatası",        c: "E-posta tam eşleşmeli (büyük/küçük duyarlı) veya Ad Soyad tam girilmeli (örn: 'Ahmet Yılmaz'). Boşluk karakterlerine dikkat edin." },
+                  { s: "ECOM_PUBLIC_KEY nasıl ayarlanır?",   c: ".env dosyasına ECOM_PUBLIC_KEY=<SPKI base64> satırı ekleyin. PEM başlık/bitiş satırları olmadan yalnızca base64 içeriği. docker compose up -d api ile yeniden başlatın." },
                 ].map(r => (
                   <div key={r.s} className="flex gap-2 text-xs">
                     <span className="text-red-500 font-semibold shrink-0 w-52">{r.s}</span>
