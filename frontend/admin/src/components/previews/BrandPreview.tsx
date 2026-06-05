@@ -36,7 +36,10 @@ export default function BrandPreview({ form }: { form: BrandForm }) {
         <div className="px-4 pb-4 text-center">
           <h3 className="font-bold text-slate-800 text-sm">{form.name}</h3>
           {form.description && (
-            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{form.description}</p>
+            <div
+              className="text-xs text-slate-500 mt-1 line-clamp-2"
+              dangerouslySetInnerHTML={{ __html: form.description }}
+            />
           )}
         </div>
       </div>

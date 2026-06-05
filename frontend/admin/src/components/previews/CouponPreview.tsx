@@ -65,7 +65,10 @@ export default function CouponPreview({ form }: { form: CouponForm }) {
           </div>
 
           {form.description && (
-            <p className="text-xs text-white/80 mb-3">{form.description}</p>
+            <div
+              className="text-xs text-white/80 mb-3"
+              dangerouslySetInnerHTML={{ __html: form.description }}
+            />
           )}
 
           <div className="space-y-1 text-[11px] text-white/70">
