@@ -19,22 +19,21 @@ interface RichTextEditorProps {
 }
 
 const FONTS = [
-  { value: "Arial, sans-serif",              label: "Arial" },
-  { value: "Georgia, serif",                 label: "Georgia" },
-  { value: "Verdana, sans-serif",            label: "Verdana" },
-  { value: "'Times New Roman', serif",       label: "Times NR" },
-  { value: "'Courier New', monospace",       label: "Courier" },
+  { value: "Arial, sans-serif",                label: "Arial" },
+  { value: "Helvetica, Arial, sans-serif",      label: "Helvetica" },
+  { value: "Georgia, serif",                   label: "Georgia" },
+  { value: "'Times New Roman', serif",          label: "Times" },
+  { value: "Verdana, sans-serif",              label: "Verdana" },
+  { value: "Tahoma, Geneva, sans-serif",        label: "Tahoma" },
+  { value: "'Trebuchet MS', Helvetica, sans-serif", label: "Trebuchet" },
+  { value: "'Courier New', Courier, monospace", label: "Courier" },
+  { value: "Impact, Charcoal, sans-serif",      label: "Impact" },
+  { value: "'Palatino Linotype', 'Book Antiqua', serif", label: "Palatino" },
+  { value: "Garamond, serif",                  label: "Garamond" },
+  { value: "'Comic Sans MS', cursive",          label: "Comic Sans" },
 ];
 
-const SIZES = [
-  { value: "1", label: "Çok Küçük" },
-  { value: "2", label: "Küçük" },
-  { value: "3", label: "Normal" },
-  { value: "4", label: "Büyük" },
-  { value: "5", label: "Daha Büyük" },
-  { value: "6", label: "En Büyük" },
-  { value: "7", label: "Devasa" },
-];
+const SIZES_PX = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 96];
 
 function escapeAttr(s: string) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -117,6 +116,18 @@ export default function RichTextEditor({
     fireChange();
   }
 
+  function setFontSizePx(px: number) {
+    editorRef.current?.focus();
+    document.execCommand("fontSize", false, "7");
+    editorRef.current?.querySelectorAll('font[size="7"]').forEach(font => {
+      const span = document.createElement("span");
+      span.style.fontSize = `${px}px`;
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.parentNode?.replaceChild(span, font);
+    });
+    fireChange();
+  }
+
   function insertImage(url: string) {
     if (!url.trim()) return;
     restoreSelection();
@@ -187,11 +198,12 @@ export default function RichTextEditor({
           type="button"
           onMouseDown={e => e.preventDefault()}
           onClick={() => setTab("preview")}
+          title="Önizleme"
           className={`flex items-center gap-1.5 text-xs px-3 py-2 font-medium transition ${
             tab === "preview" ? "bg-white text-teal-600" : "text-slate-500 hover:text-slate-700 hover:bg-white/60"
           }`}
         >
-          <Eye size={11} /> Önizleme
+          <Eye size={11} />
         </button>
       </div>
 
@@ -226,35 +238,33 @@ export default function RichTextEditor({
             <select
               title="Yazı Boyutu"
               onMouseDown={e => e.stopPropagation()}
-              onChange={e => { exec("fontSize", e.target.value); e.target.value = ""; }}
+              onChange={e => { if (e.target.value) setFontSizePx(Number(e.target.value)); e.target.value = ""; }}
               defaultValue=""
-              className="text-xs border-0 bg-transparent text-slate-600 hover:bg-slate-100 rounded px-1 py-1 outline-none cursor-pointer max-w-[88px]"
+              className="text-xs border-0 bg-transparent text-slate-600 hover:bg-slate-100 rounded px-1 py-1 outline-none cursor-pointer max-w-[80px]"
             >
               <option value="" disabled>Boyut</option>
-              {SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {SIZES_PX.map(px => <option key={px} value={px}>{px}px</option>)}
             </select>
 
             <Sep />
 
             {/* Colors */}
-            <label title="Yazı Rengi" className={`${TB} relative cursor-pointer`}>
+            <label title="Yazı Rengi" className={`${TB} relative cursor-pointer`} onMouseDown={() => saveSelection()}>
               <Type size={13} />
               <input
                 type="color"
                 defaultValue="#000000"
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                onMouseDown={e => e.stopPropagation()}
-                onChange={e => exec("foreColor", e.target.value)}
+                onChange={e => { restoreSelection(); exec("foreColor", e.target.value); }}
               />
             </label>
-            <label title="Arka Plan Rengi" className={`${TB} relative cursor-pointer`}>
+            <label title="Arka Plan Rengi" className={`${TB} relative cursor-pointer`} onMouseDown={() => saveSelection()}>
               <Palette size={13} />
               <input
                 type="color"
                 defaultValue="#ffff00"
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                onMouseDown={e => e.stopPropagation()}
-                onChange={e => exec("hiliteColor", e.target.value)}
+                onChange={e => { restoreSelection(); exec("backColor", e.target.value); }}
               />
             </label>
 
