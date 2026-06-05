@@ -3582,8 +3582,8 @@ export default function YonetimPage() {
 
           </Section>}
 
-          {/* ── Lisans Üretici (yalnızca SuperAdmin) ── */}
-          {isSuperAdmin && (
+          {/* ── Lisans Üretici Sistem tabından Lisans tabına taşındı ── */}
+          {false && isSuperAdmin && (
             <Section title="Lisans Üretici" icon={<KeyRound size={16} />}
               subtitle="RSA-2048 private key ile yeni lisans token'ı üretir. Private key tarayıcıdan çıkmaz — imzalama tamamen client-side yapılır.">
 
@@ -3644,7 +3644,7 @@ export default function YonetimPage() {
                     <div className="relative bg-slate-900 rounded-xl p-4">
                       <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{licGenToken}</p>
                       <button
-                        onClick={() => { navigator.clipboard.writeText(licGenToken); setLicGenCopied(true); setTimeout(() => setLicGenCopied(false), 2000); }}
+                        onClick={() => { navigator.clipboard.writeText(licGenToken!); setLicGenCopied(true); setTimeout(() => setLicGenCopied(false), 2000); }}
                         className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
                         {licGenCopied ? <CheckCircle size={11} /> : <Save size={11} />}
                         {licGenCopied ? "Kopyalandı" : "Kopyala"}
