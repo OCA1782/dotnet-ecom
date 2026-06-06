@@ -27,7 +27,7 @@ public record AllStockMovementDto(
     DateTime CreatedDate
 );
 
-public class GetAllStockMovementsHandler(IApplicationDbContext db)
+public class GetAllStockMovementsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetAllStockMovementsQuery, PaginatedList<AllStockMovementDto>>
 {
     public async Task<PaginatedList<AllStockMovementDto>> Handle(GetAllStockMovementsQuery request, CancellationToken cancellationToken)
@@ -35,6 +35,16 @@ public class GetAllStockMovementsHandler(IApplicationDbContext db)
         var query = db.StockMovements
             .Join(db.Stocks, m => m.StockId, s => s.Id, (m, s) => new { m, s })
             .Where(x => x.s.ProductId != null);
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var ownedProductIds = await db.Products
+                .Where(p => p.CreatedByAdminId == adminId)
+                .Select(p => p.Id)
+                .ToListAsync(cancellationToken);
+            query = query.Where(x => x.s.ProductId != null && ownedProductIds.Contains(x.s.ProductId!.Value));
+        }
 
         if (request.MovementType is not null && Enum.TryParse<StockMovementType>(request.MovementType, out var mt))
             query = query.Where(x => x.m.MovementType == mt);

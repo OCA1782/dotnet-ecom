@@ -16,11 +16,19 @@ public record ProductHistoryEntryDto(
 
 public record GetProductHistoryQuery(Guid ProductId) : IRequest<List<ProductHistoryEntryDto>>;
 
-public class GetProductHistoryHandler(IApplicationDbContext db)
+public class GetProductHistoryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetProductHistoryQuery, List<ProductHistoryEntryDto>>
 {
     public async Task<List<ProductHistoryEntryDto>> Handle(GetProductHistoryQuery request, CancellationToken cancellationToken)
     {
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var owned = await db.Products.AnyAsync(
+                p => p.Id == request.ProductId && p.CreatedByAdminId == currentUser.UserId.Value,
+                cancellationToken);
+            if (!owned) return [];
+        }
+
         var productIdStr = request.ProductId.ToString();
 
         // Audit log entries for this product

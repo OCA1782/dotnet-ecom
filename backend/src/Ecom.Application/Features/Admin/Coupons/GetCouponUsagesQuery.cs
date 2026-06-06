@@ -23,7 +23,7 @@ public record GetCouponUsagesQuery(
     int PageSize = 30
 ) : IRequest<PaginatedList<CouponUsageDto>>;
 
-public class GetCouponUsagesHandler(IApplicationDbContext db)
+public class GetCouponUsagesHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetCouponUsagesQuery, PaginatedList<CouponUsageDto>>
 {
     public async Task<PaginatedList<CouponUsageDto>> Handle(GetCouponUsagesQuery request, CancellationToken cancellationToken)
@@ -33,6 +33,9 @@ public class GetCouponUsagesHandler(IApplicationDbContext db)
             .Include(cu => cu.Order)
             .Include(cu => cu.User)
             .AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            query = query.Where(cu => cu.Coupon.CreatedByAdminId == currentUser.UserId.Value);
 
         if (request.CouponId.HasValue)
             query = query.Where(cu => cu.CouponId == request.CouponId.Value);

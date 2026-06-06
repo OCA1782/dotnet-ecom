@@ -23,11 +23,19 @@ public record StockMovementDto(
     DateTime CreatedDate
 );
 
-public class GetStockMovementsQueryHandler(IApplicationDbContext db)
+public class GetStockMovementsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetStockMovementsQuery, PaginatedList<StockMovementDto>>
 {
     public async Task<PaginatedList<StockMovementDto>> Handle(GetStockMovementsQuery request, CancellationToken cancellationToken)
     {
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var owned = await db.Products.AnyAsync(
+                p => p.Id == request.ProductId && p.CreatedByAdminId == currentUser.UserId.Value,
+                cancellationToken);
+            if (!owned) return PaginatedList<StockMovementDto>.Create([], 0, 1, request.PageSize);
+        }
+
         var stock = await db.Stocks
             .FirstOrDefaultAsync(s =>
                 (request.VariantId.HasValue ? s.ProductVariantId == request.VariantId : s.ProductId == request.ProductId && s.ProductVariantId == null),

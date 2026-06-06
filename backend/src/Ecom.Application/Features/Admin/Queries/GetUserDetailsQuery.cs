@@ -47,11 +47,19 @@ public record AdminUserOrderDto(
 
 public record GetUserDetailsQuery(Guid UserId) : IRequest<AdminUserDetailsDto?>;
 
-public class GetUserDetailsHandler(IApplicationDbContext db)
+public class GetUserDetailsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetUserDetailsQuery, AdminUserDetailsDto?>
 {
     public async Task<AdminUserDetailsDto?> Handle(GetUserDetailsQuery request, CancellationToken cancellationToken)
     {
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var accessible = request.UserId == adminId ||
+                await db.Users.AnyAsync(u => u.Id == request.UserId && u.CreatedByAdminId == adminId, cancellationToken);
+            if (!accessible) return null;
+        }
+
         var user = await db.Users
             .IgnoreQueryFilters()
             .Where(u => u.Id == request.UserId)

@@ -20,23 +20,35 @@ public record NotificationsDto(
 
 public record GetNotificationsQuery : IRequest<NotificationsDto>;
 
-public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuery, NotificationsDto>
+public class GetNotificationsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    : IRequestHandler<GetNotificationsQuery, NotificationsDto>
 {
-    private readonly IApplicationDbContext _context;
-
-    public GetNotificationsQueryHandler(IApplicationDbContext context)
-        => _context = context;
-
     public async Task<NotificationsDto> Handle(GetNotificationsQuery request, CancellationToken ct)
     {
         var items = new List<NotificationItemDto>();
         var since = DateTime.UtcNow.AddHours(-24);
+        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var adminId = currentUser.UserId;
+
+        List<Guid> managedUserIds = [];
+        if (!isSuperAdmin && adminId.HasValue)
+            managedUserIds = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId.Value || u.Id == adminId.Value)
+                .Select(u => u.Id)
+                .ToListAsync(ct);
 
         // Yeni siparişler (son 24 saat, ödeme bekleyen veya oluşturuldu)
-        var newOrders = await _context.Orders
+        var ordersQ = db.Orders
             .Where(o => !o.IsDeleted
                 && o.CreatedDate >= since
-                && (o.Status == OrderStatus.Created || o.Status == OrderStatus.PaymentPending))
+                && (o.Status == OrderStatus.Created || o.Status == OrderStatus.PaymentPending));
+
+        if (!isSuperAdmin && managedUserIds.Count > 0)
+            ordersQ = ordersQ.Where(o => o.UserId != null && managedUserIds.Contains(o.UserId.Value));
+        else if (!isSuperAdmin)
+            ordersQ = ordersQ.Where(_ => false);
+
+        var newOrders = await ordersQ
             .OrderByDescending(o => o.CreatedDate)
             .Take(10)
             .Select(o => new { o.OrderNumber, o.GrandTotal, o.CreatedDate })
@@ -52,12 +64,17 @@ public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuer
             ));
 
         // Kritik stok altı ürünler
-        var lowStock = await _context.Stocks
+        var stockQ = db.Stocks
             .Where(s => !s.IsDeleted
                 && s.ProductId != null
                 && (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel)
             .Include(s => s.Product)
-            .Where(s => s.Product != null && !s.Product.IsDeleted && s.Product.IsActive)
+            .Where(s => s.Product != null && !s.Product.IsDeleted && s.Product.IsActive);
+
+        if (!isSuperAdmin && adminId.HasValue)
+            stockQ = stockQ.Where(s => s.Product!.CreatedByAdminId == adminId.Value);
+
+        var lowStock = await stockQ
             .OrderBy(s => s.Quantity - s.ReservedQuantity)
             .Take(10)
             .Select(s => new
@@ -78,8 +95,11 @@ public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuer
             ));
 
         // Onay bekleyen yorumlar
-        var pendingReviews = await _context.ProductReviews
-            .CountAsync(r => !r.IsDeleted && !r.IsApproved, ct);
+        var reviewQ = db.ProductReviews.Where(r => !r.IsDeleted && !r.IsApproved);
+        if (!isSuperAdmin && adminId.HasValue)
+            reviewQ = reviewQ.Where(r => r.Product!.CreatedByAdminId == adminId.Value);
+
+        var pendingReviews = await reviewQ.CountAsync(ct);
 
         if (pendingReviews > 0)
             items.Add(new NotificationItemDto(
