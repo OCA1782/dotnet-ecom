@@ -129,6 +129,46 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         return Ok(new { message = "Lisans ataması iptal edildi." });
     }
 
+    // POST /api/admin/license-assignments/{id}/reset-password — SuperAdmin: reset view password & resend email
+    [HttpPost("{id:guid}/reset-password")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> ResetViewPassword(Guid id, CancellationToken ct)
+    {
+        var assignment = await db.LicenseAssignments
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && !a.IsRevoked, ct);
+
+        if (assignment == null)
+            return NotFound(new { error = "Atama bulunamadı veya iptal edilmiş." });
+
+        var newViewPassword = GenerateViewPassword();
+        assignment.ViewPasswordHash = CryptoHelper.Hash(newViewPassword);
+        assignment.UpdatedDate = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            string issuer = "—", expiresAt = "—";
+            try
+            {
+                var info = ParseLicenseInfoObj(assignment.LicenseToken);
+                if (info != null) { issuer = info.Value.Issuer; expiresAt = info.Value.ExpiresAt; }
+            }
+            catch { }
+
+            await email.SendLicenseAssignmentAsync(
+                assignment.AdminEmail, assignment.AdminName,
+                assignment.LicenseToken, newViewPassword,
+                issuer, expiresAt, ct);
+        }
+        catch { }
+
+        return Ok(new
+        {
+            viewPassword = newViewPassword,
+            message = $"Görüntüleme şifresi yenilendi. Yeni şifre {assignment.AdminEmail} adresine e-posta ile gönderildi.",
+        });
+    }
+
     // POST /api/admin/license-assignments/my-license — any Admin: reveal own assigned license
     [HttpPost("my-license")]
     public async Task<IActionResult> RevealMyLicense([FromBody] RevealMyLicenseRequest req, CancellationToken ct)

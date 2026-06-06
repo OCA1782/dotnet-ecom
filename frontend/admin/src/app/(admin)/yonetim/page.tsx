@@ -1214,6 +1214,8 @@ export default function YonetimPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [licAssignments, setLicAssignments]   = useState<any[]>([]);
   const [licAssignmentsLoading, setLicAssignmentsLoading] = useState(false);
+  const [resetResults, setResetResults]       = useState<Record<string, string>>({});
+  const [copiedResetId, setCopiedResetId]     = useState<string | null>(null);
 
   // My license reveal state (regular Admin)
   const [myViewPassword, setMyViewPassword]   = useState("");
@@ -1392,6 +1394,23 @@ export default function YonetimPage() {
       await api.delete(`/api/admin/license-assignments/${id}`);
       loadLicenseAssignments();
     } catch { }
+  }
+
+  async function handleResetViewPassword(id: string, adminEmail: string) {
+    if (!confirm(`${adminEmail} kullanıcısının görüntüleme şifresi yenilenecek ve yeni şifre e-posta ile gönderilecek. Onaylıyor musunuz?`)) return;
+    try {
+      const res = await api.post<{ viewPassword: string; message: string }>(`/api/admin/license-assignments/${id}/reset-password`, {});
+      setResetResults(prev => ({ ...prev, [id]: res.viewPassword }));
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg ?? "Şifre yenilenemedi.");
+    }
+  }
+
+  function copyResetPassword(id: string, pw: string) {
+    navigator.clipboard.writeText(pw);
+    setCopiedResetId(id);
+    setTimeout(() => setCopiedResetId(null), 2000);
   }
 
   async function handleRevealMyLicense() {
@@ -3997,26 +4016,46 @@ export default function YonetimPage() {
               ) : (
                 <div className="space-y-2">
                   {licAssignments.map((a: { id: string; adminEmail: string; adminName: string; maskedToken: string; isRevoked: boolean; createdDate: string; licenseInfo?: { Issuer: string; ExpiresAt: string } }) => (
-                    <div key={a.id} className={`flex items-start justify-between gap-3 p-3 rounded-xl border ${a.isRevoked ? "bg-slate-50 border-slate-200 opacity-60" : "bg-white border-slate-200"}`}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-800">{a.adminName || a.adminEmail}</p>
-                          <span className="text-[10px] text-slate-400">{a.adminEmail}</span>
-                          {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">İptal Edildi</span>}
+                    <div key={a.id} className={`rounded-xl border ${a.isRevoked ? "bg-slate-50 border-slate-200 opacity-60" : "bg-white border-slate-200"}`}>
+                      <div className="flex items-start justify-between gap-3 p-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-slate-800">{a.adminName || a.adminEmail}</p>
+                            <span className="text-[10px] text-slate-400">{a.adminEmail}</span>
+                            {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">İptal Edildi</span>}
+                          </div>
+                          <p className="text-[10px] font-mono text-slate-400 mt-0.5">{a.maskedToken}</p>
+                          {a.licenseInfo && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Yayıncı: {a.licenseInfo.Issuer} · Son: {a.licenseInfo.ExpiresAt}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-slate-300 mt-0.5">{new Date(a.createdDate).toLocaleDateString("tr-TR")}</p>
                         </div>
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{a.maskedToken}</p>
-                        {a.licenseInfo && (
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            Yayıncı: {a.licenseInfo.Issuer} · Son: {a.licenseInfo.ExpiresAt}
-                          </p>
+                        {!a.isRevoked && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button onClick={() => handleResetViewPassword(a.id, a.adminEmail)}
+                              className="text-[10px] text-amber-600 hover:text-amber-800 border border-amber-200 hover:bg-amber-50 rounded-lg px-2 py-1 transition font-semibold">
+                              Şifreyi Yenile
+                            </button>
+                            <button onClick={() => handleRevokeAssignment(a.id)}
+                              className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 rounded-lg px-2 py-1 transition font-semibold">
+                              İptal Et
+                            </button>
+                          </div>
                         )}
-                        <p className="text-[10px] text-slate-300 mt-0.5">{new Date(a.createdDate).toLocaleDateString("tr-TR")}</p>
                       </div>
-                      {!a.isRevoked && (
-                        <button onClick={() => handleRevokeAssignment(a.id)}
-                          className="shrink-0 text-[10px] text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 rounded-lg px-2 py-1 transition font-semibold">
-                          İptal Et
-                        </button>
+                      {resetResults[a.id] && (
+                        <div className="mx-3 mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <span className="text-[10px] text-amber-700 font-semibold shrink-0">Yeni Şifre:</span>
+                          <code className="flex-1 font-mono text-xs text-amber-900 tracking-widest">{resetResults[a.id]}</code>
+                          <button onClick={() => copyResetPassword(a.id, resetResults[a.id])}
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition shrink-0">
+                            {copiedResetId === a.id ? "✓ Kopyalandı" : "Kopyala"}
+                          </button>
+                          <button onClick={() => setResetResults(prev => { const n = { ...prev }; delete n[a.id]; return n; })}
+                            className="text-amber-400 hover:text-amber-700 transition shrink-0 text-sm leading-none">×</button>
+                        </div>
                       )}
                     </div>
                   ))}
