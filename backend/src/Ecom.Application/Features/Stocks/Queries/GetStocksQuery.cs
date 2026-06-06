@@ -29,7 +29,7 @@ public record StockListItemDto(
     string? DataSource = null
 );
 
-public class GetStocksQueryHandler(IApplicationDbContext db)
+public class GetStocksQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetStocksQuery, PaginatedList<StockListItemDto>>
 {
     public async Task<PaginatedList<StockListItemDto>> Handle(GetStocksQuery request, CancellationToken cancellationToken)
@@ -40,6 +40,9 @@ public class GetStocksQueryHandler(IApplicationDbContext db)
             .Include(s => s.Product)
             .Include(s => s.ProductVariant)
             .AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            query = query.Where(s => s.Product != null && s.Product.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(s =>

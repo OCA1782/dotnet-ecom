@@ -20,5 +20,7 @@ public class Coupon : BaseEntity
     public string? ImageUrl { get; set; }
     public string? StylesJson { get; set; }
 
+    public Guid? CreatedByAdminId { get; set; }
+
     public ICollection<CouponUsage> Usages { get; set; } = new List<CouponUsage>();
 }

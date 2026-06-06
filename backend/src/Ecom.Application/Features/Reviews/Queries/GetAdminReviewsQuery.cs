@@ -35,12 +35,26 @@ public record AdminReviewDto(
     string? DataSource = null
 );
 
-public class GetAdminReviewsHandler(IApplicationDbContext db)
+public class GetAdminReviewsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetAdminReviewsQuery, PaginatedList<AdminReviewDto>>
 {
     public async Task<PaginatedList<AdminReviewDto>> Handle(GetAdminReviewsQuery request, CancellationToken cancellationToken)
     {
         var query = db.ProductReviews.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var managedProductIds = await db.Products
+                .Where(p => p.CreatedByAdminId == adminId)
+                .Select(p => p.Id)
+                .ToListAsync(cancellationToken);
+            var managedUserIds = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId || u.Id == adminId)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            query = query.Where(r => managedProductIds.Contains(r.ProductId) || managedUserIds.Contains(r.UserId));
+        }
 
         if (request.IsApproved.HasValue)
             query = query.Where(r => r.IsApproved == request.IsApproved);

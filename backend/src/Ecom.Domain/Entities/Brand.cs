@@ -15,6 +15,7 @@ public class Brand : BaseEntity
     public string? StylesJson { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
+    public Guid? CreatedByAdminId { get; set; }
 
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }

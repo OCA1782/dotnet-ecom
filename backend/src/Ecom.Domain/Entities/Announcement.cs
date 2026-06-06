@@ -17,4 +17,5 @@ public class Announcement : BaseEntity
     public DateTime? EndsAt { get; set; }
     public int DisplayOrder { get; set; } = 0;
     public string? StylesJson { get; set; }
+    public Guid? CreatedByAdminId { get; set; }
 }

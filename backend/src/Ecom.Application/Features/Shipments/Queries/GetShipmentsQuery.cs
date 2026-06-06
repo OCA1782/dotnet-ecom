@@ -30,7 +30,7 @@ public record GetShipmentsQuery(
     string? Search = null
 ) : IRequest<PaginatedList<ShipmentListItemDto>>;
 
-public class GetShipmentsHandler(IApplicationDbContext db)
+public class GetShipmentsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetShipmentsQuery, PaginatedList<ShipmentListItemDto>>
 {
     public async Task<PaginatedList<ShipmentListItemDto>> Handle(GetShipmentsQuery request, CancellationToken ct)
@@ -39,6 +39,13 @@ public class GetShipmentsHandler(IApplicationDbContext db)
             .Include(s => s.Order).ThenInclude(o => o.User)
             .Where(s => !s.IsDeleted)
             .AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            query = query.Where(s => s.Order.User!.CreatedByAdminId == adminId
+                || s.Order.UserId == adminId);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Status) &&
             Enum.TryParse<ShipmentStatus>(request.Status, out var statusEnum))

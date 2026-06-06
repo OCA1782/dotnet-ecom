@@ -20,6 +20,7 @@ public class Category : BaseEntity
     public string? VideoUrl { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
+    public Guid? CreatedByAdminId { get; set; }
 
     public ICollection<Category> SubCategories { get; set; } = new List<Category>();
     public ICollection<Product> Products { get; set; } = new List<Product>();
