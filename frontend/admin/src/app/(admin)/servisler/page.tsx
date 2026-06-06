@@ -6,8 +6,9 @@ import {
   Activity, RefreshCw, CheckCircle2, XCircle, AlertTriangle,
   Database, Mail, Wifi, Server, Clock, Radio, TrendingUp,
   BarChart2, Info, ChevronDown, ChevronUp,
-  AlertOctagon, Shield, Zap, Play, Loader2,
+  AlertOctagon, Shield, Zap, Play, Loader2, Monitor, ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 
 // ── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -80,17 +81,85 @@ const INCIDENT_COLORS: Record<string, string> = {
   unknown: "text-slate-400 bg-slate-50 border-slate-200",
 };
 
+// Hangi admin/müşteri ekranları bu servisden besleniyor
+const SERVICE_SCREENS: Record<string, { href: string; label: string; note?: string }[]> = {
+  "API": [
+    { href: "/dashboard",    label: "Dashboard",     note: "tüm KPI sorgular" },
+    { href: "/urunler",      label: "Ürünler",       note: "CRUD işlemleri" },
+    { href: "/siparisler",   label: "Siparişler",    note: "liste, detay, durum" },
+    { href: "/kullanicilar", label: "Kullanıcılar",  note: "liste, düzenleme" },
+    { href: "/stok",         label: "Stok",          note: "güncelleme, hareketler" },
+    { href: "/odemeler",     label: "Ödemeler",      note: "liste ve detay" },
+    { href: "/yorumlar",     label: "Yorumlar",      note: "onaylama, red" },
+    { href: "/kargo",        label: "Kargo",         note: "durum güncelleme" },
+    { href: "/dogrulama",    label: "Doğrulama",     note: "endpoint kontrolleri" },
+  ],
+  "Veritabanı": [
+    { href: "/dashboard",    label: "Dashboard",     note: "istatistik sorguları" },
+    { href: "/urunler",      label: "Ürünler",       note: "katalog yönetimi" },
+    { href: "/siparisler",   label: "Siparişler",    note: "tüm sipariş işlemleri" },
+    { href: "/kullanicilar", label: "Kullanıcılar",  note: "hesap yönetimi" },
+    { href: "/stok",         label: "Stok",          note: "stok takibi" },
+    { href: "/hareketler",   label: "Hareketler",    note: "audit log okuma" },
+    { href: "/faturalar",    label: "Faturalar",     note: "fatura kayıtları" },
+    { href: "/kuponlar",     label: "Kuponlar",      note: "kupon CRUD" },
+    { href: "/yonetim",      label: "Yönetim → Lisans", note: "lisans atamaları" },
+  ],
+  "Redis": [
+    { href: "/dashboard",    label: "Dashboard",     note: "istatistik cache (12s TTL)" },
+    { href: "/urunler",      label: "Ürünler",       note: "ürün listesi cache" },
+    { href: "/kategoriler",  label: "Kategoriler",   note: "kategori cache" },
+    { href: "/markalar",     label: "Markalar",      note: "marka cache" },
+    { href: "/raporlar",     label: "Raporlar",      note: "satış raporu cache" },
+    { href: "/dogrulama",    label: "Doğrulama",     note: "job sonuç cache (13s TTL)" },
+    { href: "/yonetim",      label: "Yönetim → Lisans", note: "lisans doğrulama cache (5d)" },
+  ],
+  "RabbitMQ": [
+    { href: "/siparisler",   label: "Siparişler",    note: "sipariş oluşturulunca event gönderilir" },
+    { href: "/odemeler",     label: "Ödemeler",      note: "ödeme onaylanınca event gönderilir" },
+    { href: "/siparisler",   label: "Sipariş Durumu",note: "durum değişiminde event gönderilir" },
+    { href: "/kuyruklar",    label: "Kuyruklar",     note: "mesaj kuyruk yönetimi" },
+  ],
+  "E-posta": [
+    { href: "/siparisler",   label: "Siparişler",    note: "sipariş onayı gönderilir" },
+    { href: "/odemeler",     label: "Ödemeler",      note: "ödeme başarılı bildirimi" },
+    { href: "/kargo",        label: "Kargo",         note: "kargo bildirim e-postası" },
+    { href: "/yorumlar",     label: "Yorumlar",      note: "yorum red bildirimi" },
+    { href: "/stok",         label: "Stok",          note: "düşük stok uyarısı (admin'e)" },
+    { href: "/yonetim",      label: "Yönetim → SMTP",note: "test e-postası, lisans atama" },
+  ],
+};
+
+// Her e-posta şablonunu hangi admin aksiyonu tetikler
+const EMAIL_TRIGGERS: Record<string, { screen: string; href: string; action: string }> = {
+  "SendOrderConfirmationAsync":    { screen: "Siparişler",  href: "/siparisler",  action: "Sipariş oluşturulduğunda" },
+  "SendPaymentSuccessAsync":       { screen: "Ödemeler",    href: "/odemeler",    action: "Ödeme onaylandığında" },
+  "SendShippingNotificationAsync": { screen: "Kargo",       href: "/kargo",       action: "Kargo bilgisi girildiğinde" },
+  "SendPasswordResetAsync":        { screen: "Müşteri Giriş", href: "/",          action: "Müşteri şifremi unuttum" },
+  "SendEmailVerificationAsync":    { screen: "Kayıt",       href: "/",            action: "Yeni müşteri kaydolduğunda" },
+  "SendLowStockAlertAsync":        { screen: "Stok",        href: "/stok",        action: "Kritik stok eşiği aşıldığında" },
+  "SendReviewRejectionAsync":      { screen: "Yorumlar",    href: "/yorumlar",    action: "Yorum reddedildiğinde" },
+};
+
+// RabbitMQ consumer → tetikleyici ekran
+const RABBITMQ_TRIGGERS: Record<string, { screen: string; href: string; action: string }> = {
+  "OrderCreatedConsumer":       { screen: "Siparişler",   href: "/siparisler",  action: "Sipariş oluşturulduğunda (CreateOrder)" },
+  "PaymentCompletedConsumer":   { screen: "Ödemeler",     href: "/odemeler",    action: "Ödeme callback'i onaylandığında" },
+  "OrderStatusChangedConsumer": { screen: "Siparişler",   href: "/siparisler",  action: "Sipariş durumu güncellendiğinde" },
+  "OrderProcessingSaga":        { screen: "Siparişler",   href: "/siparisler",  action: "Sipariş akışı state machine" },
+};
+
 const SERVICE_META: Record<string, {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   description: string;
   thresholdOk: number; thresholdWarn: number; sla: string;
   actions: { id: string; label: string; variant?: "primary" | "danger" }[];
 }> = {
-  "API":        { icon: Server,   description: "HTTP API sunucusu. Her istek bu katmandan geçer.",             thresholdOk: 100,  thresholdWarn: 300,  sla: "99.9%",  actions: [{ id: "ping-db",    label: "DB Ping Testi" }] },
-  "Veritabanı": { icon: Database, description: "SQL veritabanı (geliştirme: SQL Server, prod: PostgreSQL).",   thresholdOk: 50,   thresholdWarn: 200,  sla: "99.95%", actions: [{ id: "ping-db",    label: "Bağlantı Testi" }] },
-  "Redis":      { icon: Wifi,     description: "Dağıtık önbellek. Sepet ve ürün cache'i burada tutulur.",     thresholdOk: 10,   thresholdWarn: 50,   sla: "99.9%",  actions: [{ id: "ping-cache", label: "Önbellek Testi" }, { id: "flush-cache", label: "Test Anahtarını Temizle", variant: "danger" }] },
-  "RabbitMQ":   { icon: Activity, description: "Mesaj kuyruğu (MassTransit). Outbox eventleri işler.",        thresholdOk: 20,   thresholdWarn: 100,  sla: "99.5%",  actions: [{ id: "ping-rabbitmq", label: "Bus Testi" }] },
-  "E-posta":    { icon: Mail,     description: "SMTP sunucusu. Sipariş bildirimleri ve doğrulama e-postaları.", thresholdOk: 500, thresholdWarn: 2000, sla: "99.0%",  actions: [{ id: "ping-smtp", label: "SMTP TCP Testi" }, { id: "send-test-email", label: "Test E-postası Gönder", variant: "primary" }] },
+  "API":        { icon: Server,   description: "HTTP API sunucusu. Tüm admin ve müşteri istekleri bu katmandan geçer. JWT doğrulama, CORS, rate limiting ve hata loglama middleware'leri burada çalışır.",             thresholdOk: 100,  thresholdWarn: 300,  sla: "99.9%",  actions: [{ id: "ping-db",    label: "DB Ping Testi" }] },
+  "Veritabanı": { icon: Database, description: "SQL veritabanı (geliştirme: SQL Server LocalDB, prod: PostgreSQL). Tüm varlık verileri, denetim kayıtları ve iş akışı verileri burada saklanır.",   thresholdOk: 50,   thresholdWarn: 200,  sla: "99.95%", actions: [{ id: "ping-db",    label: "Bağlantı Testi" }] },
+  "Redis":      { icon: Wifi,     description: "Dağıtık önbellek (Redis veya InMemory). Dashboard istatistikleri, ürün listeleri, lisans doğrulama sonuçları ve job çıktıları burada cache'lenir.",     thresholdOk: 10,   thresholdWarn: 50,   sla: "99.9%",  actions: [{ id: "ping-cache", label: "Önbellek Testi" }, { id: "flush-cache", label: "Test Anahtarını Temizle", variant: "danger" }] },
+  "RabbitMQ":   { icon: Activity, description: "Mesaj kuyruğu (MassTransit + RabbitMQ veya InMemory). Sipariş oluşturma, ödeme onayı ve durum değişikliği eventleri asenkron olarak işlenir. Outbox pattern ile güvenli mesaj teslimatı sağlanır.",        thresholdOk: 20,   thresholdWarn: 100,  sla: "99.5%",  actions: [{ id: "ping-rabbitmq", label: "Bus Testi" }] },
+  "E-posta":    { icon: Mail,     description: "SMTP e-posta servisi (MailKit). Sipariş onayı, kargo bildirimi, şifre sıfırlama, düşük stok uyarısı ve doğrulama e-postaları bu servis üzerinden gönderilir. Yapılandırılmamışsa geliştirme modunda log'a yazılır.", thresholdOk: 500, thresholdWarn: 2000, sla: "99.0%",  actions: [{ id: "ping-smtp", label: "SMTP TCP Testi" }, { id: "send-test-email", label: "Test E-postası Gönder", variant: "primary" }] },
 };
 
 // ── Yardımcı bileşenler ──────────────────────────────────────────────────────
@@ -472,6 +541,69 @@ export default function ServislerPage() {
                       <Info size={12} className="text-slate-300 shrink-0 mt-0.5" />
                       <p className="text-xs text-slate-500 leading-relaxed">{meta.description}</p>
                     </div>
+
+                    {/* ── Bu Servisi Kullanan Ekranlar ── */}
+                    {SERVICE_SCREENS[svc.name] && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <Monitor size={11} /> Bu Servisi Kullanan Ekranlar
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {SERVICE_SCREENS[svc.name].map((screen, idx) => (
+                            <Link key={idx} href={screen.href}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition group">
+                              <ExternalLink size={9} />
+                              <span>{screen.label}</span>
+                              {screen.note && (
+                                <span className="text-indigo-300 group-hover:text-indigo-400">· {screen.note}</span>
+                              )}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── E-posta Şablonları ── */}
+                    {svc.name === "E-posta" && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-posta Şablonları</p>
+                        <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
+                          {Object.entries(EMAIL_TRIGGERS).map(([fn, trigger]) => (
+                            <div key={fn} className="flex items-start gap-2 px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-mono text-slate-600 truncate">{fn}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{trigger.action}</p>
+                              </div>
+                              <Link href={trigger.href}
+                                className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-600 border border-teal-100 hover:bg-teal-100 transition">
+                                <ExternalLink size={8} />{trigger.screen}
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── RabbitMQ Tüketiciler ── */}
+                    {svc.name === "RabbitMQ" && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Mesaj Tüketiciler</p>
+                        <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
+                          {Object.entries(RABBITMQ_TRIGGERS).map(([consumer, trigger]) => (
+                            <div key={consumer} className="flex items-start gap-2 px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-mono text-slate-600 truncate">{consumer}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{trigger.action}</p>
+                              </div>
+                              <Link href={trigger.href}
+                                className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition">
+                                <ExternalLink size={8} />{trigger.screen}
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Sparkline */}
                     {hist.length >= 3 && (
