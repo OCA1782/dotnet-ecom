@@ -101,6 +101,12 @@ export default function UsersPage() {
     return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
   }
 
+  const isSuperAdmin = (() => {
+    if (typeof window === "undefined") return false;
+    try { return (JSON.parse(localStorage.getItem("admin_user") ?? "{}") as { roles?: string[] }).roles?.includes("SuperAdmin") ?? false; }
+    catch { return false; }
+  })();
+
   const [rolesTarget, setRolesTarget] = useState<AdminUser | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [rolesSaving, setRolesSaving] = useState(false);
@@ -527,7 +533,7 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
                   <select className={INPUT} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
                     <optgroup label="── Yönetici Rolleri">
-                      {ADMIN_ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                      {ADMIN_ROLES.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                     </optgroup>
                     <optgroup label="── Müşteri">
                       <option value="Customer">Müşteri</option>
@@ -592,7 +598,7 @@ export default function UsersPage() {
               {rolesError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{rolesError}</p>}
               <p className="text-xs text-slate-500">Kullanıcının sahip olacağı rolleri seçin. En az bir rol zorunludur.</p>
               <div className="space-y-2">
-                {ALL_ROLE_DEFS.map(roleDef => (
+                {ALL_ROLE_DEFS.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(roleDef => (
                   <label key={roleDef.key} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
                     <input
                       type="checkbox"
@@ -661,7 +667,7 @@ export default function UsersPage() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
                   <select className={INPUT} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
                     <optgroup label="── Yönetici Rolleri">
-                      {ADMIN_ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                      {ADMIN_ROLES.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                     </optgroup>
                     <optgroup label="── Müşteri">
                       <option value="Customer">Müşteri</option>

@@ -8,7 +8,7 @@ namespace Ecom.Application.Features.Admin.Commands;
 
 public record UpdateUserRolesCommand(Guid UserId, IEnumerable<string> Roles) : IRequest<Result>;
 
-public class UpdateUserRolesHandler(IApplicationDbContext db) : IRequestHandler<UpdateUserRolesCommand, Result>
+public class UpdateUserRolesHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<UpdateUserRolesCommand, Result>
 {
     public async Task<Result> Handle(UpdateUserRolesCommand request, CancellationToken ct)
     {
@@ -25,6 +25,9 @@ public class UpdateUserRolesHandler(IApplicationDbContext db) : IRequestHandler<
         // Must have at least one role
         if (validRoles.Count == 0)
             return Result.Failure("En az bir rol seçilmelidir.");
+
+        if (validRoles.Contains(UserRoleEnum.SuperAdmin) && !currentUser.Roles.Contains("SuperAdmin"))
+            return Result.Failure("Süper Admin rolü yalnızca Süper Admin tarafından atanabilir.");
 
         // Remove all existing roles
         var existingRoles = await db.UserRoles.Where(r => r.UserId == request.UserId).ToListAsync(ct);

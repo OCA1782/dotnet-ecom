@@ -31,6 +31,9 @@ public class UpdateAdminUserHandler(
         if (!Enum.TryParse<UserRoleEnum>(request.Role, ignoreCase: true, out var role))
             return Result<bool>.Failure("Geçersiz rol.");
 
+        if (role == UserRoleEnum.SuperAdmin && !currentUser.Roles.Contains("SuperAdmin"))
+            return Result<bool>.Failure("Süper Admin rolü yalnızca Süper Admin tarafından atanabilir.");
+
         if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
         {
             var emailTaken = await db.Users.AnyAsync(u => u.Email == request.Email && u.Id != request.Id, cancellationToken);
