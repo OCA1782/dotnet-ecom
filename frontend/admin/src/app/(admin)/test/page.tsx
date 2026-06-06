@@ -8,7 +8,7 @@ import {
   RotateCcw, Database, User, Package, Tag, ChevronUp, Server,
   Factory, Hash, Loader2, ShoppingBag, Star, Ticket, UserPlus,
   CheckCircle, XCircle as XCircleIcon, Minus,
-  Megaphone, FileText, Truck, CreditCard, Gift,
+  Megaphone, FileText, Truck, CreditCard, Gift, KeyRound,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -101,6 +101,9 @@ const TEST_GROUPS: TestGroup[] = [
       { id: "api_invoices",       label: "Fatura Listesi (TC-INV-02)",     description: "GET /api/admin/invoices — fatura listesi döner mi?",              apiEndpoint: "/api/admin/invoices?page=1",                 apiMethod: "GET" },
       { id: "api_invoices_filter",label: "Fatura Tür Filtresi (TC-INV-04)","description": "GET /api/admin/invoices?docType=eArchive — tür filtresi çalışıyor mu?", apiEndpoint: "/api/admin/invoices?docType=eArchive", apiMethod: "GET" },
       { id: "api_seed_guest",     label: "Seed — Misafir Sipariş",         description: "POST /api/admin/seed/guest-orders — guestEmail + sipariş oluşturur; TC-QUERY-01 için gerekli (SuperAdmin).", apiEndpoint: "/api/admin/seed/guest-orders", apiMethod: "POST", apiBody: {} },
+      // Lisans
+      { id: "api_dev_key",        label: "Lisans — Anahtar Listesi",       description: "GET /api/admin/dev-key — RSA anahtar çifti listesi döner mi?",                apiEndpoint: "/api/admin/dev-key",             apiMethod: "GET" },
+      { id: "api_license_assign", label: "Lisans — Atama Listesi",         description: "GET /api/admin/license-assignments — atama listesi döner mi? (SuperAdmin)", apiEndpoint: "/api/admin/license-assignments", apiMethod: "GET" },
     ],
   },
   {
@@ -265,6 +268,10 @@ const TEST_GROUPS: TestGroup[] = [
         steps: ["Şifremi unuttum akışından şifreyi sıfırla", "Admin: Hareketler → PasswordReset kayıt var mı?"] },
       { id: "sec_token_refresh_log", label: "Token Yenileme Audit Log",    description: "Refresh token kullanınca TokenRefreshed audit kaydı yazılıyor mu?",
         steps: ["'Beni Hatırla' ile giriş yap", "Token sona erince otomatik yenilemeyi bekle veya interceptor'ı tetikle", "Admin: Hareketler → TokenRefreshed kaydı var mı?"] },
+      { id: "sec_license_mw",      label: "Lisans Middleware Koruması",    description: "ECOM_LICENSE geçersizse tüm API istekleri reddediliyor mu?",               priority: "critical",
+        steps: [".env dosyasında ECOM_LICENSE değerini geçersiz yap → docker compose up -d --force-recreate api", "Herhangi bir endpoint'e istek gönder → 503 Service Unavailable bekleniyor", ".env'i geri al → docker compose up -d --force-recreate api → normal çalışmayı doğrula"] },
+      { id: "sec_license_role",    label: "Lisans Endpoint Yetki Kontrolü", description: "Lisans atama/listeleme endpointleri yalnızca SuperAdmin'e açık mı?",       priority: "high",
+        steps: ["Admin rolüyle giriş yap (SuperAdmin değil)", "DevTools Network → GET /api/admin/license-assignments isteği gönder", "403 Forbidden bekleniyor"] },
     ],
   },
   {
@@ -305,6 +312,53 @@ const TEST_GROUPS: TestGroup[] = [
         steps: ["Süresi dolmuş kupon kodu oluştur → sepette uygula → hata mesajı bekleniyor", "Kullanım limiti dolmuş kupon dene → hata mesajı bekleniyor"] },
       { id: "unit_order_status",  label: "Sipariş Durumu Renkleri",        description: "Tüm sipariş statüsleri (1-12) için renk sınıfı döndürüyor mu?",
         steps: ["src/types/index.ts veya types dosyasını aç", "ORDER_STATUS_COLORS'da 1-12 tüm değerlerin tanımlı olduğunu kontrol et"] },
+    ],
+  },
+  {
+    id: "license",
+    title: "Lisans Sistemi",
+    icon: KeyRound,
+    color: "teal",
+    badge: "License",
+    description: "Lisans üretimi, atama, görüntüleme ve online aktivasyon süreçlerini test eder. Kritik — canlı ortam öncesi yapılmalı.",
+    execution: "mixed",
+    cases: [
+      // Otomatik API testleri
+      { id: "lic_api_dev_key",      label: "Anahtar Çifti Listesi API",      description: "GET /api/admin/dev-key — RSA anahtar listesi döner mi?",                  apiEndpoint: "/api/admin/dev-key",             apiMethod: "GET",  priority: "high" },
+      { id: "lic_api_assignments",  label: "Lisans Atamaları API",           description: "GET /api/admin/license-assignments — atama listesi döner mi?",            apiEndpoint: "/api/admin/license-assignments", apiMethod: "GET",  priority: "high" },
+      // Ortam değişkenleri
+      { id: "lic_env_vars",         label: "Ortam Değişkenleri Kontrolü",    description: "ECOM_LICENSE, ECOM_PUBLIC_KEY, LICENSE_ACTIVATION_URL tanımlı mı?",       priority: "critical",
+        steps: ["docker exec ecom-api-1 printenv | grep -E 'ECOM|LICENSE' komutunu çalıştır", "3 değişkenin de mevcut olduğunu doğrula", "ECOM_PUBLIC_KEY eksikse API lisans doğrulaması başarısız olur"] },
+      // Anahtar çifti ve token üretimi
+      { id: "lic_key_generate",     label: "Yeni RSA Anahtar Çifti Üret",   description: "Yönetim → Lisans → 'Yeni RSA-2048 Anahtar Çifti Üret' butonu çalışıyor mu?", priority: "critical",
+        steps: ["Yönetim → Lisans sekmesine git", "Lisans Üretici bölümüne in", "'Yeni RSA-2048 Anahtar Çifti Üret' butonuna tıkla", "Public key'in textarea'ya yapıştırıldığını doğrula"] },
+      { id: "lic_token_generate",   label: "Lisans Token Üret",             description: "Mevcut key pair ile yeni lisans token'ı üretiliyor mu?",                  priority: "critical",
+        steps: ["Yönetim → Lisans → Lisans Üretici bölümü", "Issuer ve tarihleri doldur (opsiyonel: Host IP)", "'Lisans Token Üret' butonuna tıkla", "Token'ın header.signature formatıyla göründüğünü doğrula", "Kopyala butonu çalışıyor mu?"] },
+      // Token aktivasyon
+      { id: "lic_activate",         label: "Platform Lisansını Aktive Et",  description: "Yönetim → Lisans → token yapıştır → aktive et akışı çalışıyor mu?",
+        steps: ["Yönetim → Lisans → 'Platform Lisansını Aktive Et' bölümüne git", "Geçerli bir token yapıştır", "Aktive Et butonuna bas", "Başarı mesajı göründüğünü doğrula"] },
+      // Atama işlemleri
+      { id: "lic_assign_email",     label: "E-posta ile Lisans Atama",      description: "E-posta adresi ile admin kullanıcıya lisans atanıyor mu?",               priority: "critical",
+        steps: ["Yönetim → Lisans → Lisans Atama bölümüne git", "Geçerli bir admin e-posta adresi gir", "Mevcut platform token'ını yapıştır", "Ata butonuna bas", "Başarı mesajı ve görüntüleme şifresinin göründüğünü doğrula", "Atama listesinde yeni kayıt var mı?"] },
+      { id: "lic_assign_name",      label: "Ad-Soyad ile Lisans Atama",     description: "Ad-Soyad ile admin kullanıcıya lisans atanıyor mu?",
+        steps: ["Yönetim → Lisans → Atama bölümü", "E-posta yerine 'Ad Soyad' formatında gir", "Token yapıştır → Ata", "Başarı mesajı geldi mi? Kullanıcı listeye eklendi mi?"] },
+      { id: "lic_assign_invalid",   label: "Geçersiz Kullanıcı Atama Hatası", description: "Olmayan kullanıcıya atamada hata mesajı geliyor mu?",
+        steps: ["Yönetim → Lisans → Atama bölümü", "Olmayan bir e-posta gir", "Ata butonuna bas", "Hata: 'kullanıcı bulunamadı' mesajı bekleniyor"] },
+      // Görüntüleme
+      { id: "lic_reveal",           label: "Lisans Görüntüleme (Admin)",    description: "Admin kullanıcı görüntüleme şifresiyle kendi lisansını görebiliyor mu?",  priority: "high",
+        steps: ["Admin hesabıyla giriş yap (lisans atanmış olmalı)", "Yönetim → Lisans → 'Lisansımı Görüntüle' bölümüne git", "E-posta ile gönderilen görüntüleme şifresini gir", "Token'ın maskesiz göründüğünü doğrula", "Yanlış şifre girilince hata mesajı geliyor mu?"] },
+      { id: "lic_dev_reveal",       label: "DevReveal ile Platform Token",  description: "DevRevealPassword ile platform token görüntüleniyor mu?",
+        steps: ["Yönetim → Lisans → 'Platform Lisansını Görüntüle' bölümünü bul", "appsettings'teki DevRevealPassword değerini gir", "Platform token'ının görüntülendiğini doğrula", "Yanlış şifre → 'Yanlış şifre' hatası bekleniyor"] },
+      // İptal
+      { id: "lic_revoke",           label: "Lisans Atama İptal (Revoke)",   description: "Atanmış lisans iptal edilebiliyor mu?",
+        steps: ["Yönetim → Lisans → Atama listesinden bir kaydı bul", "İptal (trash) butonuna tıkla", "Kaydın 'İptal Edildi' olarak işaretlendiğini doğrula"] },
+      // Güvenlik & altyapı
+      { id: "lic_online_activation", label: "Online Aktivasyon Durumu",     description: "LICENSE_ACTIVATION_URL tanımlıysa Cloudflare'e ulaşılıyor mu?",
+        steps: ["docker exec ecom-api-1 printenv | grep LICENSE_ACTIVATION_URL komutunu çalıştır", "API'ye istek gönder → docker logs ecom-api-1 --tail=20 ile hata var mı kontrol et", "Hata yoksa online aktivasyon çalışıyor"] },
+      { id: "lic_host_binding",     label: "Host Binding Doğrulaması",      description: "Token'da host alanı varsa, yanlış IP'de çalışmıyor mu?",
+        steps: ["Yönetim → Lisans → Lisans Üretici → Host alanına farklı bir IP gir", "Token üret, .env'e yükle, API'yi yeniden başlat", "docker logs ecom-api-1 | grep -i 'host\\|binding\\|lisans' → hata bekleniyor"] },
+      { id: "lic_invalid_token",    label: "Geçersiz Token Reddi",          description: "Bozuk/imzasız token girilince API hata veriyor mu?",
+        steps: ["Yönetim → Lisans → 'Platform Lisansını Aktive Et' bölümü", "Token alanına geçersiz bir string yapıştır (örn: 'abc.xyz')", "Aktive Et → 'Geçersiz lisans' hata mesajı bekleniyor"] },
     ],
   },
 ];
@@ -753,6 +807,7 @@ const SEED_ENTITIES: SeedEntity[] = [
   { id: "shipment",     label: "Kargolar",     icon: Truck,       color: "teal",   description: "Mevcut siparişler için kargo takip kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
   { id: "payment",      label: "Ödemeler",     icon: CreditCard,  color: "emerald",description: "Mevcut siparişler için ödeme kaydı oluşturur.", requires: "Sipariş", hint: "Önce sipariş gerekli" },
   { id: "campaign",     label: "Kampanyalar",  icon: Gift,        color: "orange", description: "Rastgele başlık, renk şeması ve görsel ile aktif kampanya banner'ları oluşturur." },
+  { id: "license",      label: "Lisans Atamaları", icon: KeyRound, color: "indigo", description: "Platform lisans token'ını mevcut admin kullanıcılara atar. Görüntüleme şifresi log'da görünür.", requires: "Admin Kullanıcı", hint: "Önce en az 1 admin kullanıcı ve ECOM_LICENSE gerekli" },
 ];
 
 const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> = {

@@ -1,9 +1,11 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
 using Ecom.Domain.Enums;
+using Ecom.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System.Text.RegularExpressions;
 
 namespace Ecom.API.Controllers.Admin;
@@ -11,7 +13,7 @@ namespace Ecom.API.Controllers.Admin;
 [ApiController]
 [Route("api/admin/seed")]
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class SeedController(IApplicationDbContext db, IPasswordService passwordService, ICacheService cache) : ControllerBase
+public class SeedController(IApplicationDbContext db, IPasswordService passwordService, ICacheService cache, IConfiguration configuration) : ControllerBase
 {
     private static readonly Random _rng = new();
 
@@ -74,6 +76,20 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
         "Kalite iyi sayılır ancak fiyat biraz yüksek.",
         "Orta kalite, fiyatıyla orantılı.",
     ];
+
+    private static string GenerateSeedViewPassword()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var rng = new byte[16];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(rng);
+        var sb = new System.Text.StringBuilder(19);
+        for (int i = 0; i < 16; i++)
+        {
+            if (i > 0 && i % 4 == 0) sb.Append('-');
+            sb.Append(chars[rng[i] % chars.Length]);
+        }
+        return sb.ToString();
+    }
 
     private static string Slugify(string text)
     {
@@ -490,6 +506,39 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
                 break;
             }
 
+            case "license":
+            {
+                var licenseToken = configuration["License"] ?? Environment.GetEnvironmentVariable("ECOM_LICENSE") ?? "";
+                if (string.IsNullOrWhiteSpace(licenseToken))
+                    return BadRequest(new { error = "ECOM_LICENSE yapılandırılmamış. Lisans seed için platform token gerekli." });
+
+                var adminUsers = await db.Users
+                    .Include(u => u.Roles)
+                    .Where(u => u.IsActive && !u.IsDeleted && u.Roles.Any(r => r.Role == Ecom.Domain.Enums.UserRole.Admin || r.Role == Ecom.Domain.Enums.UserRole.SuperAdmin))
+                    .ToListAsync(ct);
+
+                if (adminUsers.Count == 0)
+                    return BadRequest(new { error = "Henüz admin kullanıcı yok. Önce kullanıcı seed edin veya el ile admin oluşturun." });
+
+                for (int i = 0; i < count; i++)
+                {
+                    var user = adminUsers[i % adminUsers.Count];
+                    var viewPassword = GenerateSeedViewPassword();
+                    var assignment = new LicenseAssignment
+                    {
+                        AdminUserId      = user.Id,
+                        AdminEmail       = user.Email,
+                        AdminName        = $"{user.Name} {user.Surname}".Trim(),
+                        LicenseToken     = licenseToken,
+                        ViewPasswordHash = CryptoHelper.Hash(viewPassword),
+                        Notes            = $"Test seed #{i + 1} — {now:yyyy-MM-dd HH:mm}",
+                    };
+                    db.LicenseAssignments.Add(assignment);
+                    created.Add(new { assignment.Id, user.Email, viewPassword, AdminName = assignment.AdminName });
+                }
+                break;
+            }
+
             case "campaign":
             {
                 var colorSchemes = new[] { "orange", "teal", "navy", "amber", "purple", "green", "rose", "sky" };
@@ -518,7 +567,7 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
             }
 
             default:
-                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon, announcement, invoice, return, shipment, payment, campaign" });
+                return BadRequest(new { error = $"Bilinmeyen varlık tipi: '{request.Entity}'. Geçerli: category, brand, product, user, order, review, coupon, announcement, invoice, return, shipment, payment, campaign, license" });
         }
 
         await db.SaveChangesAsync(ct);
