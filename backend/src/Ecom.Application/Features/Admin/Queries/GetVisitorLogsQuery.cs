@@ -32,13 +32,19 @@ public record VisitorLogDto(
 
 public record GetVisitorLogsResult(List<VisitorLogDto> Items, int TotalCount);
 
-public class GetVisitorLogsQueryHandler(IDapperQueryService dapper)
+public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUserService currentUser)
     : IRequestHandler<GetVisitorLogsQuery, GetVisitorLogsResult>
 {
     public async Task<GetVisitorLogsResult> Handle(GetVisitorLogsQuery request, CancellationToken cancellationToken)
     {
         var where = new List<string> { "v.IsDeleted = 0" };
         var param = new DynamicParameters();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            where.Add("(v.UserId IS NULL OR u.CreatedByAdminId = @TenantAdminId OR v.UserId = @TenantAdminId)");
+            param.Add("TenantAdminId", currentUser.UserId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.IpAddress))
         {

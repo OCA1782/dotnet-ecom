@@ -10,19 +10,23 @@ public record CampaignDto(
     Guid Id, string Title, string? Subtitle, string Icon,
     string ColorScheme, string? ImageUrl, string? StylesJson,
     string? LinkUrl, string? LinkText,
-    int DisplayOrder, bool IsActive, DateTime CreatedDate
+    int DisplayOrder, bool IsActive, DateTime CreatedDate,
+    string? CreatedByAdminEmail = null
 );
 
 public record GetCampaignsQuery(bool OnlyActive = true) : IRequest<List<CampaignDto>>;
 
-public class GetCampaignsHandler(IApplicationDbContext db) : IRequestHandler<GetCampaignsQuery, List<CampaignDto>>
+public class GetCampaignsHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetCampaignsQuery, List<CampaignDto>>
 {
     public async Task<List<CampaignDto>> Handle(GetCampaignsQuery request, CancellationToken cancellationToken)
     {
         var q = db.Campaigns.Where(c => !c.IsDeleted);
         if (request.OnlyActive) q = q.Where(c => c.IsActive);
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            q = q.Where(c => c.CreatedByAdminId == currentUser.UserId.Value);
         return await q.OrderBy(c => c.DisplayOrder).ThenBy(c => c.CreatedDate)
-            .Select(c => new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.CreatedDate))
+            .Select(c => new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.CreatedDate,
+                c.CreatedByAdminId != null ? db.Users.Where(u => u.Id == c.CreatedByAdminId).Select(u => u.Email).FirstOrDefault() : null))
             .ToListAsync(cancellationToken);
     }
 }
@@ -39,7 +43,7 @@ public class CreateCampaignValidator : AbstractValidator<CreateCampaignCommand>
     }
 }
 
-public class CreateCampaignHandler(IApplicationDbContext db) : IRequestHandler<CreateCampaignCommand, Result<CampaignDto>>
+public class CreateCampaignHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<CreateCampaignCommand, Result<CampaignDto>>
 {
     public async Task<Result<CampaignDto>> Handle(CreateCampaignCommand request, CancellationToken cancellationToken)
     {
@@ -49,6 +53,7 @@ public class CreateCampaignHandler(IApplicationDbContext db) : IRequestHandler<C
             ColorScheme = request.ColorScheme, ImageUrl = request.ImageUrl, StylesJson = request.StylesJson,
             LinkUrl = request.LinkUrl, LinkText = request.LinkText,
             DisplayOrder = request.DisplayOrder, IsActive = request.IsActive,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
         db.Campaigns.Add(c);
         await db.SaveChangesAsync(cancellationToken);
@@ -64,11 +69,18 @@ public class UpdateCampaignHandler(IApplicationDbContext db) : IRequestHandler<U
     {
         var c = await db.Campaigns.FindAsync([request.Id], cancellationToken);
         if (c is null || c.IsDeleted) return Result<bool>.Failure("Kampanya bulunamadı.");
+        var oldImageUrl = c.ImageUrl;
         c.Title = request.Title; c.Subtitle = request.Subtitle; c.Icon = request.Icon;
         c.ColorScheme = request.ColorScheme; c.ImageUrl = request.ImageUrl; c.StylesJson = request.StylesJson;
         c.LinkUrl = request.LinkUrl; c.LinkText = request.LinkText;
         c.DisplayOrder = request.DisplayOrder; c.IsActive = request.IsActive;
         c.UpdatedDate = DateTime.UtcNow;
+        // Cascade: resim siliniyorsa UploadedFiles'tan da kaldır
+        if (string.IsNullOrEmpty(request.ImageUrl) && !string.IsNullOrEmpty(oldImageUrl))
+        {
+            var orphans = await db.UploadedFiles.Where(f => f.Url == oldImageUrl).ToListAsync(cancellationToken);
+            if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
+        }
         await db.SaveChangesAsync(cancellationToken);
         return Result<bool>.Success(true);
     }

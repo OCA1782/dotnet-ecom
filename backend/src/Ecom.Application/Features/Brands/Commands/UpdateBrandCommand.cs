@@ -38,6 +38,7 @@ public class UpdateBrandHandler(IApplicationDbContext db, IAuditService audit)
         if (brand.Slug != request.Slug) changes.Add($"Slug: {brand.Slug} → {request.Slug}");
         if (brand.IsActive != request.IsActive) changes.Add($"Durum: {(brand.IsActive ? "Aktif" : "Pasif")} → {(request.IsActive ? "Aktif" : "Pasif")}");
 
+        var oldLogoUrl = brand.LogoUrl;
         brand.Name = request.Name;
         brand.Slug = request.Slug;
         brand.LogoUrl = request.LogoUrl;
@@ -45,6 +46,13 @@ public class UpdateBrandHandler(IApplicationDbContext db, IAuditService audit)
         brand.IsActive = request.IsActive;
         brand.MetaTitle = request.MetaTitle;
         brand.MetaDescription = request.MetaDescription;
+
+        // Cascade: logo siliniyorsa UploadedFiles'tan da kaldır
+        if (string.IsNullOrEmpty(request.LogoUrl) && !string.IsNullOrEmpty(oldLogoUrl))
+        {
+            var orphans = await db.UploadedFiles.Where(f => f.Url == oldLogoUrl).ToListAsync(cancellationToken);
+            if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         var detail = changes.Count > 0 ? string.Join(" | ", changes) : null;

@@ -37,6 +37,31 @@ export function useAdminAuth() {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    async function onAvatarChanged() {
+      try {
+        const data = await api.get<{ avatarUrl?: string | null }>("/api/users/me");
+        const freshUrl = data.avatarUrl ?? undefined;
+        setUser(prev => {
+          if (!prev || prev.avatarUrl === freshUrl) return prev;
+          const updated = { ...prev, avatarUrl: freshUrl };
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      } catch {
+        // sunucuya ulaşılamazsa optimistic olarak temizle
+        setUser(prev => {
+          if (!prev || !prev.avatarUrl) return prev;
+          const updated = { ...prev, avatarUrl: undefined };
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+    window.addEventListener("ecom:avatar-changed", onAvatarChanged);
+    return () => window.removeEventListener("ecom:avatar-changed", onAvatarChanged);
+  }, []);
+
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
     localStorage.setItem(TOKEN_KEY, data.token);

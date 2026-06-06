@@ -57,7 +57,18 @@ public class UpdateAdminUserHandler(
         if (request.PhoneNumber is not null)
             user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber;
         if (request.AvatarUrl is not null)
+        {
+            var oldAvatarUrl = user.AvatarUrl;
             user.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl;
+            // Cascade: avatar siliniyorsa UploadedFiles'tan da kaldır
+            if (string.IsNullOrWhiteSpace(request.AvatarUrl) && !string.IsNullOrEmpty(oldAvatarUrl))
+            {
+                var orphans = await db.UploadedFiles
+                    .Where(f => f.Url == oldAvatarUrl)
+                    .ToListAsync(cancellationToken);
+                if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
+            }
+        }
 
         var existingRoles = await db.UserRoles
             .Where(r => r.UserId == request.Id)

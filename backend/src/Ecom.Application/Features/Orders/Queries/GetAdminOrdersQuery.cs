@@ -14,7 +14,7 @@ public record GetAdminOrdersQuery(
     string? SortBy = null
 ) : IRequest<PaginatedList<OrderSummaryDto>>;
 
-public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<GetAdminOrdersQuery, PaginatedList<OrderSummaryDto>>
+public class GetAdminOrdersHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetAdminOrdersQuery, PaginatedList<OrderSummaryDto>>
 {
     public async Task<PaginatedList<OrderSummaryDto>> Handle(GetAdminOrdersQuery request, CancellationToken cancellationToken)
     {
@@ -22,6 +22,13 @@ public class GetAdminOrdersHandler(IApplicationDbContext db) : IRequestHandler<G
             .Include(o => o.Items)
             .Where(o => !o.IsDeleted)
             .AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            query = query.Where(o => o.User!.CreatedByAdminId == adminId
+                || o.UserId == adminId);
+        }
 
         if (request.Status.HasValue)
             query = query.Where(o => o.Status == request.Status);

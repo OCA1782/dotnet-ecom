@@ -29,12 +29,22 @@ public record GetAuditLogsQuery(
     string? EntityId = null
 ) : IRequest<PaginatedList<AuditLogDto>>;
 
-public class GetAuditLogsHandler(IApplicationDbContext db)
+public class GetAuditLogsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetAuditLogsQuery, PaginatedList<AuditLogDto>>
 {
     public async Task<PaginatedList<AuditLogDto>> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
         var query = db.AuditLogs.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var managedUserIds = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId || u.Id == adminId)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            query = query.Where(l => l.UserId.HasValue && managedUserIds.Contains(l.UserId!.Value));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.EntityName))
             query = query.Where(l => l.EntityName == request.EntityName);

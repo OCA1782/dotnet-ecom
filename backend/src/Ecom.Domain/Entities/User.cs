@@ -36,6 +36,9 @@ public class User : BaseEntity
     public bool TwoFactorEnabled { get; set; } = false;
     public string? TwoFactorSecret { get; set; }
 
+    // Null → self-registered or created by SuperAdmin; set → created by this Admin
+    public Guid? CreatedByAdminId { get; set; }
+
     public ICollection<UserRole> Roles { get; set; } = new List<UserRole>();
     public ICollection<UserAddress> Addresses { get; set; } = new List<UserAddress>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();

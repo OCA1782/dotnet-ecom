@@ -17,6 +17,7 @@ interface Campaign {
   displayOrder: number;
   isActive: boolean;
   createdDate: string;
+  createdByAdminEmail?: string;
 }
 
 interface CampaignStyles {
@@ -234,7 +235,10 @@ export default function KampanyalarPage() {
                   <h3 className="font-bold text-slate-800 text-sm line-clamp-1 mb-0.5">{item.title}</h3>
                   {item.subtitle && <p className="text-xs text-slate-500 line-clamp-1 mb-2">{item.subtitle}</p>}
                   {item.linkUrl && (
-                    <div className="text-[10px] text-teal-600 mb-3 truncate">{item.linkText || item.linkUrl}</div>
+                    <div className="text-[10px] text-teal-600 mb-2 truncate">{item.linkText || item.linkUrl}</div>
+                  )}
+                  {item.createdByAdminEmail && (
+                    <div className="text-[10px] text-slate-400 mb-2 truncate" title={item.createdByAdminEmail}>{item.createdByAdminEmail}</div>
                   )}
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                     <button onClick={() => openEdit(item)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 py-1.5 rounded-lg transition">

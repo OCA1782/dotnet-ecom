@@ -43,7 +43,7 @@ public class CreateProductValidator : AbstractValidator<CreateProductCommand>
     }
 }
 
-public class CreateProductHandler(IApplicationDbContext db, IAuditService audit)
+public class CreateProductHandler(IApplicationDbContext db, IAuditService audit, ICurrentUserService currentUser)
     : IRequestHandler<CreateProductCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateProductCommand request, CancellationToken cancellationToken)
@@ -83,7 +83,8 @@ public class CreateProductHandler(IApplicationDbContext db, IAuditService audit)
             IsPublished = request.IsPublished,
             IsFeatured = request.IsFeatured,
             MetaTitle = request.MetaTitle,
-            MetaDescription = request.MetaDescription
+            MetaDescription = request.MetaDescription,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         var stock = new Stock

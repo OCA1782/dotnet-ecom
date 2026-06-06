@@ -25,6 +25,8 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
 
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 
+    public bool IsSuperAdmin => User?.IsInRole("SuperAdmin") ?? false;
+
     public string? IpAddress
     {
         get

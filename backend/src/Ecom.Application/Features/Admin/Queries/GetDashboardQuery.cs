@@ -39,7 +39,7 @@ public record RecentOrderDto(string Id, string OrderNumber, string CustomerName,
 
 public record GetDashboardQuery : IRequest<DashboardDto>;
 
-public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService dapper, ICacheService cache) : IRequestHandler<GetDashboardQuery, DashboardDto>
+public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService dapper, ICacheService cache, ICurrentUserService currentUser) : IRequestHandler<GetDashboardQuery, DashboardDto>
 {
     private static readonly string[] DAY_LABELS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 
@@ -59,9 +59,22 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
 
     public async Task<DashboardDto> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
     {
-        const string cacheKey = "dashboard:stats";
+        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var adminId = currentUser.UserId;
+        var cacheUserKey = isSuperAdmin ? "super" : adminId?.ToString() ?? "unknown";
+        var cacheKey = $"dashboard:stats:{cacheUserKey}";
+
         var cached = await cache.GetAsync<DashboardDto>(cacheKey, cancellationToken);
         if (cached is not null) return cached;
+
+        List<Guid> managedUserIds = [];
+        if (!isSuperAdmin && adminId.HasValue)
+        {
+            managedUserIds = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId.Value || u.Id == adminId.Value)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+        }
 
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
@@ -71,33 +84,43 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
         var sevenDaysAgo = todayStart.AddDays(-6);
         var oneHourAgo = now.AddHours(-1);
 
-        // Dapper: today & month aggregate (faster than EF for aggregates)
-        var todaySales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
-            "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
-            new { from = todayStart }, cancellationToken) ?? 0m;
-        var todayOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
-            "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
-            new { from = todayStart }, cancellationToken);
-        var monthSales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
-            "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
-            new { from = monthStart }, cancellationToken) ?? 0m;
-        var monthOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
-            "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
-            new { from = monthStart }, cancellationToken);
+        // Base order queryable with optional tenant filter
+        var ordersBase = db.Orders.AsQueryable();
+        if (!isSuperAdmin)
+            ordersBase = ordersBase.Where(o => o.UserId != null && managedUserIds.Contains(o.UserId.Value));
 
-        var todayOrders = await db.Orders
-            .Where(o => o.CreatedDate >= todayStart
-                     && o.Status != OrderStatus.Cancelled
-                     && o.Status != OrderStatus.Failed)
-            .ToListAsync(cancellationToken);
+        decimal todaySales, monthSales;
+        int todayOrderCount, monthOrderCount;
 
-        var monthOrders = await db.Orders
-            .Where(o => o.CreatedDate >= monthStart
-                     && o.Status != OrderStatus.Cancelled
-                     && o.Status != OrderStatus.Failed)
-            .ToListAsync(cancellationToken);
+        if (isSuperAdmin)
+        {
+            // Dapper: faster for global aggregates
+            todaySales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
+                "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                new { from = todayStart }, cancellationToken) ?? 0m;
+            todayOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
+                "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                new { from = todayStart }, cancellationToken);
+            monthSales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
+                "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                new { from = monthStart }, cancellationToken) ?? 0m;
+            monthOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
+                "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                new { from = monthStart }, cancellationToken);
+        }
+        else
+        {
+            var tenantSalesBase = ordersBase.Where(o => !o.IsDeleted
+                && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Failed);
+            todaySales = await tenantSalesBase.Where(o => o.CreatedDate >= todayStart)
+                .SumAsync(o => (decimal?)o.GrandTotal, cancellationToken) ?? 0m;
+            todayOrderCount = await tenantSalesBase.CountAsync(o => o.CreatedDate >= todayStart, cancellationToken);
+            monthSales = await tenantSalesBase.Where(o => o.CreatedDate >= monthStart)
+                .SumAsync(o => (decimal?)o.GrandTotal, cancellationToken) ?? 0m;
+            monthOrderCount = await tenantSalesBase.CountAsync(o => o.CreatedDate >= monthStart, cancellationToken);
+        }
 
-        var pendingCount = await db.Orders.CountAsync(
+        var pendingCount = await ordersBase.CountAsync(
             o => o.Status == OrderStatus.Created
               || o.Status == OrderStatus.PaymentPending
               || o.Status == OrderStatus.PaymentCompleted
@@ -109,35 +132,50 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
         var outOfStockCount = await db.Stocks
             .CountAsync(s => (s.Quantity - s.ReservedQuantity) <= 0, cancellationToken);
 
-        var totalProductCount = await db.Products
-            .CountAsync(p => p.IsActive, cancellationToken);
+        // Products - filter by admin
+        var productsBase = db.Products.AsQueryable();
+        if (!isSuperAdmin && adminId.HasValue)
+            productsBase = productsBase.Where(p => p.CreatedByAdminId == adminId.Value);
 
-        var totalCustomers = await db.UserRoles.CountAsync(r => r.Role == UserRoleEnum.Customer, cancellationToken);
+        var totalProductCount = await productsBase.CountAsync(p => p.IsActive, cancellationToken);
 
-        var newCustomers = await db.Users
-            .CountAsync(u => u.CreatedDate >= monthStart, cancellationToken);
+        // Users / customers - filter by admin
+        var usersBase = db.Users.AsQueryable();
+        if (!isSuperAdmin && adminId.HasValue)
+            usersBase = usersBase.Where(u => u.CreatedByAdminId == adminId.Value);
 
-        var activeCustomerCount = await db.Orders
+        var totalCustomers = isSuperAdmin
+            ? await db.UserRoles.CountAsync(r => r.Role == UserRoleEnum.Customer, cancellationToken)
+            : await usersBase.CountAsync(cancellationToken);
+
+        var newCustomers = await usersBase.CountAsync(u => u.CreatedDate >= monthStart, cancellationToken);
+
+        var activeCustomerCount = await ordersBase
             .Where(o => o.CreatedDate >= thirtyDaysAgo && o.UserId != null
                      && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Failed)
             .Select(o => o.UserId)
             .Distinct()
             .CountAsync(cancellationToken);
 
-        var cancelledOrderCount = await db.Orders
+        var cancelledOrderCount = await ordersBase
             .CountAsync(o => o.Status == OrderStatus.Cancelled, cancellationToken);
 
-        var abandonedOrderCount = await db.Orders
+        var abandonedOrderCount = await ordersBase
             .CountAsync(o => (o.Status == OrderStatus.Created || o.Status == OrderStatus.PaymentPending)
                           && o.CreatedDate < oneHourAgo, cancellationToken);
 
-        var approvedReviews = await db.ProductReviews
+        // Reviews - filter by admin's products
+        var reviewsBase = db.ProductReviews.AsQueryable();
+        if (!isSuperAdmin && adminId.HasValue)
+            reviewsBase = reviewsBase.Where(r => r.Product.CreatedByAdminId == adminId.Value);
+
+        var approvedReviews = await reviewsBase
             .Where(r => r.IsApproved)
             .Select(r => r.Rating)
             .ToListAsync(cancellationToken);
         var satisfactionRate = approvedReviews.Count > 0 ? Math.Round((approvedReviews.Average() / 5.0) * 100, 1) : 0;
 
-        var allOrders12 = await db.Orders
+        var allOrders12 = await ordersBase
             .Where(o => o.CreatedDate >= twelveMonthsAgo
                      && o.Status != OrderStatus.Cancelled
                      && o.Status != OrderStatus.Failed)
@@ -154,7 +192,7 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
             ))
             .ToList();
 
-        var weekOrders = await db.Orders
+        var weekOrders = await ordersBase
             .Where(o => o.CreatedDate >= sevenDaysAgo)
             .Select(o => new { o.CreatedDate, o.GrandTotal })
             .ToListAsync(cancellationToken);
@@ -173,7 +211,7 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
             })
             .ToList();
 
-        var weekUsers = await db.Users
+        var weekUsers = await usersBase
             .Where(u => u.CreatedDate >= sevenDaysAgo)
             .Select(u => u.CreatedDate)
             .ToListAsync(cancellationToken);
@@ -190,7 +228,7 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
             })
             .ToList();
 
-        var statusCounts = await db.Orders
+        var statusCounts = await ordersBase
             .GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
@@ -207,8 +245,11 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
         var currentGoal = await db.SalesGoals
             .FirstOrDefaultAsync(g => g.Year == now.Year && g.Month == now.Month, cancellationToken);
 
-        var recentOrders = await db.Orders
-            .Include(o => o.User)
+        var recentOrdersQ = db.Orders.Include(o => o.User).AsQueryable();
+        if (!isSuperAdmin)
+            recentOrdersQ = recentOrdersQ.Where(o => o.UserId != null && managedUserIds.Contains(o.UserId.Value));
+
+        var recentOrders = await recentOrdersQ
             .OrderByDescending(o => o.CreatedDate)
             .Take(10)
             .Select(o => new RecentOrderDto(

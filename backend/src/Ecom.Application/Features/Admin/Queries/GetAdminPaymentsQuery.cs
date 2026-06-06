@@ -33,7 +33,7 @@ public record AdminPaymentLogDto(
 public record GetAdminPaymentsQuery(string? Status, int Page, int PageSize) : IRequest<(IEnumerable<AdminPaymentDto> Items, int Total)>;
 public record GetAdminPaymentLogsQuery(Guid PaymentId) : IRequest<(string OrderNumber, IEnumerable<AdminPaymentLogDto> Logs)>;
 
-public class GetAdminPaymentsHandler(IApplicationDbContext db)
+public class GetAdminPaymentsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetAdminPaymentsQuery, (IEnumerable<AdminPaymentDto> Items, int Total)>
 {
     private static readonly Dictionary<OrderStatus, string> STATUS_LABELS = new()
@@ -58,6 +58,13 @@ public class GetAdminPaymentsHandler(IApplicationDbContext db)
         var query = db.Payments
             .Include(p => p.Order).ThenInclude(o => o.User)
             .AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            query = query.Where(p => p.Order.User!.CreatedByAdminId == adminId
+                || p.Order.UserId == adminId);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<PaymentStatus>(request.Status, true, out var statusEnum))
             query = query.Where(p => p.Status == statusEnum);

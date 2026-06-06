@@ -32,14 +32,21 @@ public record GetInvoicesQuery(
 
 public record InvoicesPagedResult(List<InvoiceListDto> Items, int Total, int Page, int PageSize);
 
-public class GetInvoicesHandler(IApplicationDbContext db)
+public class GetInvoicesHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetInvoicesQuery, InvoicesPagedResult>
 {
     public async Task<InvoicesPagedResult> Handle(GetInvoicesQuery request, CancellationToken ct)
     {
         var q = db.Invoices
-            .Include(i => i.Order)
+            .Include(i => i.Order).ThenInclude(o => o.User)
             .Where(i => !i.IsDeleted);
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            q = q.Where(i => i.Order.User!.CreatedByAdminId == adminId
+                || i.Order.UserId == adminId);
+        }
 
         if (request.Status.HasValue) q = q.Where(i => i.Status == request.Status);
         if (request.DocType.HasValue) q = q.Where(i => i.DocType == request.DocType);

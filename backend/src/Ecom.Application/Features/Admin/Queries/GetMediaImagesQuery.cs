@@ -25,7 +25,7 @@ public record GetMediaImagesQuery(
     bool? IsMain = null
 ) : IRequest<PaginatedList<MediaImageDto>>;
 
-public class GetMediaImagesQueryHandler(IApplicationDbContext db)
+public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetMediaImagesQuery, PaginatedList<MediaImageDto>>
 {
     public async Task<PaginatedList<MediaImageDto>> Handle(GetMediaImagesQuery request, CancellationToken cancellationToken)
@@ -38,12 +38,14 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db)
         var includeAnnouncement = request.SourceType is null or "announcement";
         var includeUser         = request.SourceType is null or "user";
 
+        var adminId = (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId.Value : (Guid?)null;
+
         // Product images
         if (includeProduct)
         {
             var productImages = await db.ProductImages
                 .Include(pi => pi.Product)
-                .Where(pi => !pi.Product.IsDeleted)
+                .Where(pi => !pi.Product.IsDeleted && (adminId == null || pi.Product.CreatedByAdminId == adminId))
                 .Select(pi => new MediaImageDto(
                     pi.Id,
                     pi.ImageUrl,
@@ -63,7 +65,7 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db)
         if (includeCategory)
         {
             var catImages = await db.Categories
-                .Where(c => !c.IsDeleted && c.ImageUrl != null && c.ImageUrl != "")
+                .Where(c => !c.IsDeleted && c.ImageUrl != null && c.ImageUrl != "" && (adminId == null || c.CreatedByAdminId == adminId))
                 .Select(c => new MediaImageDto(
                     c.Id,
                     c.ImageUrl!,
@@ -83,7 +85,7 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db)
         if (includeBrand)
         {
             var brandImages = await db.Brands
-                .Where(b => !b.IsDeleted && b.LogoUrl != null && b.LogoUrl != "")
+                .Where(b => !b.IsDeleted && b.LogoUrl != null && b.LogoUrl != "" && (adminId == null || b.CreatedByAdminId == adminId))
                 .Select(b => new MediaImageDto(
                     b.Id,
                     b.LogoUrl!,
@@ -104,7 +106,8 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db)
         {
             var annoImages = await db.Announcements
                 .Where(a => !a.IsDeleted && a.MediaUrl != null && a.MediaUrl != ""
-                            && (a.MediaType == "image" || a.MediaType == "gif"))
+                            && (a.MediaType == "image" || a.MediaType == "gif")
+                            && (adminId == null || a.CreatedByAdminId == adminId))
                 .Select(a => new MediaImageDto(
                     a.Id,
                     a.MediaUrl!,
@@ -124,7 +127,8 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db)
         if (includeUser)
         {
             var userImages = await db.Users
-                .Where(u => !u.IsDeleted && u.AvatarUrl != null && u.AvatarUrl != "")
+                .Where(u => !u.IsDeleted && u.AvatarUrl != null && u.AvatarUrl != ""
+                            && (adminId == null || u.CreatedByAdminId == adminId || u.Id == adminId))
                 .Select(u => new MediaImageDto(
                     u.Id,
                     u.AvatarUrl!,

@@ -54,7 +54,9 @@ public class ErrorLogsController(IMediator mediator) : ControllerBase
             ua,
             req.StatusCode,
             req.ExceptionType,
-            req.Url
+            req.Url,
+            req.RequestPayload,
+            req.ResponsePayload
         ), ct);
 
         return NoContent();
@@ -69,5 +71,7 @@ public record LogErrorRequest(
     string? Path,
     int? StatusCode,
     string? ExceptionType = null,
-    string? Url = null
+    string? Url = null,
+    string? RequestPayload = null,
+    string? ResponsePayload = null
 );

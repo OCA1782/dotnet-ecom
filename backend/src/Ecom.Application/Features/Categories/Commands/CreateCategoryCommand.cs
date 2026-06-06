@@ -55,7 +55,8 @@ public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit
             SortOrder = request.SortOrder,
             ShowInMenu = request.ShowInMenu,
             MetaTitle = request.MetaTitle,
-            MetaDescription = request.MetaDescription
+            MetaDescription = request.MetaDescription,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         db.Categories.Add(category);
@@ -65,6 +66,14 @@ public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit
         await cache.RemoveAsync("categories:True:True", cancellationToken);
         await cache.RemoveAsync("categories:False:False", cancellationToken);
         await cache.RemoveAsync("categories:False:True", cancellationToken);
+        var tenantId = currentUser.IsSuperAdmin ? null : currentUser.UserId;
+        if (tenantId.HasValue)
+        {
+            await cache.RemoveAsync($"categories:True:False:{tenantId}", cancellationToken);
+            await cache.RemoveAsync($"categories:True:True:{tenantId}", cancellationToken);
+            await cache.RemoveAsync($"categories:False:False:{tenantId}", cancellationToken);
+            await cache.RemoveAsync($"categories:False:True:{tenantId}", cancellationToken);
+        }
 
         return Result<Guid>.Success(category.Id);
     }

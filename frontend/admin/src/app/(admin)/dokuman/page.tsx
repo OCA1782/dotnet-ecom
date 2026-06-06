@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BookOpen, ShoppingCart, CreditCard, Truck, RotateCcw,
   Server, Database, Layers, ArrowRight, Users, Package,
@@ -9,7 +9,7 @@ import {
   MapPin, FlaskConical, Settings, Calendar, Tag, Cpu,
   BarChart3, Palette, KeyRound, Bell, Globe, Code2,
   Warehouse, LayoutDashboard, FileText, AlertCircle, Clock,
-  Image as ImageIcon, Eye, Search, Megaphone,
+  Image as ImageIcon, Eye, Search, Megaphone, GripVertical,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -53,18 +53,37 @@ function FlowRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DocSection({ title, icon: Icon, children, defaultOpen = true }: {
+type DragProps = {
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  isDragOver: boolean;
+};
+
+function DocSection({ title, icon: Icon, children, defaultOpen = true, drag }: {
   title: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  drag?: DragProps;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div
+      draggable={!!drag}
+      onDragStart={drag?.onDragStart}
+      onDragOver={drag?.onDragOver}
+      onDrop={drag?.onDrop}
+      onDragEnd={drag?.onDragEnd}
+      className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all select-none ${
+        drag?.isDragOver ? "border-teal-400 ring-2 ring-teal-200 scale-[1.01]" : "border-slate-200"
+      }`}
+    >
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-slate-50 transition">
+        {drag && <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />}
         <Icon size={18} className="text-teal-600 shrink-0" />
         <span className="text-sm font-bold text-slate-800 flex-1">{title}</span>
         {open ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
@@ -72,6 +91,63 @@ function DocSection({ title, icon: Icon, children, defaultOpen = true }: {
       {open && <div className="px-6 pb-6 space-y-4 border-t border-slate-100">{children}</div>}
     </div>
   );
+}
+
+function useDragSort(defaultIds: string[], storageKey: string) {
+  const [ids, setIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return defaultIds;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed: string[] = JSON.parse(stored);
+        return [
+          ...parsed.filter(id => defaultIds.includes(id)),
+          ...defaultIds.filter(id => !parsed.includes(id)),
+        ];
+      }
+    } catch { /**/ }
+    return defaultIds;
+  });
+
+  const draggingId = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  function makeDragProps(id: string): DragProps {
+    return {
+      onDragStart: (e) => {
+        draggingId.current = id;
+        e.dataTransfer.effectAllowed = "move";
+      },
+      onDragOver: (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (dragOverId !== id) setDragOverId(id);
+      },
+      onDrop: () => {
+        const from = draggingId.current;
+        if (!from || from === id) { draggingId.current = null; setDragOverId(null); return; }
+        setIds(prev => {
+          const next = [...prev];
+          const fi = next.indexOf(from);
+          const ti = next.indexOf(id);
+          if (fi === -1 || ti === -1) return prev;
+          next.splice(fi, 1);
+          next.splice(ti, 0, from);
+          try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /**/ }
+          return next;
+        });
+        draggingId.current = null;
+        setDragOverId(null);
+      },
+      onDragEnd: () => {
+        draggingId.current = null;
+        setDragOverId(null);
+      },
+      isDragOver: dragOverId === id && draggingId.current !== id,
+    };
+  }
+
+  return { ids, makeDragProps };
 }
 
 function Badge({ label, color = "teal" }: { label: string; color?: "teal" | "violet" | "emerald" | "amber" | "red" | "blue" | "slate" }) {
@@ -90,12 +166,20 @@ function Badge({ label, color = "teal" }: { label: string; color?: "teal" | "vio
 }
 
 /* ─── Business Process Docs ───────────────────────────────────────────── */
-function SureclerTab() {
-  return (
-    <div className="space-y-4">
+const SURECLER_DEFAULT_IDS = [
+  "siparis", "odeme", "kargo-iade", "fatura", "stok-alarm",
+  "yorum", "musteri-kayit", "dis-kaynak", "lisans-rehber",
+  "canli-arama", "google-2fa", "lisans-atama", "kampanya",
+];
 
-      {/* Sipariş Akışı */}
-      <DocSection title="Sipariş Akışı" icon={ShoppingCart}>
+function SureclerTab() {
+  const { ids, makeDragProps } = useDragSort(SURECLER_DEFAULT_IDS, "dokuman-surecler-order");
+
+  const renderSection = (id: string) => {
+    const dp = makeDragProps(id);
+    switch (id) {
+      case "siparis": return (
+        <DocSection title="Sipariş Akışı" icon={ShoppingCart} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Müşterinin sepet oluşturmasından siparişin tamamlanmasına kadar olan süreç.</p>
         <FlowRow>
           <FlowStep icon={Users} label="Müşteri" color="blue" sub="Giriş yapılır" />
@@ -125,10 +209,10 @@ function SureclerTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Ödeme Akışı */}
-      <DocSection title="Ödeme Akışı" icon={CreditCard}>
+        </DocSection>
+      );
+      case "odeme": return (
+        <DocSection title="Ödeme Akışı" icon={CreditCard} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Desteklenen ödeme yöntemleri ve işlem adımları.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
@@ -159,10 +243,10 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
           Havale ödemelerde sipariş admin onayına kadar <strong>Beklemede</strong> kalır. Onay sonrası otomatik olarak <strong>İşleniyor</strong> durumuna geçer.
         </div>
-      </DocSection>
-
-      {/* Kargo & İade */}
-      <DocSection title="Kargo & İade Akışı" icon={Truck}>
+        </DocSection>
+      );
+      case "kargo-iade": return (
+        <DocSection title="Kargo & İade Akışı" icon={Truck} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Kargo takip ve iade süreçleri. Kargo firmaları ShippingCarrier entity'sinde tanımlanır.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -190,10 +274,10 @@ function SureclerTab() {
             </FlowRow>
           </div>
         </div>
-      </DocSection>
-
-      {/* Fatura Akışı */}
-      <DocSection title="Fatura & e-Belge Akışı" icon={FileText} defaultOpen={false}>
+        </DocSection>
+      );
+      case "fatura": return (
+        <DocSection title="Fatura & e-Belge Akışı" icon={FileText} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Sipariş tamamlandıktan sonra e-Arşiv / e-Fatura / e-İrsaliye oluşturma süreci. MockInvoiceService test ortamında kullanılır.</p>
         <FlowRow>
           <FlowStep icon={ShoppingCart} label="Sipariş" color="blue" sub="Tamamlandı/İşleniyor" />
@@ -218,10 +302,10 @@ function SureclerTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Stok Alarm */}
-      <DocSection title="Stok Alarm & Uyarı Akışı" icon={Zap} defaultOpen={false}>
+        </DocSection>
+      );
+      case "stok-alarm": return (
+        <DocSection title="Stok Alarm & Uyarı Akışı" icon={Zap} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Ürün stoğu kritik eşiğin altına düştüğünde tetiklenen uyarı süreci.</p>
         <FlowRow>
           <FlowStep icon={Package} label="Stok Hareketi" color="blue" sub="StockMovement kaydı" />
@@ -237,10 +321,10 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
           Kritik eşik her ürün için ayrı ayarlanır. Admin Ürünler listesinde ve Dashboard&apos;da stok uyarıları amber/kırmızı badge ile gösterilir.
         </div>
-      </DocSection>
-
-      {/* Yorum Moderasyon */}
-      <DocSection title="Yorum Moderasyon Akışı" icon={MessageSquare} defaultOpen={false}>
+        </DocSection>
+      );
+      case "yorum": return (
+        <DocSection title="Yorum Moderasyon Akışı" icon={MessageSquare} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Müşteri yorumlarının yayınlanmadan önce geçtiği moderasyon süreci.</p>
         <FlowRow>
           <FlowStep icon={Users} label="Müşteri" color="blue" sub="Verified purchase" />
@@ -263,10 +347,10 @@ function SureclerTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Müşteri Akışı */}
-      <DocSection title="Müşteri Kayıt & Doğrulama Akışı" icon={Users} defaultOpen={false}>
+        </DocSection>
+      );
+      case "musteri-kayit": return (
+        <DocSection title="Müşteri Kayıt & Doğrulama Akışı" icon={Users} defaultOpen={false} drag={dp}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">E-posta / Şifre</p>
@@ -309,10 +393,10 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
           Google OAuth ile giriş yapan kullanıcıların şifresi yoktur. 2FA her iki kayıt tipinde de etkinleştirilebilir. Hesap kilitleme: 5 ardışık başarısız giriş → 15 dakika kilit.
         </div>
-      </DocSection>
-
-      {/* Dış Kaynak Aktarma */}
-      <DocSection title="Dış Kaynak İçe Aktarma Akışı" icon={Database} defaultOpen={false}>
+        </DocSection>
+      );
+      case "dis-kaynak": return (
+        <DocSection title="Dış Kaynak İçe Aktarma Akışı" icon={Database} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Excel veya REST API üzerinden Ürün / Kategori / Marka / Stok verisi aktarma süreci. Kaynak takibi: aktarılan kayıtlara hangi dış kaynaktan geldiği kaydedilir.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -359,10 +443,10 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-700">
           5.000+ satır için aktarım RabbitMQ&apos;ya kuyruğa alınır (async), daha az satır için chunked senkron işlem yapılır. Her iki durumda da import log kaydedilir.
         </div>
-      </DocSection>
-
-      {/* Lisans Yönetimi Rehberi */}
-      <DocSection title="Lisans Yönetimi — Başlangıç Rehberi" icon={KeyRound}>
+        </DocSection>
+      );
+      case "lisans-rehber": return (
+        <DocSection title="Lisans Yönetimi — Başlangıç Rehberi" icon={KeyRound} drag={dp}>
         <p className="text-xs text-slate-500 mb-4">
           Uygulamanın çalışabilmesi için geçerli bir aktivasyon anahtarının (lisans) yapılandırılmış olması gerekir.
           Bu rehber, lisansı hiç bilmeyen birinin süreci başından sonuna kadar takip edebilmesi için hazırlanmıştır.
@@ -495,10 +579,10 @@ function SureclerTab() {
           </div>
 
         </div>
-      </DocSection>
-
-      {/* Canlı Arama */}
-      <DocSection title="Canlı Arama Akışı" icon={Search} defaultOpen={false}>
+        </DocSection>
+      );
+      case "canli-arama": return (
+        <DocSection title="Canlı Arama Akışı" icon={Search} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Müşteri header arama kutusunda yazan karakter sayısı 2&apos;yi geçince tetiklenen anlık öneri akışı.</p>
         <FlowRow>
           <FlowStep icon={Users} label="Müşteri Yazar" color="blue" sub="≥2 karakter" />
@@ -526,10 +610,10 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
           Backend: <code className="bg-slate-100 px-1 rounded">GetSearchSuggestionsQuery</code> — EF Core Contains ile 5 kategori + 5 marka + 10 ürün limiti. Sonuçlar birleştirilip tek response&apos;da döner.
         </div>
-      </DocSection>
-
-      {/* Google OAuth & 2FA */}
-      <DocSection title="Google OAuth & 2FA Kimlik Doğrulama" icon={Shield} defaultOpen={false}>
+        </DocSection>
+      );
+      case "google-2fa": return (
+        <DocSection title="Google OAuth & 2FA Kimlik Doğrulama" icon={Shield} defaultOpen={false} drag={dp}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Google OAuth Akışı</p>
@@ -571,42 +655,80 @@ function SureclerTab() {
         <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-700">
           TOTP secret <code className="bg-violet-100 px-1 rounded">TotpService</code> (HMACSHA1 tabanlı) ile üretilir, şifreli DB&apos;ye kaydedilir. QR kod <code className="bg-violet-100 px-1 rounded">qrcode</code> paketi ile client-side üretilir. Google OAuth kullanıcıları şifresiz giriş yapar.
         </div>
-      </DocSection>
+        </DocSection>
+      );
+      case "lisans-atama": return (
+        <DocSection title="Lisans Atama & Modül Yönetimi" icon={KeyRound} defaultOpen={false} drag={dp}>
+        <p className="text-xs text-slate-500 mb-3">
+          SuperAdmin, WebCrypto RSA-2048 ile ürettiği platform lisansını belirli admin kullanıcılara atayabilir.
+          Her atamada otomatik bir <strong>görüntüleme şifresi</strong> (XXXX-XXXX-XXXX-XXXX formatında) üretilir ve
+          atanan kullanıcıya e-posta ile iletilir. Lisans token&apos;ı DB&apos;de saklanır; admin yalnızca
+          şifresini girerek kendi token&apos;ını görüntüleyebilir.
+        </p>
 
-      {/* Lisans Atama */}
-      <DocSection title="Lisans Atama & Modül Yönetimi" icon={KeyRound} defaultOpen={false}>
-        <p className="text-xs text-slate-500 mb-3">SuperAdmin, WebCrypto RSA-2048 ile ürettiği lisansı belirli kullanıcılara atayabilir. Regular admin görüntüleyebilir, SuperAdmin şifresiz görür.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Üretimi (SuperAdmin)</p>
-            <FlowRow>
-              <FlowStep icon={Settings} label="Yönetim" color="blue" sub="Lisans sekmesi" />
-              <Arrow />
-              <FlowStep icon={KeyRound} label="Lisans Üretici" color="violet" sub="WebCrypto RSA-2048" />
-              <Arrow />
-              <FlowStep icon={Shield} label="Private Key + Parametreler" color="amber" />
-              <Arrow />
-              <FlowStep icon={Code2} label="Token Üretildi" color="emerald" sub="Base64url imza" />
-            </FlowRow>
+        {/* Yetki Farkı */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-1.5">
+            <p className="text-xs font-bold text-violet-700 flex items-center gap-1.5"><Shield size={12} /> SuperAdmin Yetkileri</p>
+            {[
+              "Tüm atamaları listele (token maskelenmiş gösterilir)",
+              "Admin kullanıcıya lisans ata → görüntüleme şifresi bir kez döner",
+              "Atamayı iptal et (IsRevoked=true)",
+              "Görüntüleme şifresini yenile → yeni şifre e-posta ile gönderilir",
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-violet-700">
+                <span className="shrink-0 mt-0.5">•</span><span>{item}</span>
+              </div>
+            ))}
           </div>
+          <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl space-y-1.5">
+            <p className="text-xs font-bold text-teal-700 flex items-center gap-1.5"><Users size={12} /> Admin Yetkileri</p>
+            {[
+              "Kendi lisansını görüntüle → POST /my-license + görüntüleme şifresi gerekli",
+              "Şifreyi e-postadan alır; şifresi kaybolursa SuperAdmin'den yenileme talep eder",
+              "Lisans token'ı, app/iss/nbf/exp meta bilgileri ile birlikte döner",
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-teal-700">
+                <span className="shrink-0 mt-0.5">•</span><span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Akışlar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Atama Akışı</p>
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Atama Akışı (SuperAdmin)</p>
             <FlowRow>
-              <FlowStep icon={Users} label="Kullanıcı Seç" color="blue" />
+              <FlowStep icon={Users} label="Admin Kullanıcı Seç" color="blue" sub="e-posta veya ad" />
               <Arrow />
               <FlowStep icon={KeyRound} label="Token Yapıştır" color="violet" />
               <Arrow />
-              <FlowStep icon={Mail} label="E-posta Gönderilir" color="amber" sub="SendLicenseAssignment" />
+              <FlowStep icon={Mail} label="Şifre E-posta ile Gönderilir" color="amber" sub="görüntüleme şifresi" />
               <Arrow />
-              <FlowStep icon={Shield} label="DB&apos;ye Kaydedilir" color="emerald" />
+              <FlowStep icon={Shield} label="DB&apos;ye Kaydedilir" color="emerald" sub="IsRevoked=false" />
+            </FlowRow>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Lisans Görüntüleme Akışı (Admin)</p>
+            <FlowRow>
+              <FlowStep icon={Mail} label="E-postayı Aç" color="blue" sub="görüntüleme şifresi" />
+              <Arrow />
+              <FlowStep icon={KeyRound} label="Yönetim → Lisans" color="violet" sub="Aktivasyon Anahtarı" />
+              <Arrow />
+              <FlowStep icon={Shield} label="Şifre Gir" color="amber" sub="POST /my-license" />
+              <Arrow />
+              <FlowStep icon={Code2} label="Token Görüntülendi" color="emerald" sub="app/iss/nbf/exp" />
             </FlowRow>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+
+        {/* Durum Kartları */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
-            { state: "Aktif", desc: "LicenseAssignment.IsActive=true. Regular admin view-password ile kendi lisansını görebilir.", color: "emerald" as const },
-            { state: "İptal Edildi", desc: "Admin iptal ettiğinde IsActive=false. Kullanıcıya bildirim e-postası gönderilir.", color: "red" as const },
-            { state: "SuperAdmin Bypass", desc: "SuperAdmin rolünde DevKeyController tam token'ı şifresiz döner (fullKey=true).", color: "violet" as const },
+            { state: "Aktif", desc: "IsRevoked=false. Admin görüntüleme şifresiyle kendi token'ına erişebilir.", color: "emerald" as const },
+            { state: "İptal Edildi", desc: "SuperAdmin iptal ettiğinde IsRevoked=true. /my-license erişimi engellenir; iptal e-postası gönderilmez.", color: "red" as const },
+            { state: "Şifre Yenilendi", desc: "SuperAdmin POST /{id}/reset-password ile yeni şifre üretir, e-posta yeniden gönderilir. Eski şifre geçersizleşir.", color: "amber" as const },
           ].map(s => (
             <div key={s.state} className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
               <Badge label={s.state} color={s.color} />
@@ -614,10 +736,10 @@ function SureclerTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Kampanya */}
-      <DocSection title="Kampanya Yönetimi Akışı" icon={Megaphone} defaultOpen={false}>
+        </DocSection>
+      );
+      case "kampanya": return (
+        <DocSection title="Kampanya Yönetimi Akışı" icon={Megaphone} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Sezonluk / özel kampanyalar oluşturma ve hero slider&apos;da yayınlama süreci.</p>
         <FlowRow>
           <FlowStep icon={Megaphone} label="Kampanya Oluştur" color="blue" sub="Admin /kampanyalar" />
@@ -640,19 +762,33 @@ function SureclerTab() {
             </div>
           ))}
         </div>
-      </DocSection>
+        </DocSection>
+      );
+      default: return null;
+    }
+  };
 
+  return (
+    <div className="flex flex-col gap-4">
+      {ids.map(id => <div key={id}>{renderSection(id)}</div>)}
     </div>
   );
 }
 
 /* ─── Technical Docs ──────────────────────────────────────────────────── */
-function TeknikTab() {
-  return (
-    <div className="space-y-4">
+const TEKNIK_DEFAULT_IDS = [
+  "mimari", "entity-iliskileri", "api-endpoints", "mesajlasma",
+  "cache", "background-jobs", "deployment", "lisans-mekanizma", "aktivasyon-klavuzu",
+];
 
-      {/* Mimari */}
-      <DocSection title="Sistem Mimarisi" icon={Server}>
+function TeknikTab() {
+  const { ids, makeDragProps } = useDragSort(TEKNIK_DEFAULT_IDS, "dokuman-teknik-order");
+
+  const renderSection = (id: string) => {
+    const dp = makeDragProps(id);
+    switch (id) {
+      case "mimari": return (
+        <DocSection title="Sistem Mimarisi" icon={Server} drag={dp}>
         <p className="text-xs text-slate-500 mb-4">Clean Architecture + CQRS ile katmanlı mimari yapı.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
@@ -682,10 +818,10 @@ function TeknikTab() {
             ))}
           </div>
         </div>
-      </DocSection>
-
-      {/* Entity İlişkileri */}
-      <DocSection title="Temel Entity İlişkileri" icon={Database}>
+        </DocSection>
+      );
+      case "entity-iliskileri": return (
+        <DocSection title="Temel Entity İlişkileri" icon={Database} drag={dp}>
         <div className="overflow-x-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 min-w-[400px]">
             {[
@@ -704,7 +840,7 @@ function TeknikTab() {
               { entity: "Wishlist", relations: ["User (N:1)", "Product (N:1)"] },
               { entity: "UserRefreshToken", relations: ["User (N:1)", "Token, ExpiresAt, IsRevoked"] },
               { entity: "Review", relations: ["User (N:1)", "Product (N:1)", "Reports (1:N)", "IsApproved, RejectionNote"] },
-              { entity: "LicenseAssignment", relations: ["User (N:1)", "IsActive, AssignedAt, ExpiresAt, Token"] },
+              { entity: "LicenseAssignment", relations: ["AdminUser (N:1)", "LicenseToken, ViewPasswordHash, IsRevoked, AdminEmail, AdminName, Notes"] },
               { entity: "Campaign", relations: ["(standalone)", "Title, StylesJson, StartDate, EndDate, IsActive"] },
               { entity: "Announcement", relations: ["(standalone)", "StylesJson, IsActive, StartDate, EndDate"] },
               { entity: "SalesGoal", relations: ["(standalone)", "Month, TargetAmount, ActualAmount"] },
@@ -725,10 +861,10 @@ function TeknikTab() {
             ))}
           </div>
         </div>
-      </DocSection>
-
-      {/* API Endpoints */}
-      <DocSection title="Temel API Endpoint Grupları" icon={GitBranch} defaultOpen={false}>
+        </DocSection>
+      );
+      case "api-endpoints": return (
+        <DocSection title="Temel API Endpoint Grupları" icon={GitBranch} defaultOpen={false} drag={dp}>
         <div className="space-y-3">
           {[
             { group: "/api/auth", desc: "Kayıt, giriş, token yenileme, şifre sıfırlama, e-posta doğrulama, hesap kilitleme (5 hatalı giriş). POST /auth/google (OAuth), POST /auth/2fa/setup|enable|disable|login (TOTP)", badge: "Public", color: "emerald" as const },
@@ -753,7 +889,7 @@ function TeknikTab() {
             { group: "/api/admin/goals", desc: "Satış hedefi CRUD, gerçekleşen vs hedef karşılaştırma", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/announcements", desc: "Site duyuruları CRUD — içerik RichTextEditor, StylesJson ile stil (aktif/pasif, tarih aralığı)", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/campaigns", desc: "Kampanya CRUD — başlık, açıklama, StylesJson renk şeması, tarih aralığı. Müşteri hero slider&apos;ı besler.", badge: "Admin", color: "violet" as const },
-            { group: "/api/admin/license-assignments", desc: "Lisans atama CRUD — SuperAdmin kullanıcıya lisans atar/iptal eder. E-posta bildirimi gönderilir.", badge: "SuperAdmin", color: "red" as const },
+            { group: "/api/admin/license-assignments", desc: "GET (SuperAdmin): tüm atamalar, maskelenmiş token. POST (SuperAdmin): admin kullanıcıya ata, görüntüleme şifresi bir kez döner + e-posta. DELETE /{id} (SuperAdmin): iptal. POST /{id}/reset-password (SuperAdmin): şifreyi yenile + e-posta. POST /my-license (Admin): görüntüleme şifresiyle kendi token'ını al.", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/returns", desc: "İade talepleri listesi, onayla/reddet (not ile), durum akışı — ReturnRequested → Approved/Rejected", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/external-sources", desc: "Dış kaynak CRUD, Excel yükleme/indirme, REST test-fetch, aktarım, async import job takibi", badge: "Admin", color: "violet" as const },
             { group: "/api/admin/shipping-carriers", desc: "Kargo firması CRUD — fiyat, eşik, tahmini gün, ağırlık fiyatlandırma", badge: "Admin", color: "violet" as const },
@@ -773,10 +909,10 @@ function TeknikTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Mesajlaşma */}
-      <DocSection title="Mesajlaşma & Event Sistemi" icon={Activity} defaultOpen={false}>
+        </DocSection>
+      );
+      case "mesajlasma": return (
+        <DocSection title="Mesajlaşma & Event Sistemi" icon={Activity} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">Outbox pattern + MassTransit ile güvenilir event dağıtımı.</p>
         <FlowRow>
           <FlowStep icon={Zap} label="Domain Event" color="violet" />
@@ -803,10 +939,10 @@ function TeknikTab() {
             </div>
           ))}
         </div>
-      </DocSection>
-
-      {/* Cache Stratejisi */}
-      <DocSection title="Cache Stratejisi" icon={Zap} defaultOpen={false}>
+        </DocSection>
+      );
+      case "cache": return (
+        <DocSection title="Cache Stratejisi" icon={Zap} defaultOpen={false} drag={dp}>
         <div className="space-y-3">
           {[
             { key: "categories:list", ttl: "10 dakika", invalidate: "Kategori oluşturulunca/güncellenince/silinince", color: "teal" as const },
@@ -831,10 +967,10 @@ function TeknikTab() {
         <p className="text-xs text-slate-400 mt-3">
           Redis yapılandırıldıysa dağıtık önbellek, aksi halde bellek içi önbellek kullanılır.
         </p>
-      </DocSection>
-
-      {/* Background Jobs */}
-      <DocSection title="Arka Plan İşleri (Background Jobs)" icon={Activity} defaultOpen={false}>
+        </DocSection>
+      );
+      case "background-jobs": return (
+        <DocSection title="Arka Plan İşleri (Background Jobs)" icon={Activity} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-3">
           <code className="bg-slate-100 px-1 rounded">JobBase</code> sınıfından türetilen zamanlanmış işler.
           <code className="bg-slate-100 px-1 rounded ml-1">IServiceStateManager</code> ile pause/resume/trigger destekler — Admin → Servisler sayfasından yönetilir.
@@ -861,10 +997,10 @@ function TeknikTab() {
         <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-700">
           Admin → Servisler sayfasından her job&apos;u duraklat / devam ettir / manuel tetikle. Job çalışma geçmişi HealthRing grafiği ile izlenir.
         </div>
-      </DocSection>
-
-      {/* Katmanlı Mimari */}
-      <DocSection title="Deployment & Ortam Konfigürasyonu" icon={Layers} defaultOpen={false}>
+        </DocSection>
+      );
+      case "deployment": return (
+        <DocSection title="Deployment & Ortam Konfigürasyonu" icon={Layers} defaultOpen={false} drag={dp}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
             { env: "Development", db: "SQL Server (local)", cache: "InMemory", queue: "InMemory", color: "amber" as const },
@@ -900,7 +1036,8 @@ function TeknikTab() {
               { label: "JWT anahtarı", desc: "Config'deki Jwt:Key kullanılmıyor — JWT imzalama anahtarı lisans payload'ından HMACSHA256 ile türetilir" },
               { label: "LicenseMiddleware", desc: "Her HTTP isteğinde RSA (1 dk cache) + online aktivasyon (5 dk cache) — geçersizde 503, /health bypass" },
               { label: "Private key", desc: "Sadece SuperAdmin'de saklanır, repoya GİRMEZ — yeni lisans üretmek için gerekir (Lisans Üretici bölümü)" },
-              { label: "DevRevealPassword", desc: "Admin panelinde lisansı görüntülemek için ayrı şifre — SHA256 hash DB'de (RevealPasswordHash key)" },
+              { label: "DevRevealPassword", desc: "Platform lisansını (ECOM_LICENSE) görüntülemek için şifre — hash SiteSettings tablosunda RevealPasswordHash key'i altında saklanır. SuperAdmin GET /dev-key ile şifresiz fullKey alır; regular admin POST /dev-key/reveal kullanır." },
+              { label: "ViewPasswordHash", desc: "LicenseAssignment'a özgü görüntüleme şifresi — her atamada farklı, XXXX-XXXX-XXXX-XXXX formatı. SuperAdmin ataması sırasında bir kez görür; admin kullanıcıya e-posta ile iletilir. POST /my-license ile kendi lisansını görür." },
             ].map(r => (
               <div key={r.label} className="flex gap-2 text-xs">
                 <span className="text-red-500 font-semibold shrink-0 w-36">{r.label}</span>
@@ -909,12 +1046,12 @@ function TeknikTab() {
             ))}
           </div>
         </div>
-      </DocSection>
-
-      {/* Lisans Token — Sistem Mekanizması */}
-      <DocSection title="Lisans Token — Sistem Mekanizması" icon={Shield} defaultOpen={false}>
+        </DocSection>
+      );
+      case "lisans-mekanizma": return (
+        <DocSection title="Lisans Token — Sistem Mekanizması" icon={Shield} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-4">
-          Token'ın format, doğrulama akışı ve sistem üzerindeki etkileri. Token admin panelinden reveal edildikten sonra bu mekanizma devreye girer.
+          Token'ın format, doğrulama akışı ve sistem üzerindeki etkileri. Bu mekanizma uygulama başlatılırken <strong>otomatik devreye girer</strong> ve her HTTP isteğinde çalışır. Admin panelindeki &quot;görüntüle&quot; özelliği yalnızca token'ı ekranda göstermek içindir; mekanizmadan bağımsızdır.
         </p>
         <div className="space-y-5">
 
@@ -967,8 +1104,8 @@ function TeknikTab() {
                 {
                   layer: "3",
                   title: "LicenseMiddleware",
-                  when: "Her HTTP isteğinde (1 dk önbellek ile)",
-                  how: "RSA doğrulama cache'den okunur. /health endpoint bypass edilir.",
+                  when: "Her HTTP isteğinde",
+                  how: "RSA doğrulama: 1 dk cache. Online aktivasyon: 5 dk cache (yalnızca LICENSE_ACTIVATION_URL tanımlıysa). /health ve /openapi bypass edilir.",
                   fail: "503 Service Unavailable — auth geçerli olsa bile erişim engellenir",
                   color: "violet" as const,
                 },
@@ -1008,8 +1145,9 @@ function TeknikTab() {
                     { s: "Token süresi dolmuş (exp geçti)", k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
                     { s: "İmza geçersiz (sahte token)",     k: "1 — Startup",        http: "—",   d: "Process başlamaz (Exit 1)" },
                     { s: "Host binding uyuşmazlığı",        k: "1 — Startup",        http: "—",   d: "Process başlamaz — token başka sunucu için üretilmiş" },
-                    { s: "Online aktivasyon başarısız",     k: "1 — Startup",        http: "—",   d: "Process başlamaz — Cloudflare Worker 403 veya ulaşılamıyor" },
+                    { s: "Online aktivasyon başarısız (startup)", k: "1 — Startup", http: "—", d: "Process başlamaz — Cloudflare Worker 403 veya ulaşılamıyor (yalnızca LICENSE_ACTIVATION_URL tanımlıysa)" },
                     { s: "Lisans değiştiyse JWT uyuşmazlık",k: "2 — JWT Türetme",    http: "401", d: "Tüm login/auth başarısız" },
+                    { s: "Online aktivasyon başarısız (runtime)", k: "3 — Middleware", http: "503", d: "Her istekte 5 dk cache ile kontrol — yalnızca LICENSE_ACTIVATION_URL tanımlıysa" },
                     { s: "Runtime'da token bozulursa",      k: "3 — Middleware",     http: "503", d: "Auth geçerli olsa bile engel" },
                     { s: "Geçerli lisans + geçerli JWT",    k: "Tümü geçer",         http: "200", d: "Normal akış" },
                     { s: "GET /health (izleme)",            k: "3 bypass edilir",    http: "200", d: "Lisans olmasa da yanıt verir" },
@@ -1034,10 +1172,10 @@ function TeknikTab() {
           </div>
 
         </div>
-      </DocSection>
-
-      {/* Aktivasyon Anahtarı */}
-      <DocSection title="Aktivasyon Anahtarı — Kullanım Kılavuzu" icon={KeyRound}>
+        </DocSection>
+      );
+      case "aktivasyon-klavuzu": return (
+        <DocSection title="Aktivasyon Anahtarı — Kullanım Kılavuzu" icon={KeyRound} drag={dp}>
         <p className="text-xs text-slate-500 mb-4">
           Sistem lisansı RSA-2048 ile imzalanmış bir JWT tokenidir. Geçersiz veya süresi dolmuş lisansta tüm API istekleri <code className="bg-slate-100 px-1 rounded">503</code> döner.
         </p>
@@ -1073,10 +1211,10 @@ function TeknikTab() {
               <Arrow />
               <FlowStep icon={Code2}     label="Token Görünür" color="teal" sub="Kopyala" />
             </FlowRow>
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-              Reveal şifresi <code className="bg-amber-100 px-1 rounded font-mono">DevRevealPassword</code> config değerinden okunur.
-              Hash'i DB'ye <code className="bg-amber-100 px-1 rounded font-mono">RevealPasswordHash</code> key'i altında saklanır.
-              Şifre sadece SuperAdmin tarafından bilinmeli; kimseyle paylaşılmamalıdır.
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 space-y-1.5">
+              <p><strong>SuperAdmin:</strong> GET /api/admin/dev-key → <code className="bg-amber-100 px-1 rounded font-mono">fullKey</code> alanı doğrudan döner, şifre gerekmez.</p>
+              <p><strong>Regular Admin:</strong> POST /api/admin/dev-key/reveal → <code className="bg-amber-100 px-1 rounded font-mono">DevRevealPassword</code> şifresini girer. Hash <code className="bg-amber-100 px-1 rounded font-mono">SiteSettings</code> tablosunda <code className="bg-amber-100 px-1 rounded font-mono">RevealPasswordHash</code> key'i altında saklanır.</p>
+              <p>Bu mekanizma <strong>platform lisansı</strong> içindir. Admin kullanıcılara <em>atanan</em> lisanslar için ayrı ViewPasswordHash (per-assignment) kullanılır — bkz. Lisans Atama bölümü.</p>
             </div>
           </div>
 
@@ -1115,8 +1253,15 @@ function TeknikTab() {
           </div>
 
         </div>
-      </DocSection>
+        </DocSection>
+      );
+      default: return null;
+    }
+  };
 
+  return (
+    <div className="flex flex-col gap-4">
+      {ids.map(id => <div key={id}>{renderSection(id)}</div>)}
     </div>
   );
 }

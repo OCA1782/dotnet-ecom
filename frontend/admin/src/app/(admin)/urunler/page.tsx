@@ -728,14 +728,15 @@ export default function AdminProductsPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Durum</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Oluşturan</th>
                 <th className="px-5 py-3 text-xs font-medium text-slate-500 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
               ) : products.map((p) => (
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-60" : ""} ${selected.has(p.id) ? "bg-teal-50/50" : ""}`}>
                   <td className="px-4 py-3 w-10">
@@ -785,6 +786,7 @@ export default function AdminProductsPage() {
                       : <span className="text-xs text-slate-300">—</span>}
                   </td>
                   <td className="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{p.createdDate ? new Date(p.createdDate).toLocaleDateString("tr-TR") : "—"}</td>
+                  <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={p.createdByAdminEmail}>{p.createdByAdminEmail ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openEdit(p)}

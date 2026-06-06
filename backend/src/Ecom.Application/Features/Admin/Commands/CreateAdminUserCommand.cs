@@ -59,6 +59,7 @@ public class CreateAdminUserHandler(
             AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl,
             IsActive = true,
             EmailConfirmed = true,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         db.Users.Add(user);

@@ -10,7 +10,7 @@ namespace Ecom.API.Controllers.Admin;
 [ApiController]
 [Route("api/admin/media")]
 [Authorize(Roles = "SuperAdmin,Admin,ProductManager,ContentManager")]
-public class MediaController(IMediator mediator, IApplicationDbContext db) : ControllerBase
+public class MediaController(IMediator mediator, IApplicationDbContext db, ICurrentUserService currentUser) : ControllerBase
 {
     // ── Images ──────────────────────────────────────────────────────────────
 
@@ -30,29 +30,35 @@ public class MediaController(IMediator mediator, IApplicationDbContext db) : Con
     [HttpDelete("images/{sourceType}/{id:guid}")]
     public async Task<IActionResult> DeleteImage(string sourceType, Guid id, CancellationToken ct)
     {
+        string? deletedUrl = null;
+
         switch (sourceType.ToLower())
         {
             case "product":
                 var pi = await db.ProductImages.FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (pi is null) return NotFound();
+                deletedUrl = pi.ImageUrl;
                 db.ProductImages.Remove(pi);
                 break;
 
             case "category":
                 var cat = await db.Categories.FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (cat is null) return NotFound();
+                deletedUrl = cat.ImageUrl;
                 cat.ImageUrl = null;
                 break;
 
             case "brand":
                 var brand = await db.Brands.FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (brand is null) return NotFound();
+                deletedUrl = brand.LogoUrl;
                 brand.LogoUrl = null;
                 break;
 
             case "announcement":
                 var ann = await db.Announcements.FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (ann is null) return NotFound();
+                deletedUrl = ann.MediaUrl;
                 ann.MediaUrl = null;
                 ann.MediaType = "none";
                 break;
@@ -60,11 +66,19 @@ public class MediaController(IMediator mediator, IApplicationDbContext db) : Con
             case "user":
                 var user = await db.Users.FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user is null) return NotFound();
+                deletedUrl = user.AvatarUrl;
                 user.AvatarUrl = null;
                 break;
 
             default:
                 return BadRequest(new { error = "Geçersiz kaynak türü." });
+        }
+
+        // Cascade: aynı URL'e sahip UploadedFiles kayıtlarını sil
+        if (!string.IsNullOrEmpty(deletedUrl))
+        {
+            var orphans = await db.UploadedFiles.Where(f => f.Url == deletedUrl).ToListAsync(ct);
+            if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
         }
 
         await db.SaveChangesAsync(ct);
@@ -82,6 +96,18 @@ public class MediaController(IMediator mediator, IApplicationDbContext db) : Con
         CancellationToken ct = default)
     {
         var query = db.UploadedFiles.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var managedEmails = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId || u.Id == adminId)
+                .Select(u => u.Email)
+                .ToListAsync(ct);
+            query = query.Where(f =>
+                f.CreatedByAdminId == adminId ||
+                (f.UploadedByEmail != null && managedEmails.Contains(f.UploadedByEmail)));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -140,7 +166,31 @@ public class MediaController(IMediator mediator, IApplicationDbContext db) : Con
     {
         var file = await db.UploadedFiles.FirstOrDefaultAsync(f => f.Id == id, ct);
         if (file is null) return NotFound();
+        var url = file.Url;
         db.UploadedFiles.Remove(file);
+
+        // Cascade: bu URL'i kullanan entity alanlarını temizle
+        if (!string.IsNullOrEmpty(url))
+        {
+            var users = await db.Users.Where(u => u.AvatarUrl == url).ToListAsync(ct);
+            foreach (var u in users) u.AvatarUrl = null;
+
+            var categories = await db.Categories.Where(c => c.ImageUrl == url).ToListAsync(ct);
+            foreach (var c in categories) c.ImageUrl = null;
+
+            var brands = await db.Brands.Where(b => b.LogoUrl == url).ToListAsync(ct);
+            foreach (var b in brands) b.LogoUrl = null;
+
+            var announcements = await db.Announcements.Where(a => a.MediaUrl == url).ToListAsync(ct);
+            foreach (var a in announcements) { a.MediaUrl = null; a.MediaType = "none"; }
+
+            var productImages = await db.ProductImages.Where(p => p.ImageUrl == url).ToListAsync(ct);
+            if (productImages.Count > 0) db.ProductImages.RemoveRange(productImages);
+
+            var campaigns = await db.Campaigns.Where(c => c.ImageUrl == url).ToListAsync(ct);
+            foreach (var c in campaigns) c.ImageUrl = null;
+        }
+
         await db.SaveChangesAsync(ct);
         return NoContent();
     }

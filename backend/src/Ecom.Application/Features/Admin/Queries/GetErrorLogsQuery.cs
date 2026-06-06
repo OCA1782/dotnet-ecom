@@ -18,7 +18,9 @@ public record ErrorLogDto(
     string? IpAddress,
     string? UserAgent,
     int? StatusCode,
-    DateTime CreatedDate
+    DateTime CreatedDate,
+    string? RequestPayload,
+    string? ResponsePayload
 );
 
 public record GetErrorLogsQuery(
@@ -31,12 +33,22 @@ public record GetErrorLogsQuery(
     DateTime? EndDate = null
 ) : IRequest<PaginatedList<ErrorLogDto>>;
 
-public class GetErrorLogsHandler(IApplicationDbContext db)
+public class GetErrorLogsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetErrorLogsQuery, PaginatedList<ErrorLogDto>>
 {
     public async Task<PaginatedList<ErrorLogDto>> Handle(GetErrorLogsQuery request, CancellationToken cancellationToken)
     {
         var query = db.ErrorLogs.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var managedEmails = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId || u.Id == adminId)
+                .Select(u => u.Email)
+                .ToListAsync(cancellationToken);
+            query = query.Where(e => e.UserEmail == null || managedEmails.Contains(e.UserEmail));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Source))
             query = query.Where(e => e.Source == request.Source);
@@ -59,7 +71,7 @@ public class GetErrorLogsHandler(IApplicationDbContext db)
             .OrderByDescending(e => e.CreatedDate)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(e => new ErrorLogDto(e.Id, e.Source, e.Level, e.Message, e.StackTrace, e.Path, e.Url, e.ExceptionType, e.UserEmail, e.IpAddress, e.UserAgent, e.StatusCode, e.CreatedDate))
+            .Select(e => new ErrorLogDto(e.Id, e.Source, e.Level, e.Message, e.StackTrace, e.Path, e.Url, e.ExceptionType, e.UserEmail, e.IpAddress, e.UserAgent, e.StatusCode, e.CreatedDate, e.RequestPayload, e.ResponsePayload))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<ErrorLogDto>.Create(items, total, request.Page, request.PageSize);

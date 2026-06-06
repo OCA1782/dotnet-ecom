@@ -16,4 +16,5 @@ public class ErrorLog : BaseEntity
     public string? UserAgent { get; set; }
     public int? StatusCode { get; set; }
     public string? RequestPayload { get; set; }
+    public string? ResponsePayload { get; set; }
 }

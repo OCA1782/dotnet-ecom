@@ -30,6 +30,7 @@ public class UpdateAnnouncementHandler(IApplicationDbContext db)
 
         if (item is null) return false;
 
+        var oldMediaUrl = item.MediaUrl;
         item.Title = request.Title;
         item.Summary = request.Summary;
         item.Content = request.Content;
@@ -42,6 +43,13 @@ public class UpdateAnnouncementHandler(IApplicationDbContext db)
         item.StartsAt = request.StartsAt;
         item.EndsAt = request.EndsAt;
         item.DisplayOrder = request.DisplayOrder;
+
+        // Cascade: medya siliniyorsa UploadedFiles'tan da kaldır
+        if (string.IsNullOrEmpty(request.MediaUrl) && !string.IsNullOrEmpty(oldMediaUrl))
+        {
+            var orphans = await db.UploadedFiles.Where(f => f.Url == oldMediaUrl).ToListAsync(ct);
+            if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
+        }
 
         await db.SaveChangesAsync(ct);
         return true;

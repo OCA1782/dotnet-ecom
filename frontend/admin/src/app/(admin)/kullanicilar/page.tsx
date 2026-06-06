@@ -191,6 +191,10 @@ export default function UsersPage() {
         phoneNumber: editForm.phoneNumber || null,
         avatarUrl: editForm.profileImageUrl || null,
       });
+      // Header avatar'ını güncelle (hem yükleme hem silme için)
+      window.dispatchEvent(new CustomEvent("ecom:avatar-changed", {
+        detail: { userId: editForm.id, avatarUrl: editForm.profileImageUrl || undefined },
+      }));
       setMsg({ text: "Kullanıcı güncellendi.", ok: true });
       setEditModal(false);
       await fetchUsers();
@@ -341,14 +345,15 @@ export default function UsersPage() {
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kayıt Tarihi <SortIcon field="createdDate" /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
                   <td className="px-5 py-3.5">
@@ -385,6 +390,7 @@ export default function UsersPage() {
                   <td className="px-5 py-3.5">
                     {u.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{u.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
                   </td>
+                  <td className="px-5 py-3.5 text-xs text-slate-400 max-w-[140px] truncate" title={u.createdByAdminEmail}>{u.createdByAdminEmail ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openHistory(u)} title="Geçmiş"

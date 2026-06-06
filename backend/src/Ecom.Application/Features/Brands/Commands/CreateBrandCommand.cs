@@ -26,7 +26,7 @@ public class CreateBrandValidator : AbstractValidator<CreateBrandCommand>
     }
 }
 
-public class CreateBrandHandler(IApplicationDbContext db, IAuditService audit)
+public class CreateBrandHandler(IApplicationDbContext db, IAuditService audit, ICurrentUserService currentUser)
     : IRequestHandler<CreateBrandCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateBrandCommand request, CancellationToken cancellationToken)
@@ -42,7 +42,8 @@ public class CreateBrandHandler(IApplicationDbContext db, IAuditService audit)
             LogoUrl = request.LogoUrl,
             Description = request.Description,
             MetaTitle = request.MetaTitle,
-            MetaDescription = request.MetaDescription
+            MetaDescription = request.MetaDescription,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         db.Brands.Add(brand);

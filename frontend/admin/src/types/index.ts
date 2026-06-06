@@ -175,6 +175,7 @@ export interface AdminProduct {
   importedFromSourceName?: string;
   createdDate?: string;
   dataSource?: string;
+  createdByAdminEmail?: string;
 }
 
 // Stock
@@ -205,6 +206,7 @@ export interface AdminUser {
   createdDate: string;
   roles: string[];
   dataSource?: string;
+  createdByAdminEmail?: string;
 }
 
 // Coupons
@@ -231,6 +233,7 @@ export interface Coupon {
   isActive: boolean;
   createdDate?: string;
   dataSource?: string;
+  createdByAdminEmail?: string;
 }
 
 // Status maps

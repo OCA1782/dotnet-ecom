@@ -21,15 +21,26 @@ public record CategoryStatDto(string Category, int Count);
 
 public record GetErrorLogStatsQuery(int Days = 7) : IRequest<ErrorLogStatsDto>;
 
-public class GetErrorLogStatsHandler(IApplicationDbContext db)
+public class GetErrorLogStatsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetErrorLogStatsQuery, ErrorLogStatsDto>
 {
     public async Task<ErrorLogStatsDto> Handle(GetErrorLogStatsQuery request, CancellationToken cancellationToken)
     {
         var since = DateTime.UtcNow.Date.AddDays(-request.Days + 1);
 
-        var all = await db.ErrorLogs
-            .Where(e => e.CreatedDate >= since)
+        var query = db.ErrorLogs.Where(e => e.CreatedDate >= since);
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        {
+            var adminId = currentUser.UserId.Value;
+            var managedEmails = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId || u.Id == adminId)
+                .Select(u => u.Email)
+                .ToListAsync(cancellationToken);
+            query = query.Where(e => e.UserEmail == null || managedEmails.Contains(e.UserEmail));
+        }
+
+        var all = await query
             .Select(e => new { e.Level, e.ExceptionType, e.Source, Date = e.CreatedDate.Date })
             .ToListAsync(cancellationToken);
 

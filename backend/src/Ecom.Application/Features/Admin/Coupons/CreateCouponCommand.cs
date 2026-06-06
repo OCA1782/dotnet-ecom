@@ -31,7 +31,7 @@ public class CreateCouponValidator : AbstractValidator<CreateCouponCommand>
     }
 }
 
-public class CreateCouponHandler(IApplicationDbContext db, IAuditService audit) : IRequestHandler<CreateCouponCommand, Result<Guid>>
+public class CreateCouponHandler(IApplicationDbContext db, IAuditService audit, ICurrentUserService currentUser) : IRequestHandler<CreateCouponCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateCouponCommand request, CancellationToken cancellationToken)
     {
@@ -51,7 +51,8 @@ public class CreateCouponHandler(IApplicationDbContext db, IAuditService audit) 
             MaxUsagePerUser = request.MaxUsagePerUser,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            IsActive = true
+            IsActive = true,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         db.Coupons.Add(coupon);

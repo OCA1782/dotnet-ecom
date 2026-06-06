@@ -12,7 +12,7 @@ namespace Ecom.API.Controllers.Admin;
 [Route("api/admin/upload")]
 [Authorize(Roles = "SuperAdmin,Admin,ProductManager,ContentManager")]
 [EnableRateLimiting("upload")]
-public class UploadController(IStorageService storage, IApplicationDbContext db) : ControllerBase
+public class UploadController(IStorageService storage, IApplicationDbContext db, ICurrentUserService currentUser) : ControllerBase
 {
     private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     private static readonly string[] AllowedVideoTypes = ["video/mp4", "video/webm", "video/ogg"];
@@ -61,6 +61,7 @@ public class UploadController(IStorageService storage, IApplicationDbContext db)
             EntityType  = entityType,
             EntityId    = entityId,
             EntityName  = entityName,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
         db.UploadedFiles.Add(record);
         await db.SaveChangesAsync(ct);

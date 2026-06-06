@@ -30,6 +30,7 @@ public class Product : BaseEntity
     public string? VideoUrl { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
+    public Guid? CreatedByAdminId { get; set; }
 
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();

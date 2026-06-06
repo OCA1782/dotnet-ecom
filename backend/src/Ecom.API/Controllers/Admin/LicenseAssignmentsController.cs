@@ -54,7 +54,6 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
 
         var identifier = req.AdminIdentifier.Trim();
         var user = await db.Users
-            .Include(u => u.Roles)
             .FirstOrDefaultAsync(u => !u.IsDeleted && (
                 u.Email == identifier ||
                 (u.Name + " " + u.Surname).Trim() == identifier
@@ -63,7 +62,9 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         if (user == null)
             return NotFound(new { error = $"'{identifier}' e-posta veya adına sahip kullanıcı bulunamadı." });
 
-        bool isAdmin = user.Roles.Any(r => r.Role == DomainEnums.UserRole.Admin || r.Role == DomainEnums.UserRole.SuperAdmin);
+        // Use direct UserRoles query to avoid global query filter issues with Include
+        bool isAdmin = await db.UserRoles.AnyAsync(r => r.UserId == user.Id &&
+            (r.Role == DomainEnums.UserRole.Admin || r.Role == DomainEnums.UserRole.SuperAdmin), ct);
         if (!isAdmin)
             return BadRequest(new { error = "Bu kullanıcı admin rolüne sahip değil. Lisans yalnızca admin kullanıcılara atanabilir." });
 

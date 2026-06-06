@@ -6,6 +6,7 @@ public interface ICurrentUserService
     string? Email { get; }
     IEnumerable<string> Roles { get; }
     bool IsAuthenticated { get; }
+    bool IsSuperAdmin { get; }
     string? IpAddress { get; }
     string? SessionId { get; }
     string? UserAgent { get; }

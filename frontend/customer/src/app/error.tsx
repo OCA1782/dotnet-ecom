@@ -11,6 +11,21 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("[Customer Error]", error);
+    try {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/error-logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "Frontend",
+          level: "Error",
+          message: error.message || "Unknown error",
+          stackTrace: error.stack,
+          exceptionType: error.name,
+          path: window.location.pathname,
+          url: window.location.href,
+        }),
+      }).catch(() => {});
+    } catch { }
   }, [error]);
 
   return (

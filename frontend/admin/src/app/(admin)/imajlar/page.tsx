@@ -11,7 +11,7 @@ import {
 interface MediaImage {
   id: string;
   url: string;
-  sourceType: "product" | "category" | "brand" | "announcement";
+  sourceType: "product" | "category" | "brand" | "announcement" | "user";
   sourceId: string;
   sourceName: string;
   altText?: string;
@@ -118,6 +118,9 @@ export default function ImajlarPage() {
     setDeleting(true);
     try {
       await api.delete(`/api/admin/media/images/${deleteTarget.sourceType}/${deleteTarget.id}`);
+      if (deleteTarget.sourceType === "user") {
+        window.dispatchEvent(new CustomEvent("ecom:avatar-changed", { detail: { userId: deleteTarget.sourceId, avatarUrl: deleteTarget.url } }));
+      }
       setDeleteTarget(null);
       load();
     } finally {

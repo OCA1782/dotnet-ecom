@@ -14,7 +14,7 @@ import {
   Users, KeyRound, Database, Wifi, Activity,
   LayoutDashboard, Package, ShoppingCart, Layers, Tag, BarChart3,
   Inbox, BookOpen, Target, Warehouse, MessageSquare, Eye,
-  ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle,
+  ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle, Copy,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -1211,6 +1211,7 @@ export default function YonetimPage() {
   const [licAssignError, setLicAssignError]   = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [licAssignResult, setLicAssignResult] = useState<any>(null);
+  const [copiedViewPwd, setCopiedViewPwd]     = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [licAssignments, setLicAssignments]   = useState<any[]>([]);
   const [licAssignmentsLoading, setLicAssignmentsLoading] = useState(false);
@@ -1227,6 +1228,21 @@ export default function YonetimPage() {
 
   // Full key copy (SuperAdmin)
   const [fullKeyCopied, setFullKeyCopied]     = useState(false);
+
+  // SuperAdmin key auto-hide (15 s)
+  const [superAdminKeyVisible, setSuperAdminKeyVisible]     = useState(false);
+  const [superAdminKeyCountdown, setSuperAdminKeyCountdown] = useState(0);
+  const superAdminKeyTimer = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const superAdminKeyTick  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // My-license auto-hide (15 s)
+  const [myLicCountdown, setMyLicCountdown] = useState(0);
+  const myLicTimer = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const myLicTick  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Revoke assignment modal
+  const [revokeTarget, setRevokeTarget]   = useState<{ id: string; adminEmail: string; adminName: string } | null>(null);
+  const [revokeLoading, setRevokeLoading] = useState(false);
 
   // Legacy state — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
   const [revealModal]                          = useState(false);
@@ -1381,19 +1397,22 @@ export default function YonetimPage() {
       setLicAssignEmail(""); setLicAssignToken(""); setLicAssignNotes("");
       loadLicenseAssignments();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setLicAssignError(msg ?? "Atama başarısız.");
+      setLicAssignError(e instanceof Error ? e.message : "Atama başarısız.");
     } finally {
       setLicAssignLoading(false);
     }
   }
 
-  async function handleRevokeAssignment(id: string) {
-    if (!confirm("Bu lisans atamasını iptal etmek istediğinizden emin misiniz?")) return;
+  async function executeRevoke() {
+    if (!revokeTarget) return;
+    setRevokeLoading(true);
     try {
-      await api.delete(`/api/admin/license-assignments/${id}`);
+      await api.delete(`/api/admin/license-assignments/${revokeTarget.id}`);
+      setRevokeTarget(null);
       loadLicenseAssignments();
-    } catch { }
+    } catch { } finally {
+      setRevokeLoading(false);
+    }
   }
 
   async function handleResetViewPassword(id: string, adminEmail: string) {
@@ -1402,8 +1421,7 @@ export default function YonetimPage() {
       const res = await api.post<{ viewPassword: string; message: string }>(`/api/admin/license-assignments/${id}/reset-password`, {});
       setResetResults(prev => ({ ...prev, [id]: res.viewPassword }));
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      alert(msg ?? "Şifre yenilenemedi.");
+      alert(e instanceof Error ? e.message : "Şifre yenilenemedi.");
     }
   }
 
@@ -1413,12 +1431,30 @@ export default function YonetimPage() {
     setTimeout(() => setCopiedResetId(null), 2000);
   }
 
+  function showSuperAdminKey() {
+    if (superAdminKeyTimer.current) clearTimeout(superAdminKeyTimer.current);
+    if (superAdminKeyTick.current)  clearInterval(superAdminKeyTick.current);
+    setSuperAdminKeyVisible(true);
+    setSuperAdminKeyCountdown(15);
+    superAdminKeyTick.current = setInterval(() => {
+      setSuperAdminKeyCountdown(p => { if (p <= 1) { clearInterval(superAdminKeyTick.current!); return 0; } return p - 1; });
+    }, 1000);
+    superAdminKeyTimer.current = setTimeout(() => { setSuperAdminKeyVisible(false); setSuperAdminKeyCountdown(0); }, 15000);
+  }
+
   async function handleRevealMyLicense() {
     if (!myViewPassword.trim()) { setMyViewError("Şifre boş olamaz."); return; }
     setMyViewLoading(true); setMyViewError("");
     try {
       const res = await api.post<{ licenseToken: string; issuer: string; notBefore: string; expiresAt: string; app: string }>("/api/admin/license-assignments/my-license", { password: myViewPassword });
       setMyLicense(res);
+      if (myLicTimer.current) clearTimeout(myLicTimer.current);
+      if (myLicTick.current)  clearInterval(myLicTick.current);
+      setMyLicCountdown(15);
+      myLicTick.current = setInterval(() => {
+        setMyLicCountdown(p => { if (p <= 1) { clearInterval(myLicTick.current!); return 0; } return p - 1; });
+      }, 1000);
+      myLicTimer.current = setTimeout(() => { setMyLicense(null); setMyViewPassword(""); setMyLicCountdown(0); }, 15000);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setMyViewError(msg ?? "Geçersiz şifre.");
@@ -3608,6 +3644,49 @@ export default function YonetimPage() {
         </div>
       )}
 
+      {/* ── Revoke Assignment Modal ── */}
+      {revokeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Lisans Atamasını İptal Et</h3>
+                <p className="text-xs text-slate-500 mt-1">Bu işlem geri alınamaz. Kullanıcının platform erişimi hemen sona erer.</p>
+              </div>
+              <button onClick={() => setRevokeTarget(null)} className="ml-auto text-slate-400 hover:text-slate-700 transition p-1 rounded-lg shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">İptal edilecek kullanıcı</p>
+              <p className="text-sm font-bold text-slate-800">{revokeTarget.adminName || revokeTarget.adminEmail}</p>
+              <p className="text-xs text-slate-500">{revokeTarget.adminEmail}</p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+              <span>Bu kullanıcı lisans gerektiren tüm sayfalara erişemez olacak. İptal işlemi sonrası yeni bir lisans ataması yapılabilir.</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setRevokeTarget(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition font-medium">
+                Vazgeç
+              </button>
+              <button onClick={executeRevoke} disabled={revokeLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-50">
+                {revokeLoading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                {revokeLoading ? "İptal ediliyor..." : "Evet, İptal Et"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Reveal Key Modal ── */}
       {revealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -3740,16 +3819,36 @@ export default function YonetimPage() {
 
                 {/* Tam anahtar */}
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5">Platform Lisans Token</p>
-                  <div className="relative bg-slate-900 rounded-xl p-4">
-                    <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{devKeyStatus.fullKey}</p>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(devKeyStatus.fullKey ?? ""); setFullKeyCopied(true); setTimeout(() => setFullKeyCopied(false), 2000); }}
-                      className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
-                      {fullKeyCopied ? <CheckCircle size={11} /> : <Save size={11} />}
-                      {fullKeyCopied ? "Kopyalandı" : "Kopyala"}
-                    </button>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide">Platform Lisans Token</p>
+                    {superAdminKeyVisible && superAdminKeyCountdown > 0 && (
+                      <span className="text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                        {superAdminKeyCountdown}s
+                      </span>
+                    )}
                   </div>
+                  {superAdminKeyVisible ? (
+                    <div className="relative bg-slate-900 rounded-xl p-4">
+                      <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-28">{devKeyStatus.fullKey}</p>
+                      <div className="absolute top-3 right-3 flex gap-1">
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(devKeyStatus.fullKey ?? ""); setFullKeyCopied(true); setTimeout(() => setFullKeyCopied(false), 2000); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-semibold rounded-lg transition">
+                          {fullKeyCopied ? <CheckCircle size={11} /> : <Save size={11} />}
+                          {fullKeyCopied ? "Kopyalandı" : "Kopyala"}
+                        </button>
+                        <button onClick={() => { setSuperAdminKeyVisible(false); setSuperAdminKeyCountdown(0); if (superAdminKeyTimer.current) clearTimeout(superAdminKeyTimer.current); if (superAdminKeyTick.current) clearInterval(superAdminKeyTick.current); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-600 hover:bg-slate-500 text-white text-[10px] font-semibold rounded-lg transition">
+                          <X size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={showSuperAdminKey}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition">
+                      <Eye size={13} /> Görüntüle (15s)
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
@@ -3795,7 +3894,14 @@ export default function YonetimPage() {
                       Lisans görüntülendi · Uygulama: {myLicense.app} · Yayıncı: {myLicense.issuer} · Geçerlilik: {myLicense.notBefore} – {myLicense.expiresAt}
                     </div>
                     <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5">Lisans Token</p>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wide">Lisans Token</p>
+                        {myLicCountdown > 0 && (
+                          <span className="text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                            {myLicCountdown}s
+                          </span>
+                        )}
+                      </div>
                       <div className="relative bg-slate-900 rounded-xl p-4">
                         <p className="font-mono text-[10px] text-emerald-300 break-all leading-relaxed pr-16">{myLicense.licenseToken}</p>
                         <button
@@ -3806,10 +3912,12 @@ export default function YonetimPage() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-[10px] text-slate-400">Bu token güvenli bir yerde saklayın. Tekrar şifre girmeniz gerekirse sayfayı yenileyin.</p>
-                    <button onClick={() => { setMyLicense(null); setMyViewPassword(""); }}
+                    <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                      <AlertTriangle size={10} /> {myLicCountdown > 0 ? `${myLicCountdown} saniye sonra otomatik gizlenecek.` : "Token gizlendi. Tekrar görmek için şifreyi yeniden girin."}
+                    </p>
+                    <button onClick={() => { setMyLicense(null); setMyViewPassword(""); setMyLicCountdown(0); if (myLicTimer.current) clearTimeout(myLicTimer.current); if (myLicTick.current) clearInterval(myLicTick.current); }}
                       className="text-xs text-slate-400 hover:text-slate-600 underline transition">
-                      Gizle
+                      Şimdi Gizle
                     </button>
                   </div>
                 )}
@@ -3991,8 +4099,21 @@ export default function YonetimPage() {
                     </div>
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
                       <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Yedek Görüntüleme Şifresi (tek sefer görünür)</p>
-                      <p className="font-mono text-base font-bold text-amber-900 tracking-widest">{licAssignResult.viewPassword}</p>
-                      <p className="text-[10px] text-amber-700">Bu şifre e-posta ile kullanıcıya gönderildi. İsterseniz buradan da not alabilirsiniz.</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-base font-bold text-amber-900 tracking-widest flex-1">{licAssignResult.viewPassword}</p>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(licAssignResult.viewPassword);
+                            setCopiedViewPwd(true);
+                            setTimeout(() => setCopiedViewPwd(false), 2000);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors bg-amber-100 hover:bg-amber-200 text-amber-700"
+                        >
+                          <Copy size={11} />
+                          {copiedViewPwd ? "Kopyalandı!" : "Kopyala"}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-amber-700">Bu şifre bir kez gösterilir. Güvenli bir yere not alın.</p>
                     </div>
                   </div>
                 )}
@@ -4038,7 +4159,7 @@ export default function YonetimPage() {
                               className="text-[10px] text-amber-600 hover:text-amber-800 border border-amber-200 hover:bg-amber-50 rounded-lg px-2 py-1 transition font-semibold">
                               Şifreyi Yenile
                             </button>
-                            <button onClick={() => handleRevokeAssignment(a.id)}
+                            <button onClick={() => setRevokeTarget({ id: a.id, adminEmail: a.adminEmail, adminName: a.adminName })}
                               className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 rounded-lg px-2 py-1 transition font-semibold">
                               İptal Et
                             </button>

@@ -21,7 +21,8 @@ public record AnnouncementDto(
     int DisplayOrder,
     DateTime CreatedDate,
     DateTime? UpdatedDate,
-    string? DataSource = null
+    string? DataSource = null,
+    string? CreatedByAdminEmail = null
 );
 
 public record GetAnnouncementsQuery(
@@ -34,13 +35,16 @@ public record GetAnnouncementsQuery(
     string? SortBy = null
 ) : IRequest<PaginatedList<AnnouncementDto>>;
 
-public class GetAnnouncementsHandler(IApplicationDbContext db)
+public class GetAnnouncementsHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<GetAnnouncementsQuery, PaginatedList<AnnouncementDto>>
 {
     public async Task<PaginatedList<AnnouncementDto>> Handle(GetAnnouncementsQuery request, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
         var query = db.Announcements.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            query = query.Where(a => a.CreatedByAdminId == currentUser.UserId.Value);
 
         if (request.OnlyActive)
         {
@@ -77,7 +81,10 @@ public class GetAnnouncementsHandler(IApplicationDbContext db)
                 a.MediaUrl, a.MediaType, a.Category,
                 a.LinkUrl, a.LinkText, a.IsActive,
                 a.StartsAt, a.EndsAt, a.DisplayOrder,
-                a.CreatedDate, a.UpdatedDate, a.DataSource))
+                a.CreatedDate, a.UpdatedDate, a.DataSource,
+                a.CreatedByAdminId != null
+                    ? db.Users.Where(u => u.Id == a.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
+                    : null))
             .ToListAsync(ct);
 
         return PaginatedList<AnnouncementDto>.Create(items, total, request.Page, request.PageSize);

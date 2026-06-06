@@ -19,7 +19,7 @@ public record CreateAnnouncementCommand(
     int DisplayOrder
 ) : IRequest<Guid>;
 
-public class CreateAnnouncementHandler(IApplicationDbContext db)
+public class CreateAnnouncementHandler(IApplicationDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<CreateAnnouncementCommand, Guid>
 {
     public async Task<Guid> Handle(CreateAnnouncementCommand request, CancellationToken ct)
@@ -38,6 +38,7 @@ public class CreateAnnouncementHandler(IApplicationDbContext db)
             StartsAt = request.StartsAt,
             EndsAt = request.EndsAt,
             DisplayOrder = request.DisplayOrder,
+            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
         db.Announcements.Add(announcement);

@@ -337,12 +337,13 @@ export default function KuponlarPage() {
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {coupons.length === 0 ? (
-                    <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">Kupon bulunamadı</td></tr>
+                    <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Kupon bulunamadı</td></tr>
                   ) : coupons.map(c => (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-5 py-3 font-mono font-semibold text-slate-800 text-xs">{c.code}</td>
@@ -370,6 +371,7 @@ export default function KuponlarPage() {
                       <td className="px-5 py-3">
                         {c.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{c.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
                       </td>
+                      <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={c.createdByAdminEmail}>{c.createdByAdminEmail ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1.5">
                           <button onClick={() => openHistory(c)} title="Geçmiş"

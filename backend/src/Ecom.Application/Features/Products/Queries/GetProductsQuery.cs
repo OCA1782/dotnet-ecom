@@ -43,10 +43,11 @@ public record ProductListItemDto(
     bool IsFeatured,
     string? ImportedFromSourceName = null,
     DateTime CreatedDate = default,
-    string? DataSource = null
+    string? DataSource = null,
+    string? CreatedByAdminEmail = null
 );
 
-public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
+public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
 {
     public async Task<PaginatedList<ProductListItemDto>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
@@ -62,6 +63,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
             query = query.Where(p => p.IsActive && p.IsPublished);
         else if (request.OnlyActive == true)
             query = query.Where(p => p.IsActive);
+
+        if (request.AdminView && !currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            query = query.Where(p => p.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(p => p.Name.Contains(request.Search) || p.SKU.Contains(request.Search) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
@@ -196,7 +200,10 @@ public class GetProductsQueryHandler(IApplicationDbContext db) : IRequestHandler
                     ? db.ExternalSources.Where(s => s.Id == p.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
                     : null,
                 p.CreatedDate,
-                p.DataSource))
+                p.DataSource,
+                p.CreatedByAdminId != null
+                    ? db.Users.Where(u => u.Id == p.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
+                    : null))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);

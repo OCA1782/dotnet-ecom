@@ -14,4 +14,5 @@ public class UploadedFile : BaseEntity
     public string? EntityName { get; set; }
     public string? Notes { get; set; }
     public bool IsOrphaned { get; set; } = false;
+    public Guid? CreatedByAdminId { get; set; }
 }

@@ -58,77 +58,133 @@ public record ModuleStatsDto(
 
 public record GetModuleStatsQuery : IRequest<ModuleStatsDto>;
 
-public class GetModuleStatsQueryHandler(IApplicationDbContext db) : IRequestHandler<GetModuleStatsQuery, ModuleStatsDto>
+public class GetModuleStatsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetModuleStatsQuery, ModuleStatsDto>
 {
     public async Task<ModuleStatsDto> Handle(GetModuleStatsQuery request, CancellationToken cancellationToken)
     {
+        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var adminId = currentUser.UserId;
+
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var thirtyDaysAgo = now.AddDays(-30);
 
+        // Build managed user IDs for order-based tenant filtering
+        List<Guid> managedUserIds = [];
+        if (!isSuperAdmin && adminId.HasValue)
+        {
+            managedUserIds = await db.Users
+                .Where(u => u.CreatedByAdminId == adminId.Value || u.Id == adminId.Value)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+        }
+
+        // Base queryables with tenant filters
+        var productsBase = db.Products.AsQueryable();
+        var categoriesBase = db.Categories.AsQueryable();
+        var brandsBase = db.Brands.AsQueryable();
+        var stocksBase = db.Stocks.AsQueryable();
+        var reviewsBase = db.ProductReviews.AsQueryable();
+        var announcementsBase = db.Announcements.AsQueryable();
+        var ordersBase = db.Orders.AsQueryable();
+        var couponsBase = db.Coupons.AsQueryable();
+        var usersBase = db.Users.AsQueryable();
+
+        if (!isSuperAdmin && adminId.HasValue)
+        {
+            var id = adminId.Value;
+            productsBase = productsBase.Where(p => p.CreatedByAdminId == id);
+            categoriesBase = categoriesBase.Where(c => c.CreatedByAdminId == id);
+            brandsBase = brandsBase.Where(b => b.CreatedByAdminId == id);
+            stocksBase = stocksBase.Where(s => s.Product!.CreatedByAdminId == id);
+            reviewsBase = reviewsBase.Where(r => r.Product!.CreatedByAdminId == id);
+            announcementsBase = announcementsBase.Where(a => a.CreatedByAdminId == id);
+            ordersBase = ordersBase.Where(o => o.UserId != null && managedUserIds.Contains(o.UserId.Value));
+            couponsBase = couponsBase.Where(c => c.CreatedByAdminId == id);
+            usersBase = usersBase.Where(u => u.CreatedByAdminId == id);
+        }
+
         // Ürünler
-        var totalProducts  = await db.Products.CountAsync(cancellationToken);
-        var activeProducts = await db.Products.CountAsync(p => p.IsActive, cancellationToken);
+        var totalProducts  = await productsBase.CountAsync(cancellationToken);
+        var activeProducts = await productsBase.CountAsync(p => p.IsActive, cancellationToken);
 
         // Kategoriler
-        var totalCategories  = await db.Categories.CountAsync(cancellationToken);
-        var activeCategories = await db.Categories.CountAsync(c => c.IsActive, cancellationToken);
+        var totalCategories  = await categoriesBase.CountAsync(cancellationToken);
+        var activeCategories = await categoriesBase.CountAsync(c => c.IsActive, cancellationToken);
 
         // Markalar
-        var totalBrands  = await db.Brands.CountAsync(cancellationToken);
-        var activeBrands = await db.Brands.CountAsync(b => b.IsActive, cancellationToken);
+        var totalBrands  = await brandsBase.CountAsync(cancellationToken);
+        var activeBrands = await brandsBase.CountAsync(b => b.IsActive, cancellationToken);
 
         // Stok
-        var criticalStock  = await db.Stocks.CountAsync(s => (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel && (s.Quantity - s.ReservedQuantity) > 0, cancellationToken);
-        var outOfStock     = await db.Stocks.CountAsync(s => (s.Quantity - s.ReservedQuantity) <= 0, cancellationToken);
-        var totalStocks    = await db.Stocks.CountAsync(cancellationToken);
+        var criticalStock  = await stocksBase.CountAsync(s => (s.Quantity - s.ReservedQuantity) <= s.CriticalStockLevel && (s.Quantity - s.ReservedQuantity) > 0, cancellationToken);
+        var outOfStock     = await stocksBase.CountAsync(s => (s.Quantity - s.ReservedQuantity) <= 0, cancellationToken);
+        var totalStocks    = await stocksBase.CountAsync(cancellationToken);
         var healthyStock   = totalStocks - criticalStock - outOfStock;
 
         // Yorumlar
-        var pendingReviews  = await db.ProductReviews.CountAsync(r => !r.IsApproved, cancellationToken);
-        var approvedReviews = await db.ProductReviews.CountAsync(r => r.IsApproved, cancellationToken);
+        var pendingReviews  = await reviewsBase.CountAsync(r => !r.IsApproved, cancellationToken);
+        var approvedReviews = await reviewsBase.CountAsync(r => r.IsApproved, cancellationToken);
 
         // Duyurular
-        var activeAnnouncements = await db.Announcements.CountAsync(a => a.IsActive, cancellationToken);
-        var totalAnnouncements  = await db.Announcements.CountAsync(cancellationToken);
+        var activeAnnouncements = await announcementsBase.CountAsync(a => a.IsActive, cancellationToken);
+        var totalAnnouncements  = await announcementsBase.CountAsync(cancellationToken);
 
         // Siparişler
-        var todayOrders = await db.Orders.CountAsync(o => o.CreatedDate >= todayStart && !o.IsDeleted, cancellationToken);
-        var pendingOrders = await db.Orders.CountAsync(o =>
+        var todayOrders = await ordersBase.CountAsync(o => o.CreatedDate >= todayStart && !o.IsDeleted, cancellationToken);
+        var pendingOrders = await ordersBase.CountAsync(o =>
             (o.Status == OrderStatus.Created || o.Status == OrderStatus.PaymentPending ||
              o.Status == OrderStatus.PaymentCompleted || o.Status == OrderStatus.Preparing)
             && !o.IsDeleted, cancellationToken);
-        var refundRequested = await db.Orders.CountAsync(o => o.Status == OrderStatus.RefundRequested && !o.IsDeleted, cancellationToken);
+        var refundRequested = await ordersBase.CountAsync(o => o.Status == OrderStatus.RefundRequested && !o.IsDeleted, cancellationToken);
 
         // Kuponlar
-        var activeCoupons  = await db.Coupons.CountAsync(c => c.IsActive && (c.EndDate == null || c.EndDate > now), cancellationToken);
-        var totalCoupons   = await db.Coupons.CountAsync(cancellationToken);
-        var expiredCoupons = await db.Coupons.CountAsync(c => c.EndDate != null && c.EndDate <= now, cancellationToken);
+        var activeCoupons  = await couponsBase.CountAsync(c => c.IsActive && (c.EndDate == null || c.EndDate > now), cancellationToken);
+        var totalCoupons   = await couponsBase.CountAsync(cancellationToken);
+        var expiredCoupons = await couponsBase.CountAsync(c => c.EndDate != null && c.EndDate <= now, cancellationToken);
 
         // Ödemeler
-        var pendingPayments = await db.Payments.CountAsync(p => p.Status == PaymentStatus.Pending, cancellationToken);
-        var failedPayments  = await db.Payments.CountAsync(p => p.Status == PaymentStatus.Failed, cancellationToken);
-        var todayPayments   = await db.Payments.CountAsync(p => p.CreatedDate >= todayStart, cancellationToken);
+        var paymentsBase = db.Payments.AsQueryable();
+        if (!isSuperAdmin && managedUserIds.Count > 0)
+            paymentsBase = paymentsBase.Where(p => p.Order.UserId != null && managedUserIds.Contains(p.Order.UserId.Value));
+        else if (!isSuperAdmin)
+            paymentsBase = paymentsBase.Where(_ => false);
 
-        // İadeler (Refunded sipariş = tamamlanmış iade, RefundRequested = açık)
+        var pendingPayments = await paymentsBase.CountAsync(p => p.Status == PaymentStatus.Pending, cancellationToken);
+        var failedPayments  = await paymentsBase.CountAsync(p => p.Status == PaymentStatus.Failed, cancellationToken);
+        var todayPayments   = await paymentsBase.CountAsync(p => p.CreatedDate >= todayStart, cancellationToken);
+
+        // İadeler
         var openRefunds      = refundRequested;
-        var processedRefunds = await db.Orders.CountAsync(o => o.Status == OrderStatus.Refunded && !o.IsDeleted, cancellationToken);
+        var processedRefunds = await ordersBase.CountAsync(o => o.Status == OrderStatus.Refunded && !o.IsDeleted, cancellationToken);
 
         // Kargo
-        var shipped         = await db.Shipments.CountAsync(s => s.Status == ShipmentStatus.Shipped, cancellationToken);
-        var inTransit       = await db.Shipments.CountAsync(s => s.Status == ShipmentStatus.InTransit, cancellationToken);
-        var deliveryFailed  = await db.Shipments.CountAsync(s => s.Status == ShipmentStatus.FailedDelivery, cancellationToken);
+        var shipmentsBase = db.Shipments.AsQueryable();
+        if (!isSuperAdmin && managedUserIds.Count > 0)
+            shipmentsBase = shipmentsBase.Where(s => s.Order.UserId != null && managedUserIds.Contains(s.Order.UserId.Value));
+        else if (!isSuperAdmin)
+            shipmentsBase = shipmentsBase.Where(_ => false);
+
+        var shipped         = await shipmentsBase.CountAsync(s => s.Status == ShipmentStatus.Shipped, cancellationToken);
+        var inTransit       = await shipmentsBase.CountAsync(s => s.Status == ShipmentStatus.InTransit, cancellationToken);
+        var deliveryFailed  = await shipmentsBase.CountAsync(s => s.Status == ShipmentStatus.FailedDelivery, cancellationToken);
 
         // Faturalar
-        var draftInvoices = await db.Invoices.CountAsync(i => i.Status == InvoiceStatus.Draft, cancellationToken);
-        var errorInvoices = await db.Invoices.CountAsync(i => i.Status == InvoiceStatus.Error, cancellationToken);
-        var totalInvoices = await db.Invoices.CountAsync(cancellationToken);
+        var invoicesBase = db.Invoices.AsQueryable();
+        if (!isSuperAdmin && managedUserIds.Count > 0)
+            invoicesBase = invoicesBase.Where(i => i.Order.UserId != null && managedUserIds.Contains(i.Order.UserId.Value));
+        else if (!isSuperAdmin)
+            invoicesBase = invoicesBase.Where(_ => false);
+
+        var draftInvoices = await invoicesBase.CountAsync(i => i.Status == InvoiceStatus.Draft, cancellationToken);
+        var errorInvoices = await invoicesBase.CountAsync(i => i.Status == InvoiceStatus.Error, cancellationToken);
+        var totalInvoices = await invoicesBase.CountAsync(cancellationToken);
 
         // Kullanıcılar
-        var totalUsers     = await db.Users.CountAsync(cancellationToken);
-        var newUsersMonth  = await db.Users.CountAsync(u => u.CreatedDate >= monthStart, cancellationToken);
-        var activeUsers    = await db.Orders
+        var totalUsers     = await usersBase.CountAsync(cancellationToken);
+        var newUsersMonth  = await usersBase.CountAsync(u => u.CreatedDate >= monthStart, cancellationToken);
+        var activeUsers    = await ordersBase
             .Where(o => o.CreatedDate >= thirtyDaysAgo && o.UserId != null && !o.IsDeleted)
             .Select(o => o.UserId)
             .Distinct()

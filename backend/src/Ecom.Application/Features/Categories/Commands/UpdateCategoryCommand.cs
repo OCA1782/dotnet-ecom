@@ -54,6 +54,7 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         if (category.ShowInMenu != request.ShowInMenu) changes.Add($"Menüde: {(category.ShowInMenu ? "Evet" : "Hayır")} → {(request.ShowInMenu ? "Evet" : "Hayır")}");
         if (category.SortOrder != request.SortOrder) changes.Add($"Sıra: {category.SortOrder} → {request.SortOrder}");
 
+        var oldImageUrl = category.ImageUrl;
         category.Name = request.Name;
         category.Slug = request.Slug;
         category.ParentCategoryId = request.ParentCategoryId;
@@ -64,6 +65,13 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         category.ShowInMenu = request.ShowInMenu;
         category.MetaTitle = request.MetaTitle;
         category.MetaDescription = request.MetaDescription;
+
+        // Cascade: resim siliniyorsa UploadedFiles'tan da kaldır
+        if (string.IsNullOrEmpty(request.ImageUrl) && !string.IsNullOrEmpty(oldImageUrl))
+        {
+            var orphans = await db.UploadedFiles.Where(f => f.Url == oldImageUrl).ToListAsync(cancellationToken);
+            if (orphans.Count > 0) db.UploadedFiles.RemoveRange(orphans);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         var detail = changes.Count > 0 ? string.Join(" | ", changes) : null;

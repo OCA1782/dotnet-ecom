@@ -47,6 +47,7 @@ interface Category {
   importedFromSourceName?: string;
   createdDate?: string;
   dataSource?: string;
+  createdByAdminEmail?: string;
 }
 
 interface CatForm {
@@ -405,6 +406,7 @@ export default function KategorilerPage() {
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
@@ -466,6 +468,7 @@ export default function KategorilerPage() {
                           ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.importedFromSourceName}</span>
                           : <span className="text-xs text-slate-300">—</span>}
                       </td>
+                      <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={cat.createdByAdminEmail}>{cat.createdByAdminEmail ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 justify-end">
                           <button onClick={() => openHistory(cat)} title="Geçmiş"

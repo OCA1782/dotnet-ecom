@@ -15,7 +15,9 @@ public record LogErrorCommand(
     string? UserAgent,
     int? StatusCode,
     string? ExceptionType = null,
-    string? Url = null
+    string? Url = null,
+    string? RequestPayload = null,
+    string? ResponsePayload = null
 ) : IRequest;
 
 public class LogErrorHandler(IApplicationDbContext db) : IRequestHandler<LogErrorCommand>
@@ -35,6 +37,8 @@ public class LogErrorHandler(IApplicationDbContext db) : IRequestHandler<LogErro
             UserAgent = request.UserAgent,
             StatusCode = request.StatusCode,
             ExceptionType = request.ExceptionType,
+            RequestPayload = request.RequestPayload,
+            ResponsePayload = request.ResponsePayload,
         });
         await db.SaveChangesAsync(cancellationToken);
     }

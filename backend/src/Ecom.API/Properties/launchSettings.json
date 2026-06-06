@@ -7,7 +7,9 @@
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5124",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ECOM_LICENSE": "eyJhcHAiOiJFY29tIiwiaXNzIjoiT0NBMTc4MiIsIm5iZiI6IjIwMjYtMDEtMDEiLCJleHAiOiIyMDI4LTEyLTMxIn0.INPV36OCaMD8jv_4OhlEBeEcGvN31SGdWoCNi2g_gx3ik0Z34pCPo3vh1ma_ffpfG0PgVDyrjCqv2OsNKbHLFrlupqtWHNKLwqsKb-j2Kz-GFeUqLfM_SdDwsk7ko5shyhqaEf6s5SsxeOnJgN0PLJpCtzeaEXUmgPfyyW07L1OKaTwxm_NacDygHo653waC2HP0kzpWFbj5FDfNmkylER9ubLxqDprRqYxf080rAnDv1ZmN9GkYwwFXcXFMeLCKTRj4oqAP_2PM8kKGq97afO3Fiqn8SJ-Jw8_W_ssE-AgultN0YRIsS_GhRpZG_TdjN3HhDq8UtGi4egm5kGlAzw",
+        "ECOM_PUBLIC_KEY": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwnrBlMdL/yerJlDT9l+ipJZb/f2yqm6Vnrgpf+aoyZHBHDaslrddZ2ww6BAbSAs/Mo0+XCLzdRiL2Ly8vO5HX+0kOcoeaL8YkBRuxmp5vND3GbYQBRNh50O/fsHLOw3rcfHNLXC1ZPPwFapSViSb9ykAtYkWE7Fr5I8Bz0CTlnlmGgtEQNIQSX7hjkqPCxZtg9rHzZU6fJamj9MhhfYobxJzHsl6VR27kVg9Z82PkikSEuu9882fI8xJRLY992ZonHUxUHDIgp2+WTm6smSyRK5uA8nFkQ3MJsHlsNvPBPnPkpmaJmgsX4JxDCsZjHy2DtRInNnvwfkFZxASWS7/VwIDAQAB"
       }
     },
     "https": {

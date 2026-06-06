@@ -23,14 +23,18 @@ public record CouponDto(
     DateTime? EndDate,
     bool IsActive,
     DateTime CreatedDate = default,
-    string? DataSource = null
+    string? DataSource = null,
+    string? CreatedByAdminEmail = null
 );
 
-public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCouponsQuery, PaginatedList<CouponDto>>
+public class GetCouponsHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetCouponsQuery, PaginatedList<CouponDto>>
 {
     public async Task<PaginatedList<CouponDto>> Handle(GetCouponsQuery request, CancellationToken cancellationToken)
     {
         var query = db.Coupons.AsQueryable();
+
+        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+            query = query.Where(c => c.CreatedByAdminId == currentUser.UserId.Value);
         if (!request.IncludeInactive) query = query.Where(c => c.IsActive);
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(c => c.Code.Contains(request.Search) || (c.Description != null && c.Description.Contains(request.Search)));
@@ -55,7 +59,10 @@ public class GetCouponsHandler(IApplicationDbContext db) : IRequestHandler<GetCo
                 c.Id, c.Code, c.Description, c.Type, c.Value,
                 c.MinOrderAmount, c.MaxUsageCount, c.MaxUsagePerUser,
                 c.UsageCount, c.StartDate, c.EndDate, c.IsActive,
-                c.CreatedDate, c.DataSource))
+                c.CreatedDate, c.DataSource,
+                c.CreatedByAdminId != null
+                    ? db.Users.Where(u => u.Id == c.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
+                    : null))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<CouponDto>.Create(items, total, request.Page, request.PageSize);

@@ -28,7 +28,7 @@ const BRAND_ACTION_COLORS: Record<string, string> = {
   "Silindi — Marka": "bg-red-100 text-red-700",
 };
 
-interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; createdDate?: string; dataSource?: string; }
+interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; createdDate?: string; dataSource?: string; createdByAdminEmail?: string; }
 interface BrandForm { id?: string; name: string; slug: string; logoUrl: string; description: string; isActive: boolean; }
 
 const EMPTY: BrandForm = { name: "", slug: "", logoUrl: "", description: "", isActive: true };
@@ -304,12 +304,13 @@ export default function MarkalarPage() {
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {brands.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Marka bulunamadı</td></tr>
               ) : brands.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
@@ -337,6 +338,7 @@ export default function MarkalarPage() {
                       ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{b.importedFromSourceName}</span>
                       : <span className="text-xs text-slate-300">—</span>}
                   </td>
+                  <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={b.createdByAdminEmail}>{b.createdByAdminEmail ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openHistory(b)} title="Geçmiş"

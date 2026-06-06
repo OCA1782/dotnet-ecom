@@ -28,6 +28,7 @@ interface Announcement {
   createdDate: string;
   updatedDate: string | null;
   dataSource?: string;
+  createdByAdminEmail?: string;
 }
 
 interface PaginatedList<T> {
@@ -375,13 +376,16 @@ export default function DuyurularPage() {
                     </div>
                   )}
 
-                  {/* Oluşturulma Tarihi + Kaynak */}
+                  {/* Oluşturulma Tarihi + Kaynak + Oluşturan */}
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <span className="text-[10px] text-slate-400">
                       {new Date(item.createdDate).toLocaleDateString("tr-TR")}
                     </span>
                     {item.dataSource && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{item.dataSource}</span>
+                    )}
+                    {item.createdByAdminEmail && (
+                      <span className="text-[10px] text-slate-400 truncate max-w-[120px]" title={item.createdByAdminEmail}>{item.createdByAdminEmail}</span>
                     )}
                   </div>
 

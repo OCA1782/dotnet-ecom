@@ -34,6 +34,8 @@ interface ErrorLog {
   userAgent?: string;
   statusCode?: number;
   createdDate: string;
+  requestPayload?: string;
+  responsePayload?: string;
 }
 
 interface DayStat { date: string; error: number; warning: number; info: number; }
@@ -551,6 +553,40 @@ export default function TakipPage() {
                           <pre className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
                             {log.stackTrace}
                           </pre>
+                        </div>
+                      )}
+                      {(log.requestPayload || log.responsePayload) && (
+                        <div className="space-y-2">
+                          {log.requestPayload && (
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-xs font-semibold text-slate-500">İstek (Request) Payload</p>
+                                <button onClick={() => copyToClipboard(log.requestPayload!, `${log.id}-req`)}
+                                  title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                                  {copiedKey === `${log.id}-req` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
+                                  <span className="text-xs">{copiedKey === `${log.id}-req` ? "Kopyalandı" : "Kopyala"}</span>
+                                </button>
+                              </div>
+                              <pre className="text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-48 overflow-y-auto">
+                                {log.requestPayload}
+                              </pre>
+                            </div>
+                          )}
+                          {log.responsePayload && (
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-xs font-semibold text-slate-500">Yanıt (Response) Payload</p>
+                                <button onClick={() => copyToClipboard(log.responsePayload!, `${log.id}-resp`)}
+                                  title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                                  {copiedKey === `${log.id}-resp` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
+                                  <span className="text-xs">{copiedKey === `${log.id}-resp` ? "Kopyalandı" : "Kopyala"}</span>
+                                </button>
+                              </div>
+                              <pre className="text-xs text-slate-600 bg-amber-50 border border-amber-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-48 overflow-y-auto">
+                                {log.responsePayload}
+                              </pre>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
