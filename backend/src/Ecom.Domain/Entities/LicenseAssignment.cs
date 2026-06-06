@@ -11,4 +11,5 @@ public class LicenseAssignment : BaseEntity
     public string ViewPasswordHash { get; set; } = string.Empty;
     public bool IsRevoked { get; set; } = false;
     public string? Notes { get; set; }
+    public string? RevokedReason { get; set; }
 }

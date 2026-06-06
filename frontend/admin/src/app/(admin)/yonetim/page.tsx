@@ -1217,6 +1217,9 @@ export default function YonetimPage() {
   const [licAssignmentsLoading, setLicAssignmentsLoading] = useState(false);
   const [resetResults, setResetResults]       = useState<Record<string, string>>({});
   const [copiedResetId, setCopiedResetId]     = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [licHistory, setLicHistory]           = useState<any[]>([]);
+  const [licHistoryLoading, setLicHistoryLoading] = useState(false);
 
   // My license reveal state (regular Admin)
   const [myViewPassword, setMyViewPassword]   = useState("");
@@ -1318,7 +1321,7 @@ export default function YonetimPage() {
       .then(setDevKeyStatus)
       .catch(() => {})
       .finally(() => setDevKeyLoading(false));
-    if (isSuperAdmin) loadLicenseAssignments();
+    if (isSuperAdmin) { loadLicenseAssignments(); loadLicenseHistory(); }
   }, [tab]);
 
   // ── Bildirimler tab state ───────────────────────────────────────────────────
@@ -1380,6 +1383,14 @@ export default function YonetimPage() {
       .then(setLicAssignments)
       .catch(() => {})
       .finally(() => setLicAssignmentsLoading(false));
+  }
+
+  function loadLicenseHistory() {
+    setLicHistoryLoading(true);
+    api.get<unknown[]>("/api/admin/license-assignments/history?limit=50")
+      .then(setLicHistory)
+      .catch(() => {})
+      .finally(() => setLicHistoryLoading(false));
   }
 
   async function handleAssignLicense() {
@@ -4136,14 +4147,20 @@ export default function YonetimPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {licAssignments.map((a: { id: string; adminEmail: string; adminName: string; maskedToken: string; isRevoked: boolean; createdDate: string; licenseInfo?: { Issuer: string; ExpiresAt: string } }) => (
+                  {licAssignments.map((a: { id: string; adminEmail: string; adminName: string; maskedToken: string; isRevoked: boolean; revokedReason?: string; createdDate: string; updatedDate?: string; licenseInfo?: { Issuer: string; ExpiresAt: string } }) => (
                     <div key={a.id} className={`rounded-xl border ${a.isRevoked ? "bg-slate-50 border-slate-200 opacity-60" : "bg-white border-slate-200"}`}>
                       <div className="flex items-start justify-between gap-3 p-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-slate-800">{a.adminName || a.adminEmail}</p>
                             <span className="text-[10px] text-slate-400">{a.adminEmail}</span>
-                            {a.isRevoked && <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase">İptal Edildi</span>}
+                            {a.isRevoked ? (
+                              <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-bold uppercase" title={a.revokedReason ?? ""}>
+                                İptal Edildi{a.revokedReason ? ` — ${a.revokedReason}` : ""}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-[9px] font-bold uppercase">Aktif</span>
+                            )}
                           </div>
                           <p className="text-[10px] font-mono text-slate-400 mt-0.5">{a.maskedToken}</p>
                           {a.licenseInfo && (
@@ -4151,7 +4168,10 @@ export default function YonetimPage() {
                               Yayıncı: {a.licenseInfo.Issuer} · Son: {a.licenseInfo.ExpiresAt}
                             </p>
                           )}
-                          <p className="text-[10px] text-slate-300 mt-0.5">{new Date(a.createdDate).toLocaleDateString("tr-TR")}</p>
+                          <p className="text-[10px] text-slate-300 mt-0.5">
+                            Atandı: {new Date(a.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                            {a.isRevoked && a.updatedDate && ` · İptal: ${new Date(a.updatedDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}`}
+                          </p>
                         </div>
                         {!a.isRevoked && (
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -4183,10 +4203,51 @@ export default function YonetimPage() {
                 </div>
               )}
 
-              <button onClick={loadLicenseAssignments} disabled={licAssignmentsLoading}
+              <button onClick={() => { loadLicenseAssignments(); loadLicenseHistory(); }} disabled={licAssignmentsLoading}
                 className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
                 <RefreshCw size={11} className={licAssignmentsLoading ? "animate-spin" : ""} /> Yenile
               </button>
+            </Section>
+          )}
+
+          {/* ── 4b. Lisans Geçmişi (yalnızca SuperAdmin) ── */}
+          {isSuperAdmin && (
+            <Section title="Lisans Geçmişi" icon={<Activity size={16} />}
+              subtitle="Tüm lisans atama, iptal ve şifre yenileme hareketleri. Otomatik iptal işlemleri de burada görünür.">
+
+              {licHistoryLoading ? (
+                <div className="flex items-center justify-center h-12 text-slate-400 text-sm">
+                  <Loader2 size={14} className="animate-spin mr-2" /> Yükleniyor...
+                </div>
+              ) : licHistory.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+                  Henüz lisans hareketi kaydı yok.
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                  {licHistory.map((h: { id: string; action: string; entityId?: string; oldValue?: string; newValue?: string; performedBy?: string; createdDate: string }) => {
+                    const actionMeta: Record<string, { label: string; color: string }> = {
+                      LicenseAssigned:      { label: "Atandı",          color: "bg-green-100 text-green-700" },
+                      LicenseRevoked:       { label: "İptal Edildi",    color: "bg-red-100 text-red-700" },
+                      LicenseRevokedAuto:   { label: "Otomatik İptal",  color: "bg-orange-100 text-orange-700" },
+                      LicensePasswordReset: { label: "Şifre Yenilendi", color: "bg-amber-100 text-amber-700" },
+                    };
+                    const meta = actionMeta[h.action] ?? { label: h.action, color: "bg-slate-100 text-slate-600" };
+                    return (
+                      <div key={h.id} className="flex items-start gap-3 p-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition text-xs">
+                        <span className={`px-2 py-0.5 rounded-full font-semibold text-[9px] uppercase shrink-0 mt-0.5 ${meta.color}`}>{meta.label}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-slate-700 font-medium truncate">{h.newValue ?? h.oldValue ?? "—"}</p>
+                          {h.performedBy && <p className="text-slate-400 text-[10px]">İşlemi yapan: {h.performedBy}</p>}
+                        </div>
+                        <span className="text-slate-300 text-[10px] shrink-0 whitespace-nowrap">
+                          {new Date(h.createdDate).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Section>
           )}
 

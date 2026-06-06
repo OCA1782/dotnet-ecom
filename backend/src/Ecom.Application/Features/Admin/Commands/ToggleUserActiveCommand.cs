@@ -19,6 +19,21 @@ public class ToggleUserActiveHandler(
         if (user is null) return Result.Failure("Kullanıcı bulunamadı.");
 
         user.IsActive = request.IsActive;
+
+        // Kullanıcı pasife alınıyorsa aktif lisans atamalarını otomatik iptal et
+        if (!request.IsActive)
+        {
+            var activeAssignments = await db.LicenseAssignments
+                .Where(a => a.AdminUserId == request.UserId && !a.IsRevoked && !a.IsDeleted)
+                .ToListAsync(cancellationToken);
+            foreach (var la in activeAssignments)
+            {
+                la.IsRevoked = true;
+                la.RevokedReason = "Kullanıcı pasife alındı";
+                la.UpdatedDate = DateTime.UtcNow;
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         var action = request.IsActive ? "ActivateUser" : "DeactivateUser";

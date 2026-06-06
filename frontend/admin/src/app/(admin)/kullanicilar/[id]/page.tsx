@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, formatDate, resolveMediaUrl } from "@/lib/utils";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, ShieldCheck,
   Package, MapPin, ToggleLeft, ToggleRight, AlertTriangle,
@@ -173,7 +173,7 @@ export default function UserDetailPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex flex-col items-center text-center gap-3">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name}
+                <img src={resolveMediaUrl(user.avatarUrl)} alt={user.name}
                   className="w-20 h-20 rounded-full object-cover border-2 border-teal-200 shadow" />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-2xl font-bold text-white shadow">

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { formatDate } from "@/lib/utils";
+import { formatDate, resolveMediaUrl } from "@/lib/utils";
 import { ROLE_COLORS, ROLE_LABELS, ADMIN_ROLES, ALL_ROLE_DEFS } from "@/lib/roles";
 import type { AdminUser, PaginatedList } from "@/types";
 import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
@@ -360,7 +360,7 @@ export default function UsersPage() {
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
                         {u.avatarUrl
-                          ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" /> // eslint-disable-line @next/next/no-img-element
+                          ? <img src={resolveMediaUrl(u.avatarUrl)} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /> // eslint-disable-line @next/next/no-img-element
                           : <span className="text-xs font-bold text-slate-400">{u.name[0]}{u.surname[0]}</span>
                         }
                       </div>

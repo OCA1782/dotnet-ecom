@@ -27,6 +27,18 @@ public class DeleteUserHandler(
 
         user.IsDeleted = true;
         user.IsActive = false;
+
+        // Kullanıcı siliniyorsa aktif lisans atamalarını otomatik iptal et
+        var activeAssignments = await db.LicenseAssignments
+            .Where(a => a.AdminUserId == request.UserId && !a.IsRevoked && !a.IsDeleted)
+            .ToListAsync(cancellationToken);
+        foreach (var la in activeAssignments)
+        {
+            la.IsRevoked = true;
+            la.RevokedReason = "Kullanıcı silindi";
+            la.UpdatedDate = DateTime.UtcNow;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         await auditService.LogAsync("DeleteUser", "Kullanıcı", request.UserId.ToString(),

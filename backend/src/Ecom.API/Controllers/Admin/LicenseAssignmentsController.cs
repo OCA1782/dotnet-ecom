@@ -14,7 +14,7 @@ namespace Ecom.API.Controllers.Admin;
 [ApiController]
 [Route("api/admin/license-assignments")]
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class LicenseAssignmentsController(IApplicationDbContext db, IEmailService email) : ControllerBase
+public class LicenseAssignmentsController(IApplicationDbContext db, IEmailService email, IAuditService audit, ICurrentUserService currentUser) : ControllerBase
 {
     // GET /api/admin/license-assignments — SuperAdmin: list all assignments
     [HttpGet]
@@ -32,8 +32,10 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
                 a.AdminName,
                 maskedToken = MaskToken(a.LicenseToken),
                 a.IsRevoked,
+                a.RevokedReason,
                 a.Notes,
                 a.CreatedDate,
+                a.UpdatedDate,
                 licenseInfo = ParseLicenseInfo(a.LicenseToken),
             })
             .ToListAsync(ct);
@@ -95,6 +97,10 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         db.LicenseAssignments.Add(assignment);
         await db.SaveChangesAsync(ct);
 
+        await audit.LogAsync("LicenseAssigned", "Lisans", assignment.Id.ToString(),
+            newValue: $"{user.Email} — {req.Notes ?? "—"}",
+            userId: currentUser.UserId, cancellationToken: ct);
+
         // Send email (fire-and-forget on failure — assignment is already saved)
         try
         {
@@ -124,8 +130,13 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
             return NotFound(new { error = "Atama bulunamadı." });
 
         assignment.IsRevoked = true;
+        assignment.RevokedReason = "Manuel iptal";
         assignment.UpdatedDate = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+
+        await audit.LogAsync("LicenseRevoked", "Lisans", id.ToString(),
+            oldValue: assignment.AdminEmail, newValue: "Manuel iptal",
+            userId: currentUser.UserId, cancellationToken: ct);
 
         return Ok(new { message = "Lisans ataması iptal edildi." });
     }
@@ -163,11 +174,42 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         }
         catch { }
 
+        await audit.LogAsync("LicensePasswordReset", "Lisans", id.ToString(),
+            newValue: assignment.AdminEmail,
+            userId: currentUser.UserId, cancellationToken: ct);
+
         return Ok(new
         {
             viewPassword = newViewPassword,
             message = $"Görüntüleme şifresi yenilendi. Yeni şifre {assignment.AdminEmail} adresine e-posta ile gönderildi.",
         });
+    }
+
+    // GET /api/admin/license-assignments/history — SuperAdmin: license audit log
+    [HttpGet("history")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> GetHistory([FromQuery] int limit = 50, CancellationToken ct = default)
+    {
+        var licenseActions = new[] { "LicenseAssigned", "LicenseRevoked", "LicenseRevokedAuto", "LicensePasswordReset" };
+        var logs = await (
+            from a in db.AuditLogs
+            where licenseActions.Contains(a.Action)
+            join u in db.Users on a.UserId equals u.Id into uj
+            from u in uj.DefaultIfEmpty()
+            orderby a.CreatedDate descending
+            select new
+            {
+                a.Id,
+                a.Action,
+                a.EntityId,
+                a.OldValue,
+                a.NewValue,
+                performedBy = u != null ? u.Email : null,
+                a.CreatedDate,
+            })
+            .Take(limit)
+            .ToListAsync(ct);
+        return Ok(logs);
     }
 
     // POST /api/admin/license-assignments/my-license — any Admin: reveal own assigned license

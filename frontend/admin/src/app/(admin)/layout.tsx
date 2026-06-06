@@ -11,8 +11,9 @@ import {
   PanelLeftClose, PanelLeftOpen, FlaskConical, BarChart3,
   HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
   Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket, Clock,
-  Image, FolderOpen, Gift, ShieldCheck,
+  Image, FolderOpen, Gift, ShieldCheck, HelpCircle, Info,
 } from "lucide-react";
+import { PAGE_GUIDES } from "@/lib/pageGuides";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/utils";
@@ -164,7 +165,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const userBtnRef = useRef<HTMLButtonElement>(null);
   const userDropRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!helpOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setHelpOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [helpOpen]);
+  useEffect(() => { setHelpOpen(false); }, [pathname]);
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const t = e.target as Node;
@@ -524,6 +533,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </span>
           <div className="flex items-center gap-3">
             <EnvBadge />
+            {PAGE_GUIDES[pathname] && (
+              <button
+                onClick={() => setHelpOpen(o => !o)}
+                title="Kullanım Kılavuzu"
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition border ${
+                  helpOpen
+                    ? "bg-indigo-100 border-indigo-300 text-indigo-600"
+                    : "bg-slate-50 border-slate-200 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200"
+                }`}
+              >
+                <HelpCircle size={16} />
+              </button>
+            )}
             <NotificationsPanel />
             {user && (
               <button
@@ -621,11 +643,76 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>,
           document.body
         )}
-        <main className="flex-1 overflow-y-auto p-8 no-screenshot"
+        <main className="flex-1 overflow-y-auto p-8 no-screenshot relative"
           onContextMenu={e => { e.preventDefault(); }}
         >
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
+
+        {/* ── Kullanım Kılavuzu Paneli ── */}
+        {helpOpen && mounted && (() => {
+          const guide = PAGE_GUIDES[pathname];
+          if (!guide) return null;
+          return createPortal(
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[9998] bg-black/20 backdrop-blur-[1px]"
+                onClick={() => setHelpOpen(false)}
+              />
+              {/* Slide-over */}
+              <div className="fixed top-0 right-0 h-full w-80 z-[9999] bg-white shadow-2xl border-l border-slate-200 flex flex-col animate-in slide-in-from-right duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Info size={14} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{guide.title}</p>
+                      <p className="text-[10px] text-slate-400">Kullanım Kılavuzu</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setHelpOpen(false)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                  {/* Açıklama */}
+                  <p className="text-sm text-slate-600 leading-relaxed">{guide.description}</p>
+
+                  {/* Bölümler */}
+                  {guide.sections.map((section, si) => (
+                    <div key={si}>
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{section.title}</h3>
+                      <ul className="space-y-2">
+                        {section.items.map((item, ii) => (
+                          <li key={ii} className="flex items-start gap-2 text-xs text-slate-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
+                            <span className="leading-relaxed">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
+                  <p className="text-[10px] text-slate-400 text-center">
+                    ESC veya dışarıya tıklayarak kapatın
+                  </p>
+                </div>
+              </div>
+            </>,
+            document.body
+          );
+        })()}
       </div>
       <SessionTimeoutWarning
         onRefresh={refreshSession}

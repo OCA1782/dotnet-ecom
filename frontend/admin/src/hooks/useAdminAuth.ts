@@ -38,7 +38,16 @@ export function useAdminAuth() {
   }, []);
 
   useEffect(() => {
-    async function onAvatarChanged() {
+    async function onAvatarChanged(e: Event) {
+      const detail = (e as CustomEvent<{ userId?: string; avatarUrl?: string }>).detail;
+      // Sadece kendi avatarı değiştiyse header'ı güncelle
+      const storedRaw = localStorage.getItem(USER_KEY);
+      if (storedRaw && detail?.userId) {
+        try {
+          const stored = JSON.parse(storedRaw) as { userId?: string };
+          if (stored.userId !== detail.userId) return;
+        } catch { return; }
+      }
       try {
         const data = await api.get<{ avatarUrl?: string | null }>("/api/users/me");
         const freshUrl = data.avatarUrl ?? undefined;
@@ -49,13 +58,7 @@ export function useAdminAuth() {
           return updated;
         });
       } catch {
-        // sunucuya ulaşılamazsa optimistic olarak temizle
-        setUser(prev => {
-          if (!prev || !prev.avatarUrl) return prev;
-          const updated = { ...prev, avatarUrl: undefined };
-          localStorage.setItem(USER_KEY, JSON.stringify(updated));
-          return updated;
-        });
+        // ignore — header stays as-is on network error
       }
     }
     window.addEventListener("ecom:avatar-changed", onAvatarChanged);

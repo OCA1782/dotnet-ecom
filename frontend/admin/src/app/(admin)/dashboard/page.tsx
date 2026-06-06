@@ -279,6 +279,267 @@ function HeroCard({
   return inner;
 }
 
+function MiniBar({ active, total, color }: { active: number; total: number; color: string }) {
+  const [w, setW] = useState(0);
+  const pct = total > 0 ? (active / total) * 100 : 0;
+  useEffect(() => { const t = setTimeout(() => setW(pct), 300); return () => clearTimeout(t); }, [pct]);
+  return (
+    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
+      <div className="h-full rounded-full transition-all duration-700 ease-out"
+        style={{ width: `${w}%`, background: color }} />
+    </div>
+  );
+}
+
+type Health = "ok" | "warn" | "critical";
+function HealthDot({ health }: { health: Health }) {
+  const cfg = { ok: "bg-emerald-400", warn: "bg-amber-400 animate-pulse", critical: "bg-red-500 animate-ping" }[health];
+  return <span className={`w-2 h-2 rounded-full shrink-0 ${cfg}`} />;
+}
+
+interface ModuleCardProps {
+  href: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  mainValue: number;
+  mainLabel: string;
+  activeValue?: number;
+  totalValue?: number;
+  barColor?: string;
+  badge?: { text: string; type: "warn" | "critical" | "info" };
+  stats: { label: string; value: number | string; color?: string }[];
+  health: Health;
+}
+
+function ModuleCard({ href, icon: Icon, iconBg, iconColor, title, mainValue, mainLabel, activeValue, totalValue, barColor, badge, stats, health }: ModuleCardProps) {
+  const animated = useCountUp(mainValue);
+  const borderCls = health === "critical" ? "border-red-300" : health === "warn" ? "border-amber-300" : "border-slate-200";
+  const badgeCls = badge?.type === "critical" ? "bg-red-100 text-red-700" : badge?.type === "warn" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500";
+
+  return (
+    <Link href={href} className={`bg-white rounded-2xl border ${borderCls} p-4 shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group flex flex-col gap-2`}>
+      <div className="flex items-center justify-between">
+        <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={16} className={iconColor} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <HealthDot health={health} />
+          {badge && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${badgeCls}`}>{badge.text}</span>}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none">{animated}</p>
+        <p className="text-xs text-slate-400 mt-0.5 font-medium">{mainLabel}</p>
+      </div>
+
+      {activeValue !== undefined && totalValue !== undefined && totalValue > 0 && barColor && (
+        <div>
+          <MiniBar active={activeValue} total={totalValue} color={barColor} />
+          <p className="text-[10px] text-slate-400 mt-1">
+            <span className="font-semibold" style={{ color: barColor }}>{activeValue}</span>/{totalValue} aktif
+          </p>
+        </div>
+      )}
+
+      {stats.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 border-t border-slate-50">
+          {stats.map((s, i) => (
+            <span key={i} className={`text-[10px] font-semibold ${s.color ?? "text-slate-400"}`}>
+              {s.label}: <span className="text-slate-700">{s.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="text-[11px] font-semibold text-slate-500 mt-auto flex items-center gap-1 group-hover:text-teal-600 transition-colors">
+        {title} <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+      </p>
+    </Link>
+  );
+}
+
+function ModuleSummary({ modules }: { modules: ModuleStats }) {
+  const criticalModules = [
+    modules.outOfStockCount > 0,
+    modules.deliveryFailedCount > 0,
+    modules.failedPaymentCount > 0,
+    modules.errorInvoiceCount > 0,
+    modules.openRefundCount > 0,
+  ].filter(Boolean).length;
+  const warnModules = [
+    modules.criticalStockCount > 0,
+    modules.pendingReviewCount > 0,
+    modules.expiredCouponCount > 0,
+    modules.pendingPaymentCount > 0,
+    modules.draftInvoiceCount > 0,
+    modules.refundRequestedCount > 0,
+  ].filter(Boolean).length;
+
+  const [healthDrawn, setHealthDrawn] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setHealthDrawn(true), 400); return () => clearTimeout(t); }, []);
+
+  const totalModules = 13;
+  const okModules = totalModules - criticalModules - warnModules;
+  const healthPct = (okModules / totalModules) * 100;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Layers size={16} className="text-teal-600" />
+          <h2 className="text-base font-extrabold text-slate-800 tracking-tight">Modül Özeti</h2>
+          <span className="text-xs text-slate-400">— Tüm modüllere genel bakış</span>
+        </div>
+        {/* Sağlık özeti */}
+        <div className="ml-auto flex items-center gap-3">
+          {criticalModules > 0 && (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-xl">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              {criticalModules} kritik
+            </span>
+          )}
+          {warnModules > 0 && (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              {warnModules} uyarı
+            </span>
+          )}
+          <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            {okModules} sağlıklı
+          </span>
+        </div>
+      </div>
+
+      {/* Genel sağlık çubuğu */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-slate-600">Sistem Sağlık Oranı</span>
+          <span className={`text-sm font-extrabold ${healthPct >= 90 ? "text-emerald-600" : healthPct >= 70 ? "text-amber-600" : "text-red-600"}`}>
+            %{healthPct.toFixed(0)}
+          </span>
+        </div>
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-1000 ease-out ${
+            healthPct >= 90 ? "bg-gradient-to-r from-emerald-400 to-teal-400" :
+            healthPct >= 70 ? "bg-gradient-to-r from-amber-400 to-yellow-400" :
+            "bg-gradient-to-r from-red-400 to-rose-400"
+          }`} style={{ width: healthDrawn ? `${healthPct}%` : "0%" }} />
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-[10px] text-slate-400">{okModules}/{totalModules} modül sağlıklı</span>
+          {(criticalModules + warnModules) === 0 && <span className="text-[10px] text-emerald-500 font-semibold">Tüm modüller normal</span>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <ModuleCard href="/urunler" icon={Package} iconBg="bg-teal-50" iconColor="text-teal-600"
+          title="Ürünler" mainValue={modules.totalProducts} mainLabel="Toplam Ürün"
+          activeValue={modules.activeProducts} totalValue={modules.totalProducts} barColor="#14b8a6"
+          badge={modules.inactiveProducts > 0 ? { text: `${modules.inactiveProducts} pasif`, type: "warn" } : undefined}
+          stats={[{ label: "Aktif", value: modules.activeProducts, color: "text-emerald-500" }]}
+          health={modules.totalProducts === 0 ? "critical" : modules.inactiveProducts > 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/kategoriler" icon={Layers} iconBg="bg-sky-50" iconColor="text-sky-600"
+          title="Kategoriler" mainValue={modules.totalCategories} mainLabel="Toplam Kategori"
+          activeValue={modules.activeCategories} totalValue={modules.totalCategories} barColor="#0ea5e9"
+          stats={[{ label: "Aktif", value: modules.activeCategories, color: "text-sky-500" }]}
+          health={modules.totalCategories === 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/markalar" icon={Tag} iconBg="bg-violet-50" iconColor="text-violet-600"
+          title="Markalar" mainValue={modules.totalBrands} mainLabel="Toplam Marka"
+          activeValue={modules.activeBrands} totalValue={modules.totalBrands} barColor="#8b5cf6"
+          stats={[{ label: "Aktif", value: modules.activeBrands, color: "text-violet-500" }]}
+          health={modules.totalBrands === 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/stok" icon={Boxes} iconBg="bg-emerald-50" iconColor="text-emerald-600"
+          title="Stok" mainValue={modules.healthyStockCount} mainLabel="Sağlıklı Stok"
+          badge={modules.outOfStockCount > 0 ? { text: `${modules.outOfStockCount} tükendi`, type: "critical" } :
+                 modules.criticalStockCount > 0 ? { text: `${modules.criticalStockCount} kritik`, type: "warn" } : undefined}
+          stats={[
+            { label: "Tükendi", value: modules.outOfStockCount, color: modules.outOfStockCount > 0 ? "text-red-500" : "text-slate-400" },
+            { label: "Kritik", value: modules.criticalStockCount, color: modules.criticalStockCount > 0 ? "text-amber-500" : "text-slate-400" },
+          ]}
+          health={modules.outOfStockCount > 0 ? "critical" : modules.criticalStockCount > 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/yorumlar" icon={MessageSquare} iconBg="bg-yellow-50" iconColor="text-yellow-600"
+          title="Yorumlar" mainValue={modules.totalReviewCount} mainLabel="Toplam Yorum"
+          activeValue={modules.approvedReviewCount} totalValue={modules.totalReviewCount} barColor="#f59e0b"
+          badge={modules.pendingReviewCount > 0 ? { text: `${modules.pendingReviewCount} bekliyor`, type: "warn" } : undefined}
+          stats={[{ label: "Onaylı", value: modules.approvedReviewCount, color: "text-emerald-500" }]}
+          health={modules.pendingReviewCount > 5 ? "warn" : "ok"} />
+
+        <ModuleCard href="/duyurular" icon={Megaphone} iconBg="bg-orange-50" iconColor="text-orange-600"
+          title="Duyurular" mainValue={modules.activeAnnouncementCount} mainLabel="Aktif Duyuru"
+          stats={[{ label: "Toplam", value: modules.totalAnnouncementCount }]}
+          health="ok" />
+
+        <ModuleCard href="/siparisler" icon={ShoppingCart} iconBg="bg-indigo-50" iconColor="text-indigo-600"
+          title="Siparişler" mainValue={modules.todayOrderCount} mainLabel="Bugün Sipariş"
+          badge={modules.refundRequestedCount > 0 ? { text: `${modules.refundRequestedCount} iade`, type: "critical" } :
+                 modules.pendingOrderCount > 0 ? { text: `${modules.pendingOrderCount} bekliyor`, type: "warn" } : undefined}
+          stats={[
+            { label: "Bekleyen", value: modules.pendingOrderCount, color: modules.pendingOrderCount > 0 ? "text-amber-500" : "text-slate-400" },
+            { label: "İade", value: modules.refundRequestedCount, color: modules.refundRequestedCount > 0 ? "text-red-500" : "text-slate-400" },
+          ]}
+          health={modules.refundRequestedCount > 0 ? "critical" : modules.pendingOrderCount > 5 ? "warn" : "ok"} />
+
+        <ModuleCard href="/kuponlar" icon={Ticket} iconBg="bg-pink-50" iconColor="text-pink-600"
+          title="Kuponlar" mainValue={modules.activeCouponCount} mainLabel="Aktif Kupon"
+          activeValue={modules.activeCouponCount} totalValue={modules.totalCouponCount} barColor="#ec4899"
+          badge={modules.expiredCouponCount > 0 ? { text: `${modules.expiredCouponCount} süresi doldu`, type: "info" } : undefined}
+          stats={[{ label: "Toplam", value: modules.totalCouponCount }]}
+          health={modules.activeCouponCount === 0 && modules.totalCouponCount > 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/odemeler" icon={CreditCard} iconBg="bg-green-50" iconColor="text-green-600"
+          title="Ödemeler" mainValue={modules.todayPaymentCount} mainLabel="Bugün Ödeme"
+          badge={modules.failedPaymentCount > 0 ? { text: `${modules.failedPaymentCount} başarısız`, type: "critical" } :
+                 modules.pendingPaymentCount > 0 ? { text: `${modules.pendingPaymentCount} bekliyor`, type: "warn" } : undefined}
+          stats={[
+            { label: "Başarısız", value: modules.failedPaymentCount, color: modules.failedPaymentCount > 0 ? "text-red-500" : "text-slate-400" },
+            { label: "Bekleyen", value: modules.pendingPaymentCount, color: modules.pendingPaymentCount > 0 ? "text-amber-500" : "text-slate-400" },
+          ]}
+          health={modules.failedPaymentCount > 0 ? "critical" : modules.pendingPaymentCount > 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/iade" icon={RefreshCcw} iconBg="bg-red-50" iconColor="text-red-600"
+          title="İadeler" mainValue={modules.openRefundCount + modules.processedRefundCount} mainLabel="Toplam İade"
+          activeValue={modules.processedRefundCount} totalValue={modules.openRefundCount + modules.processedRefundCount} barColor="#10b981"
+          badge={modules.openRefundCount > 0 ? { text: `${modules.openRefundCount} açık`, type: "critical" } : undefined}
+          stats={[{ label: "Tamamlandı", value: modules.processedRefundCount, color: "text-emerald-500" }]}
+          health={modules.openRefundCount > 0 ? "critical" : "ok"} />
+
+        <ModuleCard href="/kargo" icon={Truck} iconBg="bg-cyan-50" iconColor="text-cyan-600"
+          title="Kargo" mainValue={modules.inTransitCount} mainLabel="Kargoda"
+          badge={modules.deliveryFailedCount > 0 ? { text: `${modules.deliveryFailedCount} başarısız`, type: "critical" } : undefined}
+          stats={[
+            { label: "Sevk Edildi", value: modules.shippedCount },
+            { label: "Hatalı", value: modules.deliveryFailedCount, color: modules.deliveryFailedCount > 0 ? "text-red-500" : "text-slate-400" },
+          ]}
+          health={modules.deliveryFailedCount > 0 ? "critical" : "ok"} />
+
+        <ModuleCard href="/faturalar" icon={FileText} iconBg="bg-slate-50" iconColor="text-slate-600"
+          title="Faturalar" mainValue={modules.totalInvoiceCount} mainLabel="Toplam Fatura"
+          badge={modules.errorInvoiceCount > 0 ? { text: `${modules.errorInvoiceCount} hata`, type: "critical" } :
+                 modules.draftInvoiceCount > 0 ? { text: `${modules.draftInvoiceCount} taslak`, type: "warn" } : undefined}
+          stats={[
+            { label: "Taslak", value: modules.draftInvoiceCount, color: modules.draftInvoiceCount > 0 ? "text-amber-500" : "text-slate-400" },
+            { label: "Hatalı", value: modules.errorInvoiceCount, color: modules.errorInvoiceCount > 0 ? "text-red-500" : "text-slate-400" },
+          ]}
+          health={modules.errorInvoiceCount > 0 ? "critical" : modules.draftInvoiceCount > 0 ? "warn" : "ok"} />
+
+        <ModuleCard href="/kullanicilar" icon={Users} iconBg="bg-violet-50" iconColor="text-violet-600"
+          title="Kullanıcılar" mainValue={modules.totalUserCount} mainLabel="Toplam Kullanıcı"
+          activeValue={modules.activeUserCount} totalValue={modules.totalUserCount} barColor="#8b5cf6"
+          stats={[{ label: "Bu Ay Yeni", value: modules.newUserThisMonthCount, color: "text-emerald-500" }]}
+          health="ok" />
+      </div>
+    </div>
+  );
+}
+
 type Period = "today" | "week" | "month";
 const PERIOD_LABELS: Record<Period, string> = { today: "Bugün", week: "Bu Hafta", month: "Bu Ay" };
 
@@ -833,160 +1094,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Modül Özeti ──────────────────────────────────────────────────────── */}
-      {modules && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Layers size={16} className="text-teal-600" />
-            <h2 className="text-base font-extrabold text-slate-800 tracking-tight">Modül Özeti</h2>
-            <span className="text-xs text-slate-400">— Tüm modüllere genel bakış</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-
-            {/* Ürünler */}
-            <Link href="/urunler" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 flex items-center justify-center"><Package size={15} className="text-teal-600" /></div>
-                {modules.inactiveProducts > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{modules.inactiveProducts} pasif</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalProducts}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Ürünler</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.activeProducts} aktif</p>
-            </Link>
-
-            {/* Kategoriler */}
-            <Link href="/kategoriler" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-sky-50 flex items-center justify-center"><Layers size={15} className="text-sky-600" /></div>
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalCategories}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Kategoriler</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.activeCategories} aktif</p>
-            </Link>
-
-            {/* Markalar */}
-            <Link href="/markalar" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center"><Tag size={15} className="text-violet-600" /></div>
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalBrands}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Markalar</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.activeBrands} aktif</p>
-            </Link>
-
-            {/* Stok */}
-            <Link href="/stok" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center"><Boxes size={15} className="text-emerald-600" /></div>
-                {(modules.criticalStockCount + modules.outOfStockCount) > 0 && (
-                  <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.outOfStockCount} tükendi</span>
-                )}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.criticalStockCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Kritik Stok</p>
-              <p className="text-[10px] text-slate-400 mt-1">{modules.healthyStockCount} sağlıklı</p>
-            </Link>
-
-            {/* Yorumlar */}
-            <Link href="/yorumlar" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-yellow-50 flex items-center justify-center"><MessageSquare size={15} className="text-yellow-600" /></div>
-                {modules.pendingReviewCount > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">{modules.pendingReviewCount} bekliyor</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalReviewCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Yorumlar</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.approvedReviewCount} onaylı</p>
-            </Link>
-
-            {/* Duyurular */}
-            <Link href="/duyurular" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center"><Megaphone size={15} className="text-orange-600" /></div>
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.activeAnnouncementCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Duyurular</p>
-              <p className="text-[10px] text-slate-400 mt-1">{modules.totalAnnouncementCount} toplam</p>
-            </Link>
-
-            {/* Siparişler */}
-            <Link href="/siparisler" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center"><ShoppingCart size={15} className="text-indigo-600" /></div>
-                {modules.refundRequestedCount > 0 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.refundRequestedCount} iade</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.todayOrderCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Bugün Sipariş</p>
-              <p className="text-[10px] text-amber-600 mt-1">{modules.pendingOrderCount} bekliyor</p>
-            </Link>
-
-            {/* Kuponlar */}
-            <Link href="/kuponlar" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-pink-50 flex items-center justify-center"><Ticket size={15} className="text-pink-600" /></div>
-                {modules.expiredCouponCount > 0 && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-bold">{modules.expiredCouponCount} süresi doldu</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.activeCouponCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Kuponlar</p>
-              <p className="text-[10px] text-slate-400 mt-1">{modules.totalCouponCount} toplam</p>
-            </Link>
-
-            {/* Ödemeler */}
-            <Link href="/odemeler" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center"><CreditCard size={15} className="text-green-600" /></div>
-                {modules.failedPaymentCount > 0 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.failedPaymentCount} başarısız</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.todayPaymentCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Bugün Ödeme</p>
-              <p className="text-[10px] text-amber-600 mt-1">{modules.pendingPaymentCount} bekliyor</p>
-            </Link>
-
-            {/* İadeler */}
-            <Link href="/iade" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center"><RefreshCcw size={15} className="text-red-600" /></div>
-                {modules.openRefundCount > 0 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.openRefundCount} açık</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.openRefundCount + modules.processedRefundCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">İadeler</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.processedRefundCount} tamamlandı</p>
-            </Link>
-
-            {/* Kargo */}
-            <Link href="/kargo" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-cyan-50 flex items-center justify-center"><Truck size={15} className="text-cyan-600" /></div>
-                {modules.deliveryFailedCount > 0 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.deliveryFailedCount} başarısız</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.inTransitCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Kargoda</p>
-              <p className="text-[10px] text-slate-400 mt-1">{modules.shippedCount} sevk edildi</p>
-            </Link>
-
-            {/* Faturalar */}
-            <Link href="/faturalar" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center"><FileText size={15} className="text-slate-600" /></div>
-                {modules.errorInvoiceCount > 0 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{modules.errorInvoiceCount} hata</span>}
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalInvoiceCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Faturalar</p>
-              <p className="text-[10px] text-amber-600 mt-1">{modules.draftInvoiceCount} taslak</p>
-            </Link>
-
-            {/* Kullanıcılar */}
-            <Link href="/kullanicilar" className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-300 transition group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center"><Users size={15} className="text-violet-600" /></div>
-              </div>
-              <p className="text-2xl font-extrabold text-slate-800">{modules.totalUserCount}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Kullanıcılar</p>
-              <p className="text-[10px] text-emerald-600 mt-1">{modules.newUserThisMonthCount} bu ay yeni</p>
-            </Link>
-
-          </div>
-        </div>
-      )}
+      {modules && <ModuleSummary modules={modules} />}
 
     </div>
   );
