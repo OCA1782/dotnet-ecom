@@ -9,6 +9,17 @@ import sys, os
 sys.stdout.reconfigure(encoding='utf-8')
 import paramiko
 
+# Proje kokunde .env varsa otomatik yukle (ortam degiskenlerini override etmez)
+_env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+if os.path.exists(_env_file):
+    with open(_env_file, encoding='utf-8') as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if '=' in _line and not _line.startswith('#'):
+                _k, _, _v = _line.partition('=')
+                if _k.strip() not in os.environ:
+                    os.environ[_k.strip()] = _v.strip()
+
 host     = os.environ['DEPLOY_SSH_HOST']
 user     = os.environ['DEPLOY_SSH_USER']
 password = os.environ['DEPLOY_SSH_PASSWORD']
