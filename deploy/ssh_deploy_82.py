@@ -84,9 +84,13 @@ _sftp0.put(_zip_tmp, '/tmp/ecom-licence.zip')
 _sftp0.close()
 os.unlink(_zip_tmp)
 print("Sunucuya yuklendi. Cikartiliyor...")
-print(run("rm -rf /opt/ecom-licence && mkdir -p /opt/ecom-licence && "
-          "cd /opt/ecom-licence && unzip -q /tmp/ecom-licence.zip && rm /tmp/ecom-licence.zip && "
-          "echo OK", timeout=60))
+print(run(
+    "rm -rf /opt/ecom-licence && mkdir -p /opt/ecom-licence && "
+    "python3 -c \""
+    "import zipfile; zipfile.ZipFile('/tmp/ecom-licence.zip').extractall('/opt/ecom-licence')"
+    "\" && rm /tmp/ecom-licence.zip && ls /opt/ecom-licence",
+    timeout=60
+))
 
 if not licence_key:
     print("LICENCE_SERVICE_KEY bulunamadi — sunucuda otomatik uretiliyor...")
