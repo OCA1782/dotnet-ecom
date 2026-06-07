@@ -47,6 +47,21 @@ services:
       retries: 10
       start_period: 30s
 
+  licence:
+    build:
+      context: ../EcomLicence
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:15125:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ConnectionStrings__DefaultConnection=Server=db;Database=EcomDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+      - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   api:
     build:
       context: ./backend
@@ -79,6 +94,8 @@ services:
       - GitHub__Owner=OCA1782
       - GitHub__Repo=dotnet-ecom-docs
       - GitHub__DocsPath=
+      - LicenceService__BaseUrl=http://licence:8080
+      - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
     volumes:
       - uploads:/app/wwwroot/uploads
       - docs:/app/docs
@@ -90,6 +107,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      licence:
+        condition: service_started
     restart: unless-stopped
 
   customer:
