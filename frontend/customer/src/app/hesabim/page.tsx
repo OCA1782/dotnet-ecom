@@ -27,7 +27,7 @@ const NAV_LINKS = [
 ];
 
 export default function HesabimPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -89,6 +89,7 @@ export default function HesabimPage() {
     try {
       await api.put("/api/users/me", { name: name.trim(), surname: surname.trim(), phoneNumber: phone.trim() || null, commercialConsent });
       setProfile(prev => prev ? { ...prev, name: name.trim(), surname: surname.trim(), phoneNumber: phone.trim() || undefined, commercialConsent } : prev);
+      updateUser({ name: name.trim(), surname: surname.trim() });
       setEditing(false);
       setSaveMsg({ text: "Bilgileriniz güncellendi.", ok: true });
     } catch (e: unknown) {

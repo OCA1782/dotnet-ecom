@@ -28,6 +28,17 @@ export function useAdminAuth() {
     if (stored) {
       try {
         setUser(JSON.parse(stored));
+        // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
+        api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
+          .then(data => {
+            setUser(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev, name: data.name, surname: data.surname, avatarUrl: data.avatarUrl ?? prev.avatarUrl };
+              localStorage.setItem(USER_KEY, JSON.stringify(updated));
+              return updated;
+            });
+          })
+          .catch(() => {});
       } catch {
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(TOKEN_KEY);

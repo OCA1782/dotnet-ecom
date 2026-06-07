@@ -155,6 +155,16 @@ export function useAuth() {
     return data;
   }, []);
 
+  const updateUser = useCallback((updates: Partial<Pick<AuthUser, "name" | "surname">>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      broadcastAuthChange();
+      return updated;
+    });
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -164,5 +174,5 @@ export function useAuth() {
     broadcastAuthChange();
   }, []);
 
-  return { user, loading, login, register, verifyEmail, verifyTelegram, logout, refreshSession, isAuthenticated: !!user };
+  return { user, loading, login, register, verifyEmail, verifyTelegram, logout, refreshSession, updateUser, isAuthenticated: !!user };
 }
