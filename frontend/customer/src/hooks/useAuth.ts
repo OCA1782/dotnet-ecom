@@ -30,7 +30,7 @@ interface VerifyResult {
   email: string | null;
 }
 
-interface LoginResult {
+export interface LoginResult {
   userId: string;
   name: string;
   surname: string;
@@ -38,6 +38,7 @@ interface LoginResult {
   token: string;
   roles: string[];
   refreshToken?: string;
+  requiresTwoFactor?: boolean;
 }
 
 export function useAuth() {
@@ -96,24 +97,25 @@ export function useAuth() {
     return data;
   }, []);
 
-  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
-    const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
+  const completeLogin = useCallback((data: LoginResult) => {
     localStorage.setItem(TOKEN_KEY, data.token);
     const authUser: AuthUser = {
       userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token,
     };
     localStorage.setItem(USER_KEY, JSON.stringify(authUser));
-    if (data.refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-    } else {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-    }
+    if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    else localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(authUser);
     broadcastAuthChange();
-    // Merge guest cart then refetch so all mounted components see the new cart
     api.post("/api/cart/merge", {}).catch(() => {}).finally(() => triggerCartRefetch());
-    return data;
   }, []);
+
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
+    const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
+    if (data.requiresTwoFactor) return data;
+    completeLogin(data);
+    return data;
+  }, [completeLogin]);
 
   const refreshSession = useCallback(async (): Promise<boolean> => {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
@@ -187,5 +189,5 @@ export function useAuth() {
     broadcastAuthChange();
   }, []);
 
-  return { user, loading, login, loginWithGoogle, register, verifyEmail, verifyTelegram, logout, refreshSession, updateUser, isAuthenticated: !!user };
+  return { user, loading, login, loginWithGoogle, completeLogin, register, verifyEmail, verifyTelegram, logout, refreshSession, updateUser, isAuthenticated: !!user };
 }

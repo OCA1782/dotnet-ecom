@@ -3,22 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type LoginResult } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
-
-interface LoginResult {
-  userId: string;
-  name: string;
-  surname: string;
-  email: string;
-  token: string;
-  roles: string[];
-  refreshToken?: string;
-  requiresTwoFactor?: boolean;
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,7 +22,7 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState("");
   const [twoFaLoading, setTwoFaLoading] = useState(false);
 
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, completeLogin } = useAuth();
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -41,14 +30,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
+      const data = await login(email, password, rememberMe);
       if (data.requiresTwoFactor) {
         setPendingUserId(data.userId);
         setStep("2fa");
         return;
       }
-      // Normal login — useAuth'u güncelle
-      await login(email, password, rememberMe);
       router.push("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Giriş başarısız");
@@ -62,9 +49,8 @@ export default function LoginPage() {
     setError("");
     setTwoFaLoading(true);
     try {
-      await api.post("/api/auth/2fa", { userId: pendingUserId, code: totpCode, rememberMe });
-      // 2FA başarılı — token almak için login tekrar çağır
-      await login(email, password, rememberMe);
+      const data = await api.post<LoginResult>("/api/auth/2fa", { userId: pendingUserId, code: totpCode, rememberMe });
+      completeLogin(data);
       router.push("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Doğrulama başarısız");
