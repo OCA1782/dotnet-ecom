@@ -64,7 +64,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await loginWithGoogle(credentialResponse.credential);
+      const data = await loginWithGoogle(credentialResponse.credential);
+      if (data.requiresTwoFactor) {
+        setPendingUserId(data.userId);
+        setStep("2fa");
+        return;
+      }
       router.push("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google ile giriş başarısız");

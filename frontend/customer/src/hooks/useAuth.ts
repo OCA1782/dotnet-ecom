@@ -84,19 +84,6 @@ export function useAuth() {
     };
   }, []);
 
-  const loginWithGoogle = useCallback(async (idToken: string) => {
-    const data = await api.post<LoginResult>("/api/auth/google", { idToken });
-    localStorage.setItem(TOKEN_KEY, data.token);
-    const authUser: AuthUser = {
-      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token,
-    };
-    localStorage.setItem(USER_KEY, JSON.stringify(authUser));
-    setUser(authUser);
-    broadcastAuthChange();
-    api.post("/api/cart/merge", {}).catch(() => {}).finally(() => triggerCartRefetch());
-    return data;
-  }, []);
-
   const completeLogin = useCallback((data: LoginResult) => {
     localStorage.setItem(TOKEN_KEY, data.token);
     const authUser: AuthUser = {
@@ -109,6 +96,13 @@ export function useAuth() {
     broadcastAuthChange();
     api.post("/api/cart/merge", {}).catch(() => {}).finally(() => triggerCartRefetch());
   }, []);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const data = await api.post<LoginResult>("/api/auth/google", { idToken });
+    if (data.requiresTwoFactor) return data;
+    completeLogin(data);
+    return data;
+  }, [completeLogin]);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });

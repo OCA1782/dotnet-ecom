@@ -67,6 +67,11 @@ public class GoogleLoginCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
         await auditService.LogAsync("GoogleLogin", "User", user.Id.ToString(), userId: user.Id, cancellationToken: cancellationToken);
 
+        if (user.TwoFactorEnabled)
+            return Result<LoginResult>.Success(new LoginResult(
+                user.Id, user.Name, user.Surname, user.Email,
+                string.Empty, [], null, null, RequiresTwoFactor: true));
+
         var roles = user.Roles.Select(r => r.Role.ToString()).ToList();
         var token = jwtService.GenerateToken(user, roles);
         return Result<LoginResult>.Success(new LoginResult(user.Id, user.Name, user.Surname, user.Email, token, roles, AvatarUrl: user.AvatarUrl));
