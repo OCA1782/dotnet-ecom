@@ -5,7 +5,7 @@ Adim 82 — EcomLicence + Ecom full deploy
 - Sunucudaki .env okunarak compose dosyasi uretilir
 - Tum servisler yeniden build edilip baslatilir
 """
-import sys, os
+import sys, os, zipfile, tempfile
 sys.stdout.reconfigure(encoding='utf-8')
 import paramiko
 
@@ -61,23 +61,32 @@ licence_key  = env.get('LICENCE_SERVICE_KEY', '')
 ecom_license = env.get('ECOM_LICENSE', '')
 ecom_pubkey  = env.get('ECOM_PUBLIC_KEY', '')
 
-# ── 3. EcomLicence clone/pull — GITHUB_TOKEN ile kimlik dogrulama ─────────
-print("\n=== 3/5 EcomLicence repo ===")
-if github_tok:
-    clone_url = f"https://{github_tok}@github.com/OCA1782/dotnet-ecom-licence.git"
-else:
-    clone_url = "https://github.com/OCA1782/dotnet-ecom-licence.git"
+# ── 3. EcomLicence — yerel kaynak kodu zip ile sunucuya yukle ─────────────
+print("\n=== 3/5 EcomLicence kaynak kodu sunucuya yukleniyor ===")
+_script_dir   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_licence_path = os.path.normpath(os.path.join(_script_dir, '..', 'EcomLicence'))
+_SKIP_DIRS    = {'bin', 'obj', '.git', '.vs', '.vscode', 'node_modules'}
 
-check = run("[ -d /opt/ecom-licence/.git ] && echo exists || echo missing")
-if "missing" in check:
-    print("Clone ediliyor...")
-    print(run(f"git clone {clone_url} /opt/ecom-licence", timeout=120))
-else:
-    print("Pull ediliyor...")
-    # token degistiyse remote URL'yi guncelle
-    if github_tok:
-        run(f"cd /opt/ecom-licence && git remote set-url origin {clone_url}")
-    print(run("cd /opt/ecom-licence && git pull origin master", timeout=60))
+_zip_tmp = tempfile.mktemp(suffix='.zip')
+with zipfile.ZipFile(_zip_tmp, 'w', zipfile.ZIP_DEFLATED) as _zf:
+    for _root, _dirs, _files in os.walk(_licence_path):
+        _dirs[:] = [d for d in _dirs if d not in _SKIP_DIRS]
+        for _fname in _files:
+            _fp  = os.path.join(_root, _fname)
+            _arc = os.path.relpath(_fp, _licence_path)
+            _zf.write(_fp, _arc)
+
+_zip_size = os.path.getsize(_zip_tmp)
+print(f"Zip olusturuldu: {_zip_size // 1024} KB ({_zip_tmp})")
+
+_sftp0 = client.open_sftp()
+_sftp0.put(_zip_tmp, '/tmp/ecom-licence.zip')
+_sftp0.close()
+os.unlink(_zip_tmp)
+print("Sunucuya yuklendi. Cikartiliyor...")
+print(run("rm -rf /opt/ecom-licence && mkdir -p /opt/ecom-licence && "
+          "cd /opt/ecom-licence && unzip -q /tmp/ecom-licence.zip && rm /tmp/ecom-licence.zip && "
+          "echo OK", timeout=60))
 
 if not licence_key:
     print("LICENCE_SERVICE_KEY bulunamadi — sunucuda otomatik uretiliyor...")
