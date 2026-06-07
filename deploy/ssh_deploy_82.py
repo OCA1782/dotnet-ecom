@@ -37,8 +37,9 @@ else:
     print("Pull ediliyor...")
     print(run("cd /opt/ecom-licence && git pull origin master", timeout=60))
 
-# ── 3. .env oku ───────────────────────────────────────────────────────────
+# ── 3. .env oku (yoksa olustur) ───────────────────────────────────────────
 print("\n=== 3/5 .env okunuyor ===")
+run("touch /opt/ecom/.env")
 env_raw = run("cat /opt/ecom/.env")
 env = {}
 for line in env_raw.splitlines():
@@ -60,16 +61,12 @@ ecom_license = env.get('ECOM_LICENSE', '')
 ecom_pubkey  = env.get('ECOM_PUBLIC_KEY', '')
 
 if not licence_key:
-    print()
-    print("HATA: /opt/ecom/.env dosyasinda LICENCE_SERVICE_KEY bulunamadi!")
-    print("Sunucuya SSH ile baglanip asagidaki komutu calistirin:")
-    print()
-    print("  echo \"LICENCE_SERVICE_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')\" >> /opt/ecom/.env")
-    print()
-    client.close()
-    sys.exit(1)
-
-print(f"LICENCE_SERVICE_KEY mevcut: {'*' * 8}...{licence_key[-4:]}")
+    print("LICENCE_SERVICE_KEY bulunamadi — sunucuda otomatik uretiliyor...")
+    licence_key = run("python3 -c \"import secrets; print(secrets.token_hex(32))\"").strip()
+    run(f'echo "LICENCE_SERVICE_KEY={licence_key}" >> /opt/ecom/.env')
+    print(f"Uretildi ve .env dosyasina eklendi: {'*' * 8}...{licence_key[-4:]}")
+else:
+    print(f"LICENCE_SERVICE_KEY mevcut: {'*' * 8}...{licence_key[-4:]}")
 
 SERVER_IP = '178.105.230.111'
 db_conn   = f"Server=db;Database=EcomDb;User Id=sa;Password={sa_pass};TrustServerCertificate=True;MultipleActiveResultSets=true"
