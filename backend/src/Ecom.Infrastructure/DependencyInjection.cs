@@ -64,6 +64,18 @@ public static class DependencyInjection
         services.AddScoped<ImportBatchProcessor>();
         services.AddScoped<ICacheService, CacheService>();
         services.AddScoped<ILicenseService, LicenseService>();
+
+        // Licence service HTTP client — forwards admin license operations to dotnet-ecom-licence
+        var licenceBaseUrl = configuration["LicenceService:BaseUrl"];
+        services.AddHttpClient("EcomLicence", c =>
+        {
+            if (!string.IsNullOrWhiteSpace(licenceBaseUrl))
+            {
+                c.BaseAddress = new Uri(licenceBaseUrl.TrimEnd('/') + "/");
+                c.Timeout = TimeSpan.FromSeconds(15);
+            }
+        });
+        services.AddScoped<ILicenceServiceClient, LicenceServiceClient>();
         services.AddScoped<IDapperQueryService, DapperQueryService>();
         services.AddSingleton<IServiceStateManager, ServiceStateManager>();
         services.AddSingleton<IDeployStreamHub, DeployStreamHub>();

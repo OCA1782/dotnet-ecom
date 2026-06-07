@@ -612,6 +612,8 @@ const PERMISSION_MATRIX: { module: string; group: string; roles: string[] }[] = 
   { module: "Servisler",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
   { module: "Kuyruklar",     group: "Sistem",    roles: ["SuperAdmin","Admin"] },
   { module: "Dokümanlar",    group: "Sistem",    roles: ["SuperAdmin","Admin","ProductManager","StockManager","OrderManager","CustomerSupport","FinanceUser","ContentManager"] },
+  // Test: production'da ortam koruması uygulanır (SuperAdmin bile olsa prod'da varsayılan gizli)
+  { module: "Test",          group: "Sistem",    roles: ["SuperAdmin"] },
   { module: "Yönetim",       group: "Sistem",    roles: ["SuperAdmin","Admin"] },
 ];
 
@@ -3045,9 +3047,16 @@ export default function YonetimPage() {
                       const isChanged = JSON.stringify([...currentRoles].sort()) !== JSON.stringify([...defaultRoles].sort());
                       rows.push(
                         <tr key={row.module} className={`border-b border-slate-100 transition ${isChanged ? "bg-amber-50/50" : ri % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
-                          <td className="py-2 px-4 font-medium whitespace-nowrap flex items-center gap-1.5">
-                            {row.module}
-                            {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
+                          <td className="py-2 px-4 font-medium whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {row.module}
+                              {row.module === "Test" && (
+                                <span className="text-[9px] bg-amber-50 text-amber-600 border border-amber-200 px-1 py-0.5 rounded font-bold" title="Production ortamında SuperAdmin bile olsa varsayılan gizlidir">
+                                  prod'da gizli
+                                </span>
+                              )}
+                              {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
+                            </div>
                           </td>
                           {allCols.map(r => {
                             const hasRole = currentRoles.includes(r.key);

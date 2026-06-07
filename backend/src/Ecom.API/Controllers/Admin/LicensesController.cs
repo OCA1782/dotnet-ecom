@@ -1,79 +1,63 @@
-using Ecom.Application.Features.Admin.Commands;
-using Ecom.Application.Features.Admin.Queries;
-using MediatR;
+using Ecom.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecom.API.Controllers.Admin;
 
+/// <summary>
+/// License CRUD — delegates to dotnet-ecom-licence service.
+/// If LicenceService:BaseUrl is not configured, returns 503.
+/// </summary>
 [ApiController]
 [Route("api/admin/licenses")]
 [Authorize(Roles = "Admin,SuperAdmin")]
-public class LicensesController(IMediator mediator) : ControllerBase
+public class LicensesController(ILicenceServiceClient licenceClient, IConfiguration config) : ControllerBase
 {
+    private bool IsConfigured => !string.IsNullOrWhiteSpace(config["LicenceService:BaseUrl"]);
+
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var result = await mediator.Send(new GetLicensesQuery(), ct);
-        return Ok(result);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.GetLicensesAsync(ct);
+        return Content(json, "application/json");
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] UpsertLicenseRequest req, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] object req, CancellationToken ct)
     {
-        var result = await mediator.Send(new UpsertLicenseCommand
-        {
-            Module      = req.Module,
-            Description = req.Description,
-            ExpiresAt   = req.ExpiresAt,
-            IsActive    = req.IsActive,
-            Notes       = req.Notes,
-        }, ct);
-        return result.Succeeded ? Ok(new { id = result.Data }) : BadRequest(result.Error);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.CreateLicenseAsync(
+            System.Text.Json.JsonSerializer.Serialize(req), ct);
+        return Content(json, "application/json");
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpsertLicenseRequest req, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] object req, CancellationToken ct)
     {
-        var result = await mediator.Send(new UpsertLicenseCommand
-        {
-            Id          = id,
-            Module      = req.Module,
-            Description = req.Description,
-            ExpiresAt   = req.ExpiresAt,
-            IsActive    = req.IsActive,
-            Notes       = req.Notes,
-        }, ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.UpdateLicenseAsync(id,
+            System.Text.Json.JsonSerializer.Serialize(req), ct);
+        return Content(json, "application/json");
     }
 
     [HttpPost("{id:guid}/renew")]
-    public async Task<IActionResult> Renew(Guid id, [FromBody] RenewLicenseRequest req, CancellationToken ct)
+    public async Task<IActionResult> Renew(Guid id, [FromBody] object req, CancellationToken ct)
     {
-        var result = await mediator.Send(new RenewLicenseCommand(id, req.Months), ct);
-        return result.Succeeded
-            ? Ok(new { newExpiresAt = result.Data })
-            : BadRequest(result.Error);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.RenewLicenseAsync(id,
+            System.Text.Json.JsonSerializer.Serialize(req), ct);
+        return Content(json, "application/json");
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var result = await mediator.Send(new DeleteLicenseCommand(id), ct);
-        return result.Succeeded ? Ok() : BadRequest(result.Error);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.DeleteLicenseAsync(id, ct);
+        return Content(json, "application/json");
     }
-}
 
-public class RenewLicenseRequest
-{
-    public int Months { get; set; } = 12;
-}
-
-public class UpsertLicenseRequest
-{
-    public string Module { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public bool IsActive { get; set; } = true;
-    public string? Notes { get; set; }
+    private IActionResult ServiceUnavailable() =>
+        StatusCode(503, new { error = "Lisans servisi yapılandırılmamış. LicenceService:BaseUrl ayarlanmalıdır." });
 }

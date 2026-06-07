@@ -1,56 +1,46 @@
 using Ecom.Application.Common.Interfaces;
-using Ecom.Domain.Entities;
 using DomainEnums = Ecom.Domain.Enums;
-using Ecom.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 
 namespace Ecom.API.Controllers.Admin;
 
+/// <summary>
+/// License assignment management — thin proxy to dotnet-ecom-licence service.
+/// User resolution (email → id) happens here since Users table is in Ecom DB.
+/// </summary>
 [ApiController]
 [Route("api/admin/license-assignments")]
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class LicenseAssignmentsController(IApplicationDbContext db, IEmailService email, IAuditService audit, ICurrentUserService currentUser) : ControllerBase
+public class LicenseAssignmentsController(
+    ILicenceServiceClient licenceClient,
+    IApplicationDbContext db,
+    IAuditService audit,
+    ICurrentUserService currentUser,
+    IConfiguration config) : ControllerBase
 {
-    // GET /api/admin/license-assignments — SuperAdmin: list all assignments
+    private bool IsConfigured => !string.IsNullOrWhiteSpace(config["LicenceService:BaseUrl"]);
+
     [HttpGet]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var list = await db.LicenseAssignments
-            .Where(a => !a.IsDeleted)
-            .OrderByDescending(a => a.CreatedDate)
-            .Select(a => new
-            {
-                a.Id,
-                a.AdminUserId,
-                a.AdminEmail,
-                a.AdminName,
-                maskedToken = MaskToken(a.LicenseToken),
-                a.IsRevoked,
-                a.RevokedReason,
-                a.Notes,
-                a.CreatedDate,
-                a.UpdatedDate,
-                licenseInfo = ParseLicenseInfo(a.LicenseToken),
-            })
-            .ToListAsync(ct);
-
-        return Ok(list);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.GetAssignmentsAsync(ct);
+        return Content(json, "application/json");
     }
 
-    // POST /api/admin/license-assignments — SuperAdmin: assign license to admin user
     [HttpPost]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Assign([FromBody] AssignLicenseRequest req, CancellationToken ct)
     {
+        if (!IsConfigured) return ServiceUnavailable();
+
         if (string.IsNullOrWhiteSpace(req.AdminIdentifier))
             return BadRequest(new { error = "Kullanıcı e-postası veya adı zorunludur." });
-
         if (string.IsNullOrWhiteSpace(req.LicenseToken))
             return BadRequest(new { error = "Lisans token zorunludur." });
 
@@ -58,164 +48,70 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         var user = await db.Users
             .FirstOrDefaultAsync(u => !u.IsDeleted && (
                 u.Email == identifier ||
-                (u.Name + " " + u.Surname).Trim() == identifier
-            ), ct);
+                (u.Name + " " + u.Surname).Trim() == identifier), ct);
 
         if (user == null)
             return NotFound(new { error = $"'{identifier}' e-posta veya adına sahip kullanıcı bulunamadı." });
 
-        // Use direct UserRoles query to avoid global query filter issues with Include
         bool isAdmin = await db.UserRoles.AnyAsync(r => r.UserId == user.Id &&
             (r.Role == DomainEnums.UserRole.Admin || r.Role == DomainEnums.UserRole.SuperAdmin), ct);
         if (!isAdmin)
-            return BadRequest(new { error = "Bu kullanıcı admin rolüne sahip değil. Lisans yalnızca admin kullanıcılara atanabilir." });
+            return BadRequest(new { error = "Bu kullanıcı admin rolüne sahip değil." });
 
-        // Generate random view password: 4 groups of 4 uppercase alphanumeric
-        var viewPassword = GenerateViewPassword();
-        var viewPasswordHash = CryptoHelper.Hash(viewPassword);
-
-        // Parse license for email metadata
-        string issuer = "—";
-        string expiresAt = "—";
-        try
+        var payload = JsonSerializer.Serialize(new
         {
-            var info = ParseLicenseInfoObj(req.LicenseToken);
-            if (info != null) { issuer = info.Value.Issuer; expiresAt = info.Value.ExpiresAt; }
-        }
-        catch { }
+            adminUserId = user.Id,
+            adminEmail  = user.Email,
+            adminName   = $"{user.Name} {user.Surname}".Trim(),
+            licenseToken = req.LicenseToken,
+            notes        = req.Notes,
+        });
 
-        var assignment = new LicenseAssignment
-        {
-            AdminUserId     = user.Id,
-            AdminEmail      = user.Email,
-            AdminName       = $"{user.Name} {user.Surname}".Trim(),
-            LicenseToken    = req.LicenseToken,
-            ViewPasswordHash = viewPasswordHash,
-            Notes           = req.Notes,
-        };
+        var json = await licenceClient.AssignLicenseAsync(payload, ct);
 
-        db.LicenseAssignments.Add(assignment);
-        await db.SaveChangesAsync(ct);
-
-        await audit.LogAsync("LicenseAssigned", "Lisans", assignment.Id.ToString(),
+        await audit.LogAsync("LicenseAssigned", "Lisans", user.Id.ToString(),
             newValue: $"{user.Email} — {req.Notes ?? "—"}",
             userId: currentUser.UserId, cancellationToken: ct);
 
-        // Send email (fire-and-forget on failure — assignment is already saved)
-        try
-        {
-            await email.SendLicenseAssignmentAsync(
-                user.Email, $"{user.Name} {user.Surname}".Trim(),
-                req.LicenseToken, viewPassword, issuer, expiresAt, ct);
-        }
-        catch { /* email failure does not roll back assignment */ }
-
-        return Ok(new
-        {
-            id = assignment.Id,
-            viewPassword,  // returned once so SuperAdmin can note it if needed
-            message = $"Lisans {user.Email} adresine atandı. Görüntüleme şifresi e-posta ile iletildi.",
-        });
+        return Content(json, "application/json");
     }
 
-    // DELETE /api/admin/license-assignments/{id} — SuperAdmin: revoke
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "SuperAdmin")]
-    public async Task<IActionResult> Revoke(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Revoke(Guid id, [FromQuery] string? reason, CancellationToken ct)
     {
-        var assignment = await db.LicenseAssignments
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, ct);
-
-        if (assignment == null)
-            return NotFound(new { error = "Atama bulunamadı." });
-
-        assignment.IsRevoked = true;
-        assignment.RevokedReason = "Manuel iptal";
-        assignment.UpdatedDate = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.RevokeAssignmentAsync(id, reason, ct);
         await audit.LogAsync("LicenseRevoked", "Lisans", id.ToString(),
-            oldValue: assignment.AdminEmail, newValue: "Manuel iptal",
+            newValue: reason ?? "Manuel iptal",
             userId: currentUser.UserId, cancellationToken: ct);
-
-        return Ok(new { message = "Lisans ataması iptal edildi." });
+        return Content(json, "application/json");
     }
 
-    // POST /api/admin/license-assignments/{id}/reset-password — SuperAdmin: reset view password & resend email
     [HttpPost("{id:guid}/reset-password")]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> ResetViewPassword(Guid id, CancellationToken ct)
     {
-        var assignment = await db.LicenseAssignments
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && !a.IsRevoked, ct);
-
-        if (assignment == null)
-            return NotFound(new { error = "Atama bulunamadı veya iptal edilmiş." });
-
-        var newViewPassword = GenerateViewPassword();
-        assignment.ViewPasswordHash = CryptoHelper.Hash(newViewPassword);
-        assignment.UpdatedDate = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-
-        try
-        {
-            string issuer = "—", expiresAt = "—";
-            try
-            {
-                var info = ParseLicenseInfoObj(assignment.LicenseToken);
-                if (info != null) { issuer = info.Value.Issuer; expiresAt = info.Value.ExpiresAt; }
-            }
-            catch { }
-
-            await email.SendLicenseAssignmentAsync(
-                assignment.AdminEmail, assignment.AdminName,
-                assignment.LicenseToken, newViewPassword,
-                issuer, expiresAt, ct);
-        }
-        catch { }
-
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.ResetViewPasswordAsync(id, ct);
         await audit.LogAsync("LicensePasswordReset", "Lisans", id.ToString(),
-            newValue: assignment.AdminEmail,
             userId: currentUser.UserId, cancellationToken: ct);
-
-        return Ok(new
-        {
-            viewPassword = newViewPassword,
-            message = $"Görüntüleme şifresi yenilendi. Yeni şifre {assignment.AdminEmail} adresine e-posta ile gönderildi.",
-        });
+        return Content(json, "application/json");
     }
 
-    // GET /api/admin/license-assignments/history — SuperAdmin: license audit log
     [HttpGet("history")]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> GetHistory([FromQuery] int limit = 50, CancellationToken ct = default)
     {
-        var licenseActions = new[] { "LicenseAssigned", "LicenseRevoked", "LicenseRevokedAuto", "LicensePasswordReset" };
-        var logs = await (
-            from a in db.AuditLogs
-            where licenseActions.Contains(a.Action)
-            join u in db.Users on a.UserId equals u.Id into uj
-            from u in uj.DefaultIfEmpty()
-            orderby a.CreatedDate descending
-            select new
-            {
-                a.Id,
-                a.Action,
-                a.EntityId,
-                a.OldValue,
-                a.NewValue,
-                performedBy = u != null ? u.Email : null,
-                a.CreatedDate,
-            })
-            .Take(limit)
-            .ToListAsync(ct);
-        return Ok(logs);
+        if (!IsConfigured) return ServiceUnavailable();
+        var json = await licenceClient.GetAssignmentHistoryAsync(limit, ct);
+        return Content(json, "application/json");
     }
 
-    // POST /api/admin/license-assignments/my-license — any Admin: reveal own assigned license
     [HttpPost("my-license")]
     public async Task<IActionResult> RevealMyLicense([FromBody] RevealMyLicenseRequest req, CancellationToken ct)
     {
+        if (!IsConfigured) return ServiceUnavailable();
         if (string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(new { error = "Şifre boş olamaz." });
 
@@ -223,93 +119,13 @@ public class LicenseAssignmentsController(IApplicationDbContext db, IEmailServic
         if (!Guid.TryParse(userIdStr, out var userId))
             return Unauthorized(new { error = "Geçersiz oturum." });
 
-        var assignment = await db.LicenseAssignments
-            .Where(a => a.AdminUserId == userId && !a.IsDeleted && !a.IsRevoked)
-            .OrderByDescending(a => a.CreatedDate)
-            .FirstOrDefaultAsync(ct);
-
-        if (assignment == null)
-            return NotFound(new { error = "Size atanmış aktif bir lisans bulunamadı. Sistem yöneticinizle iletişime geçin." });
-
-        if (CryptoHelper.Hash(req.Password) != assignment.ViewPasswordHash)
-            return Unauthorized(new { error = "Geçersiz görüntüleme şifresi." });
-
-        string? issuer = null, notBefore = null, expiresAt = null, app = null;
-        try
-        {
-            var info = ParseLicenseInfoObj(assignment.LicenseToken);
-            if (info != null)
-            {
-                issuer = info.Value.Issuer;
-                notBefore = info.Value.NotBefore;
-                expiresAt = info.Value.ExpiresAt;
-                app = info.Value.App;
-            }
-        }
-        catch { }
-
-        return Ok(new
-        {
-            licenseToken = assignment.LicenseToken,
-            assignedAt   = assignment.CreatedDate,
-            app,
-            issuer,
-            notBefore,
-            expiresAt,
-        });
+        var payload = JsonSerializer.Serialize(new { adminUserId = userId, password = req.Password });
+        var json = await licenceClient.RevealMyLicenseAsync(payload, ct);
+        return Content(json, "application/json");
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
-
-    private static string GenerateViewPassword()
-    {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        var rng = new byte[16];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(rng);
-        var sb = new StringBuilder(19);
-        for (int i = 0; i < 16; i++)
-        {
-            if (i > 0 && i % 4 == 0) sb.Append('-');
-            sb.Append(chars[rng[i] % chars.Length]);
-        }
-        return sb.ToString();
-    }
-
-    private static string MaskToken(string token)
-    {
-        if (string.IsNullOrEmpty(token)) return "****";
-        var dot = token.IndexOf('.');
-        if (dot < 0) return token.Length <= 12 ? new string('*', token.Length) : token[..6] + "···";
-        var header = token[..dot];
-        return header.Length <= 12 ? header + ".***" : header[..10] + "···" + ".***";
-    }
-
-    private static object? ParseLicenseInfo(string token)
-    {
-        try
-        {
-            var info = ParseLicenseInfoObj(token);
-            if (info == null) return null;
-            return new { info.Value.App, info.Value.Issuer, info.Value.NotBefore, info.Value.ExpiresAt };
-        }
-        catch { return null; }
-    }
-
-    private static (string App, string Issuer, string NotBefore, string ExpiresAt)? ParseLicenseInfoObj(string token)
-    {
-        var parts = token.Trim().Split('.');
-        if (parts.Length < 1) return null;
-        var p = parts[0].Replace('-', '+').Replace('_', '/');
-        switch (p.Length % 4) { case 2: p += "=="; break; case 3: p += "="; break; }
-        var json = Encoding.UTF8.GetString(Convert.FromBase64String(p));
-        var doc = JsonDocument.Parse(json).RootElement;
-        return (
-            doc.GetProperty("app").GetString() ?? "",
-            doc.GetProperty("iss").GetString() ?? "",
-            doc.GetProperty("nbf").GetString() ?? "",
-            doc.GetProperty("exp").GetString() ?? ""
-        );
-    }
+    private IActionResult ServiceUnavailable() =>
+        StatusCode(503, new { error = "Lisans servisi yapılandırılmamış. LicenceService:BaseUrl ayarlanmalıdır." });
 }
 
 public record AssignLicenseRequest(string AdminIdentifier, string LicenseToken, string? Notes);

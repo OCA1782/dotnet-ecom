@@ -150,6 +150,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     typeof window !== "undefined" ? (localStorage.getItem("admin:logoNamedUrl") || "") : ""
   );
   const userRoles = user?.roles ?? [];
+  const isSuperAdmin = userRoles.includes("SuperAdmin");
+  const currentEnv = process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "development";
+  const isProd = currentEnv === "production";
+
+  // TEST ve YÖNETİM görünürlük — AdminRbacMatrix'ten güncellenir
+  const [testRoles, setTestRoles]       = useState<string[] | null>(null);
+  const [yonetimRoles, setYonetimRoles] = useState<string[] | null>(null);
+
+  const showTest = (() => {
+    const allowed = testRoles ? testRoles.some(r => userRoles.includes(r)) : isSuperAdmin;
+    // Production'da: sadece SuperAdmin VE matris izin veriyorsa
+    return isProd ? (allowed && isSuperAdmin) : allowed;
+  })();
+
+  const showYonetim = yonetimRoles
+    ? yonetimRoles.some(r => userRoles.includes(r))
+    : (isSuperAdmin || userRoles.includes("Admin"));
+
   const visibleItems = filterByRole(ALL_NAV_ITEMS, userRoles);
   const [navItems, setNavItems] = useState<NavItem[]>(visibleItems);
   const [navGroups, setNavGroups] = useState<NavGroup[]>(NAV_GROUPS);
@@ -289,11 +307,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         try {
           const matrix = JSON.parse(s.AdminRbacMatrix) as Record<string, string[]>;
           itemsToOrder = itemsToOrder.map(item => {
-            // Match nav item label to matrix module name (labels match module names directly)
             const roles = matrix[item.label];
             if (roles) return { ...item, allowedRoles: roles };
             return item;
           });
+          // Test ve Yönetim bottom-item'ları için roller
+          if (matrix["Test"] !== undefined)    setTestRoles(matrix["Test"]);
+          if (matrix["Yönetim"] !== undefined) setYonetimRoles(matrix["Yönetim"]);
         } catch { }
       }
 
@@ -465,32 +485,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Bottom: Settings, Test, Collapse, Logout */}
         <div className="border-t border-white/10">
-          {/* Test */}
-          <Link href={TEST_ITEM.href} title={collapsed ? TEST_ITEM.label : undefined}
-            className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
-              collapsed ? "px-0 justify-center" : "px-6"
-            } ${
-              pathname === TEST_ITEM.href
-                ? "bg-white/10 text-white border-teal-400"
-                : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
-            }`}>
-            <FlaskConical size={17} className="shrink-0" />
-            {!collapsed && <span>Test</span>}
-          </Link>
+          {/* Test — env & rol korumalı */}
+          {showTest && (
+            <Link href={TEST_ITEM.href} title={collapsed ? TEST_ITEM.label : undefined}
+              className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
+                collapsed ? "px-0 justify-center" : "px-6"
+              } ${
+                pathname === TEST_ITEM.href
+                  ? "bg-white/10 text-white border-teal-400"
+                  : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
+              }`}>
+              <FlaskConical size={17} className="shrink-0" />
+              {!collapsed && (
+                <>
+                  <span>Test</span>
+                  {isProd && (
+                    <span className="ml-auto text-[8px] font-bold text-amber-400 border border-amber-400/40 px-1 rounded">PROD</span>
+                  )}
+                </>
+              )}
+            </Link>
+          )}
 
-          {/* Settings */}
-          <Link href={SETTINGS_ITEM.href} title={collapsed ? SETTINGS_ITEM.label : undefined}
-            className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
-              collapsed ? "px-0 justify-center" : "px-6"
-            } ${
-              pathname === SETTINGS_ITEM.href
-                ? "bg-white/10 text-white border-teal-400"
-                : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
-            }`}>
-            <Settings size={17} className="shrink-0" />
-            {!collapsed && <span>{SETTINGS_ITEM.label}</span>}
-            {!collapsed && pathname === SETTINGS_ITEM.href && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
-          </Link>
+          {/* Yönetim — rol korumalı */}
+          {showYonetim && (
+            <Link href={SETTINGS_ITEM.href} title={collapsed ? SETTINGS_ITEM.label : undefined}
+              className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
+                collapsed ? "px-0 justify-center" : "px-6"
+              } ${
+                pathname === SETTINGS_ITEM.href
+                  ? "bg-white/10 text-white border-teal-400"
+                  : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
+              }`}>
+              <Settings size={17} className="shrink-0" />
+              {!collapsed && <span>{SETTINGS_ITEM.label}</span>}
+              {!collapsed && pathname === SETTINGS_ITEM.href && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
+            </Link>
+          )}
 
           {/* Logout + Collapse Toggle */}
           <div className={`pb-3 pt-1 flex items-center ${collapsed ? "flex-col gap-1 px-0" : "justify-between px-4"}`}>
