@@ -19,6 +19,8 @@ interface UserProfile {
   commercialConsent: boolean;
   lastLoginDate?: string;
   twoFactorEnabled?: boolean;
+  emailConfirmed?: boolean;
+  phoneConfirmed?: boolean;
 }
 
 const NAV_LINKS = [
@@ -39,6 +41,18 @@ export default function HesabimPage() {
   const [tfaLoading, setTfaLoading] = useState(false);
   const [tfaMsg, setTfaMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [showQr, setShowQr] = useState(false);
+
+  // Doğrulama durumu
+  const [emailConfirmed, setEmailConfirmed] = useState(true);
+  const [phoneConfirmed, setPhoneConfirmed] = useState(true);
+  const [resending, setResending] = useState(false);
+  const [verifMsg, setVerifMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [verifCodeEmail, setVerifCodeEmail] = useState("");
+  const [verifCodePhone, setVerifCodePhone] = useState("");
+  const [showVerifEmail, setShowVerifEmail] = useState(false);
+  const [showVerifPhone, setShowVerifPhone] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,10 +88,54 @@ export default function HesabimPage() {
         setPhone(p.phoneNumber ?? "");
         setCommercialConsent(p.commercialConsent);
         setTwoFactorEnabled(p.twoFactorEnabled ?? false);
+        setEmailConfirmed(p.emailConfirmed ?? true);
+        setPhoneConfirmed(p.phoneConfirmed ?? true);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user]);
+
+  async function handleResendVerification() {
+    setResending(true); setVerifMsg(null);
+    try {
+      const data = await api.post<{ emailSent: boolean; telegramSent: boolean }>("/api/users/me/resend-verification");
+      if (data.emailSent) setShowVerifEmail(true);
+      if (data.telegramSent) setShowVerifPhone(true);
+      setVerifMsg({ text: "Doğrulama kodları gönderildi.", ok: true });
+    } catch (e: unknown) {
+      setVerifMsg({ text: e instanceof Error ? e.message : "Gönderilemedi", ok: false });
+    } finally { setResending(false); }
+  }
+
+  async function handleVerifyEmail() {
+    if (verifCodeEmail.length !== 6) return;
+    setVerifyingEmail(true); setVerifMsg(null);
+    try {
+      if (!profile) return;
+      await api.post("/api/auth/verify-email", { userId: profile.id, code: verifCodeEmail });
+      setEmailConfirmed(true);
+      setShowVerifEmail(false);
+      setVerifCodeEmail("");
+      setVerifMsg({ text: "E-posta adresiniz doğrulandı.", ok: true });
+    } catch (e: unknown) {
+      setVerifMsg({ text: e instanceof Error ? e.message : "Doğrulama başarısız", ok: false });
+    } finally { setVerifyingEmail(false); }
+  }
+
+  async function handleVerifyPhone() {
+    if (verifCodePhone.length !== 6) return;
+    setVerifyingPhone(true); setVerifMsg(null);
+    try {
+      if (!profile) return;
+      await api.post("/api/auth/verify-telegram", { userId: profile.id, code: verifCodePhone });
+      setPhoneConfirmed(true);
+      setShowVerifPhone(false);
+      setVerifCodePhone("");
+      setVerifMsg({ text: "Telefon doğrulandı.", ok: true });
+    } catch (e: unknown) {
+      setVerifMsg({ text: e instanceof Error ? e.message : "Doğrulama başarısız", ok: false });
+    } finally { setVerifyingPhone(false); }
+  }
 
   async function handleSetup2FA() {
     setTfaLoading(true); setTfaMsg(null);
@@ -271,14 +329,43 @@ export default function HesabimPage() {
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">E-posta</label>
-                <p className="text-sm text-slate-500 py-2">{profile.email} <span className="text-xs text-slate-400">(değiştirilemez)</span></p>
+                <div className="flex items-center gap-2 py-2">
+                  <p className="text-sm text-slate-500">{profile.email}</p>
+                  {emailConfirmed ? (
+                    <span title="Doğrulandı" className="flex items-center gap-1 text-xs text-teal-600 font-medium">
+                      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
+                      Doğrulandı
+                    </span>
+                  ) : (
+                    <span title="Doğrulanmamış" className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Doğrulanmamış
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400">(değiştirilemez)</span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Telefon</label>
                 {editing ? (
                   <input value={phone} onChange={e => setPhone(e.target.value)} className={INPUT} placeholder="05XX XXX XX XX" />
                 ) : (
-                  <p className="text-sm text-slate-800 py-2">{profile.phoneNumber || <span className="text-slate-400 italic">Eklenmemiş</span>}</p>
+                  <div className="flex items-center gap-2 py-2">
+                    <p className="text-sm text-slate-800">{profile.phoneNumber || <span className="text-slate-400 italic">Eklenmemiş</span>}</p>
+                    {profile.phoneNumber && (
+                      phoneConfirmed ? (
+                        <span title="Doğrulandı" className="flex items-center gap-1 text-xs text-teal-600 font-medium">
+                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
+                          Doğrulandı
+                        </span>
+                      ) : (
+                        <span title="Doğrulanmamış" className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          Doğrulanmamış
+                        </span>
+                      )
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -360,6 +447,80 @@ export default function HesabimPage() {
               </div>
             )}
           </div>
+
+          {/* Hesap Doğrulama Bölümü */}
+          {(!emailConfirmed || !phoneConfirmed) && (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-semibold text-slate-800">Hesap Doğrulama</h2>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Bekliyor</span>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                Hesabınızın güvenliği için e-posta ve telefon doğrulaması yapmanızı öneririz. Doğrulama, giriş yapmak için zorunlu değildir.
+              </p>
+
+              {verifMsg && (
+                <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${verifMsg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                  {verifMsg.text}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {/* E-posta doğrulama */}
+                {!emailConfirmed && (
+                  <div className="border border-slate-100 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      <span className="text-sm font-medium text-slate-700">E-posta doğrulanmamış</span>
+                    </div>
+                    {showVerifEmail && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
+                          value={verifCodeEmail} onChange={e => setVerifCodeEmail(e.target.value.replace(/\D/g, ""))}
+                          placeholder="6 haneli kod"
+                          className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.3em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        />
+                        <button onClick={handleVerifyEmail} disabled={verifyingEmail || verifCodeEmail.length !== 6}
+                          className="bg-teal-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                          {verifyingEmail ? "..." : "Doğrula"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Telefon doğrulama */}
+                {!phoneConfirmed && profile?.phoneNumber && (
+                  <div className="border border-slate-100 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      <span className="text-sm font-medium text-slate-700">Telefon doğrulanmamış</span>
+                    </div>
+                    {showVerifPhone && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
+                          value={verifCodePhone} onChange={e => setVerifCodePhone(e.target.value.replace(/\D/g, ""))}
+                          placeholder="6 haneli kod"
+                          className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.3em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        />
+                        <button onClick={handleVerifyPhone} disabled={verifyingPhone || verifCodePhone.length !== 6}
+                          className="bg-teal-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                          {verifyingPhone ? "..." : "Doğrula"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={handleResendVerification} disabled={resending}
+                className="mt-4 bg-amber-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-50">
+                {resending ? "Gönderiliyor..." : "Doğrulama Kodu Gönder"}
+              </button>
+            </div>
+          )}
 
           {/* 2FA Bölümü */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">

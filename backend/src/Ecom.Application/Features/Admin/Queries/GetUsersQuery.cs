@@ -15,6 +15,7 @@ public record UserListItemDto(
     string? AvatarUrl,
     bool IsActive,
     bool EmailConfirmed,
+    bool PhoneConfirmed,
     DateTime CreatedDate,
     DateTime? LastLoginDate,
     IEnumerable<string> Roles,
@@ -60,7 +61,8 @@ public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService curre
             .Take(request.PageSize)
             .Select(u => new
             {
-                u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive, u.EmailConfirmed,
+                u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive,
+                u.EmailConfirmed, u.PhoneConfirmed,
                 u.CreatedDate, u.LastLoginDate, u.DataSource, u.CreatedByAdminId
             })
             .ToListAsync(cancellationToken);
@@ -75,7 +77,8 @@ public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService curre
             : [];
 
         var items = users.Select(u => new UserListItemDto(
-            u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive, u.EmailConfirmed,
+            u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive,
+            u.EmailConfirmed, u.PhoneConfirmed,
             u.CreatedDate, u.LastLoginDate,
             roles.Where(r => r.UserId == u.Id).Select(r => r.Role.ToString()),
             u.DataSource,

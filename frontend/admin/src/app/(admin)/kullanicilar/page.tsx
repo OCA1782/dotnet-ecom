@@ -370,8 +370,26 @@ export default function UsersPage() {
                       </Link>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs">{u.email}</td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs">{u.phoneNumber ?? <span className="text-slate-300">—</span>}</td>
+                  <td className="px-5 py-3.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500">{u.email}</span>
+                      {u.emailConfirmed
+                        ? <span title="E-posta doğrulandı" className="text-teal-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6L9 17l-5-5"/></svg></span>
+                        : <span title="E-posta doğrulanmamış" className="text-amber-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+                      }
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-xs">
+                    {u.phoneNumber ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500">{u.phoneNumber}</span>
+                        {u.phoneConfirmed
+                          ? <span title="Telefon doğrulandı" className="text-teal-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6L9 17l-5-5"/></svg></span>
+                          : <span title="Telefon doğrulanmamış" className="text-amber-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+                        }
+                      </div>
+                    ) : <span className="text-slate-300">—</span>}
+                  </td>
                   <td className="px-5 py-3.5">
                     <div className="flex flex-wrap gap-1.5">
                       {u.roles?.map(role => (

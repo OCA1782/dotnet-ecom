@@ -82,6 +82,19 @@ internal static class EmailTemplates
             <p style="color:#71717a;font-size:13px;line-height:1.6;">Bu bağlantı 24 saat geçerlidir. Eğer bu talebi siz yapmadıysanız bu e-postayı dikkate almayınız.</p>
         """);
 
+    public static string VerificationReminder(string name, string code) =>
+        Wrap("Hesabınızı Doğrulayın", $"""
+            <h2 style="color:#18181b;margin:0 0 16px;">Merhaba {name},</h2>
+            <p style="color:#3f3f46;line-height:1.6;">Henüz e-posta adresinizi doğrulamadınız. Aşağıdaki kodu kullanarak hesabınızı doğrulayabilirsiniz.</p>
+            <div style="background:#f4f4f5;border-radius:8px;padding:28px;margin:24px 0;text-align:center;">
+              <p style="margin:0 0 10px;color:#71717a;font-size:13px;">E-posta Doğrulama Kodunuz</p>
+              <p style="margin:0;font-size:40px;font-weight:bold;color:#18181b;letter-spacing:10px;">{code}</p>
+              <p style="margin:12px 0 0;color:#71717a;font-size:12px;">Kod 24 saat geçerlidir.</p>
+            </div>
+            <p style="color:#3f3f46;line-height:1.6;">Hesabım → Hesap Doğrulama bölümünden bu kodu girerek doğrulama yapabilirsiniz.</p>
+            <p style="color:#71717a;font-size:13px;">Bu e-postayı beklemiyorsanız dikkate almayınız.</p>
+        """);
+
     public static string LowStockAlertBatch(IReadOnlyList<(string ProductName, int Available, int Critical)> products)
     {
         var rows = string.Join("\n", products.Select((p, i) => $"""

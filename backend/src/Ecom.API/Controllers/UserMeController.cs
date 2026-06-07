@@ -92,6 +92,13 @@ public class UserMeController(IMediator mediator, ICurrentUserService currentUse
         return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
 
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification(CancellationToken ct)
+    {
+        var result = await mediator.Send(new ResendVerificationCommand(currentUser.UserId!.Value), ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
     [HttpPost("2fa/setup")]
     public async Task<IActionResult> Setup2FA(CancellationToken ct)
     {

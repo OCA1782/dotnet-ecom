@@ -203,6 +203,8 @@ export interface AdminUser {
   phoneNumber?: string;
   avatarUrl?: string;
   isActive: boolean;
+  emailConfirmed?: boolean;
+  phoneConfirmed?: boolean;
   createdDate: string;
   roles: string[];
   dataSource?: string;
