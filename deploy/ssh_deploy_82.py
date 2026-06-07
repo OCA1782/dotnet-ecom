@@ -38,18 +38,8 @@ def run(cmd, timeout=120):
 print("=== 1/5 Ecom git pull ===")
 print(run("cd /opt/ecom && git pull origin main", timeout=60))
 
-# ── 2. EcomLicence clone/pull ─────────────────────────────────────────────
-print("\n=== 2/5 EcomLicence repo ===")
-check = run("[ -d /opt/ecom-licence/.git ] && echo exists || echo missing")
-if "missing" in check:
-    print("Clone ediliyor...")
-    print(run("git clone https://github.com/OCA1782/dotnet-ecom-licence.git /opt/ecom-licence", timeout=120))
-else:
-    print("Pull ediliyor...")
-    print(run("cd /opt/ecom-licence && git pull origin master", timeout=60))
-
-# ── 3. .env oku (yoksa olustur) ───────────────────────────────────────────
-print("\n=== 3/5 .env okunuyor ===")
+# ── 2. .env oku (yoksa olustur) — clone'dan ONCE gerekli ─────────────────
+print("\n=== 2/5 .env okunuyor ===")
 run("touch /opt/ecom/.env")
 env_raw = run("cat /opt/ecom/.env")
 env = {}
@@ -65,11 +55,29 @@ admin_email  = env.get('SEED_ADMIN_EMAIL', 'admin@ecom.com')
 admin_pass   = env.get('SEED_ADMIN_PASSWORD', '')
 rabbit_user  = env.get('RABBITMQ_USERNAME', '')
 rabbit_pass  = env.get('RABBITMQ_PASSWORD', '')
-github_tok   = env.get('GITHUB_TOKEN', '')
+github_tok   = env.get('GITHUB_TOKEN', '') or os.environ.get('GITHUB_TOKEN', '')
 mssql_mem    = env.get('MSSQL_MEMORY_LIMIT_MB', '1500')
 licence_key  = env.get('LICENCE_SERVICE_KEY', '')
 ecom_license = env.get('ECOM_LICENSE', '')
 ecom_pubkey  = env.get('ECOM_PUBLIC_KEY', '')
+
+# ── 3. EcomLicence clone/pull — GITHUB_TOKEN ile kimlik dogrulama ─────────
+print("\n=== 3/5 EcomLicence repo ===")
+if github_tok:
+    clone_url = f"https://{github_tok}@github.com/OCA1782/dotnet-ecom-licence.git"
+else:
+    clone_url = "https://github.com/OCA1782/dotnet-ecom-licence.git"
+
+check = run("[ -d /opt/ecom-licence/.git ] && echo exists || echo missing")
+if "missing" in check:
+    print("Clone ediliyor...")
+    print(run(f"git clone {clone_url} /opt/ecom-licence", timeout=120))
+else:
+    print("Pull ediliyor...")
+    # token degistiyse remote URL'yi guncelle
+    if github_tok:
+        run(f"cd /opt/ecom-licence && git remote set-url origin {clone_url}")
+    print(run("cd /opt/ecom-licence && git pull origin master", timeout=60))
 
 if not licence_key:
     print("LICENCE_SERVICE_KEY bulunamadi — sunucuda otomatik uretiliyor...")
@@ -85,6 +93,7 @@ lic_conn  = f"Server=db;Database=EcomDb;User Id=sa;Password={sa_pass};TrustServe
 
 # ── 4. docker-compose.yml yaz ─────────────────────────────────────────────
 print("\n=== 4/5 docker-compose.yml yaziliyor ===")
+
 compose = f"""services:
   redis:
     image: redis:7-alpine
