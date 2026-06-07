@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { MapPin, Search, RefreshCw, Globe, User, UserX, Monitor, Smartphone, Filter } from "lucide-react";
+import { MapPin, Search, RefreshCw, Globe, User, UserX, Monitor, Smartphone, Filter, Activity, AlertCircle, Link as LinkIcon } from "lucide-react";
+import Link from "next/link";
 
 interface VisitorLog {
   id: string;
@@ -105,26 +106,49 @@ export default function ZiyaretcilerPage() {
         </div>
       </div>
 
-      {/* Fark kartı */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-start gap-3">
+      {/* Ekran karşılaştırma */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-teal-50 border-2 border-teal-300 rounded-2xl p-4 flex items-start gap-3">
           <MapPin size={18} className="text-teal-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-teal-800">Ziyaretçiler (bu ekran)</p>
-            <p className="text-xs text-teal-600 mt-0.5 leading-relaxed">
-              Müşteri sitesinin ziyaret kaydı. Kim hangi sayfayı, nereden, hangi cihazla ziyaret etti?
-              Anonim ziyaretçiler de dahildir. Coğrafi veri + tarayıcı bilgisi içerir.
+            <p className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
+              Ziyaretçiler
+              <span className="text-[10px] bg-teal-200 text-teal-700 px-1.5 py-0.5 rounded-full font-bold">Bu ekran</span>
             </p>
+            <p className="text-xs text-teal-600 mt-1 leading-relaxed">
+              Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa. <strong>Kim nereden geldi?</strong>
+            </p>
+            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar</p>
           </div>
         </div>
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
-          <User size={18} className="text-indigo-600 shrink-0 mt-0.5" />
+          <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-indigo-800">Hareketler (ayrı ekran)</p>
-            <p className="text-xs text-indigo-600 mt-0.5 leading-relaxed">
-              Kullanıcı işlem kaydı (audit log). Kim ne değiştirdi, hangi kayıt oluşturuldu/silindi?
-              Yalnızca kimliği doğrulanmış kullanıcıları kapsar. Admin eylemlerini içerir.
+            <p className="text-sm font-bold text-indigo-800 flex items-center gap-1.5">
+              Hareketler
+              <Link href="/hareketler" className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-indigo-200 transition inline-flex items-center gap-0.5">
+                <LinkIcon size={8} /> Git
+              </Link>
             </p>
+            <p className="text-xs text-indigo-600 mt-1 leading-relaxed">
+              Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri. <strong>Kim ne yaptı?</strong>
+            </p>
+            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar</p>
+          </div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+              Takip
+              <Link href="/takip" className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-red-200 transition inline-flex items-center gap-0.5">
+                <LinkIcon size={8} /> Git
+              </Link>
+            </p>
+            <p className="text-xs text-red-600 mt-1 leading-relaxed">
+              Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları. <strong>Sistem ne zaman, nerede hata verdi?</strong>
+            </p>
+            <p className="text-[10px] text-red-400 mt-1.5 font-medium">Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı</p>
           </div>
         </div>
       </div>

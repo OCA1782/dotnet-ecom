@@ -6,8 +6,9 @@ import type { PaginatedList } from "@/types";
 import {
   AlertTriangle, Info, AlertCircle, Search, Filter,
   Server, Monitor, Clock, ChevronDown, ChevronUp, X, Link2,
-  ExternalLink, Copy, Check,
+  ExternalLink, Copy, Check, Activity, MapPin, Link as LinkIcon,
 } from "lucide-react";
+import Link from "next/link";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -148,6 +149,7 @@ export default function TakipPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [statDays, setStatDays] = useState(7);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const copyToClipboard = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -165,6 +167,7 @@ export default function TakipPage() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
+    setListError(null);
     try {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (sourceFilter) qs.set("source", sourceFilter);
@@ -180,7 +183,10 @@ export default function TakipPage() {
       setLogs(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount);
-    } catch { setLogs([]); }
+    } catch (e) {
+      setLogs([]);
+      setListError(e instanceof Error ? e.message : "Bilinmeyen hata");
+    }
     finally { setLoading(false); }
   }, [page, pageSize, sourceFilter, levelFilter, search, startDate, endDate]);
 
@@ -238,6 +244,53 @@ export default function TakipPage() {
             <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
               <span className="text-white/70 text-xs">{totalCount} kayıt</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ekran karşılaştırma */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+              Takip
+              <span className="text-[10px] bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full font-bold">Bu ekran</span>
+            </p>
+            <p className="text-xs text-red-600 mt-1 leading-relaxed">
+              Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları. <strong>Sistem ne zaman, nerede hata verdi?</strong>
+            </p>
+            <p className="text-[10px] text-red-400 mt-1.5 font-medium">Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı</p>
+          </div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
+          <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-indigo-800 flex items-center gap-1.5">
+              Hareketler
+              <Link href="/hareketler" className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-indigo-200 transition inline-flex items-center gap-0.5">
+                <LinkIcon size={8} /> Git
+              </Link>
+            </p>
+            <p className="text-xs text-indigo-600 mt-1 leading-relaxed">
+              Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri. <strong>Kim ne yaptı?</strong>
+            </p>
+            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar</p>
+          </div>
+        </div>
+        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-start gap-3">
+          <MapPin size={18} className="text-teal-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
+              Ziyaretçiler
+              <Link href="/ziyaretciler" className="text-[10px] bg-teal-100 text-teal-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-teal-200 transition inline-flex items-center gap-0.5">
+                <LinkIcon size={8} /> Git
+              </Link>
+            </p>
+            <p className="text-xs text-teal-600 mt-1 leading-relaxed">
+              Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa. <strong>Kim nereden geldi?</strong>
+            </p>
+            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar</p>
           </div>
         </div>
       </div>
@@ -456,10 +509,20 @@ export default function TakipPage() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
           <div className="py-16 text-center text-slate-400 text-sm">Yükleniyor...</div>
+        ) : listError ? (
+          <div className="py-16 text-center">
+            <AlertCircle size={32} className="text-red-300 mx-auto mb-3" />
+            <p className="text-red-500 text-sm font-semibold">Kayıtlar yüklenirken hata oluştu</p>
+            <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">{listError}</p>
+            <button onClick={fetchLogs} className="mt-4 text-xs text-teal-600 hover:underline">Tekrar dene</button>
+          </div>
         ) : logs.length === 0 ? (
           <div className="py-16 text-center">
             <AlertCircle size={32} className="text-slate-200 mx-auto mb-3" />
             <p className="text-slate-400 text-sm">Kayıt bulunamadı</p>
+            {(sourceFilter || levelFilter || search || startDate || endDate) && (
+              <p className="text-slate-300 text-xs mt-1">Filtreleri temizleyerek tüm kayıtları görüntüleyebilirsiniz</p>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
