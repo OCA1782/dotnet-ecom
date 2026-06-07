@@ -435,14 +435,9 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
         </div>
       </div>
 
+      {/* Ürünler/Stok/Siparişler/Kullanıcılar kartları burada YOK —
+          bu veriler ekranın üst bölümlerinde (Bölüm 0/1/6) zaten gösteriliyor. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        <ModuleCard href="/urunler" icon={Package} iconBg="bg-teal-50" iconColor="text-teal-600"
-          title="Ürünler" mainValue={modules.totalProducts} mainLabel="Toplam Ürün"
-          activeValue={modules.activeProducts} totalValue={modules.totalProducts} barColor="#14b8a6"
-          badge={modules.inactiveProducts > 0 ? { text: `${modules.inactiveProducts} pasif`, type: "warn" } : undefined}
-          stats={[{ label: "Aktif", value: modules.activeProducts, color: "text-emerald-500" }]}
-          health={modules.totalProducts === 0 ? "critical" : modules.inactiveProducts > 0 ? "warn" : "ok"} />
-
         <ModuleCard href="/kategoriler" icon={Layers} iconBg="bg-sky-50" iconColor="text-sky-600"
           title="Kategoriler" mainValue={modules.totalCategories} mainLabel="Toplam Kategori"
           activeValue={modules.activeCategories} totalValue={modules.totalCategories} barColor="#0ea5e9"
@@ -455,16 +450,6 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
           stats={[{ label: "Aktif", value: modules.activeBrands, color: "text-violet-500" }]}
           health={modules.totalBrands === 0 ? "warn" : "ok"} />
 
-        <ModuleCard href="/stok" icon={Boxes} iconBg="bg-emerald-50" iconColor="text-emerald-600"
-          title="Stok" mainValue={modules.healthyStockCount} mainLabel="Sağlıklı Stok"
-          badge={modules.outOfStockCount > 0 ? { text: `${modules.outOfStockCount} tükendi`, type: "critical" } :
-                 modules.criticalStockCount > 0 ? { text: `${modules.criticalStockCount} kritik`, type: "warn" } : undefined}
-          stats={[
-            { label: "Tükendi", value: modules.outOfStockCount, color: modules.outOfStockCount > 0 ? "text-red-500" : "text-slate-400" },
-            { label: "Kritik", value: modules.criticalStockCount, color: modules.criticalStockCount > 0 ? "text-amber-500" : "text-slate-400" },
-          ]}
-          health={modules.outOfStockCount > 0 ? "critical" : modules.criticalStockCount > 0 ? "warn" : "ok"} />
-
         <ModuleCard href="/yorumlar" icon={MessageSquare} iconBg="bg-yellow-50" iconColor="text-yellow-600"
           title="Yorumlar" mainValue={modules.totalReviewCount} mainLabel="Toplam Yorum"
           activeValue={modules.approvedReviewCount} totalValue={modules.totalReviewCount} barColor="#f59e0b"
@@ -476,16 +461,6 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
           title="Duyurular" mainValue={modules.activeAnnouncementCount} mainLabel="Aktif Duyuru"
           stats={[{ label: "Toplam", value: modules.totalAnnouncementCount }]}
           health="ok" />
-
-        <ModuleCard href="/siparisler" icon={ShoppingCart} iconBg="bg-indigo-50" iconColor="text-indigo-600"
-          title="Siparişler" mainValue={modules.todayOrderCount} mainLabel="Bugün Sipariş"
-          badge={modules.refundRequestedCount > 0 ? { text: `${modules.refundRequestedCount} iade`, type: "critical" } :
-                 modules.pendingOrderCount > 0 ? { text: `${modules.pendingOrderCount} bekliyor`, type: "warn" } : undefined}
-          stats={[
-            { label: "Bekleyen", value: modules.pendingOrderCount, color: modules.pendingOrderCount > 0 ? "text-amber-500" : "text-slate-400" },
-            { label: "İade", value: modules.refundRequestedCount, color: modules.refundRequestedCount > 0 ? "text-red-500" : "text-slate-400" },
-          ]}
-          health={modules.refundRequestedCount > 0 ? "critical" : modules.pendingOrderCount > 5 ? "warn" : "ok"} />
 
         <ModuleCard href="/kuponlar" icon={Ticket} iconBg="bg-pink-50" iconColor="text-pink-600"
           title="Kuponlar" mainValue={modules.activeCouponCount} mainLabel="Aktif Kupon"
@@ -529,12 +504,6 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
             { label: "Hatalı", value: modules.errorInvoiceCount, color: modules.errorInvoiceCount > 0 ? "text-red-500" : "text-slate-400" },
           ]}
           health={modules.errorInvoiceCount > 0 ? "critical" : modules.draftInvoiceCount > 0 ? "warn" : "ok"} />
-
-        <ModuleCard href="/kullanicilar" icon={Users} iconBg="bg-violet-50" iconColor="text-violet-600"
-          title="Kullanıcılar" mainValue={modules.totalUserCount} mainLabel="Toplam Kullanıcı"
-          activeValue={modules.activeUserCount} totalValue={modules.totalUserCount} barColor="#8b5cf6"
-          stats={[{ label: "Bu Ay Yeni", value: modules.newUserThisMonthCount, color: "text-emerald-500" }]}
-          health="ok" />
       </div>
     </div>
   );
