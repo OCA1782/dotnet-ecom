@@ -17,7 +17,7 @@ public class UserMeController(IMediator mediator, ICurrentUserService currentUse
     public async Task<IActionResult> GetProfile(CancellationToken ct)
     {
         var result = await mediator.Send(new GetCurrentUserQuery(currentUser.UserId!.Value), ct);
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? Unauthorized() : Ok(result);
     }
 
     [HttpPut]

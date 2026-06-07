@@ -73,6 +73,7 @@ async function request<T>(path: string, options: RequestInit = {}, isRetry = fal
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth:force-logout"));
     }
   }
 

@@ -23,8 +23,7 @@ public class GetCurrentUserHandler(IApplicationDbContext db)
     public async Task<UserProfileDto?> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
     {
         var u = await db.Users
-            .IgnoreQueryFilters()
-            .Where(x => x.Id == request.UserId)
+            .Where(x => x.Id == request.UserId && x.IsActive)
             .Select(x => new UserProfileDto(
                 x.Id, x.Name, x.Surname, x.Email, x.PhoneNumber,
                 x.AvatarUrl, x.CommercialConsent, x.LastLoginDate))

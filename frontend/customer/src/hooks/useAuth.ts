@@ -49,6 +49,10 @@ export function useAuth() {
     if (stored) {
       try {
         setUser(JSON.parse(stored));
+        // Silinen/pasifleştirilen hesabı tespit etmek için arka planda doğrula.
+        // Kullanıcı silinmişse backend 401 döner → api.ts localStorage'ı temizler
+        // → auth:force-logout event'i ateşlenir → aşağıdaki handler state'i sıfırlar.
+        api.get("/api/users/me").catch(() => {});
       } catch {
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(TOKEN_KEY);
@@ -57,7 +61,6 @@ export function useAuth() {
     }
     setLoading(false);
 
-    // Diğer useAuth instance'larının login/logout çağrısında state'i güncelle
     function handleAuthChange() {
       const s = localStorage.getItem(USER_KEY);
       if (s) {
@@ -66,8 +69,18 @@ export function useAuth() {
         setUser(null);
       }
     }
+
+    function handleForceLogout() {
+      setUser(null);
+      clearCartState();
+    }
+
     authListeners.add(handleAuthChange);
-    return () => { authListeners.delete(handleAuthChange); };
+    window.addEventListener("auth:force-logout", handleForceLogout);
+    return () => {
+      authListeners.delete(handleAuthChange);
+      window.removeEventListener("auth:force-logout", handleForceLogout);
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
