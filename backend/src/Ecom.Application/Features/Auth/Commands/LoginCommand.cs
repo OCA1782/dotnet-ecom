@@ -8,7 +8,7 @@ namespace Ecom.Application.Features.Auth.Commands;
 
 public record LoginCommand(string Email, string Password, bool RememberMe = false) : IRequest<Result<LoginResult>>;
 
-public record LoginResult(Guid UserId, string Name, string Surname, string Email, string Token, IEnumerable<string> Roles, string? RefreshToken = null, string? AvatarUrl = null);
+public record LoginResult(Guid UserId, string Name, string Surname, string Email, string Token, IEnumerable<string> Roles, string? RefreshToken = null, string? AvatarUrl = null, bool RequiresTwoFactor = false);
 
 public class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
@@ -77,6 +77,16 @@ public class LoginCommandHandler(
         // Başarılı giriş — kilitleme sayacını sıfırla
         user.FailedLoginCount = 0;
         user.LockoutUntil = null;
+
+        // 2FA aktifse token vermeden beklet
+        if (user.TwoFactorEnabled)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return Result<LoginResult>.Success(new LoginResult(
+                user.Id, user.Name, user.Surname, user.Email,
+                string.Empty, [], null, null, RequiresTwoFactor: true));
+        }
+
         user.LastLoginDate = DateTime.UtcNow;
 
         string? refreshTokenValue = null;

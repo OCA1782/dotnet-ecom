@@ -14,7 +14,8 @@ public record UserProfileDto(
     string? PhoneNumber,
     string? AvatarUrl,
     bool CommercialConsent,
-    DateTime? LastLoginDate
+    DateTime? LastLoginDate,
+    bool TwoFactorEnabled
 );
 
 public class GetCurrentUserHandler(IApplicationDbContext db)
@@ -26,7 +27,7 @@ public class GetCurrentUserHandler(IApplicationDbContext db)
             .Where(x => x.Id == request.UserId && x.IsActive)
             .Select(x => new UserProfileDto(
                 x.Id, x.Name, x.Surname, x.Email, x.PhoneNumber,
-                x.AvatarUrl, x.CommercialConsent, x.LastLoginDate))
+                x.AvatarUrl, x.CommercialConsent, x.LastLoginDate, x.TwoFactorEnabled))
             .FirstOrDefaultAsync(cancellationToken);
         return u;
     }

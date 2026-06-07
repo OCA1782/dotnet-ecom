@@ -83,6 +83,19 @@ export function useAuth() {
     };
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const data = await api.post<LoginResult>("/api/auth/google", { idToken });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    const authUser: AuthUser = {
+      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token,
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+    setUser(authUser);
+    broadcastAuthChange();
+    api.post("/api/cart/merge", {}).catch(() => {}).finally(() => triggerCartRefetch());
+    return data;
+  }, []);
+
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
     localStorage.setItem(TOKEN_KEY, data.token);
@@ -174,5 +187,5 @@ export function useAuth() {
     broadcastAuthChange();
   }, []);
 
-  return { user, loading, login, register, verifyEmail, verifyTelegram, logout, refreshSession, updateUser, isAuthenticated: !!user };
+  return { user, loading, login, loginWithGoogle, register, verifyEmail, verifyTelegram, logout, refreshSession, updateUser, isAuthenticated: !!user };
 }

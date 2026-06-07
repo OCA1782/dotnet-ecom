@@ -1,4 +1,5 @@
 using Ecom.Application.Common.Interfaces;
+using Ecom.Application.Features.Auth.Commands;
 using Ecom.Application.Features.Users.Commands;
 using Ecom.Application.Features.Users.Queries;
 using MediatR;
@@ -90,7 +91,30 @@ public class UserMeController(IMediator mediator, ICurrentUserService currentUse
         }, ct);
         return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
     }
+
+    [HttpPost("2fa/setup")]
+    public async Task<IActionResult> Setup2FA(CancellationToken ct)
+    {
+        var result = await mediator.Send(new Setup2FACommand(), ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("2fa/enable")]
+    public async Task<IActionResult> Enable2FA([FromBody] TwoFactorCodeRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new Enable2FACommand(req.Code), ct);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("2fa/disable")]
+    public async Task<IActionResult> Disable2FA([FromBody] TwoFactorCodeRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new Disable2FACommand(req.Code), ct);
+        return result.Succeeded ? Ok() : BadRequest(new { error = result.Error });
+    }
 }
+
+public class TwoFactorCodeRequest { public string Code { get; set; } = string.Empty; }
 
 public class UpdateProfileRequest
 {

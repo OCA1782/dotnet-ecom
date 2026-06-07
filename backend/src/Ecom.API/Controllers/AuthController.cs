@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace Ecom.API.Controllers;
 
 public class RefreshTokenRequest { public string RefreshToken { get; set; } = string.Empty; }
+public class GoogleLoginRequest { public string IdToken { get; set; } = string.Empty; }
+public class TwoFactorLoginRequest { public Guid UserId { get; set; } public string Code { get; set; } = string.Empty; public bool RememberMe { get; set; } }
 
 [ApiController]
 [Route("api/[controller]")]
@@ -71,5 +73,21 @@ public class AuthController(IMediator mediator) : ControllerBase
         if (!result.Succeeded)
             return BadRequest(new { error = result.Error });
         return Ok(new { message = "Şifreniz başarıyla güncellendi." });
+    }
+
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest req, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GoogleLoginCommand(req.IdToken), cancellationToken);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return Ok(result.Data);
+    }
+
+    [HttpPost("2fa")]
+    public async Task<IActionResult> TwoFactorLogin([FromBody] TwoFactorLoginRequest req, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new TwoFactorLoginCommand(req.UserId, req.Code, req.RememberMe), cancellationToken);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return Ok(result.Data);
     }
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { QRCodeSVG } from "qrcode.react";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-800";
 
@@ -17,6 +18,7 @@ interface UserProfile {
   avatarUrl?: string;
   commercialConsent: boolean;
   lastLoginDate?: string;
+  twoFactorEnabled?: boolean;
 }
 
 const NAV_LINKS = [
@@ -30,6 +32,13 @@ export default function HesabimPage() {
   const { user, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [totpUri, setTotpUri] = useState("");
+  const [tfaCode, setTfaCode] = useState("");
+  const [tfaLoading, setTfaLoading] = useState(false);
+  const [tfaMsg, setTfaMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,10 +73,51 @@ export default function HesabimPage() {
         setSurname(p.surname);
         setPhone(p.phoneNumber ?? "");
         setCommercialConsent(p.commercialConsent);
+        setTwoFactorEnabled(p.twoFactorEnabled ?? false);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user]);
+
+  async function handleSetup2FA() {
+    setTfaLoading(true); setTfaMsg(null);
+    try {
+      const data = await api.post<{ secret: string; totpUri: string }>("/api/users/me/2fa/setup");
+      setTotpUri(data.totpUri);
+      setShowQr(true);
+      setTfaCode("");
+    } catch (e: unknown) {
+      setTfaMsg({ text: e instanceof Error ? e.message : "Kurulum başlatılamadı", ok: false });
+    } finally { setTfaLoading(false); }
+  }
+
+  async function handleEnable2FA() {
+    if (tfaCode.length !== 6) return;
+    setTfaLoading(true); setTfaMsg(null);
+    try {
+      await api.post("/api/users/me/2fa/enable", { code: tfaCode });
+      setTwoFactorEnabled(true);
+      setShowQr(false);
+      setTotpUri("");
+      setTfaCode("");
+      setTfaMsg({ text: "İki faktörlü doğrulama etkinleştirildi.", ok: true });
+    } catch (e: unknown) {
+      setTfaMsg({ text: e instanceof Error ? e.message : "Etkinleştirme başarısız", ok: false });
+    } finally { setTfaLoading(false); }
+  }
+
+  async function handleDisable2FA() {
+    if (tfaCode.length !== 6) return;
+    setTfaLoading(true); setTfaMsg(null);
+    try {
+      await api.post("/api/users/me/2fa/disable", { code: tfaCode });
+      setTwoFactorEnabled(false);
+      setTfaCode("");
+      setTfaMsg({ text: "İki faktörlü doğrulama devre dışı bırakıldı.", ok: true });
+    } catch (e: unknown) {
+      setTfaMsg({ text: e instanceof Error ? e.message : "Devre dışı bırakma başarısız", ok: false });
+    } finally { setTfaLoading(false); }
+  }
 
   function startEdit() { setEditing(true); setSaveMsg(null); }
   function cancelEdit() {
@@ -307,6 +357,77 @@ export default function HesabimPage() {
                     Vazgeç
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2FA Bölümü */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold text-slate-800">İki Faktörlü Doğrulama</h2>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${twoFactorEnabled ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
+                {twoFactorEnabled ? "Aktif" : "Pasif"}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Google Authenticator veya Authy gibi bir uygulama ile giriş güvenliğinizi artırın.
+            </p>
+
+            {tfaMsg && (
+              <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${tfaMsg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                {tfaMsg.text}
+              </div>
+            )}
+
+            {!twoFactorEnabled && !showQr && (
+              <button onClick={handleSetup2FA} disabled={tfaLoading}
+                className="bg-teal-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                {tfaLoading ? "Hazırlanıyor..." : "Etkinleştir"}
+              </button>
+            )}
+
+            {!twoFactorEnabled && showQr && totpUri && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  Authenticator uygulamanızla aşağıdaki QR kodu tarayın, ardından oluşturulan 6 haneli kodu girin.
+                </p>
+                <div className="flex justify-center">
+                  <div className="p-3 border border-slate-200 rounded-2xl bg-white inline-block">
+                    <QRCodeSVG value={totpUri} size={180} />
+                  </div>
+                </div>
+                <input
+                  type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
+                  value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-center text-xl tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <div className="flex gap-3">
+                  <button onClick={handleEnable2FA} disabled={tfaLoading || tfaCode.length !== 6}
+                    className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                    {tfaLoading ? "Doğrulanıyor..." : "Etkinleştir"}
+                  </button>
+                  <button onClick={() => { setShowQr(false); setTotpUri(""); setTfaCode(""); setTfaMsg(null); }}
+                    className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
+                    Vazgeç
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {twoFactorEnabled && (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500">Devre dışı bırakmak için authenticator kodunuzu girin.</p>
+                <input
+                  type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
+                  value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-center text-xl tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <button onClick={handleDisable2FA} disabled={tfaLoading || tfaCode.length !== 6}
+                  className="bg-red-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-red-700 transition disabled:opacity-50">
+                  {tfaLoading ? "İşleniyor..." : "Devre Dışı Bırak"}
+                </button>
               </div>
             )}
           </div>

@@ -4,8 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
+
+interface LoginResult {
+  userId: string;
+  name: string;
+  surname: string;
+  email: string;
+  token: string;
+  roles: string[];
+  refreshToken?: string;
+  requiresTwoFactor?: boolean;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,7 +26,14 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+
+  // 2FA adımı
+  const [step, setStep] = useState<"login" | "2fa">("login");
+  const [pendingUserId, setPendingUserId] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -21,6 +41,13 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
+      if (data.requiresTwoFactor) {
+        setPendingUserId(data.userId);
+        setStep("2fa");
+        return;
+      }
+      // Normal login — useAuth'u güncelle
       await login(email, password, rememberMe);
       router.push("/");
     } catch (err: unknown) {
@@ -30,15 +57,115 @@ export default function LoginPage() {
     }
   }
 
+  async function handleTwoFa(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setTwoFaLoading(true);
+    try {
+      await api.post("/api/auth/2fa", { userId: pendingUserId, code: totpCode, rememberMe });
+      // 2FA başarılı — token almak için login tekrar çağır
+      await login(email, password, rememberMe);
+      router.push("/");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Doğrulama başarısız");
+    } finally {
+      setTwoFaLoading(false);
+    }
+  }
+
+  async function handleGoogleSuccess(credentialResponse: CredentialResponse) {
+    if (!credentialResponse.credential) return;
+    setError("");
+    setLoading(true);
+    try {
+      await loginWithGoogle(credentialResponse.credential);
+      router.push("/");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Google ile giriş başarısız");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+  if (step === "2fa") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 mx-auto bg-teal-50 rounded-2xl flex items-center justify-center mb-3">
+              <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth={2}>
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">İki Faktörlü Doğrulama</h1>
+            <p className="text-sm text-slate-500 mt-1">Authenticator uygulamanızdaki 6 haneli kodu girin</p>
+          </div>
+          <form onSubmit={handleTwoFa} className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
+            )}
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              pattern="\d{6}"
+              required
+              value={totpCode}
+              onChange={e => setTotpCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              className={`${INPUT} text-center text-2xl tracking-[0.5em] font-mono`}
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={twoFaLoading || totpCode.length !== 6}
+              className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
+            >
+              {twoFaLoading ? "Doğrulanıyor..." : "Doğrula ve Giriş Yap"}
+            </button>
+            <button type="button" onClick={() => { setStep("login"); setError(""); setTotpCode(""); }}
+              className="w-full text-sm text-slate-400 hover:text-slate-600 transition">
+              ← Geri dön
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">Giriş Yap</h1>
+
+        {/* Google Butonu */}
+        {googleClientId && (
+          <div className="mb-4">
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Google ile giriş başarısız. Tekrar deneyin.")}
+                text="signin_with"
+                shape="rectangular"
+                theme="outline"
+                size="large"
+                width="320"
+              />
+            </div>
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-xs text-slate-400">veya e-posta ile</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-              {error}
-            </div>
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
           )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">E-posta</label>
@@ -49,13 +176,8 @@ export default function LoginPage() {
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={INPUT} />
           </div>
           <div className="flex items-center gap-2.5">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer"
-            />
+            <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer" />
             <label htmlFor="rememberMe" className="text-sm text-slate-600 cursor-pointer select-none">
               Beni hatırla (30 gün)
             </label>
