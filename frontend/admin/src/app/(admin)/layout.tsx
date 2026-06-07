@@ -12,6 +12,7 @@ import {
   HeartPulse, Inbox, BookOpen, CreditCard, RotateCcw, Search, X,
   Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket, Clock,
   Image, FolderOpen, Gift, ShieldCheck, HelpCircle, Info,
+  Lightbulb, MousePointer2, ListChecks, Sparkles, GraduationCap,
 } from "lucide-react";
 import { PAGE_GUIDES } from "@/lib/pageGuides";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -537,13 +538,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <button
                 onClick={() => setHelpOpen(o => !o)}
                 title="Kullanım Kılavuzu"
-                className={`w-8 h-8 rounded-xl flex items-center justify-center transition border ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border shadow-sm ${
                   helpOpen
-                    ? "bg-indigo-100 border-indigo-300 text-indigo-600"
-                    : "bg-slate-50 border-slate-200 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200"
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-indigo-200"
+                    : "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 hover:shadow-indigo-100"
                 }`}
               >
-                <HelpCircle size={16} />
+                <HelpCircle size={14} className={helpOpen ? "" : "animate-pulse"} />
+                <span>Kılavuz</span>
               </button>
             )}
             <NotificationsPanel />
@@ -653,60 +655,102 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {helpOpen && mounted && (() => {
           const guide = PAGE_GUIDES[pathname];
           if (!guide) return null;
+
+          function sectionMeta(title: string): {
+            icon: React.ComponentType<{ size?: number; className?: string }>;
+            bg: string; border: string; text: string; dot: string;
+          } {
+            const t = title.toLowerCase();
+            if (t.includes("veri") || t.includes("kaynak"))
+              return { icon: Database,       bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-700",   dot: "bg-blue-400" };
+            if (t.includes("buton") || t.includes("aksiyon") || t.includes("işlem"))
+              return { icon: MousePointer2,  bg: "bg-teal-50",   border: "border-teal-200",   text: "text-teal-700",   dot: "bg-teal-400" };
+            if (t.includes("kullanım") || t.includes("nasıl") || t.includes("adım"))
+              return { icon: GraduationCap,  bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", dot: "bg-purple-400" };
+            if (t.includes("ipucu") || t.includes("önemli") || t.includes("not"))
+              return { icon: Lightbulb,      bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  dot: "bg-amber-400" };
+            if (t.includes("filtre") || t.includes("arama") || t.includes("sıralama"))
+              return { icon: Search,         bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    dot: "bg-sky-400" };
+            return    { icon: ListChecks,    bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", dot: "bg-indigo-400" };
+          }
+
           return createPortal(
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-[9998] bg-black/20 backdrop-blur-[1px]"
+                className="fixed inset-0 z-[9998] bg-black/30 backdrop-blur-[2px]"
                 onClick={() => setHelpOpen(false)}
               />
               {/* Slide-over */}
-              <div className="fixed top-0 right-0 h-full w-80 z-[9999] bg-white shadow-2xl border-l border-slate-200 flex flex-col animate-in slide-in-from-right duration-200">
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
-                      <Info size={14} className="text-indigo-600" />
+              <div className="fixed top-0 right-0 h-full w-[22rem] z-[9999] bg-white shadow-2xl flex flex-col" style={{ borderLeft: "1px solid #e0e7ff" }}>
+
+                {/* Header — gradient banner */}
+                <div className="relative px-5 pt-5 pb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)" }}>
+                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+                        <Sparkles size={18} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Kullanım Kılavuzu</p>
+                        <p className="text-base font-extrabold text-white leading-tight mt-0.5">{guide.title}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{guide.title}</p>
-                      <p className="text-[10px] text-slate-400">Kullanım Kılavuzu</p>
-                    </div>
+                    <button
+                      onClick={() => setHelpOpen(false)}
+                      className="w-7 h-7 rounded-xl flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition shrink-0 mt-0.5"
+                    >
+                      <X size={15} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setHelpOpen(false)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                  >
-                    <X size={15} />
-                  </button>
+                </div>
+
+                {/* Açıklama kutusu */}
+                <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+                  <div className="flex items-start gap-2">
+                    <Info size={13} className="text-indigo-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-indigo-700 leading-relaxed">{guide.description}</p>
+                  </div>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                  {/* Açıklama */}
-                  <p className="text-sm text-slate-600 leading-relaxed">{guide.description}</p>
-
-                  {/* Bölümler */}
-                  {guide.sections.map((section, si) => (
-                    <div key={si}>
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{section.title}</h3>
-                      <ul className="space-y-2">
-                        {section.items.map((item, ii) => (
-                          <li key={ii} className="flex items-start gap-2 text-xs text-slate-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
-                            <span className="leading-relaxed">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                  {guide.sections.map((section, si) => {
+                    const sm = sectionMeta(section.title);
+                    const SectionIcon = sm.icon;
+                    return (
+                      <div key={si} className={`rounded-2xl border overflow-hidden ${sm.border}`}>
+                        {/* Bölüm başlığı */}
+                        <div className={`flex items-center gap-2 px-3 py-2 ${sm.bg}`}>
+                          <SectionIcon size={13} className={sm.text} />
+                          <span className={`text-[11px] font-bold uppercase tracking-wide ${sm.text}`}>{section.title}</span>
+                        </div>
+                        {/* Maddeler */}
+                        <ul className="divide-y divide-slate-100 bg-white">
+                          {section.items.map((item, ii) => (
+                            <li key={ii} className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors">
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold text-white ${sm.dot}`}>
+                                {ii + 1}
+                              </span>
+                              <span className="text-xs text-slate-700 leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
-                  <p className="text-[10px] text-slate-400 text-center">
-                    ESC veya dışarıya tıklayarak kapatın
+                <div className="px-4 py-3 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50 flex items-center justify-between">
+                  <p className="text-[10px] text-slate-400">
+                    <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">ESC</kbd> veya dışarı tıkla
                   </p>
+                  <div className="flex items-center gap-1 text-[10px] text-indigo-400 font-medium">
+                    <BookOpen size={10} />
+                    <span>{guide.sections.length} bölüm</span>
+                  </div>
                 </div>
               </div>
             </>,
