@@ -41,7 +41,7 @@ public class GetVisitorStatsQueryHandler(IDapperQueryService dapper, ICacheServi
             @"SELECT ISNULL(Country, 'Bilinmiyor') AS Country, COUNT(*) AS Visits
               FROM VisitorLogs
               WHERE IsDeleted = 0 AND CreatedDate >= @Since
-              GROUP BY Country
+              GROUP BY ISNULL(Country, 'Bilinmiyor')
               ORDER BY Visits DESC",
             param, cancellationToken);
 

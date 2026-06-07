@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { BarChart3, Package, Globe, MapPin, TrendingUp, TrendingDown, Minus, Users, ShoppingCart, RotateCcw, RefreshCw } from "lucide-react";
+import {
+  BarChart3, Globe, MapPin, TrendingUp, TrendingDown, Minus,
+  Package, Users, ShoppingCart, Activity, RefreshCw,
+} from "lucide-react";
 
 interface PageVisit { page: string; visits: number; }
 interface CountryVisit { country: string; visits: number; }
@@ -33,16 +36,127 @@ function formatCurrency(n: number) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(n);
 }
 
-function TrendBadge({ current, previous, suffix = "" }: { current: number; previous: number; suffix?: string }) {
+function TrendBadge({ current, previous }: { current: number; previous: number }) {
   if (previous === 0) return null;
   const pct = ((current - previous) / previous) * 100;
-  if (Math.abs(pct) < 0.5) return <span className="flex items-center gap-1 text-xs text-slate-400"><Minus size={12} /> Sabit</span>;
+  if (Math.abs(pct) < 0.5) return (
+    <span className="flex items-center gap-1 text-xs text-slate-400">
+      <Minus size={11} /> Sabit
+    </span>
+  );
   const up = pct > 0;
   return (
     <span className={`flex items-center gap-1 text-xs font-semibold ${up ? "text-emerald-600" : "text-red-500"}`}>
-      {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-      {up ? "+" : ""}{pct.toFixed(1)}%{suffix}
+      {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+      {up ? "+" : ""}{pct.toFixed(1)}%
     </span>
+  );
+}
+
+function SvgAreaChart({
+  data,
+  stroke = "#8b5cf6",
+  fill = "rgba(139,92,246,0.10)",
+  height = 80,
+}: {
+  data: number[];
+  stroke?: string;
+  fill?: string;
+  height?: number;
+}) {
+  if (!data.length) return (
+    <div style={{ height }} className="flex items-center justify-center text-xs text-slate-300">Veri yok</div>
+  );
+  const W = 600;
+  const H = height;
+  const max = Math.max(...data, 1);
+  const pts: [number, number][] = data.map((v, i) => [
+    (i / Math.max(data.length - 1, 1)) * W,
+    H - (v / max) * (H - 10) - 5,
+  ]);
+
+  const path = pts.reduce((acc, [x, y], i) => {
+    if (i === 0) return `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+    const [px, py] = pts[i - 1];
+    const cx1 = (px + (x - px) * 0.4).toFixed(1);
+    const cx2 = (x - (x - px) * 0.4).toFixed(1);
+    return `${acc} C ${cx1} ${py.toFixed(1)}, ${cx2} ${y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }, "");
+
+  const last = pts[pts.length - 1];
+  const fillPath = `${path} L ${last[0].toFixed(1)} ${H} L 0 ${H} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
+      <defs>
+        <linearGradient id={`grad-${stroke.replace(/[^a-z0-9]/gi, "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={fillPath} fill={fill} />
+      <path d={path} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RingMeter({
+  pct,
+  color,
+  size = 64,
+  strokeWidth = 6,
+}: {
+  pct: number;
+  color: string;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const [offset, setOffset] = useState(circ);
+
+  useEffect(() => {
+    const t = setTimeout(() => setOffset(circ * (1 - Math.min(Math.max(pct, 0), 100) / 100)), 120);
+    return () => clearTimeout(t);
+  }, [pct, circ]);
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke={color} strokeWidth={strokeWidth}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 1s ease-out" }}
+      />
+    </svg>
+  );
+}
+
+function AnimBar({ pct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setW(pct), delay + 80);
+    return () => clearTimeout(t);
+  }, [pct, delay]);
+  return (
+    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full"
+        style={{ width: `${w}%`, backgroundColor: color, transition: "width 0.7s ease-out" }}
+      />
+    </div>
+  );
+}
+
+function SkeletonRows({ n = 5 }: { n?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="h-6 bg-slate-100 rounded animate-pulse" />
+      ))}
+    </div>
   );
 }
 
@@ -85,30 +199,30 @@ export default function AnalizPage() {
     return () => clearInterval(timer);
   }, [loadData]);
 
-  const maxDailyVisits = Math.max(1, ...(visitorStats?.dailyVisits.map(d => d.visits) ?? [1]));
-  const maxRevenue = Math.max(1, ...(productSales.map(p => p.totalRevenue)));
-
-  // Period comparison — current half vs prev half
   const allVisits = visitorStats?.dailyVisits ?? [];
   const half = Math.floor(allVisits.length / 2);
   const currentVisits = allVisits.slice(half).reduce((s, d) => s + d.visits, 0);
   const prevVisits = allVisits.slice(0, half).reduce((s, d) => s + d.visits, 0);
+  const totalVisits = allVisits.reduce((s, d) => s + d.visits, 0);
+  const totalOrders = productSales.reduce((s, p) => s + p.orderCount, 0);
+  const totalRevenue = productSales.reduce((s, p) => s + p.totalRevenue, 0);
+  const conversionRate = totalVisits > 0 ? (totalOrders / totalVisits) * 100 : 0;
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-  // Revenue comparison from monthly summary
   const sortedMonths = [...(dashStats?.monthlySummary ?? [])].sort((a, b) => a.month.localeCompare(b.month));
   const lastMonth = sortedMonths.at(-1);
   const prevMonth = sortedMonths.at(-2);
 
-  // Derived metrics
-  const totalVisits = allVisits.reduce((s, d) => s + d.visits, 0);
-  const totalOrders = productSales.reduce((s, p) => s + p.orderCount, 0);
-  const conversionRate = totalVisits > 0 ? (totalOrders / totalVisits) * 100 : 0;
-  const avgOrderValue = totalOrders > 0
-    ? productSales.reduce((s, p) => s + p.totalRevenue, 0) / totalOrders
-    : 0;
-  const returnRate = lastMonth && prevMonth && lastMonth.orderCount > 0
-    ? Math.max(0, 100 - (lastMonth.orderCount / Math.max(1, prevMonth.orderCount + lastMonth.orderCount)) * 100)
-    : 0;
+  const dailyVisitData = allVisits.map(d => d.visits);
+  const monthlyRevenueData = sortedMonths.map(m => m.revenue);
+
+  // 5 evenly spaced x-axis labels for daily chart
+  const xLabels = allVisits.length > 0
+    ? [0, 1, 2, 3, 4].map(i => {
+      const idx = Math.round(i * (allVisits.length - 1) / 4);
+      return allVisits[idx]?.day.slice(5) ?? "";
+    })
+    : [];
 
   return (
     <div className="space-y-6">
@@ -120,10 +234,10 @@ export default function AnalizPage() {
             Analiz
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Periyot karşılaştırması, dönüşüm ve detaylı davranış analizi
+            Ziyaret, dönüşüm ve satış performansı
             {lastRefresh && (
               <span className="ml-2 text-slate-400 text-xs">
-                · Son güncelleme: {lastRefresh.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                · {lastRefresh.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </span>
             )}
           </p>
@@ -132,7 +246,6 @@ export default function AnalizPage() {
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            title="Şimdi yenile"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
@@ -149,108 +262,168 @@ export default function AnalizPage() {
         </div>
       </div>
 
-      {/* Dönüşüm Metrikleri — Analiz'e özgü, dashboard'da yok */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <Users size={11} /> Toplam Ziyaret
-          </p>
-          <p className="text-2xl font-extrabold text-slate-900">{totalVisits.toLocaleString("tr-TR")}</p>
-          <div className="mt-1.5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="relative shrink-0">
+            <RingMeter pct={prevVisits > 0 ? Math.min(100, (currentVisits / prevVisits) * 50) : 50} color="#8b5cf6" />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Users size={16} className="text-violet-500" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Toplam Ziyaret</p>
+            <p className="text-xl font-extrabold text-slate-900">{totalVisits.toLocaleString("tr-TR")}</p>
             <TrendBadge current={currentVisits} previous={prevVisits} />
-            <span className="text-xs text-slate-400">dönem trendi</span>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <ShoppingCart size={11} /> Dönüşüm Oranı
-          </p>
-          <p className="text-2xl font-extrabold text-violet-700">{conversionRate.toFixed(2)}%</p>
-          <p className="text-xs text-slate-400 mt-1.5">Ziyaret → Sipariş</p>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="relative shrink-0">
+            <RingMeter pct={Math.min(100, conversionRate * 20)} color="#14b8a6" />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <ShoppingCart size={16} className="text-teal-500" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Dönüşüm</p>
+            <p className="text-xl font-extrabold text-teal-700">{conversionRate.toFixed(2)}%</p>
+            <p className="text-[11px] text-slate-400">Ziyaret → Sipariş</p>
+          </div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <TrendingUp size={11} /> Ort. Sepet Tutarı
-          </p>
-          <p className="text-2xl font-extrabold text-emerald-700">{formatCurrency(avgOrderValue)}</p>
-          <div className="mt-1.5">
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="relative shrink-0">
+            <RingMeter pct={prevMonth && lastMonth ? Math.min(100, (lastMonth.revenue / Math.max(prevMonth.revenue, 1)) * 50) : 50} color="#10b981" />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <TrendingUp size={16} className="text-emerald-500" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Ort. Sepet</p>
+            <p className="text-lg font-extrabold text-emerald-700">{formatCurrency(avgOrderValue)}</p>
             <TrendBadge current={lastMonth?.revenue ?? 0} previous={prevMonth?.revenue ?? 0} />
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <RotateCcw size={11} /> Tahmini İade Oranı
-          </p>
-          <p className="text-2xl font-extrabold text-amber-600">{returnRate.toFixed(1)}%</p>
-          <p className="text-xs text-slate-400 mt-1.5">Sipariş değişim trendi</p>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+          <div className="relative shrink-0">
+            <RingMeter pct={Math.min(100, totalOrders * 3)} color="#f59e0b" />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Activity size={16} className="text-amber-500" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Toplam Gelir</p>
+            <p className="text-lg font-extrabold text-amber-700">{formatCurrency(totalRevenue)}</p>
+            <p className="text-[11px] text-slate-400">{totalOrders} sipariş</p>
+          </div>
         </div>
       </div>
 
-      {/* Günlük Ziyaret Trendi — Periyot karşılaştırmalı */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-violet-500" />
-            Günlük Ziyaret Trendi
-          </h2>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-200 inline-block" /> Önceki dönem</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-400 inline-block" /> Mevcut dönem</span>
+      {/* Area Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Daily Visit Trend */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:col-span-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-violet-500" />
+              Günlük Ziyaret Trendi
+            </h2>
+            <div className="flex items-center gap-3 text-[11px] text-slate-400">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm bg-slate-200 inline-block" /> Önceki dönem
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm bg-violet-400 inline-block" /> Mevcut dönem
+              </span>
+            </div>
           </div>
-        </div>
-        {loadingV ? (
-          <div className="h-40 flex items-center justify-center text-slate-400 text-sm">Yükleniyor...</div>
-        ) : (
-          <div className="flex items-end gap-1 h-40 relative">
-            {allVisits.map((d, i) => {
-              const isPrev = i < half;
-              return (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1 group">
-                  <div className="relative w-full flex flex-col justify-end" style={{ height: "130px" }}>
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded-lg
-                      opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10 shadow">
-                      {d.day}: {d.visits}
-                    </div>
-                    <div className={`w-full rounded-t-sm transition ${isPrev ? "bg-slate-200 hover:bg-slate-300" : "bg-violet-400 hover:bg-violet-500"}`}
-                      style={{ height: `${Math.max(2, (d.visits / maxDailyVisits) * 120)}px` }} />
-                  </div>
-                  {i % Math.max(1, Math.floor(allVisits.length / 7)) === 0 && (
-                    <span className="text-[9px] text-slate-400">{d.day.slice(8)}</span>
-                  )}
+          {loadingV ? (
+            <div className="h-20 flex items-center justify-center">
+              <div className="w-full h-16 bg-slate-100 rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              {/* Half-period shading overlay hint */}
+              <div className="relative">
+                <div className="absolute inset-0 flex pointer-events-none">
+                  <div className="flex-1 bg-slate-50 rounded-l opacity-60" />
+                  <div className="flex-1" />
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <SvgAreaChart data={dailyVisitData} stroke="#8b5cf6" fill="rgba(139,92,246,0.10)" height={80} />
+              </div>
+              {xLabels.length > 0 && (
+                <div className="flex justify-between mt-1 px-0.5">
+                  {xLabels.map((l, i) => (
+                    <span key={i} className="text-[10px] text-slate-400">{l}</span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Monthly Revenue Trend */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            Aylık Gelir Trendi
+          </h2>
+          {!dashStats ? (
+            <div className="h-20 flex items-center justify-center">
+              <div className="w-full h-16 bg-slate-100 rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              <SvgAreaChart data={monthlyRevenueData} stroke="#10b981" fill="rgba(16,185,129,0.10)" height={80} />
+              {sortedMonths.length > 0 && (
+                <div className="flex justify-between mt-1 px-0.5">
+                  <span className="text-[10px] text-slate-400">{sortedMonths[0]?.month.slice(0, 7)}</span>
+                  <span className="text-[10px] text-slate-400">{sortedMonths.at(-1)?.month.slice(0, 7)}</span>
+                </div>
+              )}
+              {lastMonth && (
+                <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Son ay</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-emerald-700">{formatCurrency(lastMonth.revenue)}</span>
+                    <TrendBadge current={lastMonth.revenue} previous={prevMonth?.revenue ?? 0} />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Country + Pages */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Country Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
             <Globe className="w-4 h-4 text-teal-500" />
             Ülke / Bölge Dağılımı
           </h2>
-          {loadingV ? (
-            <div className="h-40 flex items-center justify-center text-slate-400 text-sm">Yükleniyor...</div>
+          {loadingV ? <SkeletonRows /> : !visitorStats?.countryBreakdown.length ? (
+            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
           ) : (
-            <div className="space-y-2.5 max-h-52 overflow-y-auto">
-              {visitorStats?.countryBreakdown.map((c, i) => {
-                const maxC = visitorStats.countryBreakdown[0]?.visits ?? 1;
-                const pct = ((c.visits / totalVisits) * 100).toFixed(1);
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {visitorStats.countryBreakdown.map((c, i) => {
+                const maxC = visitorStats.countryBreakdown[0].visits;
+                const pct = totalVisits > 0 ? (c.visits / totalVisits) * 100 : 0;
                 return (
                   <div key={c.country} className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-400 w-4 text-right">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-medium text-slate-700 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-teal-400" />{c.country}
+                    <span className="text-xs font-mono text-slate-300 w-4 shrink-0 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-slate-700 flex items-center gap-1 truncate">
+                          <MapPin className="w-3 h-3 text-teal-400 shrink-0" />{c.country}
                         </span>
-                        <span className="text-xs text-slate-500">{c.visits} <span className="text-slate-300">({pct}%)</span></span>
+                        <span className="text-xs text-slate-500 ml-1 shrink-0">
+                          {c.visits} <span className="text-slate-300">({pct.toFixed(1)}%)</span>
+                        </span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-teal-400 rounded-full" style={{ width: `${(c.visits / maxC) * 100}%` }} />
-                      </div>
+                      <AnimBar pct={(c.visits / maxC) * 100} color="#14b8a6" delay={i * 60} />
                     </div>
                   </div>
                 );
@@ -259,69 +432,29 @@ export default function AnalizPage() {
           )}
         </div>
 
-        {/* Top Pages */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-violet-500" />
             En Çok Ziyaret Edilen Sayfalar
           </h2>
-          {loadingV ? (
-            <div className="h-40 flex items-center justify-center text-slate-400 text-sm">Yükleniyor...</div>
+          {loadingV ? <SkeletonRows /> : !visitorStats?.topPages.length ? (
+            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
           ) : (
-            <div className="space-y-2.5 max-h-64 overflow-y-auto">
-              {visitorStats?.topPages.map((p, i) => {
-                const maxP = visitorStats.topPages[0]?.visits ?? 1;
-                const pct = totalVisits > 0 ? ((p.visits / totalVisits) * 100).toFixed(1) : "0";
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {visitorStats.topPages.map((p, i) => {
+                const maxP = visitorStats.topPages[0].visits;
+                const pct = totalVisits > 0 ? (p.visits / totalVisits) * 100 : 0;
                 return (
                   <div key={p.page} className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-400 w-4 text-right">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs text-slate-700 truncate max-w-[200px]" title={p.page}>{p.page}</span>
-                        <span className="text-xs text-slate-500 ml-2 shrink-0">{p.visits} <span className="text-slate-300">({pct}%)</span></span>
-                      </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-violet-400 rounded-full" style={{ width: `${(p.visits / maxP) * 100}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Product Sales */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
-            <Package className="w-4 h-4 text-emerald-500" />
-            Ürün Performansı — En Çok Satan (Top 20)
-          </h2>
-          {loadingP ? (
-            <div className="h-40 flex items-center justify-center text-slate-400 text-sm">Yükleniyor...</div>
-          ) : (
-            <div className="space-y-2.5 max-h-80 overflow-y-auto">
-              {productSales.map((p, i) => {
-                const revShare = maxRevenue > 0 ? (p.totalRevenue / productSales.reduce((s, x) => s + x.totalRevenue, 0) * 100) : 0;
-                return (
-                  <div key={p.productId} className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-400 w-4 text-right">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-medium text-slate-700 truncate max-w-[240px]" title={p.productName}>
-                          {p.productName}
+                    <span className="text-xs font-mono text-slate-300 w-4 shrink-0 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-700 truncate max-w-[180px]" title={p.page}>{p.page}</span>
+                        <span className="text-xs text-slate-500 ml-1 shrink-0">
+                          {p.visits} <span className="text-slate-300">({pct.toFixed(1)}%)</span>
                         </span>
-                        <div className="flex items-center gap-3 ml-2 shrink-0">
-                          <span className="text-[10px] text-slate-400">{p.totalQuantity} adet · {p.orderCount} sip.</span>
-                          <span className="text-xs font-semibold text-emerald-700">{formatCurrency(p.totalRevenue)}</span>
-                          <span className="text-[10px] text-slate-400 w-8 text-right">{revShare.toFixed(1)}%</span>
-                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${(p.totalRevenue / maxRevenue) * 100}%` }} />
-                        </div>
-                      </div>
+                      <AnimBar pct={(p.visits / maxP) * 100} color="#8b5cf6" delay={i * 60} />
                     </div>
                   </div>
                 );
@@ -329,6 +462,49 @@ export default function AnalizPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Product Performance */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <Package className="w-4 h-4 text-emerald-500" />
+            Ürün Performansı — En Çok Satan
+          </h2>
+          {productSales.length > 0 && (
+            <span className="text-xs text-slate-400">{productSales.length} ürün</span>
+          )}
+        </div>
+        {loadingP ? <SkeletonRows n={6} /> : !productSales.length ? (
+          <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {productSales.map((p, i) => {
+              const maxRev = productSales[0].totalRevenue;
+              const revShare = totalRevenue > 0 ? (p.totalRevenue / totalRevenue) * 100 : 0;
+              return (
+                <div key={p.productId} className="flex items-center gap-3">
+                  <span className="text-xs font-mono text-slate-300 w-5 shrink-0 text-right">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-slate-700 truncate max-w-[220px]" title={p.productName}>
+                        {p.productName}
+                      </span>
+                      <div className="flex items-center gap-3 ml-2 shrink-0">
+                        <span className="text-[10px] text-slate-400 hidden sm:inline">
+                          {p.totalQuantity} adet · {p.orderCount} sip.
+                        </span>
+                        <span className="text-xs font-semibold text-emerald-700">{formatCurrency(p.totalRevenue)}</span>
+                        <span className="text-[10px] text-slate-400 w-8 text-right">{revShare.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <AnimBar pct={(p.totalRevenue / maxRev) * 100} color="#10b981" delay={i * 40} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

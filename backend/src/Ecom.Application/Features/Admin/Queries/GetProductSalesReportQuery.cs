@@ -48,7 +48,7 @@ public class GetProductSalesReportQueryHandler(IDapperQueryService dapper, ICach
             WHERE o.CreatedDate >= @Since
               AND o.Status NOT IN (8, 9)
               AND o.IsDeleted = 0
-              AND (@AdminId IS NULL OR p.CreatedByAdminId = @AdminId)
+              AND (@AdminId IS NULL OR p.CreatedByAdminId = @AdminId OR p.CreatedByAdminId IS NULL)
             GROUP BY oi.ProductId, p.Name, p.SKU
             ORDER BY TotalRevenue DESC";
 
