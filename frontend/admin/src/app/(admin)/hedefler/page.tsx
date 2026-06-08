@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { SalesGoal } from "@/types";
@@ -19,6 +20,7 @@ interface DashboardStats {
 }
 
 export default function HedeflerPage() {
+  const { t } = useI18n();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [monthFilter, setMonthFilter] = useState(0);
@@ -87,7 +89,7 @@ export default function HedeflerPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Hedefler</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./hedefler", "Hedefler")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">Aylık satış miktarı ve gelir hedeflerini belirleyin</p>
         </div>
         <div className="flex items-center gap-3">

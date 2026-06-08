@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -13,6 +14,7 @@ import {
 interface RefundNote { orderId: string; orderNumber: string; note: string }
 
 export default function IadePage() {
+  const { t } = useI18n();
   const [seeding, setSeeding] = useState(false);
 
   async function handleSeedReturns() {
@@ -97,7 +99,7 @@ export default function IadePage() {
               <RotateCcw size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">İade Yönetimi</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./iade", "İade Yönetimi")}</h1>
               <p className="text-red-100 text-xs mt-0.5">
                 Müşterinin iade talep ettiği siparişler — onaylayın veya reddedin
               </p>

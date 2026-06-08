@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   CreditCard, RefreshCw, CheckCircle2, XCircle, AlertTriangle,
@@ -73,6 +74,7 @@ const STATUS_FILTERS = [
 const PAGE_SIZE = 20;
 
 export default function OdemelerPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<PaymentListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -189,7 +191,7 @@ export default function OdemelerPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-teal-600" />
-            Ödemeler
+            {t("nav./odemeler", "Ödemeler")}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">Tüm ödeme işlemlerini izleyin, onaylayın veya askıya alın</p>
         </div>

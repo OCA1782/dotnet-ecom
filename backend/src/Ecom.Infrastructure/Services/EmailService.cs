@@ -57,6 +57,15 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, toName, subject, body, ct);
     }
 
+    public async Task SendPasswordReminderAsync(string toEmail, string toName, int daysSinceLastChange, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com")
+            logger.LogInformation("[EMAIL-DEV] PasswordReminder Days={Days} To={To}", daysSinceLastChange, toEmail);
+        var subject = "Şifrenizi Güncelleme Zamanı — Ecom";
+        var body = EmailTemplates.PasswordReminder(toName, daysSinceLastChange);
+        await SendAsync(toEmail, toName, subject, body, ct);
+    }
+
     public async Task SendPasswordResetAsync(string toEmail, string toName, string resetToken, CancellationToken ct = default)
     {
         var resetUrl = $"{_resetBaseUrl}?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";

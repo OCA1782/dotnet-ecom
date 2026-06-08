@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import type { PaginatedList } from "@/types";
 import {
@@ -133,6 +134,7 @@ function statusCodeColor(code?: number) {
 }
 
 export default function TakipPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,7 +220,7 @@ export default function TakipPage() {
               <AlertTriangle size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">Sistem Takibi</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./takip", "Sistem Takibi")}</h1>
               <p className="text-red-100 text-xs mt-0.5">
                 Backend &amp; frontend hataları, uyarılar ve bilgi mesajları — gerçek zamanlı izleme
               </p>

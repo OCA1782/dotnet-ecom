@@ -57,7 +57,7 @@ function FooterBrandName({ name }: { name: string }) {
 export default async function Footer() {
   const settings = await getSettings();
 
-  const siteName = settings.SiteName || "Keyvora";
+  const siteName = settings.SiteName || "";
   const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || undefined;
   const tagline = settings.Footer_Tagline || "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.";
   const email = settings.ContactEmail || "";

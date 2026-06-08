@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
@@ -41,6 +42,7 @@ type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
 export default function StockPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<"stok" | "hareketler">("stok");
 
   // Per-row item history
@@ -277,7 +279,7 @@ export default function StockPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <h1 className="text-2xl font-bold text-slate-900">Stok Yönetimi</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("page./stok", "Stok Yönetimi")}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ürün ID", "Miktar", "Tip", "Not"], "stok")}

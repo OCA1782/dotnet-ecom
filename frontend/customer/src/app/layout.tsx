@@ -20,7 +20,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const siteName = settings.SiteName || "Keyvora";
+  const siteName = settings.SiteName || "";
   const rawFavicon = settings.CustomerFaviconUrl || settings.FaviconUrl || "/logo-icon.png";
   const version = settings.SettingsVersion ?? "";
   const faviconUrl = version ? `${rawFavicon}?v=${version}` : rawFavicon;

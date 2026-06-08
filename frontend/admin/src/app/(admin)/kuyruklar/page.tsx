@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   RefreshCw, CheckCircle2, XCircle, Clock, AlertTriangle,
@@ -179,6 +180,7 @@ function FlowNode({ icon: Icon, label, sub, color }: {
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function KuyrukPage() {
+  const { t } = useI18n();
   const [data, setData]             = useState<QueueData | null>(null);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -275,7 +277,7 @@ export default function KuyrukPage() {
               <Cpu size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">Kuyruk İzleme</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./kuyruklar", "Kuyruk İzleme")}</h1>
               <p className="text-teal-100 text-xs mt-0.5">Outbox mesajları, saga durumları ve event consumer&apos;ların anlık izlenmesi</p>
               {stats && (
                 <div className="flex items-center gap-3 mt-1.5 text-xs">

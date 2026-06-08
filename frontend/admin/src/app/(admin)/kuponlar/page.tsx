@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import type { Coupon, PaginatedList } from "@/types";
 import { COUPON_TYPE_LABEL } from "@/types";
@@ -80,6 +81,7 @@ function toISOLocal(dt: string) {
 }
 
 export default function KuponlarPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"kuponlar" | "hareketler">("kuponlar");
 
   // --- Coupon list ---
@@ -243,7 +245,7 @@ export default function KuponlarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Kuponlar</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./kuponlar", "Kuponlar")}</h1>
           {!loading && <p className="text-slate-500 text-sm mt-0.5">{total} kupon</p>}
         </div>
         <div className="flex items-center gap-2">

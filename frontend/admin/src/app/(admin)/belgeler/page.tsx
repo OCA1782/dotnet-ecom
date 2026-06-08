@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   FolderOpen, Trash2, Copy, Check, ExternalLink,
@@ -61,6 +62,7 @@ function TypeLabel({ contentType }: { contentType: string }) {
 }
 
 export default function BelgelerPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<PagedResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -128,7 +130,7 @@ export default function BelgelerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Dosya Yönetimi</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("nav./belgeler", "Dosya Yönetimi")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Upload edilen tüm dosyalar — görseller, videolar, dokümanlar
           </p>

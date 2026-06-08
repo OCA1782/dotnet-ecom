@@ -49,6 +49,7 @@ public class GoogleLoginCommandHandler(
                 KvkkConsentDate = DateTime.UtcNow,
                 AvatarUrl = googleUser.AvatarUrl,
                 LastLoginDate = DateTime.UtcNow,
+                DataSource = "Google",
             };
             user.Roles.Add(new Domain.Entities.UserRole { Role = Domain.Enums.UserRole.Customer });
             db.Users.Add(user);

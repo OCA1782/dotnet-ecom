@@ -842,6 +842,173 @@ html[data-template="cini"] .bg-orange-500 { background: #D4882C !important; }
    Header: yüksek özgüllük — !important'lı şablon span kurallarını geçer.
    Footer: düz seçici, şablon footer override'ları ile çakışmaz.
 ══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   ACCOUNT PAGES — hesabım ve alt sayfalar
+   --color-primary tabanlı, şablona göre değişen UI
+══════════════════════════════════════════════════════ */
+
+.acct-card {
+  background: #ffffff; border: 1px solid #e2e8f0;
+  border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.05); padding: 1.5rem;
+}
+.acct-card-warn { border-color: #fde68a; }
+
+.acct-input {
+  width: 100%; border: 1.5px solid #cbd5e1; border-radius: .75rem;
+  padding: .5rem .75rem; font-size: .875rem; color: #1e293b; background: #ffffff;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.acct-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.acct-input-otp {
+  width: 100%; border: 1.5px solid #cbd5e1; border-radius: .75rem;
+  padding: .5rem .75rem; font-size: 1.25rem; color: #1e293b; background: #ffffff;
+  text-align: center; letter-spacing: .4em; font-family: monospace;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.acct-input-otp:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.btn-brand {
+  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+  background-color: var(--color-primary); color: #ffffff;
+  font-size: .875rem; font-weight: 600; padding: .625rem 1.5rem;
+  border-radius: .75rem; border: none; cursor: pointer;
+  transition: filter .15s; line-height: 1;
+}
+.btn-brand:hover:not(:disabled) { filter: brightness(.88); }
+.btn-brand:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+  background: transparent; color: #475569;
+  font-size: .875rem; font-weight: 500; padding: .625rem 1.25rem;
+  border-radius: .75rem; border: 1.5px solid #cbd5e1; cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.btn-ghost:hover:not(:disabled) { background: #f8fafc; color: #334155; }
+.btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-danger {
+  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+  background: #dc2626; color: #ffffff;
+  font-size: .875rem; font-weight: 600; padding: .625rem 1.25rem;
+  border-radius: .75rem; border: none; cursor: pointer; transition: filter .15s;
+}
+.btn-danger:hover:not(:disabled) { filter: brightness(.88); }
+.btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-link {
+  background: none; border: none; padding: 0;
+  color: var(--color-primary); font-size: .875rem; font-weight: 500;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-link:hover:not(:disabled) { opacity: .7; }
+.btn-link:disabled { opacity: .4; cursor: not-allowed; }
+
+.badge-ok {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .7rem; font-weight: 600; padding: .2rem .6rem; border-radius: 9999px;
+  background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;
+}
+.badge-warn {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .7rem; font-weight: 600; padding: .2rem .6rem; border-radius: 9999px;
+  background: #fffbeb; color: #b45309; border: 1px solid #fde68a;
+}
+.badge-brand {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .7rem; font-weight: 600; padding: .2rem .6rem; border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+.badge-muted {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .7rem; font-weight: 600; padding: .2rem .6rem; border-radius: 9999px;
+  background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;
+}
+.badge-consent {
+  display: inline-flex; align-items: center; gap: .375rem;
+  font-size: .75rem; font-weight: 500; padding: .375rem .875rem; border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+/* ─ Dark ─ */
+html[data-template="dark"] .acct-card { background: #1e293b; border-color: #334155; }
+html[data-template="dark"] .acct-card-warn { border-color: #92400e; }
+html[data-template="dark"] .acct-input, html[data-template="dark"] .acct-input-otp { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+html[data-template="dark"] .btn-ghost { color: #94a3b8; border-color: #475569; }
+html[data-template="dark"] .btn-ghost:hover { background: #0f172a; color: #cbd5e1; }
+html[data-template="dark"] .badge-ok { background: #052e16; border-color: #166534; color: #4ade80; }
+html[data-template="dark"] .badge-warn { background: #431407; border-color: #92400e; color: #fb923c; }
+html[data-template="dark"] .badge-muted { background: #0f172a; border-color: #334155; color: #94a3b8; }
+
+/* ─ Glassmorphism ─ */
+html[data-template="glassmorphism"] .acct-card { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.13); backdrop-filter: blur(16px); }
+html[data-template="glassmorphism"] .acct-card-warn { border-color: rgba(245,158,11,.35); }
+html[data-template="glassmorphism"] .acct-input, html[data-template="glassmorphism"] .acct-input-otp { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); color: #f0e6ff; }
+html[data-template="glassmorphism"] .btn-ghost { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #e2e8f0; }
+html[data-template="glassmorphism"] .badge-ok { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.3); color: #6ee7b7; }
+html[data-template="glassmorphism"] .badge-warn { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.3); color: #fcd34d; }
+html[data-template="glassmorphism"] .badge-muted { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); color: #94a3b8; }
+
+/* ─ Neon ─ */
+html[data-template="neon"] .acct-card { background: rgba(10,0,32,.88); border-color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+html[data-template="neon"] .acct-card-warn { border-color: rgba(251,191,36,.4); }
+html[data-template="neon"] .acct-input, html[data-template="neon"] .acct-input-otp { background: rgba(5,0,16,.9); border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); color: #f0e6ff; }
+html[data-template="neon"] .btn-ghost { background: rgba(10,0,32,.5); border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); color: #d8b4fe; }
+html[data-template="neon"] .badge-ok { background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.3); color: #4ade80; }
+html[data-template="neon"] .badge-warn { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.28); color: #fbbf24; }
+html[data-template="neon"] .badge-muted { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); color: #7744aa; }
+
+/* ─ Brutalist ─ */
+html[data-template="brutalist"] .acct-card { border-width: 3px; border-color: #111; box-shadow: 4px 4px 0 #111; border-radius: 0; }
+html[data-template="brutalist"] .acct-card-warn { border-color: #111; }
+html[data-template="brutalist"] .btn-brand, html[data-template="brutalist"] .btn-ghost,
+html[data-template="brutalist"] .btn-danger { border-radius: 0; border: 3px solid #111; }
+html[data-template="brutalist"] .btn-ghost { box-shadow: 3px 3px 0 #111; }
+html[data-template="brutalist"] .badge-ok, html[data-template="brutalist"] .badge-warn,
+html[data-template="brutalist"] .badge-brand, html[data-template="brutalist"] .badge-muted { border-radius: 0; border-width: 2px; }
+html[data-template="brutalist"] .acct-input, html[data-template="brutalist"] .acct-input-otp { border-radius: 0; border-width: 3px; border-color: #111; }
+
+/* ─ Retro ─ */
+html[data-template="retro"] .acct-card { background: #fef9ef; border: 3px solid #1c1917; border-radius: .25rem; box-shadow: 3px 3px 0 #1c1917; }
+html[data-template="retro"] .btn-brand, html[data-template="retro"] .btn-ghost,
+html[data-template="retro"] .btn-danger { border-radius: .25rem; }
+html[data-template="retro"] .acct-input, html[data-template="retro"] .acct-input-otp { background: #fffbf0; border: 2px solid #78716c; border-radius: .25rem; }
+html[data-template="retro"] .acct-input:focus, html[data-template="retro"] .acct-input-otp:focus { border-color: #1c1917; box-shadow: none; }
+
+/* ─ Bold ─ */
+html[data-template="bold"] .acct-card { border-radius: 1.5rem; }
+html[data-template="bold"] .btn-brand, html[data-template="bold"] .btn-ghost,
+html[data-template="bold"] .btn-danger { border-radius: 9999px; padding-left: 1.75rem; padding-right: 1.75rem; }
+html[data-template="bold"] .badge-ok, html[data-template="bold"] .badge-warn,
+html[data-template="bold"] .badge-brand, html[data-template="bold"] .badge-muted { border-radius: 9999px; }
+html[data-template="bold"] .acct-input, html[data-template="bold"] .acct-input-otp { border-radius: 9999px; padding-left: 1.25rem; padding-right: 1.25rem; }
+
+/* ─ Minimal ─ */
+html[data-template="minimal"] .acct-card { box-shadow: none; border-color: #ebebeb; }
+html[data-template="minimal"] .btn-brand, html[data-template="minimal"] .btn-ghost,
+html[data-template="minimal"] .btn-danger { border-radius: .5rem; }
+html[data-template="minimal"] .acct-input, html[data-template="minimal"] .acct-input-otp { border-radius: .5rem; }
+
+/* ─ Cini / Anadolu / Atolye — sharp corners ─ */
+html[data-template="cini"] .acct-card, html[data-template="cini"] .btn-brand,
+html[data-template="cini"] .btn-ghost, html[data-template="cini"] .btn-danger,
+html[data-template="cini"] .badge-ok, html[data-template="cini"] .badge-warn,
+html[data-template="cini"] .badge-brand, html[data-template="cini"] .badge-muted,
+html[data-template="cini"] .acct-input, html[data-template="cini"] .acct-input-otp { border-radius: 0 !important; }
+html[data-template="cini"] .acct-card { background: #FEFCF7; border-color: #C9B89A; }
+
+html[data-template="atolye"] .acct-card { background: #FEFCF7; border-color: #D9CEBC; }
+html[data-template="anadolu"] .acct-card { background: #FEFCF7; border-color: #D9CEBC; }
+
 header[data-tmpl-header] [data-slot="logo"] [data-brand-name] {
   color: var(--tmpl-logo-color, #0F5F8F) !important;
   font-family: var(--font-pacifico, Georgia, serif) !important;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   Clock, Play, Pause, RefreshCw, Terminal, ChevronDown, ChevronUp,
@@ -611,6 +612,7 @@ function Toast({ message, type }: { message: string; type: "success" | "error" |
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function JoblarPage() {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -721,7 +723,7 @@ export default function JoblarPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Clock size={24} className="text-teal-500" />
-            Arka Plan İşleri
+            {t("page./joblar", "Arka Plan İşleri")}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             {jobs.length} job kayıtlı

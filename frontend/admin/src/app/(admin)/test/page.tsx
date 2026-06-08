@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   CheckCircle2, XCircle, Circle, ChevronDown, ChevronRight, RefreshCw,
   FlaskConical, ExternalLink, Play, Zap, Shield, Eye, Activity,
@@ -1065,6 +1066,7 @@ function TestModelPanel() {
 type MainTab = "scenarios" | "seed";
 
 export default function TestPage() {
+  const { t } = useI18n();
   const [mainTab, setMainTab] = useState<MainTab>("scenarios");
   const [results, setResults] = useState<Record<string, { status: Status; note: string }>>(loadResults);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
@@ -1182,7 +1184,7 @@ export default function TestPage() {
                 <FlaskConical className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-extrabold text-white">Test Merkezi</h1>
+                <h1 className="text-xl font-extrabold text-white">{t("page./test", "Test Merkezi")}</h1>
                 <p className="text-violet-300 text-xs mt-0.5">
                   {total} test · {TEST_GROUPS.length} grup · Backend, Frontend ve Güvenlik
                 </p>

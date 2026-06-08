@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
@@ -56,6 +57,7 @@ type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
 export default function MarkalarPage() {
+  const { t } = useI18n();
   const [historyTarget, setHistoryTarget] = useState<Brand | null>(null);
   const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -221,7 +223,7 @@ export default function MarkalarPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Markalar</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./markalar", "Markalar")}</h1>
           {!loading && <p className="text-sm text-slate-500 mt-0.5">{totalCount} marka</p>}
         </div>
         <div className="flex items-center gap-2">

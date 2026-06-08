@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   BookOpen, ShoppingCart, CreditCard, Truck, RotateCcw,
   Server, Database, Layers, ArrowRight, Users, Package,
@@ -1864,6 +1865,7 @@ function YeniliklerTab() {
 
 /* ─── Main Page ───────────────────────────────────────────────────────── */
 export default function DokumanPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<DocTab>("surecler");
 
   return (
@@ -1872,7 +1874,7 @@ export default function DokumanPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-teal-600" />
-            Dokümanlar
+            {t("nav./dokuman", "Dokümanlar")}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">İş süreçleri ve teknik mimari dokümantasyonu</p>
         </div>

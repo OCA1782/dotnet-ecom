@@ -58,8 +58,8 @@ public class CreateAdminUserHandler(
             PhoneNumber = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone,
             AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl,
             IsActive = true,
-            EmailConfirmed = true,
-            CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
+            DataSource = "Admin",
+            CreatedByAdminId = currentUser.UserId,
         };
 
         db.Users.Add(user);

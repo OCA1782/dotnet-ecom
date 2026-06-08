@@ -22,6 +22,8 @@ import { ROLE_LABELS } from "@/lib/roles";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 
 type NavItem = {
   href: string;
@@ -135,13 +137,14 @@ function EnvBadge() {
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayoutInner({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const { user, loading, logout, refreshSession } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const [siteTitle, setSiteTitle] = useState(() =>
-    typeof window !== "undefined" ? (localStorage.getItem("admin:siteTitle") || "Keyvora") : "Keyvora"
+    typeof window !== "undefined" ? (localStorage.getItem("admin:siteTitle") || "") : ""
   );
   const [logoUrl, setLogoUrl] = useState(() =>
     typeof window !== "undefined" ? (localStorage.getItem("admin:logoUrl") || "/logo-icon.png") : "/logo-icon.png"
@@ -408,13 +411,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 { href: "/yonetim", label: "Yönetim", icon: Settings, group: "sistem" as const },
                 { href: "/test", label: "Test", icon: FlaskConical, group: "sistem" as const },
               ];
-              const results = allSearchable.filter(i => i.label.toLowerCase().includes(q));
+              const results = allSearchable.filter(i => {
+                const tl = t("nav." + i.href, i.label).toLowerCase();
+                return tl.includes(q) || i.label.toLowerCase().includes(q);
+              });
               return results.length === 0 ? (
                 <p className="px-5 py-4 text-xs text-slate-500">Sonuç bulunamadı.</p>
               ) : (
                 <div className="pt-1">
                   {results.map(({ href, label, icon: Icon }) => {
                     const active = pathname === href || pathname.startsWith(href + "/");
+                    const tlabel = t("nav." + href, label);
                     return (
                       <Link key={href} href={href} onClick={() => setNavSearch("")}
                         className={`flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition border-l-2 ${
@@ -423,7 +430,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
                         }`}>
                         <Icon size={17} className="shrink-0" />
-                        <span className="truncate">{label}</span>
+                        <span className="truncate">{tlabel}</span>
                         {active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
                       </Link>
                     );
@@ -448,7 +455,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       {GroupIcon && <GroupIcon size={9} className="opacity-70 shrink-0 text-slate-600" />}
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 select-none flex-1">
-                        {group.label}
+                        {t("group." + group.id, group.label)}
                       </span>
                       {hasActiveItem && !isOpen && (
                         <span className="w-1 h-1 rounded-full bg-teal-400 mr-1" />
@@ -462,8 +469,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {collapsed && <div className="mx-3 my-1.5 border-t border-white/10" />}
                   {isOpen && groupItems.map(({ href, label, icon: Icon }) => {
                     const active = pathname === href || pathname.startsWith(href + "/");
+                    const tlabel = t("nav." + href, label);
                     return (
-                      <Link key={href} href={href} title={collapsed ? label : undefined}
+                      <Link key={href} href={href} title={collapsed ? tlabel : undefined}
                         className={`flex items-center gap-3 py-2.5 text-sm font-medium transition border-l-2 ${
                           collapsed ? "px-0 justify-center" : "px-6"
                         } ${
@@ -472,7 +480,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
                         }`}>
                         <Icon size={17} className="shrink-0" />
-                        {!collapsed && <span className="truncate">{label}</span>}
+                        {!collapsed && <span className="truncate">{tlabel}</span>}
                         {!collapsed && active && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
                       </Link>
                     );
@@ -559,11 +567,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         `}</style>
         <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-            {navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))?.label
-              ?? (pathname === SETTINGS_ITEM.href ? SETTINGS_ITEM.label
-                : pathname === TEST_ITEM.href ? TEST_ITEM.label : "")}
+            {(() => {
+              const n = navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"));
+              if (n) return t("nav." + n.href, n.label);
+              if (pathname === SETTINGS_ITEM.href) return t("nav." + SETTINGS_ITEM.href, SETTINGS_ITEM.label);
+              if (pathname === TEST_ITEM.href) return t("nav." + TEST_ITEM.href, TEST_ITEM.label);
+              return "";
+            })()}
           </span>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <EnvBadge />
             {PAGE_GUIDES[pathname] && (
               <button
@@ -794,5 +807,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onLogout={() => { logout(); router.push("/giris"); }}
       />
     </div>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <I18nProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </I18nProvider>
   );
 }

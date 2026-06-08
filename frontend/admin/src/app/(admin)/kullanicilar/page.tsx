@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
@@ -55,12 +56,27 @@ interface NewUserForm { name: string; surname: string; email: string; password: 
 interface EditUserForm { id: string; name: string; surname: string; email: string; phoneNumber: string; role: string; profileImageUrl: string; }
 const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: "", role: "Customer", phone: "", avatarUrl: "" };
 
+const DATA_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
+  Google:  { label: "Google Hesabı",  className: "bg-blue-100 text-blue-700" },
+  google:  { label: "Google Hesabı",  className: "bg-blue-100 text-blue-700" },
+  Admin:   { label: "Admin Paneli",   className: "bg-indigo-100 text-indigo-700" },
+  admin:   { label: "Admin Paneli",   className: "bg-indigo-100 text-indigo-700" },
+  test:    { label: "Test Verisi",     className: "bg-slate-100 text-slate-500" },
+  import:  { label: "İçe Aktarma",    className: "bg-amber-100 text-amber-700" },
+};
+
+function formatDataSource(src: string | undefined): { label: string; className: string } | null {
+  if (!src) return null;
+  return DATA_SOURCE_LABELS[src] ?? { label: src, className: "bg-violet-100 text-violet-700" };
+}
+
 const PAGE_SIZES = [20, 50, 100];
 
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
 export default function UsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -283,7 +299,7 @@ export default function UsersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Kullanıcılar</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./kullanicilar", "Kullanıcılar")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">{totalCount} kullanıcı</p>
         </div>
         <div className="flex items-center gap-2">
@@ -374,7 +390,7 @@ export default function UsersPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-slate-500">{u.email}</span>
                       {u.emailConfirmed
-                        ? <span title="E-posta doğrulandı" className="text-teal-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6L9 17l-5-5"/></svg></span>
+                        ? <span title={u.dataSource === "Google" ? "E-posta doğrulandı (Google)" : "E-posta doğrulandı"} className="text-teal-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6L9 17l-5-5"/></svg></span>
                         : <span title="E-posta doğrulanmamış" className="text-amber-500"><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
                       }
                     </div>
@@ -406,9 +422,11 @@ export default function UsersPage() {
                   </td>
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{formatDate(u.createdDate)}</td>
                   <td className="px-5 py-3.5">
-                    {u.dataSource ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{u.dataSource}</span> : <span className="text-xs text-slate-300">—</span>}
+                    {(() => { const ds = formatDataSource(u.dataSource); return ds ? <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${ds.className}`}>{ds.label}</span> : <span className="text-xs text-slate-300">—</span>; })()}
                   </td>
-                  <td className="px-5 py-3.5 text-xs text-slate-400 max-w-[140px] truncate" title={u.createdByAdminEmail}>{u.createdByAdminEmail ?? "—"}</td>
+                  <td className="px-5 py-3.5 text-xs text-slate-400 max-w-[140px] truncate" title={u.createdByAdminEmail ?? undefined}>
+                    {u.dataSource === "test" ? "—" : (u.createdByAdminEmail ?? "—")}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openHistory(u)} title="Geçmiş"

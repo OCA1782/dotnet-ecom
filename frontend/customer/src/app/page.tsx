@@ -9,7 +9,7 @@ import { getSettings } from "@/lib/settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const siteName = settings.SiteName || "Keyvora";
+  const siteName = settings.SiteName || "";
   return {
     title: "Ana Sayfa",
     description: "Keyifli alışverişin yeni adresi. Binlerce ürün, güvenli ödeme, hızlı teslimat.",

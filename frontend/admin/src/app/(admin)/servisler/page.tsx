@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   Activity, RefreshCw, CheckCircle2, XCircle, AlertTriangle,
@@ -251,6 +252,7 @@ function StatCell({ label, value, unit = "ms", highlight }: { label: string; val
 // ── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function ServislerPage() {
+  const { t } = useI18n();
   const [report, setReport]           = useState<HealthReport | null>(null);
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
@@ -374,7 +376,7 @@ export default function ServislerPage() {
           <div className="flex items-center gap-4">
             <HealthRing score={healthScore} />
             <div>
-              <h1 className="text-xl font-extrabold text-white">Servis Durumu</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./servisler", "Servis Durumu")}</h1>
               <p className="text-teal-100 text-xs mt-0.5">API, veritabanı ve bağlı servislerin gerçek zamanlı sağlık kontrolü</p>
               {report && (
                 <div className="flex items-center gap-3 mt-1.5 text-xs">

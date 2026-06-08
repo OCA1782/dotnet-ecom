@@ -34,7 +34,7 @@ function ResetPasswordForm() {
       const msg = encodeURIComponent("Merhaba! Şifremi unuttum, yardım alabilir miyim?");
       window.open(`https://wa.me/905550000000?text=${msg}`, "_blank");
     } else if (ch === "telegram") {
-      window.open("https://t.me/keyvora_destek", "_blank");
+      window.open("https://t.me/", "_blank");
     }
   }
 

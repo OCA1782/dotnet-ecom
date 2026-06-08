@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   Plus, Pencil, Trash2, Search, X, Upload, Link2,
@@ -102,6 +103,7 @@ function MediaPreview({ url, type }: { url: string; type: string }) {
 }
 
 export default function DuyurularPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<Announcement[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -252,7 +254,7 @@ export default function DuyurularPage() {
             <Megaphone size={20} className="text-teal-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Duyurular & Bültenler</h1>
+            <h1 className="text-xl font-bold text-slate-800">{t("page./duyurular", "Duyurular & Bültenler")}</h1>
             <p className="text-xs text-slate-500">{total} kayıt · {activeCount} aktif</p>
           </div>
         </div>

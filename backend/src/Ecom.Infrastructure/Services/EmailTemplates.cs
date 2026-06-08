@@ -196,4 +196,21 @@ internal static class EmailTemplates
               </p>
             </div>
         """);
+
+    public static string PasswordReminder(string name, int daysSinceLastChange) =>
+        Wrap("Şifrenizi Değiştirme Zamanı", $"""
+            <h2 style="color:#18181b;margin:0 0 16px;">Merhaba {name},</h2>
+            <p style="color:#3f3f46;line-height:1.6;">
+              Hesap güvenliğiniz için şifrenizi düzenli olarak değiştirmenizi öneririz.
+              Şifreniz <strong>{daysSinceLastChange} gün</strong> önce belirlendi ve güncelleme zamanı geldi.
+            </p>
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin:24px 0;">
+              <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
+                🔐 Şifrenizi değiştirmek için <strong>Hesabım → Güvenlik → Şifremi Değiştir</strong> bölümüne gidin.
+              </p>
+            </div>
+            <p style="color:#71717a;font-size:13px;line-height:1.6;">
+              Bu hatırlatma otomatik olarak gönderilmiştir. Şifrenizi zaten değiştirdiyseniz bu e-postayı dikkate almayınız.
+            </p>
+        """);
 }

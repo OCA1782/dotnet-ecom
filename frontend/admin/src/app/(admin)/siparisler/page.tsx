@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -56,6 +57,7 @@ function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-
 type ModalTarget = { orderId: string; orderNumber: string };
 
 export default function OrdersPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"siparisler" | "hareketler">("siparisler");
 
   // Hareketler
@@ -206,7 +208,7 @@ export default function OrdersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Siparişler</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./siparisler", "Siparişler")}</h1>
           {!loading && <p className="text-sm text-slate-500 mt-0.5">{totalCount} sipariş</p>}
         </div>
         <div className="flex gap-2">

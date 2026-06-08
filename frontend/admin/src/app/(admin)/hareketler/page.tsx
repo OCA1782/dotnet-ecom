@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel } from "@/lib/excel";
 import type { PaginatedList } from "@/types";
@@ -194,6 +195,7 @@ function CanlıAkis() {
 type HareketTab = "audit" | "canli";
 
 export default function HareketlerPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<HareketTab>("audit");
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,7 +270,7 @@ export default function HareketlerPage() {
               <Activity size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">Hareketler</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./hareketler", "Hareketler")}</h1>
               <p className="text-indigo-200 text-xs mt-0.5">Kullanıcı işlem geçmişi ve canlı sistem aktivitesi</p>
             </div>
           </div>

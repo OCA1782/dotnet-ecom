@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   Image as ImageIcon, Trash2, Copy, Check, ExternalLink,
@@ -65,6 +66,7 @@ function SourceBadge({ type }: { type: string }) {
 }
 
 export default function ImajlarPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<PagedResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -136,7 +138,7 @@ export default function ImajlarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">İmaj Yönetimi</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("nav./imajlar", "İmaj Yönetimi")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Ürün, kategori, marka ve duyurulardaki tüm görseller
           </p>

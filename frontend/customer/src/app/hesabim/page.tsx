@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
 
-const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-800";
+const INPUT = "acct-input";
 
 interface UserProfile {
   id: string;
@@ -248,7 +248,7 @@ export default function HesabimPage() {
   return (
     <div className="space-y-6">
           {/* Profil Kartı */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="acct-card">
             <div className="flex items-start gap-5">
               {/* Avatar */}
               <div className="relative shrink-0">
@@ -292,8 +292,7 @@ export default function HesabimPage() {
               </div>
 
               {!editing && (
-                <button onClick={startEdit}
-                  className="shrink-0 text-sm border border-slate-300 text-slate-600 px-4 py-1.5 rounded-xl hover:bg-slate-50 transition">
+                <button onClick={startEdit} className="btn-ghost shrink-0">
                   Düzenle
                 </button>
               )}
@@ -308,7 +307,7 @@ export default function HesabimPage() {
           )}
 
           {/* Bilgi Formu */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="acct-card">
             <h2 className="text-base font-semibold text-slate-800 mb-5">Kişisel Bilgiler</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -334,12 +333,12 @@ export default function HesabimPage() {
                     {profile.email} <span className="text-xs text-slate-400">(değiştirilemez)</span>
                   </p>
                   {emailConfirmed ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-teal-600 font-medium">
+                    <span className="badge-ok">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
                       Doğrulandı
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                    <span className="badge-warn">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                       Doğrulanmamış
                     </span>
@@ -355,12 +354,12 @@ export default function HesabimPage() {
                     <p className="text-sm text-slate-800">{profile.phoneNumber || <span className="text-slate-400 italic">Eklenmemiş</span>}</p>
                     {profile.phoneNumber && (
                       phoneConfirmed ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-teal-600 font-medium">
+                        <span className="badge-ok">
                           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
                           Doğrulandı
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                        <span className="badge-warn">
                           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                           Doğrulanmamış
                         </span>
@@ -382,17 +381,20 @@ export default function HesabimPage() {
             )}
 
             {!editing && profile.commercialConsent && (
-              <p className="mt-4 text-xs text-teal-600">✓ Ticari iletişim iznini verdiniz</p>
+              <div className="mt-4">
+                <span className="badge-consent">
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
+                  Ticari iletişim iznini verdiniz
+                </span>
+              </div>
             )}
 
             {editing && (
               <div className="flex gap-3 mt-6">
-                <button onClick={handleSave} disabled={saving}
-                  className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                <button onClick={handleSave} disabled={saving} className="btn-brand">
                   {saving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
-                <button onClick={cancelEdit}
-                  className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
+                <button onClick={cancelEdit} className="btn-ghost">
                   Vazgeç
                 </button>
               </div>
@@ -400,12 +402,11 @@ export default function HesabimPage() {
           </div>
 
           {/* Güvenlik Bölümü */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="acct-card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-slate-800">Güvenlik</h2>
               {!pwSection && (
-                <button onClick={() => { setPwSection(true); setPwMsg(null); }}
-                  className="text-sm text-teal-600 hover:text-teal-700 font-medium transition">
+                <button onClick={() => { setPwSection(true); setPwMsg(null); }} className="btn-link">
                   Şifremi Değiştir
                 </button>
               )}
@@ -436,12 +437,10 @@ export default function HesabimPage() {
                     className={INPUT} placeholder="••••••••" autoComplete="new-password" />
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button onClick={handleChangePassword} disabled={changingPw}
-                    className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                  <button onClick={handleChangePassword} disabled={changingPw} className="btn-brand">
                     {changingPw ? "Değiştiriliyor..." : "Şifreyi Değiştir"}
                   </button>
-                  <button onClick={() => { setPwSection(false); setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwMsg(null); }}
-                    className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
+                  <button onClick={() => { setPwSection(false); setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwMsg(null); }} className="btn-ghost">
                     Vazgeç
                   </button>
                 </div>
@@ -451,10 +450,10 @@ export default function HesabimPage() {
 
           {/* Hesap Doğrulama Bölümü */}
           {(!emailConfirmed || !phoneConfirmed) && (
-            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+            <div className="acct-card acct-card-warn">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-semibold text-slate-800">Hesap Doğrulama</h2>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Bekliyor</span>
+                <span className="badge-warn">Bekliyor</span>
               </div>
               <p className="text-sm text-slate-500 mb-4">
                 Hesabınızın güvenliği için e-posta ve telefon doğrulaması yapmanızı öneririz. Doğrulama, giriş yapmak için zorunlu değildir.
@@ -480,10 +479,9 @@ export default function HesabimPage() {
                           type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                           value={verifCodeEmail} onChange={e => setVerifCodeEmail(e.target.value.replace(/\D/g, ""))}
                           placeholder="6 haneli kod"
-                          className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.3em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                          className="acct-input-otp flex-1"
                         />
-                        <button onClick={handleVerifyEmail} disabled={verifyingEmail || verifCodeEmail.length !== 6}
-                          className="bg-teal-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                        <button onClick={handleVerifyEmail} disabled={verifyingEmail || verifCodeEmail.length !== 6} className="btn-brand">
                           {verifyingEmail ? "..." : "Doğrula"}
                         </button>
                       </div>
@@ -504,10 +502,9 @@ export default function HesabimPage() {
                           type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                           value={verifCodePhone} onChange={e => setVerifCodePhone(e.target.value.replace(/\D/g, ""))}
                           placeholder="6 haneli kod"
-                          className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-center tracking-[0.3em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                          className="acct-input-otp flex-1"
                         />
-                        <button onClick={handleVerifyPhone} disabled={verifyingPhone || verifCodePhone.length !== 6}
-                          className="bg-teal-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                        <button onClick={handleVerifyPhone} disabled={verifyingPhone || verifCodePhone.length !== 6} className="btn-brand">
                           {verifyingPhone ? "..." : "Doğrula"}
                         </button>
                       </div>
@@ -516,18 +513,17 @@ export default function HesabimPage() {
                 )}
               </div>
 
-              <button onClick={handleResendVerification} disabled={resending}
-                className="mt-4 bg-amber-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-50">
+              <button onClick={handleResendVerification} disabled={resending} className="btn-brand mt-4">
                 {resending ? "Gönderiliyor..." : "Doğrulama Kodu Gönder"}
               </button>
             </div>
           )}
 
           {/* 2FA Bölümü */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="acct-card">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-base font-semibold text-slate-800">İki Faktörlü Doğrulama</h2>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${twoFactorEnabled ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
+              <span className={twoFactorEnabled ? "badge-brand" : "badge-muted"}>
                 {twoFactorEnabled ? "Aktif" : "Pasif"}
               </span>
             </div>
@@ -542,8 +538,7 @@ export default function HesabimPage() {
             )}
 
             {!twoFactorEnabled && !showQr && (
-              <button onClick={handleSetup2FA} disabled={tfaLoading}
-                className="bg-teal-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+              <button onClick={handleSetup2FA} disabled={tfaLoading} className="btn-brand">
                 {tfaLoading ? "Hazırlanıyor..." : "Etkinleştir"}
               </button>
             )}
@@ -562,15 +557,13 @@ export default function HesabimPage() {
                   type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                   value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))}
                   placeholder="000000"
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-center text-xl tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="acct-input-otp w-full"
                 />
                 <div className="flex gap-3">
-                  <button onClick={handleEnable2FA} disabled={tfaLoading || tfaCode.length !== 6}
-                    className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
+                  <button onClick={handleEnable2FA} disabled={tfaLoading || tfaCode.length !== 6} className="btn-brand">
                     {tfaLoading ? "Doğrulanıyor..." : "Etkinleştir"}
                   </button>
-                  <button onClick={() => { setShowQr(false); setTotpUri(""); setTfaCode(""); setTfaMsg(null); }}
-                    className="border border-slate-300 text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-50 transition">
+                  <button onClick={() => { setShowQr(false); setTotpUri(""); setTfaCode(""); setTfaMsg(null); }} className="btn-ghost">
                     Vazgeç
                   </button>
                 </div>
@@ -584,10 +577,9 @@ export default function HesabimPage() {
                   type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                   value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))}
                   placeholder="000000"
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-center text-xl tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="acct-input-otp w-full"
                 />
-                <button onClick={handleDisable2FA} disabled={tfaLoading || tfaCode.length !== 6}
-                  className="bg-red-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-red-700 transition disabled:opacity-50">
+                <button onClick={handleDisable2FA} disabled={tfaLoading || tfaCode.length !== 6} className="btn-danger">
                   {tfaLoading ? "İşleniyor..." : "Devre Dışı Bırak"}
                 </button>
               </div>

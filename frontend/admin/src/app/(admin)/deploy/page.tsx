@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   Rocket, Server, Plus, Pencil, Trash2, Play, Wifi, Container,
   CheckCircle, XCircle, Clock, Loader2, ChevronDown,
@@ -1118,6 +1119,7 @@ function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }
 type Tab = "servers" | "logs";
 
 export default function DeployPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("servers");
   const [servers, setServers] = useState<DeployServer[]>([]);
   const [logs, setLogs] = useState<DeployLog[]>([]);
@@ -1255,7 +1257,7 @@ export default function DeployPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Rocket size={24} className="text-teal-600" />
-            Deploy Yönetimi
+            {t("page./deploy", "Deploy Yönetimi")}
           </h1>
           <p className="text-slate-500 text-sm mt-1">Sunucuları yapılandırın, deploy başlatın ve geçmişi takip edin</p>
         </div>

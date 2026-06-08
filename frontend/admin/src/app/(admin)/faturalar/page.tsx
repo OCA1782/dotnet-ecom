@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   FileText, Plus, RefreshCw, Search, Eye, CheckCircle, XCircle,
@@ -81,6 +82,7 @@ function fmtDate(s: string) {
 }
 
 export default function FaturalarPage() {
+  const { t } = useI18n();
   const [seeding, setSeeding] = useState(false);
 
   async function handleSeedInvoices() {
@@ -187,7 +189,7 @@ export default function FaturalarPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-teal-600" /> Fatura Yönetimi
+            <FileText className="w-6 h-6 text-teal-600" /> {t("page./faturalar", "Fatura Yönetimi")}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
             e-Arşiv / e-Fatura / e-İrsaliye belgelerini yönetin.

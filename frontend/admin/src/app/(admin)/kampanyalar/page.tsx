@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Megaphone, Image as ImageIcon, Palette, Type } from "lucide-react";
 
@@ -105,6 +106,7 @@ function ColorField({ label, value, onChange }: { label: string; value?: string;
 }
 
 export default function KampanyalarPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -180,7 +182,7 @@ export default function KampanyalarPage() {
             <Megaphone size={20} className="text-teal-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Kampanyalar</h1>
+            <h1 className="text-xl font-bold text-slate-800">{t("nav./kampanyalar", "Kampanyalar")}</h1>
             <p className="text-xs text-slate-500">{items.length} kampanya · {activeCount} aktif</p>
           </div>
         </div>

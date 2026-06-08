@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   Plus, Pencil, Trash2, RefreshCw, Upload, Download, ChevronDown, ChevronUp,
@@ -254,6 +255,7 @@ const defaultConfig = (type: string) =>
   type === "RestApi" ? JSON.stringify({ url: "", headers: {}, dataPath: "" }, null, 2) : "";
 
 export default function DisKaynaklarPage() {
+  const { t } = useI18n();
   const [sources, setSources] = useState<ExternalSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -647,7 +649,7 @@ export default function DisKaynaklarPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dış Kaynaklar</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./dis-kaynaklar", "Dış Kaynaklar")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">Excel veya REST API üzerinden veri içe aktarın</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

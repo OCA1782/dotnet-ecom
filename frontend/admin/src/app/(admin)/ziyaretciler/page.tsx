@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { MapPin, Search, RefreshCw, Globe, User, UserX, Monitor, Smartphone, Filter, Activity, AlertCircle, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
@@ -46,6 +47,7 @@ function browserLabel(ua?: string): { label: string; isMobile: boolean } {
 }
 
 export default function ZiyaretcilerPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<VisitorLog[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -86,7 +88,7 @@ export default function ZiyaretcilerPage() {
               <MapPin size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">Ziyaretçi Logları</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("page./ziyaretciler", "Ziyaretçi Logları")}</h1>
               <p className="text-teal-100 text-xs mt-0.5">
                 Müşteri sitesine gelen trafik — sayfa ziyaretleri, konum, tarayıcı bilgisi
               </p>

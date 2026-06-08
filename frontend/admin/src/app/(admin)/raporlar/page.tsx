@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   BarChart3, Globe, MapPin, TrendingUp, TrendingDown, Minus,
@@ -163,6 +164,7 @@ function SkeletonRows({ n = 5 }: { n?: number }) {
 const REFRESH_INTERVAL = 60_000;
 
 export default function AnalizPage() {
+  const { t } = useI18n();
   const [days, setDays] = useState(30);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
@@ -231,7 +233,7 @@ export default function AnalizPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-teal-600" />
-            Analiz
+            {t("nav./raporlar", "Analiz")}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Ziyaret, dönüşüm ve satış performansı

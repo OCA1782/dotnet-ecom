@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default async function HakkimizdaPage() {
   const settings = await getSettings();
   const content = settings.Page_Hakkimizda ?? "";
-  const siteName = settings.SiteName ?? "Keyvora";
+  const siteName = settings.SiteName ?? "";
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

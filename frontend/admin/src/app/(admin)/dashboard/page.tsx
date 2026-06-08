@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { DashboardStats, ModuleStats } from "@/types";
@@ -513,6 +514,7 @@ type Period = "today" | "week" | "month";
 const PERIOD_LABELS: Record<Period, string> = { today: "Bugün", week: "Bu Hafta", month: "Bu Ay" };
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [modules, setModules] = useState<ModuleStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -608,7 +610,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./dashboard", "Dashboard")}</h1>
           <p className="text-xs text-slate-400 mt-0.5">
             {new Date().toLocaleDateString("tr-TR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>

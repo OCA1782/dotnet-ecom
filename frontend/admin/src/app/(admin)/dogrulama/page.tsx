@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   CheckCircle2, XCircle, RefreshCw, Loader2, ShieldCheck,
@@ -80,6 +81,7 @@ const SCREEN_MAP: Record<string, string[]> = {
 };
 
 export default function DogrulamaPage() {
+  const { t } = useI18n();
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -132,7 +134,7 @@ export default function DogrulamaPage() {
         <div className="flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-blue-500" />
           <div>
-            <h1 className="text-xl font-semibold">TODO Doğrulama</h1>
+            <h1 className="text-xl font-semibold">{t("page./dogrulama", "TODO Doğrulama")}</h1>
             <p className="text-sm text-gray-500">
               Tamamlanan özelliklerin gerçekten implemente edildiğini doğrular
             </p>

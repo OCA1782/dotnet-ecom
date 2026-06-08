@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import {
@@ -102,6 +103,7 @@ function buildPageNums(total: number, current: number): (number | "…")[] {
 }
 
 export default function KategorilerPage() {
+  const { t } = useI18n();
   const [historyTarget, setHistoryTarget] = useState<Category | null>(null);
   const [historyLogs, setHistoryLogs] = useState<AuditLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -295,7 +297,7 @@ export default function KategorilerPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Kategoriler</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("nav./kategoriler", "Kategoriler")}</h1>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ad", "Açıklama", "Sıra", "Menüde"], "kategoriler")}
             className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>

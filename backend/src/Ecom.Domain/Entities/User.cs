@@ -36,6 +36,8 @@ public class User : BaseEntity
     public bool TwoFactorEnabled { get; set; } = false;
     public string? TwoFactorSecret { get; set; }
 
+    public DateTime? LastPasswordChangeDate { get; set; }
+
     // Null → self-registered or created by SuperAdmin; set → created by this Admin
     public Guid? CreatedByAdminId { get; set; }
 

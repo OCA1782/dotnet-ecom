@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { ADMIN_ROLE_COLUMNS } from "@/lib/roles";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -1148,6 +1149,7 @@ function CarrierManager() {
 const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","sistem"];
 
 export default function YonetimPage() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const initialTab = (VALID_TABS as string[]).includes(searchParams.get("tab") ?? "")
     ? searchParams.get("tab") as Tab
@@ -1590,7 +1592,7 @@ export default function YonetimPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Yönetim</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav./yonetim", "Yönetim")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">Site, panel ve içerik ayarları</p>
         </div>
         <button onClick={save} disabled={saving}
@@ -1630,10 +1632,10 @@ export default function YonetimPage() {
           <Section title="Site Bilgileri" icon={<Globe size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Site Adı" hint="Müşteri sitesi tarayıcı sekmesi, başlık ve tüm sayfalarda görünür">
-                <input value={settings.SiteName} onChange={e => set("SiteName", e.target.value)} className={inp} placeholder="Örn: Keyvora Store" />
+                <input value={settings.SiteName} onChange={e => set("SiteName", e.target.value)} className={inp} placeholder="Örn: Mağaza Adı" />
               </Field>
               <Field label="Admin Panel Başlığı" hint="Admin paneli sol üst köşesi ve tarayıcı sekmesinde görünür">
-                <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Örn: Keyvora" />
+                <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Örn: Yönetim Paneli" />
               </Field>
               <Field label="Para Birimi">
                 <select value={settings.Currency} onChange={e => set("Currency", e.target.value)} className={inp}>
@@ -1651,7 +1653,7 @@ export default function YonetimPage() {
           <Section title="İletişim Bilgileri" icon={<Settings size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="İletişim E-postası">
-                <input type="email" value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp} placeholder="info@keyvora.com" />
+                <input type="email" value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp} placeholder="info@magaza.com" />
               </Field>
               <Field label="İletişim Telefonu">
                 <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp} placeholder="+90 532 000 00 00" />
@@ -1661,11 +1663,11 @@ export default function YonetimPage() {
           <Section title="Sosyal Medya" icon={<Share2 size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                { label: "Instagram", key: "SocialInstagram", ph: "https://instagram.com/keyvora" },
-                { label: "Twitter / X", key: "SocialTwitter", ph: "https://twitter.com/keyvora" },
-                { label: "Facebook", key: "SocialFacebook", ph: "https://facebook.com/keyvora" },
-                { label: "YouTube", key: "SocialYoutube", ph: "https://youtube.com/@keyvora" },
-                { label: "LinkedIn", key: "SocialLinkedin", ph: "https://linkedin.com/company/keyvora" },
+                { label: "Instagram", key: "SocialInstagram", ph: "https://instagram.com/magaza" },
+                { label: "Twitter / X", key: "SocialTwitter", ph: "https://twitter.com/magaza" },
+                { label: "Facebook", key: "SocialFacebook", ph: "https://facebook.com/magaza" },
+                { label: "YouTube", key: "SocialYoutube", ph: "https://youtube.com/@magaza" },
+                { label: "LinkedIn", key: "SocialLinkedin", ph: "https://linkedin.com/company/magaza" },
               ].map(({ label, key, ph }) => (
                 <Field key={key} label={label}>
                   <div className="relative">
@@ -1998,7 +2000,7 @@ export default function YonetimPage() {
               {(() => {
                 const key = "CustomerFaviconUrl";
                 const busy = uploadingKey === key;
-                const siteName = settings.SiteName || "Keyvora";
+                const siteName = settings.SiteName || "";
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
@@ -2452,7 +2454,7 @@ export default function YonetimPage() {
                   <Field label="E-posta" hint="Genel sekmedeki ContactEmail kullanılır">
                     <div className="relative">
                       <Mail size={14} className="absolute left-3 top-3 text-slate-400" />
-                      <input value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp + " pl-9"} placeholder="destek@keyvora.com" />
+                      <input value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp + " pl-9"} placeholder="destek@magaza.com" />
                     </div>
                   </Field>
                   <Field label="Telefon">
@@ -2592,9 +2594,9 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
                     <MessageCircle size={15} /> Telegram
                   </p>
-                  <Field label="Bot Kullanıcı Adı" hint="Örn: @KeyvoraBot">
+                  <Field label="Bot Kullanıcı Adı" hint="Örn: @MagazaBot">
                     <input value={settings.TelegramBotUsername} onChange={e => set("TelegramBotUsername", e.target.value)}
-                      className={inp} placeholder="@KeyvoraBot" />
+                      className={inp} placeholder="@MagazaBot" />
                   </Field>
                   <Field label="Bot Token" hint="BotFather'dan alınan token. Asla halka açık edilmez.">
                     <input type="password" value={settings.TelegramBotToken} onChange={e => set("TelegramBotToken", e.target.value)}

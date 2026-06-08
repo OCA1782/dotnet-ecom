@@ -47,6 +47,7 @@ public class ChangePasswordHandler(IApplicationDbContext db, IPasswordService pa
             return Result.Failure("Yeni şifre mevcut şifreyle aynı olamaz.");
 
         user.PasswordHash = passwordService.Hash(request.NewPassword);
+        user.LastPasswordChangeDate = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }

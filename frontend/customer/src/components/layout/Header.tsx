@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import BrandLogo from "@/components/BrandLogo";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 type SuggestionItem = {
   type: "product" | "brand" | "category";
@@ -234,7 +235,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
                   style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }}
                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               ) : (
-                <BrandLogo name={siteName ?? "Keyvora"} size="md" />
+                <BrandLogo name={siteName ?? ""} size="md" />
               )}
             </Link>
 
@@ -326,6 +327,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
 
             {/* Actions */}
             <div className="flex items-center gap-4" data-slot="actions">
+              <LanguageSwitcher />
               {user ? (
                 <button
                   ref={buttonRef}

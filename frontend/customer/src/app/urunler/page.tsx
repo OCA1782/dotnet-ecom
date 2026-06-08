@@ -56,7 +56,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const [params, settings] = await Promise.all([searchParams, getSettings()]);
-  const siteName = settings.SiteName || "Keyvora";
+  const siteName = settings.SiteName || "";
   const title = params.s
     ? `"${params.s}" için Arama Sonuçları`
     : params.siralama === "yeni"     ? "Yeni Sezon Ürünleri"
