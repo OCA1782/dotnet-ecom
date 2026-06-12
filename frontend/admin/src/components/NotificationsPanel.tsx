@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, ShoppingCart, AlertTriangle, MessageSquare, X } from "lucide-react";
 import { api } from "@/lib/api";
@@ -37,6 +37,7 @@ export default function NotificationsPanel() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<NotificationsDto | null>(null);
   const [loading, setLoading] = useState(false);
+  const [now, setNow] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -52,8 +53,8 @@ export default function NotificationsPanel() {
   }, []);
 
   useEffect(() => {
-    const initialId = window.setTimeout(() => { void fetchNotifications(); }, 0);
-    const id = setInterval(fetchNotifications, 60_000);
+    const initialId = window.setTimeout(() => { setNow(Date.now()); void fetchNotifications(); }, 0);
+    const id = setInterval(() => { setNow(Date.now()); void fetchNotifications(); }, 60_000);
     return () => {
       window.clearTimeout(initialId);
       clearInterval(id);
@@ -71,6 +72,20 @@ export default function NotificationsPanel() {
   }, []);
 
   const count = data?.totalCount ?? 0;
+
+  const enrichedItems = useMemo(() => {
+    return (data?.items ?? []).map(item => {
+      const diff = (now - new Date(item.createdAt).getTime()) / 1000;
+      const ago = diff < 60
+        ? t("timeAgo.justNow", "az önce")
+        : diff < 3600
+          ? `${Math.floor(diff / 60)} ${t("timeAgo.min", "dk önce")}`
+          : diff < 86400
+            ? `${Math.floor(diff / 3600)} ${t("timeAgo.hour", "sa önce")}`
+            : `${Math.floor(diff / 86400)} ${t("timeAgo.day", "gün önce")}`;
+      return { ...item, ago };
+    });
+  }, [data, now, t]);
 
   return (
     <div className="relative" ref={panelRef}>
@@ -105,17 +120,10 @@ export default function NotificationsPanel() {
                 {t("notifications.empty", "Bildirim yok")}
               </div>
             )}
-            {data?.items.map((item, i) => {
+            {enrichedItems.map((item, i) => {
               const Icon = TYPE_ICON[item.type];
               const color = TYPE_COLOR[item.type];
-              const diff = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
-              const ago = diff < 60
-                ? t("timeAgo.justNow", "az önce")
-                : diff < 3600
-                  ? `${Math.floor(diff / 60)} ${t("timeAgo.min", "dk önce")}`
-                  : diff < 86400
-                    ? `${Math.floor(diff / 3600)} ${t("timeAgo.hour", "sa önce")}`
-                    : `${Math.floor(diff / 86400)} ${t("timeAgo.day", "gün önce")}`;
+              const { ago } = item;
               return (
                 <button
                   key={i}

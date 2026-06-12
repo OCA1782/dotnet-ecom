@@ -387,6 +387,49 @@ const TEMPLATES = [
     columns: 4, headerLayout: "standard",
     headerColor: "#C74B2A", bgColor: "#F0EBE3", cardBg: "#FEFCF7", textColor: "#2C1A10", svgRadius: 2, hasShadow: false,
   },
+  // ── Sektör Şablonları ──
+  {
+    id: "automotive", name: "Otomotiv", emoji: "🚗",
+    description: "3 sütun, derin koyu arka plan, elektrik mavisi vurgular, keskin köşeler. Araç, yedek parça ve aksesuar satışı için.",
+    tags: ["Otomotiv", "Koyu", "3 Sütun"],
+    columns: 3, headerLayout: "fullwidth-dark",
+    headerColor: "#1a1a2e", bgColor: "#0d0d1a", cardBg: "#1e1e35", textColor: "#e2e8f0", svgRadius: 2, hasShadow: true,
+  },
+  {
+    id: "telecom", name: "Telekomünikasyon", emoji: "📡",
+    description: "4 sütun, lacivert başlık, temiz beyaz zemin. İnternet, telefon ve teknoloji ürünleri satışı için.",
+    tags: ["Telekom", "Kurumsal", "4 Sütun"],
+    columns: 4, headerLayout: "standard",
+    headerColor: "#003366", bgColor: "#f0f4ff", cardBg: "#ffffff", textColor: "#0a1929", svgRadius: 8, hasShadow: true,
+  },
+  {
+    id: "manufacturing", name: "Üretim & Sanayi", emoji: "🏭",
+    description: "4 sütun, siyah başlık, turuncu sanayi vurgular. Makine, ekipman ve endüstriyel ürünler için.",
+    tags: ["Sanayi", "Endüstriyel", "4 Sütun"],
+    columns: 4, headerLayout: "fullwidth-dark",
+    headerColor: "#1a1a1a", bgColor: "#f5f5f0", cardBg: "#ffffff", textColor: "#1a1a1a", svgRadius: 0, hasShadow: false,
+  },
+  {
+    id: "education", name: "Eğitim", emoji: "🎓",
+    description: "4 sütun, akademik mavi başlık, yumuşak köşeler. Kurs, kitap, eğitim materyali satışı için.",
+    tags: ["Eğitim", "Akademik", "4 Sütun"],
+    columns: 4, headerLayout: "standard",
+    headerColor: "#1a4f8a", bgColor: "#f0f7ff", cardBg: "#ffffff", textColor: "#0a1929", svgRadius: 12, hasShadow: true,
+  },
+  {
+    id: "legal", name: "Hukuk & Danışmanlık", emoji: "⚖️",
+    description: "3 sütun, lacivert zemin, altın tonlar, resmi düzen. Hukuk büroları, danışmanlık ve kurumsal hizmetler için.",
+    tags: ["Hukuk", "Resmi", "3 Sütun"],
+    columns: 3, headerLayout: "centered",
+    headerColor: "#1a2744", bgColor: "#f8f7f4", cardBg: "#ffffff", textColor: "#1a2744", svgRadius: 2, hasShadow: false,
+  },
+  {
+    id: "healthcare", name: "Sağlık & Medikal", emoji: "🏥",
+    description: "4 sütun, medikal yeşil başlık, temiz beyaz zemin, yumuşak köşeler. Eczane, sağlık ürünleri ve medikal ekipman için.",
+    tags: ["Sağlık", "Medikal", "4 Sütun"],
+    columns: 4, headerLayout: "standard",
+    headerColor: "#00695c", bgColor: "#f0faf9", cardBg: "#ffffff", textColor: "#004d40", svgRadius: 8, hasShadow: true,
+  },
 ] as const;
 
 function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
@@ -406,6 +449,12 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "atolye" ? "#1E5B8C" :
     id === "anadolu" ? "#C74B2A" :
     id === "cini" ? "#1E5B8C" :
+    id === "automotive" ? "#38bdf8" :
+    id === "telecom" ? "#0ea5e9" :
+    id === "manufacturing" ? "#f97316" :
+    id === "education" ? "#3b82f6" :
+    id === "legal" ? "#b8952a" :
+    id === "healthcare" ? "#10b981" :
     "#0d9488";
 
   /* Görsel arka plan */
@@ -417,10 +466,16 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "instagram" ? "#c8c8c8" :
     id === "catalog" ? "#f0f0f0" :
     id === "atolye" || id === "anadolu" || id === "cini" ? "#E8DFD0" :
+    id === "automotive" ? "#2d2d50" :
+    id === "telecom" ? "#d0e4ff" :
+    id === "manufacturing" ? "#e0e0d8" :
+    id === "education" ? "#dbeafe" :
+    id === "legal" ? "#e8e4d8" :
+    id === "healthcare" ? "#d1faf4" :
     "#e2e8f0";
 
   /* Header açık mı koyu mu */
-  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A"];
+  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A","#1a1a2e","#003366","#1a1a1a","#1a4f8a","#1a2744","#00695c"];
   const isLightHdr = !darkHeaders.some(c => headerColor.startsWith(c));
   const searchBg = isLightHdr ? "#f1f5f9" : id === "catalog" ? "#ffffff" : "rgba(255,255,255,0.18)";
   const iconBg   = isLightHdr ? "#e2e8f0" : "rgba(255,255,255,0.22)";
@@ -439,6 +494,9 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "atolye" ? "#D4882C33" :
     id === "anadolu" ? "#1E5B8C22" :
     id === "cini" ? "#C74B2A22" :
+    id === "automotive" ? "#38bdf833" :
+    id === "manufacturing" ? "#f9731622" :
+    id === "legal" ? "#b8952a22" :
     accent + "22";
 
   const cr = Math.min(svgRadius, 8);
@@ -2383,6 +2441,12 @@ export default function YonetimPage() {
                     { name: "🌆 Neon",           card: "Mor ışıltılı çerçeve",  grid: "4 sütun",  header: "Siyah/neon",        use: "Gaming, müzik, gece" },
                     { name: "🎨 Pastel",         card: "Her kart farklı renk",  grid: "4 sütun",  header: "Pembe/yumuşak",    use: "Çocuk, hediye, kozmetik" },
                     { name: "🛒 Katalog",        card: "Sade + Amazon stili",   grid: "5 sütun",  header: "Koyu + sarı arama", use: "Market, toptan" },
+                    { name: "🚗 Otomotiv",       card: "Koyu kart + gölge",     grid: "3 sütun",  header: "Derin koyu",        use: "Araç, yedek parça" },
+                    { name: "📡 Telekomünikasyon",card: "Beyaz + mavi vurgu",    grid: "4 sütun",  header: "Lacivert",          use: "Telekom, teknoloji" },
+                    { name: "🏭 Üretim & Sanayi",card: "Sade + siyah/turuncu",  grid: "4 sütun",  header: "Siyah endüstriyel", use: "Makine, ekipman" },
+                    { name: "🎓 Eğitim",         card: "Yuvarlak + mavi",       grid: "4 sütun",  header: "Akademik mavi",     use: "Kurs, kitap, eğitim" },
+                    { name: "⚖️ Hukuk & Danışmanlık",card: "Resmi + altın",    grid: "3 sütun",  header: "Lacivert/ortalı",   use: "Hukuk, danışmanlık" },
+                    { name: "🏥 Sağlık & Medikal",card: "Temiz + yeşil vurgu", grid: "4 sütun",  header: "Medikal yeşil",     use: "Eczane, klinik" },
                   ].map((row, i) => (
                     <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
                       <td className="p-2 border border-slate-200 font-semibold text-slate-700">{row.name}</td>

@@ -1,25 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useI18n } from "@/contexts/I18nContext";
+import type { Lang } from "@/lib/i18n";
 
 const LANGS = [
-  { code: "tr", label: "Türkçe", flag: "🇹🇷" },
-  { code: "en", label: "English", flag: "🇬🇧" },
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-] as const;
-
-type Lang = typeof LANGS[number]["code"];
-const LANG_KEY = "ecom:lang";
-
-function readLang(): Lang {
-  if (typeof window === "undefined") return "tr";
-  const stored = localStorage.getItem(LANG_KEY) as Lang | null;
-  return stored && LANGS.some(l => l.code === stored) ? stored : "tr";
-}
+  { code: "tr" as Lang, label: "Türkçe", flag: "🇹🇷" },
+  { code: "en" as Lang, label: "English", flag: "🇬🇧" },
+  { code: "de" as Lang, label: "Deutsch", flag: "🇩🇪" },
+  { code: "es" as Lang, label: "Español", flag: "🇪🇸" },
+];
 
 export default function LanguageSwitcher() {
-  const [lang, setLangState] = useState<Lang>(() => readLang());
+  const { lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -32,8 +25,7 @@ export default function LanguageSwitcher() {
   }, []);
 
   function chooseLang(code: Lang) {
-    localStorage.setItem(LANG_KEY, code);
-    document.cookie = `ecom_lang=${code}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    setLang(code);
     setOpen(false);
     window.location.reload();
   }

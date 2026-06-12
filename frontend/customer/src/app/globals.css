@@ -1026,3 +1026,104 @@ header[data-tmpl-header] [data-slot="logo"] [data-brand-subtitle] {
   text-transform: uppercase !important;
   line-height: 1 !important;
 }
+
+/* ─── Sektör Şablonları ─── */
+
+/* ─ Otomotiv ─ */
+html[data-template="automotive"] {
+  --tmpl-header-bg: #1a1a2e;
+  --tmpl-header-border: #38bdf830;
+  --tmpl-header-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  --tmpl-logo-color: #38bdf8;
+  --tmpl-logo-accent: #64748b;
+}
+html[data-template="automotive"] body { background: #0d0d1a; color: #e2e8f0; }
+html[data-template="automotive"] header[data-tmpl-header] a,
+html[data-template="automotive"] header[data-tmpl-header] button,
+html[data-template="automotive"] header[data-tmpl-header] span { color: #e2e8f0 !important; }
+html[data-template="automotive"] [class*="rounded-full"] { border-radius: 2px !important; }
+html[data-template="automotive"] .acct-card { background: #1e1e35; border-color: #38bdf820; color: #e2e8f0; }
+html[data-template="automotive"] .acct-input, html[data-template="automotive"] .acct-input-otp { background: #0d0d1a; border-color: #38bdf830; color: #e2e8f0; }
+html[data-template="automotive"] .btn-ghost { background: #1e1e35; border-color: #38bdf830; color: #e2e8f0; }
+html[data-template="automotive"] .badge-ok { background: #0c4a3c; border-color: #10b98140; color: #34d399; }
+
+/* ─ Telekomünikasyon ─ */
+html[data-template="telecom"] {
+  --tmpl-header-bg: #003366;
+  --tmpl-header-border: transparent;
+  --tmpl-header-shadow: 0 2px 12px rgba(0,51,102,0.2);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #7dd3fc;
+}
+html[data-template="telecom"] body { background: #f0f4ff; }
+html[data-template="telecom"] header[data-tmpl-header] a,
+html[data-template="telecom"] header[data-tmpl-header] button,
+html[data-template="telecom"] header[data-tmpl-header] span { color: #ffffff !important; }
+html[data-template="telecom"] .acct-card { border-color: #bfdbfe; }
+html[data-template="telecom"] .acct-input, html[data-template="telecom"] .acct-input-otp { border-color: #93c5fd; }
+
+/* ─ Üretim & Sanayi ─ */
+html[data-template="manufacturing"] {
+  --tmpl-header-bg: #1a1a1a;
+  --tmpl-header-border: #f97316;
+  --tmpl-header-shadow: 0 2px 0 #f97316;
+  --tmpl-logo-color: #f97316;
+  --tmpl-logo-accent: #94a3b8;
+}
+html[data-template="manufacturing"] body { background: #f5f5f0; }
+html[data-template="manufacturing"] header[data-tmpl-header] a,
+html[data-template="manufacturing"] header[data-tmpl-header] button,
+html[data-template="manufacturing"] header[data-tmpl-header] span { color: #ffffff !important; }
+html[data-template="manufacturing"] [class*="rounded"] { border-radius: 0 !important; }
+html[data-template="manufacturing"] .acct-card { border-radius: 0; border-color: #d4d4d0; border-left: 3px solid #f97316; }
+html[data-template="manufacturing"] .acct-input, html[data-template="manufacturing"] .acct-input-otp { border-radius: 0; border-color: #a1a1aa; }
+
+/* ─ Eğitim ─ */
+html[data-template="education"] {
+  --tmpl-header-bg: #1a4f8a;
+  --tmpl-header-border: transparent;
+  --tmpl-header-shadow: 0 3px 12px rgba(26,79,138,0.2);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #93c5fd;
+}
+html[data-template="education"] body { background: #f0f7ff; }
+html[data-template="education"] header[data-tmpl-header] a,
+html[data-template="education"] header[data-tmpl-header] button,
+html[data-template="education"] header[data-tmpl-header] span { color: #ffffff !important; }
+html[data-template="education"] .acct-card { border-color: #bfdbfe; border-radius: 1rem; }
+html[data-template="education"] .acct-input, html[data-template="education"] .acct-input-otp { border-radius: 1rem; border-color: #93c5fd; }
+html[data-template="education"] .btn-brand, html[data-template="education"] .btn-ghost { border-radius: 9999px; }
+
+/* ─ Hukuk & Danışmanlık ─ */
+html[data-template="legal"] {
+  --tmpl-header-bg: #1a2744;
+  --tmpl-header-border: #b8952a40;
+  --tmpl-header-shadow: 0 2px 8px rgba(26,39,68,0.25);
+  --tmpl-logo-color: #b8952a;
+  --tmpl-logo-accent: #94a3b8;
+}
+html[data-template="legal"] body { background: #f8f7f4; color: #1a2744; }
+html[data-template="legal"] header[data-tmpl-header] a,
+html[data-template="legal"] header[data-tmpl-header] button,
+html[data-template="legal"] header[data-tmpl-header] span { color: #e8d9b0 !important; }
+html[data-template="legal"] [class*="rounded"] { border-radius: 2px !important; }
+html[data-template="legal"] .acct-card { border-radius: 2px; border-color: #b8952a40; background: #fdfcf8; }
+html[data-template="legal"] .acct-input, html[data-template="legal"] .acct-input-otp { border-radius: 2px; border-color: #b8952a60; }
+html[data-template="legal"] .btn-brand { background: #1a2744; color: #e8d9b0; border-radius: 2px; }
+html[data-template="legal"] .badge-ok { background: #f0f7ee; border-color: #16a34a40; color: #166534; }
+
+/* ─ Sağlık & Medikal ─ */
+html[data-template="healthcare"] {
+  --tmpl-header-bg: #00695c;
+  --tmpl-header-border: transparent;
+  --tmpl-header-shadow: 0 2px 12px rgba(0,105,92,0.2);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #a7f3d0;
+}
+html[data-template="healthcare"] body { background: #f0faf9; }
+html[data-template="healthcare"] header[data-tmpl-header] a,
+html[data-template="healthcare"] header[data-tmpl-header] button,
+html[data-template="healthcare"] header[data-tmpl-header] span { color: #ffffff !important; }
+html[data-template="healthcare"] .acct-card { border-color: #99f6e4; background: #f0fdf9; }
+html[data-template="healthcare"] .acct-input, html[data-template="healthcare"] .acct-input-otp { border-color: #5eead4; }
+html[data-template="healthcare"] .badge-ok { background: #d1fae5; border-color: #10b98140; color: #065f46; }
