@@ -9,7 +9,10 @@ export function useWishlist(isLoggedIn: boolean) {
   const [loading, setLoading] = useState(false);
 
   const fetchWishlist = useCallback(async () => {
-    if (!isLoggedIn) { setItems([]); return; }
+    if (!isLoggedIn) {
+      setItems([]);
+      return;
+    }
     setLoading(true);
     try {
       const data = await api.get<WishlistItem[]>("/api/wishlist");
@@ -21,7 +24,12 @@ export function useWishlist(isLoggedIn: boolean) {
     }
   }, [isLoggedIn]);
 
-  useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchWishlist();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchWishlist]);
 
   const isInWishlist = (productId: string) => items.some(i => i.productId === productId);
 

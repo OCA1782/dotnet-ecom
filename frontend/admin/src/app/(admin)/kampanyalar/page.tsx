@@ -125,7 +125,10 @@ export default function KampanyalarPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   function openCreate() {
     setEditId(null); setForm(empty); setFormError(null); setActiveTab("content"); setShowForm(true);
@@ -144,7 +147,7 @@ export default function KampanyalarPage() {
   }
 
   async function save() {
-    if (!form.title.trim()) { setFormError("Başlık zorunludur."); return; }
+    if (!form.title.trim()) { setFormError(t("label.title", "Başlık") + " zorunludur."); return; }
     setSaving(true); setFormError(null);
     try {
       const body = {
@@ -159,7 +162,7 @@ export default function KampanyalarPage() {
       setShowForm(false);
       await load();
     } catch (e) {
-      setFormError((e as Error).message || "Bir hata oluştu.");
+      setFormError((e as Error).message || t("msg.error", "Bir hata oluştu"));
     } finally { setSaving(false); }
   }
 
@@ -183,11 +186,11 @@ export default function KampanyalarPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800">{t("nav./kampanyalar", "Kampanyalar")}</h1>
-            <p className="text-xs text-slate-500">{items.length} kampanya · {activeCount} aktif</p>
+            <p className="text-xs text-slate-500">{items.length} {t("tab.campaigns", "Kampanyalar").toLowerCase()} · {activeCount} {t("status.active", "Aktif").toLowerCase()}</p>
           </div>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
-          <Plus size={16} /> Yeni Kampanya
+          <Plus size={16} /> {t("ui.newCampaign", "Yeni Kampanya")}
         </button>
       </div>
 
@@ -199,8 +202,8 @@ export default function KampanyalarPage() {
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Megaphone size={40} className="mb-3 opacity-30" />
-          <p className="text-sm">Henüz kampanya yok</p>
-          <button onClick={openCreate} className="mt-4 text-sm text-teal-600 font-semibold hover:underline">İlk kampanyayı oluştur →</button>
+          <p className="text-sm">{t("table.noData", "Kayıt bulunamadı")}</p>
+          <button onClick={openCreate} className="mt-4 text-sm text-teal-600 font-semibold hover:underline">{t("ui.newCampaign", "Yeni Kampanya")} →</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -225,7 +228,7 @@ export default function KampanyalarPage() {
                   </div>
                   <div className="absolute top-2 right-2">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/90 ${item.isActive ? "text-green-700" : "text-slate-500"}`}>
-                      {item.isActive ? "Aktif" : "Pasif"}
+                      {item.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                     </span>
                   </div>
                   <div className="absolute top-2 left-2">
@@ -244,10 +247,10 @@ export default function KampanyalarPage() {
                   )}
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                     <button onClick={() => openEdit(item)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 py-1.5 rounded-lg transition">
-                      <Pencil size={12} /> Düzenle
+                      <Pencil size={12} /> {t("action.edit", "Düzenle")}
                     </button>
                     <button onClick={() => setConfirmDelete(item.id)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg transition">
-                      <Trash2 size={12} /> Sil
+                      <Trash2 size={12} /> {t("action.delete", "Sil")}
                     </button>
                   </div>
                 </div>
@@ -261,12 +264,12 @@ export default function KampanyalarPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-80">
-            <h3 className="font-bold text-slate-800 mb-2">Kampanyayı sil?</h3>
-            <p className="text-sm text-slate-500 mb-5">Bu kampanya kalıcı olarak silinecek.</p>
+            <h3 className="font-bold text-slate-800 mb-2">{t("ui.deleteCampaign", "Kampanyayı Sil")}</h3>
+            <p className="text-sm text-slate-500 mb-5">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">İptal</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">{t("action.cancel", "İptal")}</button>
               <button onClick={() => handleDelete(confirmDelete)} disabled={deleting} className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition disabled:opacity-60">
-                {deleting ? "Siliniyor…" : "Sil"}
+                {deleting ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
               </button>
             </div>
           </div>
@@ -279,7 +282,7 @@ export default function KampanyalarPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
-              <h2 className="font-bold text-slate-800">{editId ? "Kampanyayı Düzenle" : "Yeni Kampanya"}</h2>
+              <h2 className="font-bold text-slate-800">{editId ? t("ui.editCampaign", "Kampanyayı Düzenle") : t("ui.newCampaign", "Yeni Kampanya")}</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><X size={18} /></button>
             </div>
 
@@ -289,7 +292,7 @@ export default function KampanyalarPage() {
                 {/* Tabs */}
                 <div className="flex border-b border-slate-100 sticky top-0 bg-white z-10">
                   {[
-                    { id: "content", label: "İçerik", icon: <Type size={13} /> },
+                    { id: "content", label: t("tab.general", "Genel"), icon: <Type size={13} /> },
                     { id: "style",   label: "Stil",   icon: <Palette size={13} /> },
                   ].map(tab => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id as "content" | "style")}
@@ -303,7 +306,7 @@ export default function KampanyalarPage() {
                   {activeTab === "content" && (
                     <>
                       <div>
-                        <label className={lbl}>Başlık *</label>
+                        <label className={lbl}>{t("label.title", "Başlık")} *</label>
                         <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="Kampanya başlığı" className={inp} />
                       </div>
                       <div>
@@ -373,7 +376,7 @@ export default function KampanyalarPage() {
                         <div className="flex items-center gap-2 pt-5">
                           <button type="button" onClick={() => setForm(f => ({...f, isActive: !f.isActive}))} className="flex items-center gap-2">
                             {form.isActive ? <ToggleRight size={28} className="text-teal-500" /> : <ToggleLeft size={28} className="text-slate-400" />}
-                            <span className={`text-sm font-semibold ${form.isActive ? "text-teal-600" : "text-slate-500"}`}>{form.isActive ? "Aktif" : "Pasif"}</span>
+                            <span className={`text-sm font-semibold ${form.isActive ? "text-teal-600" : "text-slate-500"}`}>{form.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}</span>
                           </button>
                         </div>
                       </div>
@@ -384,12 +387,12 @@ export default function KampanyalarPage() {
                     <>
                       <p className="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">Yazı renk ve boyut ayarları önizlemede anlık yansır.</p>
                       <div>
-                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Başlık</p>
+                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{t("label.title", "Başlık")}</p>
                         <div className="space-y-3">
                           <ColorField label="Renk" value={form.styles.titleColor} onChange={v => setForm(f => ({...f, styles: {...f.styles, titleColor: v}}))} />
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className={lbl}>Boyut (px)</label>
+                              <label className={lbl}>{t("col.size", "Boyut")} (px)</label>
                               <input type="number" min={12} max={60} value={form.styles.titleFontSize ?? "28"} onChange={e => setForm(f => ({...f, styles: {...f.styles, titleFontSize: e.target.value}}))} className={inp} />
                             </div>
                             <div>
@@ -406,7 +409,7 @@ export default function KampanyalarPage() {
                         <div className="space-y-3">
                           <ColorField label="Renk" value={form.styles.subtitleColor} onChange={v => setForm(f => ({...f, styles: {...f.styles, subtitleColor: v}}))} />
                           <div>
-                            <label className={lbl}>Boyut (px)</label>
+                            <label className={lbl}>{t("col.size", "Boyut")} (px)</label>
                             <input type="number" min={10} max={32} value={form.styles.subtitleFontSize ?? "14"} onChange={e => setForm(f => ({...f, styles: {...f.styles, subtitleFontSize: e.target.value}}))} className={inp} />
                           </div>
                         </div>
@@ -423,9 +426,9 @@ export default function KampanyalarPage() {
 
                   {formError && <div className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-2.5">{formError}</div>}
                   <div className="flex gap-3 pt-2 pb-1">
-                    <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">İptal</button>
+                    <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">{t("action.cancel", "İptal")}</button>
                     <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition disabled:opacity-60">
-                      {saving ? "Kaydediliyor…" : editId ? "Güncelle" : "Oluştur"}
+                      {saving ? t("action.saving", "Kaydediliyor...") : editId ? t("action.update", "Güncelle") : t("action.create", "Oluştur")}
                     </button>
                   </div>
                 </div>
@@ -433,7 +436,7 @@ export default function KampanyalarPage() {
 
               {/* Right: Live Preview */}
               <div className="w-72 flex flex-col bg-slate-50 overflow-y-auto">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 pt-4 pb-2">Canlı Önizleme</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 pt-4 pb-2">{t("action.preview", "Önizle")}</p>
                 {form.title ? (
                   <div className="mx-3 rounded-2xl overflow-hidden shadow-lg">
                     {/* Card preview — customer tarafındaki görünümü */}
@@ -466,7 +469,7 @@ export default function KampanyalarPage() {
                   </div>
                 ) : (
                   <div className="mx-3 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center h-40 text-slate-300 text-xs">
-                    Başlık girin
+                    {t("label.title", "Başlık")} girin
                   </div>
                 )}
                 <div className="px-4 pt-3 pb-4 space-y-1.5">
@@ -480,8 +483,8 @@ export default function KampanyalarPage() {
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${scheme.badgeBg} ${scheme.badgeText}`}>{scheme.label}</span>
-                    {form.imageUrl && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Görsel</span>}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${form.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{form.isActive ? "Aktif" : "Pasif"}</span>
+                    {form.imageUrl && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{t("col.image", "Görsel")}</span>}
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${form.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{form.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}</span>
                   </div>
                 </div>
               </div>

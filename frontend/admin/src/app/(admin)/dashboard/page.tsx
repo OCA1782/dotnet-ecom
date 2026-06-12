@@ -11,7 +11,7 @@ import {
   Ghost, Target, CheckCircle2, Zap, Activity,
   Package, UserCheck, PackageX, Boxes,
   Tag, Layers, Megaphone, Ticket, CreditCard,
-  RefreshCcw, Truck, FileText, BadgePercent, MessageSquare,
+  RefreshCcw, Truck, FileText, MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,7 +24,10 @@ const STATUS_COLORS: Record<number, string> = {
 function useCountUp(target: number, duration = 1100): number {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (target === 0) { setCount(0); return; }
+    if (target === 0) {
+      const timer = window.setTimeout(() => setCount(0), 0);
+      return () => window.clearTimeout(timer);
+    }
     const start = Date.now();
     let raf: number;
     const tick = () => {
@@ -91,29 +94,29 @@ function WeeklyBars({ bars, labels, gradient }: { bars: number[]; labels: string
 }
 
 function DonutChart({ slices, total }: { slices: { label: string; value: number; color: string }[]; total: number }) {
+  const { t } = useI18n();
   const [drawn, setDrawn] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setDrawn(true), 200); return () => clearTimeout(t); }, []);
+  useEffect(() => { const timer = setTimeout(() => setDrawn(true), 200); return () => clearTimeout(timer); }, []);
   const R = 76; const CX = 92; const CY = 92; const stroke = 22;
   const circ = 2 * Math.PI * R;
-  let offset = 0;
+  const visibleSlices = slices.filter(s => s.value > 0);
   return (
     <div className="flex items-center gap-6">
       <svg width="184" height="184" className="shrink-0">
         <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
-        {slices.filter(s => s.value > 0).map((s, i) => {
+        {visibleSlices.map((s, i) => {
           const frac = drawn ? s.value / total : 0;
           const dash = frac * circ;
           const gap = circ - dash;
-          const el = (
+          const offset = visibleSlices.slice(0, i).reduce((sum, item) => sum + (item.value / total) * circ, 0);
+          return (
             <circle key={i} cx={CX} cy={CY} r={R} fill="none" stroke={s.color} strokeWidth={stroke}
               strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset}
               strokeLinecap="butt" transform={`rotate(-90 ${CX} ${CY})`}
               style={{ transition: "stroke-dasharray 900ms ease", transitionDelay: `${i * 80}ms` }} />
           );
-          offset += (s.value / total) * circ;
-          return el;
         })}
-        <text x={CX} y={CY - 12} textAnchor="middle" fontSize="11" fill="#94a3b8" fontWeight="500">Toplam</text>
+        <text x={CX} y={CY - 12} textAnchor="middle" fontSize="11" fill="#94a3b8" fontWeight="500">{t("ui.total", "Toplam")}</text>
         <text x={CX} y={CY + 16} textAnchor="middle" fontSize="30" fontWeight="800" fill="#0f172a">{total}</text>
       </svg>
       <div className="space-y-2.5 flex-1 min-w-0">
@@ -131,8 +134,9 @@ function DonutChart({ slices, total }: { slices: { label: string; value: number;
 }
 
 function SatisfactionGauge({ rate, reviewCount }: { rate: number; reviewCount: number }) {
+  const { t } = useI18n();
   const [r, setR] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setR(rate), 300); return () => clearTimeout(t); }, [rate]);
+  useEffect(() => { const timer = setTimeout(() => setR(rate), 300); return () => clearTimeout(timer); }, [rate]);
   const R = 48; const CX = 70; const CY = 68;
   const circ = Math.PI * R;
   const dash = (r / 100) * circ;
@@ -147,10 +151,10 @@ function SatisfactionGauge({ rate, reviewCount }: { rate: number; reviewCount: n
           strokeDasharray={`${dash} ${circ}`}
           style={{ transition: "stroke-dasharray 1s ease", filter: `drop-shadow(0 0 6px ${color}88)` }} />
         <text x={CX} y={CY - 6} textAnchor="middle" fontSize="20" fontWeight="800" fill="#0f172a">{r.toFixed(0)}%</text>
-        <text x={CX} y={CY + 14} textAnchor="middle" fontSize="9" fill="#94a3b8">{reviewCount} yorum</text>
+        <text x={CX} y={CY + 14} textAnchor="middle" fontSize="9" fill="#94a3b8">{reviewCount} {t("ui.reviewCount", "yorum")}</text>
       </svg>
       <p className="text-xs font-semibold mt-1" style={{ color }}>
-        {r >= 80 ? "Mükemmel" : r >= 60 ? "İyi" : "Geliştirilmeli"}
+        {r >= 80 ? t("ui.excellent", "Mükemmel") : r >= 60 ? t("ui.good", "İyi") : t("ui.needsImprovement", "Geliştirilmeli")}
       </p>
     </div>
   );
@@ -159,10 +163,11 @@ function SatisfactionGauge({ rate, reviewCount }: { rate: number; reviewCount: n
 function ProgressBar({ label, actual, target, gradient, format }: {
   label: string; actual: number; target: number; gradient: string; format: "price" | "count";
 }) {
+  const { t } = useI18n();
   const [w, setW] = useState(0);
   const pct = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
   const done = pct >= 100;
-  useEffect(() => { const t = setTimeout(() => setW(pct), 200); return () => clearTimeout(t); }, [pct]);
+  useEffect(() => { const timer = setTimeout(() => setW(pct), 200); return () => clearTimeout(timer); }, [pct]);
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -188,8 +193,8 @@ function ProgressBar({ label, actual, target, gradient, format }: {
         </div>
       </div>
       <div className="flex justify-between mt-1.5">
-        <span className="text-xs text-white/60">{pct.toFixed(0)}% tamamlandı</span>
-        {done && <span className="text-xs text-emerald-300 font-semibold">Hedef aşıldı!</span>}
+        <span className="text-xs text-white/60">{pct.toFixed(0)}% {t("ui.completed", "tamamlandı")}</span>
+        {done && <span className="text-xs text-emerald-300 font-semibold">{t("ui.goalExceeded", "Hedef aşıldı!")}</span>}
       </div>
     </div>
   );
@@ -197,7 +202,7 @@ function ProgressBar({ label, actual, target, gradient, format }: {
 
 function RingMeter({ pct, color, label, sub }: { pct: number; color: string; label: string; sub: string }) {
   const [drawn, setDrawn] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setDrawn(pct), 250); return () => clearTimeout(t); }, [pct]);
+  useEffect(() => { const timer = setTimeout(() => setDrawn(pct), 250); return () => clearTimeout(timer); }, [pct]);
   const R = 38; const CX = 50; const CY = 50; const stroke = 11;
   const circ = 2 * Math.PI * R;
   const dash = (drawn / 100) * circ;
@@ -219,7 +224,7 @@ function RingMeter({ pct, color, label, sub }: { pct: number; color: string; lab
 
 function SegmentBar({ segments }: { segments: { label: string; value: number; color: string }[] }) {
   const [drawn, setDrawn] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setDrawn(true), 300); return () => clearTimeout(t); }, []);
+  useEffect(() => { const timer = setTimeout(() => setDrawn(true), 300); return () => clearTimeout(timer); }, []);
   const total = segments.reduce((s, x) => s + x.value, 0) || 1;
   return (
     <div>
@@ -283,7 +288,7 @@ function HeroCard({
 function MiniBar({ active, total, color }: { active: number; total: number; color: string }) {
   const [w, setW] = useState(0);
   const pct = total > 0 ? (active / total) * 100 : 0;
-  useEffect(() => { const t = setTimeout(() => setW(pct), 300); return () => clearTimeout(t); }, [pct]);
+  useEffect(() => { const timer = setTimeout(() => setW(pct), 300); return () => clearTimeout(timer); }, [pct]);
   return (
     <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
       <div className="h-full rounded-full transition-all duration-700 ease-out"
@@ -315,6 +320,7 @@ interface ModuleCardProps {
 }
 
 function ModuleCard({ href, icon: Icon, iconBg, iconColor, title, mainValue, mainLabel, activeValue, totalValue, barColor, badge, stats, health }: ModuleCardProps) {
+  const { t } = useI18n();
   const animated = useCountUp(mainValue);
   const borderCls = health === "critical" ? "border-red-300" : health === "warn" ? "border-amber-300" : "border-slate-200";
   const badgeCls = badge?.type === "critical" ? "bg-red-100 text-red-700" : badge?.type === "warn" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500";
@@ -340,7 +346,7 @@ function ModuleCard({ href, icon: Icon, iconBg, iconColor, title, mainValue, mai
         <div>
           <MiniBar active={activeValue} total={totalValue} color={barColor} />
           <p className="text-[10px] text-slate-400 mt-1">
-            <span className="font-semibold" style={{ color: barColor }}>{activeValue}</span>/{totalValue} aktif
+            <span className="font-semibold" style={{ color: barColor }}>{activeValue}</span>/{totalValue} {t("status.active", "Aktif").toLowerCase()}
           </p>
         </div>
       )}
@@ -363,6 +369,7 @@ function ModuleCard({ href, icon: Icon, iconBg, iconColor, title, mainValue, mai
 }
 
 function ModuleSummary({ modules }: { modules: ModuleStats }) {
+  const { t } = useI18n();
   const criticalModules = [
     modules.outOfStockCount > 0,
     modules.deliveryFailedCount > 0,
@@ -380,7 +387,7 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
   ].filter(Boolean).length;
 
   const [healthDrawn, setHealthDrawn] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setHealthDrawn(true), 400); return () => clearTimeout(t); }, []);
+  useEffect(() => { const timer = setTimeout(() => setHealthDrawn(true), 400); return () => clearTimeout(timer); }, []);
 
   const totalModules = 13;
   const okModules = totalModules - criticalModules - warnModules;
@@ -391,26 +398,26 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Layers size={16} className="text-teal-600" />
-          <h2 className="text-base font-extrabold text-slate-800 tracking-tight">Modül Özeti</h2>
-          <span className="text-xs text-slate-400">— Tüm modüllere genel bakış</span>
+          <h2 className="text-base font-extrabold text-slate-800 tracking-tight">{t("ui.moduleSummary", "Modül Özeti")}</h2>
+          <span className="text-xs text-slate-400">— {t("ui.moduleOverview", "Tüm modüllere genel bakış")}</span>
         </div>
         {/* Sağlık özeti */}
         <div className="ml-auto flex items-center gap-3">
           {criticalModules > 0 && (
             <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-xl">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-              {criticalModules} kritik
+              {criticalModules} {t("ui.critical", "kritik")}
             </span>
           )}
           {warnModules > 0 && (
             <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              {warnModules} uyarı
+              {warnModules} {t("ui.warning", "uyarı")}
             </span>
           )}
           <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            {okModules} sağlıklı
+            {okModules} {t("ui.healthy", "sağlıklı")}
           </span>
         </div>
       </div>
@@ -418,7 +425,7 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
       {/* Genel sağlık çubuğu */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-600">Sistem Sağlık Oranı</span>
+          <span className="text-xs font-semibold text-slate-600">{t("ui.systemHealthRate", "Sistem Sağlık Oranı")}</span>
           <span className={`text-sm font-extrabold ${healthPct >= 90 ? "text-emerald-600" : healthPct >= 70 ? "text-amber-600" : "text-red-600"}`}>
             %{healthPct.toFixed(0)}
           </span>
@@ -431,8 +438,8 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
           }`} style={{ width: healthDrawn ? `${healthPct}%` : "0%" }} />
         </div>
         <div className="flex justify-between mt-1.5">
-          <span className="text-[10px] text-slate-400">{okModules}/{totalModules} modül sağlıklı</span>
-          {(criticalModules + warnModules) === 0 && <span className="text-[10px] text-emerald-500 font-semibold">Tüm modüller normal</span>}
+          <span className="text-[10px] text-slate-400">{okModules}/{totalModules} {t("ui.modulesHealthy", "modül sağlıklı")}</span>
+          {(criticalModules + warnModules) === 0 && <span className="text-[10px] text-emerald-500 font-semibold">{t("ui.allModulesNormal", "Tüm modüller normal")}</span>}
         </div>
       </div>
 
@@ -440,69 +447,69 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
           bu veriler ekranın üst bölümlerinde (Bölüm 0/1/6) zaten gösteriliyor. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         <ModuleCard href="/kategoriler" icon={Layers} iconBg="bg-sky-50" iconColor="text-sky-600"
-          title="Kategoriler" mainValue={modules.totalCategories} mainLabel="Toplam Kategori"
+          title={t("module.categories", "Kategoriler")} mainValue={modules.totalCategories} mainLabel={t("ui.totalCategory", "Toplam Kategori")}
           activeValue={modules.activeCategories} totalValue={modules.totalCategories} barColor="#0ea5e9"
-          stats={[{ label: "Aktif", value: modules.activeCategories, color: "text-sky-500" }]}
+          stats={[{ label: t("status.active", "Aktif"), value: modules.activeCategories, color: "text-sky-500" }]}
           health={modules.totalCategories === 0 ? "warn" : "ok"} />
 
         <ModuleCard href="/markalar" icon={Tag} iconBg="bg-violet-50" iconColor="text-violet-600"
-          title="Markalar" mainValue={modules.totalBrands} mainLabel="Toplam Marka"
+          title={t("module.brands", "Markalar")} mainValue={modules.totalBrands} mainLabel={t("ui.totalBrand", "Toplam Marka")}
           activeValue={modules.activeBrands} totalValue={modules.totalBrands} barColor="#8b5cf6"
-          stats={[{ label: "Aktif", value: modules.activeBrands, color: "text-violet-500" }]}
+          stats={[{ label: t("status.active", "Aktif"), value: modules.activeBrands, color: "text-violet-500" }]}
           health={modules.totalBrands === 0 ? "warn" : "ok"} />
 
         <ModuleCard href="/yorumlar" icon={MessageSquare} iconBg="bg-yellow-50" iconColor="text-yellow-600"
-          title="Yorumlar" mainValue={modules.totalReviewCount} mainLabel="Toplam Yorum"
+          title={t("module.reviews", "Yorumlar")} mainValue={modules.totalReviewCount} mainLabel={t("ui.totalReview", "Toplam Yorum")}
           activeValue={modules.approvedReviewCount} totalValue={modules.totalReviewCount} barColor="#f59e0b"
-          badge={modules.pendingReviewCount > 0 ? { text: `${modules.pendingReviewCount} bekliyor`, type: "warn" } : undefined}
-          stats={[{ label: "Onaylı", value: modules.approvedReviewCount, color: "text-emerald-500" }]}
+          badge={modules.pendingReviewCount > 0 ? { text: `${modules.pendingReviewCount} ${t("ui.waiting", "bekliyor")}`, type: "warn" } : undefined}
+          stats={[{ label: t("ui.approved", "Onaylı"), value: modules.approvedReviewCount, color: "text-emerald-500" }]}
           health={modules.pendingReviewCount > 5 ? "warn" : "ok"} />
 
         <ModuleCard href="/duyurular" icon={Megaphone} iconBg="bg-orange-50" iconColor="text-orange-600"
-          title="Duyurular" mainValue={modules.activeAnnouncementCount} mainLabel="Aktif Duyuru"
-          stats={[{ label: "Toplam", value: modules.totalAnnouncementCount }]}
+          title={t("module.announcements", "Duyurular")} mainValue={modules.activeAnnouncementCount} mainLabel={t("ui.activeAnnouncement", "Aktif Duyuru")}
+          stats={[{ label: t("ui.totalLabel", "Toplam"), value: modules.totalAnnouncementCount }]}
           health="ok" />
 
         <ModuleCard href="/kuponlar" icon={Ticket} iconBg="bg-pink-50" iconColor="text-pink-600"
-          title="Kuponlar" mainValue={modules.activeCouponCount} mainLabel="Aktif Kupon"
+          title={t("module.coupons", "Kuponlar")} mainValue={modules.activeCouponCount} mainLabel={t("ui.activeCoupon", "Aktif Kupon")}
           activeValue={modules.activeCouponCount} totalValue={modules.totalCouponCount} barColor="#ec4899"
-          badge={modules.expiredCouponCount > 0 ? { text: `${modules.expiredCouponCount} süresi doldu`, type: "info" } : undefined}
-          stats={[{ label: "Toplam", value: modules.totalCouponCount }]}
+          badge={modules.expiredCouponCount > 0 ? { text: `${modules.expiredCouponCount} ${t("ui.expired", "süresi doldu")}`, type: "info" } : undefined}
+          stats={[{ label: t("ui.totalLabel", "Toplam"), value: modules.totalCouponCount }]}
           health={modules.activeCouponCount === 0 && modules.totalCouponCount > 0 ? "warn" : "ok"} />
 
         <ModuleCard href="/odemeler" icon={CreditCard} iconBg="bg-green-50" iconColor="text-green-600"
-          title="Ödemeler" mainValue={modules.todayPaymentCount} mainLabel="Bugün Ödeme"
-          badge={modules.failedPaymentCount > 0 ? { text: `${modules.failedPaymentCount} başarısız`, type: "critical" } :
-                 modules.pendingPaymentCount > 0 ? { text: `${modules.pendingPaymentCount} bekliyor`, type: "warn" } : undefined}
+          title={t("module.payments", "Ödemeler")} mainValue={modules.todayPaymentCount} mainLabel={t("ui.todayPayment", "Bugün Ödeme")}
+          badge={modules.failedPaymentCount > 0 ? { text: `${modules.failedPaymentCount} ${t("ui.failed", "başarısız")}`, type: "critical" } :
+                 modules.pendingPaymentCount > 0 ? { text: `${modules.pendingPaymentCount} ${t("ui.waiting", "bekliyor")}`, type: "warn" } : undefined}
           stats={[
-            { label: "Başarısız", value: modules.failedPaymentCount, color: modules.failedPaymentCount > 0 ? "text-red-500" : "text-slate-400" },
-            { label: "Bekleyen", value: modules.pendingPaymentCount, color: modules.pendingPaymentCount > 0 ? "text-amber-500" : "text-slate-400" },
+            { label: t("col.failed", "Başarısız"), value: modules.failedPaymentCount, color: modules.failedPaymentCount > 0 ? "text-red-500" : "text-slate-400" },
+            { label: t("col.pending", "Bekleyen"), value: modules.pendingPaymentCount, color: modules.pendingPaymentCount > 0 ? "text-amber-500" : "text-slate-400" },
           ]}
           health={modules.failedPaymentCount > 0 ? "critical" : modules.pendingPaymentCount > 0 ? "warn" : "ok"} />
 
         <ModuleCard href="/iade" icon={RefreshCcw} iconBg="bg-red-50" iconColor="text-red-600"
-          title="İadeler" mainValue={modules.openRefundCount + modules.processedRefundCount} mainLabel="Toplam İade"
+          title={t("module.refunds", "İadeler")} mainValue={modules.openRefundCount + modules.processedRefundCount} mainLabel={t("ui.totalRefund", "Toplam İade")}
           activeValue={modules.processedRefundCount} totalValue={modules.openRefundCount + modules.processedRefundCount} barColor="#10b981"
-          badge={modules.openRefundCount > 0 ? { text: `${modules.openRefundCount} açık`, type: "critical" } : undefined}
-          stats={[{ label: "Tamamlandı", value: modules.processedRefundCount, color: "text-emerald-500" }]}
+          badge={modules.openRefundCount > 0 ? { text: `${modules.openRefundCount} ${t("ui.open", "açık")}`, type: "critical" } : undefined}
+          stats={[{ label: t("status.completed", "Tamamlandı"), value: modules.processedRefundCount, color: "text-emerald-500" }]}
           health={modules.openRefundCount > 0 ? "critical" : "ok"} />
 
         <ModuleCard href="/kargo" icon={Truck} iconBg="bg-cyan-50" iconColor="text-cyan-600"
-          title="Kargo" mainValue={modules.inTransitCount} mainLabel="Kargoda"
-          badge={modules.deliveryFailedCount > 0 ? { text: `${modules.deliveryFailedCount} başarısız`, type: "critical" } : undefined}
+          title={t("module.cargo", "Kargo")} mainValue={modules.inTransitCount} mainLabel={t("status.shipped", "Kargoda")}
+          badge={modules.deliveryFailedCount > 0 ? { text: `${modules.deliveryFailedCount} ${t("ui.failed", "başarısız")}`, type: "critical" } : undefined}
           stats={[
-            { label: "Sevk Edildi", value: modules.shippedCount },
-            { label: "Hatalı", value: modules.deliveryFailedCount, color: modules.deliveryFailedCount > 0 ? "text-red-500" : "text-slate-400" },
+            { label: t("ui.shipped", "Sevk Edildi"), value: modules.shippedCount },
+            { label: t("ui.faulty", "Hatalı"), value: modules.deliveryFailedCount, color: modules.deliveryFailedCount > 0 ? "text-red-500" : "text-slate-400" },
           ]}
           health={modules.deliveryFailedCount > 0 ? "critical" : "ok"} />
 
         <ModuleCard href="/faturalar" icon={FileText} iconBg="bg-slate-50" iconColor="text-slate-600"
-          title="Faturalar" mainValue={modules.totalInvoiceCount} mainLabel="Toplam Fatura"
-          badge={modules.errorInvoiceCount > 0 ? { text: `${modules.errorInvoiceCount} hata`, type: "critical" } :
-                 modules.draftInvoiceCount > 0 ? { text: `${modules.draftInvoiceCount} taslak`, type: "warn" } : undefined}
+          title={t("module.invoices", "Faturalar")} mainValue={modules.totalInvoiceCount} mainLabel={t("ui.totalInvoice", "Toplam Fatura")}
+          badge={modules.errorInvoiceCount > 0 ? { text: `${modules.errorInvoiceCount} ${t("ui.error", "hata")}`, type: "critical" } :
+                 modules.draftInvoiceCount > 0 ? { text: `${modules.draftInvoiceCount} ${t("ui.draft", "taslak")}`, type: "warn" } : undefined}
           stats={[
-            { label: "Taslak", value: modules.draftInvoiceCount, color: modules.draftInvoiceCount > 0 ? "text-amber-500" : "text-slate-400" },
-            { label: "Hatalı", value: modules.errorInvoiceCount, color: modules.errorInvoiceCount > 0 ? "text-red-500" : "text-slate-400" },
+            { label: t("ui.draft", "Taslak"), value: modules.draftInvoiceCount, color: modules.draftInvoiceCount > 0 ? "text-amber-500" : "text-slate-400" },
+            { label: t("ui.faulty", "Hatalı"), value: modules.errorInvoiceCount, color: modules.errorInvoiceCount > 0 ? "text-red-500" : "text-slate-400" },
           ]}
           health={modules.errorInvoiceCount > 0 ? "critical" : modules.draftInvoiceCount > 0 ? "warn" : "ok"} />
       </div>
@@ -511,10 +518,16 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
 }
 
 type Period = "today" | "week" | "month";
-const PERIOD_LABELS: Record<Period, string> = { today: "Bugün", week: "Bu Hafta", month: "Bu Ay" };
 
 export default function DashboardPage() {
   const { t } = useI18n();
+
+  const PERIOD_LABELS: Record<Period, string> = {
+    today: t("period.today", "Bugün"),
+    week: t("period.week", "Bu Hafta"),
+    month: t("period.month", "Bu Ay"),
+  };
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [modules, setModules] = useState<ModuleStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -532,13 +545,16 @@ export default function DashboardPage() {
       setModules(mods);
       setError("");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Hata");
+      setError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchData(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchData]);
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -563,7 +579,6 @@ export default function DashboardPage() {
   const periodOrdersAnim = useCountUp(periodOrdersRaw, 800);
   const todaySales = useCountUp(stats?.todaySales ?? 0);
   const monthSales = useCountUp(stats?.monthSales ?? 0);
-  const todayOrderCount = useCountUp(stats?.todayOrderCount ?? 0, 800);
   const monthOrderCount = useCountUp(stats?.monthOrderCount ?? 0, 900);
   const pendingCount = useCountUp(stats?.pendingOrderCount ?? 0, 800);
   const criticalCount = useCountUp(stats?.criticalStockCount ?? 0, 800);
@@ -574,7 +589,7 @@ export default function DashboardPage() {
     <div className="flex items-center justify-center h-64">
       <div className="flex flex-col items-center gap-3">
         <div className="w-10 h-10 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Yükleniyor...</p>
+        <p className="text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</p>
       </div>
     </div>
   );
@@ -591,11 +606,11 @@ export default function DashboardPage() {
   const totalRevenue12 = (stats.monthlySummary ?? []).reduce((s, m) => s + m.revenue, 0);
 
   const tickerItems = [
-    `Bu ay ${stats.monthOrderCount ?? 0} sipariş`,
-    `${stats.activeCustomerCount ?? 0} aktif müşteri`,
-    `${stats.reviewCount ?? 0} yorum`,
-    `${stats.cancelledOrderCount ?? 0} iptal sipariş`,
-    `${(stats.monthlySummary ?? []).length} aylık veri`,
+    `${t("period.month", "Bu Ay")} ${stats.monthOrderCount ?? 0} ${t("ui.order", "sipariş")}`,
+    `${stats.activeCustomerCount ?? 0} ${t("ui.activeCustomer", "aktif müşteri")}`,
+    `${stats.reviewCount ?? 0} ${t("ui.reviewCount", "yorum")}`,
+    `${stats.cancelledOrderCount ?? 0} ${t("ui.cancelledOrder", "iptal sipariş")}`,
+    `${(stats.monthlySummary ?? []).length} ${t("ui.monthlyData", "aylık veri")}`,
   ];
 
   return (
@@ -635,7 +650,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
             <Activity size={13} className="text-teal-500" />
-            <span>Canlı</span>
+            <span>{t("ui.live", "Canlı")}</span>
             <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
             <span className="text-slate-300">|</span>
             <span className="tabular-nums">{refreshIn}s</span>
@@ -648,7 +663,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-violet-100 border border-violet-200 rounded-xl px-3 py-1.5 shrink-0">
             <Boxes size={13} className="text-violet-600" />
-            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">Stok</span>
+            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">{t("section.stock", "Stok")}</span>
           </div>
           <div className="flex-1 h-px bg-slate-300" />
         </div>
@@ -657,8 +672,8 @@ export default function DashboardPage() {
           {/* Toplam Ürün */}
           <HeroCard
             value={String(totalProductAnim)}
-            label="Toplam Ürün"
-            sub="aktif ürün"
+            label={t("ui.totalProduct", "Toplam Ürün")}
+            sub={t("ui.activeProduct", "aktif ürün")}
             gradient="linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
             icon={Package}
             link="/urunler"
@@ -666,16 +681,16 @@ export default function DashboardPage() {
           {/* Sağlıklı Stok */}
           <HeroCard
             value={String(Math.max((stats.totalProductCount ?? 0) - (stats.criticalStockCount ?? 0), 0))}
-            label="Sağlıklı Stok"
-            sub="yeterli stoklu ürün"
+            label={t("ui.healthyStock", "Sağlıklı Stok")}
+            sub={t("ui.sufficientStock", "yeterli stoklu ürün")}
             gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
             icon={CheckCircle2}
           />
           {/* Kritik Eşikte */}
           <HeroCard
             value={String(criticalCount)}
-            label="Kritik Eşikte"
-            sub="eşik altında ürün"
+            label={t("ui.criticalThreshold", "Kritik Eşikte")}
+            sub={t("ui.belowThreshold", "eşik altında ürün")}
             gradient={stats.criticalStockCount > 0
               ? "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
               : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
@@ -687,8 +702,8 @@ export default function DashboardPage() {
           {/* Tükenen */}
           <HeroCard
             value={String(outOfStockAnim)}
-            label="Tükenen Ürün"
-            sub="stok sıfır"
+            label={t("ui.outOfStock", "Tükenen Ürün")}
+            sub={t("ui.stockZero", "stok sıfır")}
             gradient={stats.outOfStockCount > 0
               ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
               : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
@@ -711,11 +726,11 @@ export default function DashboardPage() {
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-red-700">
-                Tükenen ürünler var — Acil müdahale gerekiyor!
+                {t("ui.outOfStockAlert", "Tükenen ürünler var — Acil müdahale gerekiyor!")}
               </p>
             </div>
             <span className="ml-auto text-xs text-red-500 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all whitespace-nowrap shrink-0">
-              Stok Yönetimi <ArrowUpRight size={13} />
+              {t("ui.stockManagement", "Stok Yönetimi")} <ArrowUpRight size={13} />
             </span>
           </Link>
         )}
@@ -726,7 +741,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-indigo-100 border border-indigo-200 rounded-xl px-3 py-1.5 shrink-0">
             <ShoppingCart size={13} className="text-indigo-600" />
-            <span className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">Siparişler</span>
+            <span className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">{t("section.orders", "Siparişler")}</span>
           </div>
           <div className="flex-1 h-px bg-slate-300" />
         </div>
@@ -735,22 +750,22 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <HeroCard
             value={String(periodOrdersAnim)}
-            label={`${PERIOD_LABELS[period]} Sipariş`}
-            sub="adet"
+            label={`${PERIOD_LABELS[period]} ${t("ui.order", "Sipariş")}`}
+            sub={t("ui.pcs", "adet")}
             gradient="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"
             icon={ShoppingCart}
           />
           <HeroCard
             value={String(monthOrderCount)}
-            label="Bu Ay Toplam"
-            sub={`${stats.todayOrderCount} bugün`}
+            label={t("ui.monthTotal", "Bu Ay Toplam")}
+            sub={`${stats.todayOrderCount} ${t("ui.today", "bugün")}`}
             gradient="linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
             icon={Activity}
           />
           <HeroCard
             value={String(pendingCount)}
-            label="Bekleyen Sipariş"
-            sub="işlem bekliyor"
+            label={t("ui.pendingOrder", "Bekleyen Sipariş")}
+            sub={t("ui.awaitingAction", "işlem bekliyor")}
             gradient={stats.pendingOrderCount > 0
               ? "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
               : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)"}
@@ -777,12 +792,12 @@ export default function DashboardPage() {
             </span>
             <p className={`text-sm font-bold flex-1 ${refundOrderCount > 0 ? "text-red-700" : "text-amber-700"}`}>
               {[
-                refundOrderCount > 0 && `${refundOrderCount} iade talebi`,
-                holdOrderCount > 0 && `${holdOrderCount} askıdaki sipariş`,
-              ].filter(Boolean).join(", ")} — İnceleme gerekiyor!
+                refundOrderCount > 0 && `${refundOrderCount} ${t("ui.refundRequest", "iade talebi")}`,
+                holdOrderCount > 0 && `${holdOrderCount} ${t("ui.heldOrder", "askıdaki sipariş")}`,
+              ].filter(Boolean).join(", ")} — {t("ui.reviewRequired", "İnceleme gerekiyor!")}
             </p>
             <span className={`ml-auto text-xs font-semibold flex items-center gap-1 group-hover:gap-2 transition-all whitespace-nowrap shrink-0 ${refundOrderCount > 0 ? "text-red-500" : "text-amber-600"}`}>
-              Siparişlere Git <ArrowUpRight size={13} />
+              {t("ui.goToOrders", "Siparişlere Git")} <ArrowUpRight size={13} />
             </span>
           </Link>
         )}
@@ -793,10 +808,10 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="mb-4">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                  <ShoppingCart size={14} className="text-indigo-500" /> Son 7 Gün — Sipariş
+                  <ShoppingCart size={14} className="text-indigo-500" /> {t("ui.last7DaysOrders", "Son 7 Gün — Sipariş")}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Toplam <span className="font-bold text-indigo-600">{stats.weeklyOrders.reduce((s, d) => s + d.orderCount, 0)}</span>
+                  {t("ui.totalLabel", "Toplam")} <span className="font-bold text-indigo-600">{stats.weeklyOrders.reduce((s, d) => s + d.orderCount, 0)}</span>
                 </p>
               </div>
               <WeeklyBars
@@ -811,10 +826,10 @@ export default function DashboardPage() {
             <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                  <Activity size={14} className="text-teal-500" /> Sipariş Durum Dağılımı
+                  <Activity size={14} className="text-teal-500" /> {t("ui.orderStatusDistribution", "Sipariş Durum Dağılımı")}
                 </h3>
                 <Link href="/siparisler" className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 font-medium transition-colors">
-                  Tümü <ArrowUpRight size={11} />
+                  {t("filter.all", "Tümü")} <ArrowUpRight size={11} />
                 </Link>
               </div>
               <DonutChart slices={statusSlices} total={statusTotal} />
@@ -822,21 +837,21 @@ export default function DashboardPage() {
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
                   <Clock size={13} className="text-amber-600 shrink-0" />
                   <div>
-                    <p className="text-xs text-amber-600 font-semibold">Bekleyen</p>
+                    <p className="text-xs text-amber-600 font-semibold">{t("status.pending", "Bekliyor")}</p>
                     <p className="text-lg font-extrabold text-amber-700">{stats.pendingOrderCount}</p>
                   </div>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
                   <Ghost size={13} className="text-slate-500 shrink-0" />
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold">Yarıda Kalan</p>
+                    <p className="text-xs text-slate-500 font-semibold">{t("ui.abandoned", "Yarıda Kalan")}</p>
                     <p className="text-lg font-extrabold text-slate-600">{stats.abandonedOrderCount ?? 0}</p>
                   </div>
                 </div>
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
                   <AlertTriangle size={13} className="text-red-500 shrink-0" />
                   <div>
-                    <p className="text-xs text-red-500 font-semibold">İptal</p>
+                    <p className="text-xs text-red-500 font-semibold">{t("status.cancelled", "İptal Edildi")}</p>
                     <p className="text-lg font-extrabold text-red-600">{stats.cancelledOrderCount ?? 0}</p>
                   </div>
                 </div>
@@ -851,7 +866,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 shrink-0">
             <TrendingUp size={13} className="text-emerald-600" />
-            <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-wider">Gelir</span>
+            <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-wider">{t("section.revenue", "Gelir")}</span>
           </div>
           <div className="flex-1 h-px bg-slate-300" />
         </div>
@@ -860,15 +875,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-4">
           <HeroCard
             value={formatPrice(periodSalesAnim)}
-            label={`${PERIOD_LABELS[period]} Geliri`}
-            sub={`${periodOrdersRaw} sipariş`}
+            label={`${PERIOD_LABELS[period]} ${t("ui.revenue", "Geliri")}`}
+            sub={`${periodOrdersRaw} ${t("ui.order", "sipariş")}`}
             gradient="linear-gradient(135deg, #10b981 0%, #14b8a6 100%)"
             icon={Zap}
           />
           <HeroCard
             value={formatPrice(monthSales)}
-            label="Bu Ay Toplam"
-            sub={`${formatPrice(todaySales)} bugün`}
+            label={t("ui.monthTotal", "Bu Ay Toplam")}
+            sub={`${formatPrice(todaySales)} ${t("ui.today", "bugün")}`}
             gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
             icon={TrendingUp}
           />
@@ -879,10 +894,10 @@ export default function DashboardPage() {
           <div className="rounded-2xl p-5 shadow-sm" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={15} className="text-emerald-400" />
-              <h3 className="font-bold text-white text-sm">12 Aylık Gelir</h3>
+              <h3 className="font-bold text-white text-sm">{t("ui.revenue12Months", "12 Aylık Gelir")}</h3>
             </div>
             <p className="text-2xl font-extrabold text-white">{formatPrice(totalRevenue12)}</p>
-            <p className="text-slate-400 text-xs mt-1">son 12 ay toplam</p>
+            <p className="text-slate-400 text-xs mt-1">{t("ui.last12MonthsTotal", "son 12 ay toplam")}</p>
             <div className="mt-3 flex items-end gap-1 h-10">
               {(stats.monthlySummary ?? []).map((m, i) => {
                 const maxR = Math.max(...(stats.monthlySummary ?? []).map(x => x.revenue), 1);
@@ -904,7 +919,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-amber-100 border border-amber-200 rounded-xl px-3 py-1.5 shrink-0">
             <Star size={13} className="text-amber-600" />
-            <span className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">Müşteriler</span>
+            <span className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">{t("section.customers", "Müşteriler")}</span>
           </div>
           <div className="flex-1 h-px bg-slate-300" />
         </div>
@@ -918,8 +933,8 @@ export default function DashboardPage() {
                 <Star size={15} className="text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-700 text-sm">Müşteri Memnuniyeti</h3>
-                <p className="text-xs text-slate-400">yorumlara göre</p>
+                <h3 className="font-bold text-slate-700 text-sm">{t("ui.customerSatisfaction", "Müşteri Memnuniyeti")}</h3>
+                <p className="text-xs text-slate-400">{t("ui.basedOnReviews", "yorumlara göre")}</p>
               </div>
             </div>
             <SatisfactionGauge rate={stats.satisfactionRate ?? 0} reviewCount={stats.reviewCount ?? 0} />
@@ -928,20 +943,20 @@ export default function DashboardPage() {
           {/* Aktiflik + Ortalama Sipariş ring'leri */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <h3 className="font-bold text-slate-700 text-sm mb-4 flex items-center gap-1.5">
-              <UserCheck size={14} className="text-violet-500" /> Müşteri Oranları
+              <UserCheck size={14} className="text-violet-500" /> {t("ui.customerRates", "Müşteri Oranları")}
             </h3>
             <div className="flex justify-around items-center">
               <RingMeter
                 pct={stats.totalCustomerCount ? Math.round((stats.activeCustomerCount ?? 0) / stats.totalCustomerCount * 100) : 0}
                 color="#8b5cf6"
-                label="Aktiflik Oranı"
-                sub="son 30 gün"
+                label={t("ui.activityRate", "Aktiflik Oranı")}
+                sub={t("ui.last30Days", "son 30 gün")}
               />
               <RingMeter
                 pct={stats.totalCustomerCount ? Math.round((stats.newCustomerCount ?? 0) / stats.totalCustomerCount * 100) : 0}
                 color="#10b981"
-                label="Yeni Üye Oranı"
-                sub="bu ay"
+                label={t("ui.newMemberRate", "Yeni Üye Oranı")}
+                sub={t("ui.thisMonth", "bu ay")}
               />
             </div>
           </div>
@@ -953,24 +968,24 @@ export default function DashboardPage() {
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center shadow">
                   <TrendingUp size={13} className="text-white" />
                 </div>
-                <h3 className="font-bold text-slate-700 text-sm">Ort. Sipariş Tutarı</h3>
+                <h3 className="font-bold text-slate-700 text-sm">{t("ui.avgOrderAmount", "Ort. Sipariş Tutarı")}</h3>
               </div>
               <p className="text-2xl font-extrabold text-slate-900 mt-1">
                 {stats.monthOrderCount && stats.monthOrderCount > 0
                   ? formatPrice((stats.monthSales ?? 0) / stats.monthOrderCount)
                   : "—"}
               </p>
-              <p className="text-xs text-slate-400">bu ay / sipariş başına</p>
+              <p className="text-xs text-slate-400">{t("ui.thisMonthPerOrder", "bu ay / sipariş başına")}</p>
             </div>
 
             <div className="pt-3 border-t border-slate-100">
               <p className="text-xs font-semibold text-slate-500 mb-2.5 flex items-center gap-1">
-                <Users size={11} /> Müşteri Dağılımı
+                <Users size={11} /> {t("ui.customerDistribution", "Müşteri Dağılımı")}
               </p>
               <SegmentBar segments={[
-                { label: "Aktif", value: stats.activeCustomerCount ?? 0, color: "#8b5cf6" },
-                { label: "Yeni", value: Math.max((stats.newCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#10b981" },
-                { label: "Pasif", value: Math.max((stats.totalCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#e2e8f0" },
+                { label: t("status.active", "Aktif"), value: stats.activeCustomerCount ?? 0, color: "#8b5cf6" },
+                { label: t("ui.new", "Yeni"), value: Math.max((stats.newCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#10b981" },
+                { label: t("status.passive", "Pasif"), value: Math.max((stats.totalCustomerCount ?? 0) - (stats.activeCustomerCount ?? 0), 0), color: "#e2e8f0" },
               ]} />
             </div>
           </div>
@@ -983,26 +998,26 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 rounded-xl px-3 py-1.5 shrink-0">
               <Target size={13} className="text-blue-600" />
-              <span className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">Hedefler</span>
+              <span className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">{t("section.goals", "Hedefler")}</span>
             </div>
             <div className="flex-1 h-px bg-slate-300" />
             <Link href="/hedefler" className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold transition-colors">
-              Düzenle <ArrowUpRight size={11} />
+              {t("action.edit", "Düzenle")} <ArrowUpRight size={11} />
             </Link>
           </div>
           <div className="rounded-2xl overflow-hidden shadow-lg"
             style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #0f766e 100%)" }}>
             <div className="p-6">
               <div className="flex items-center gap-2 mb-5">
-                <p className="text-white/60 text-xs">{new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" })} hedefleri</p>
+                <p className="text-white/60 text-xs">{new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" })} {t("ui.goals", "hedefleri")}</p>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {stats.monthTargetRevenue && stats.monthTargetRevenue > 0 && (
-                  <ProgressBar label="Gelir Hedefi" actual={stats.monthSales ?? 0}
+                  <ProgressBar label={t("ui.revenueGoal", "Gelir Hedefi")} actual={stats.monthSales ?? 0}
                     target={stats.monthTargetRevenue} gradient="linear-gradient(to right, #6366f1, #2dd4bf)" format="price" />
                 )}
                 {stats.monthTargetOrderCount && stats.monthTargetOrderCount > 0 && (
-                  <ProgressBar label="Sipariş Hedefi" actual={stats.monthOrderCount ?? 0}
+                  <ProgressBar label={t("ui.orderGoal", "Sipariş Hedefi")} actual={stats.monthOrderCount ?? 0}
                     target={stats.monthTargetOrderCount} gradient="linear-gradient(to right, #0ea5e9, #8b5cf6)" format="count" />
                 )}
               </div>
@@ -1016,11 +1031,11 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-violet-100 border border-violet-200 rounded-xl px-3 py-1.5 shrink-0">
             <Users size={13} className="text-violet-600" />
-            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">Kullanıcılar</span>
+            <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wider">{t("section.users", "Kullanıcılar")}</span>
           </div>
           <div className="flex-1 h-px bg-slate-300" />
           <Link href="/kullanicilar" className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1 font-semibold transition-colors">
-            Tümü <ArrowUpRight size={11} />
+            {t("filter.all", "Tümü")} <ArrowUpRight size={11} />
           </Link>
         </div>
 
@@ -1028,9 +1043,9 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <div className="grid grid-cols-3 gap-3 mb-4">
               {[
-                { label: "Toplam", value: stats.totalCustomerCount ?? 0, color: "text-slate-900" },
-                { label: "Aktif (30g)", value: stats.activeCustomerCount ?? 0, color: "text-violet-600" },
-                { label: "Yeni (Bu Ay)", value: stats.newCustomerCount ?? 0, color: "text-emerald-600" },
+                { label: t("ui.totalLabel", "Toplam"), value: stats.totalCustomerCount ?? 0, color: "text-slate-900" },
+                { label: t("ui.active30d", "Aktif (30g)"), value: stats.activeCustomerCount ?? 0, color: "text-violet-600" },
+                { label: t("ui.newThisMonth", "Yeni (Bu Ay)"), value: stats.newCustomerCount ?? 0, color: "text-emerald-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="text-center">
                   <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
@@ -1039,8 +1054,8 @@ export default function DashboardPage() {
               ))}
             </div>
             <div className="pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1"><UserCheck size={11} className="text-violet-400" /> Son 30 gün aktif</span>
-              <span className="flex items-center gap-1"><Package size={11} className="text-emerald-400" /> Bu ay yeni</span>
+              <span className="flex items-center gap-1"><UserCheck size={11} className="text-violet-400" /> {t("ui.last30DaysActive", "Son 30 gün aktif")}</span>
+              <span className="flex items-center gap-1"><Package size={11} className="text-emerald-400" /> {t("ui.newThisMonthShort", "Bu ay yeni")}</span>
             </div>
           </div>
 
@@ -1048,10 +1063,10 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="mb-4">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                  <Users size={14} className="text-violet-500" /> Son 7 Gün — Yeni Üye
+                  <Users size={14} className="text-violet-500" /> {t("ui.last7DaysNewMembers", "Son 7 Gün — Yeni Üye")}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Toplam <span className="font-bold text-violet-600">{stats.weeklyNewUsers.reduce((s, d) => s + d.count, 0)}</span>
+                  {t("ui.totalLabel", "Toplam")} <span className="font-bold text-violet-600">{stats.weeklyNewUsers.reduce((s, d) => s + d.count, 0)}</span>
                 </p>
               </div>
               <WeeklyBars

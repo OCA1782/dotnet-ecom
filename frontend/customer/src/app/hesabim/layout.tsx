@@ -4,22 +4,24 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-
-const NAV_LINKS = [
-  { href: "/hesabim", label: "Hesap Bilgileri", icon: "👤" },
-  { href: "/hesabim/siparisler", label: "Siparişlerim", icon: "📦" },
-  { href: "/hesabim/adresler", label: "Adreslerim", icon: "📍" },
-  { href: "/hesabim/favoriler", label: "Favorilerim", icon: "❤️" },
-  { href: "/hesabim/faturalar", label: "Faturalarım", icon: "🧾" },
-  { href: "/hesabim/iadeler", label: "İadelerim", icon: "↩️" },
-  { href: "/hesabim/kuponlar", label: "Kuponlarım", icon: "🎟️" },
-  { href: "/hesabim/yorumlar", label: "Yorumlarım", icon: "💬" },
-];
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function HesabimLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const NAV_LINKS = [
+    { href: "/hesabim", label: "Hesap Bilgileri", icon: "👤" },
+    { href: "/hesabim/siparisler", label: t("header.orders"), icon: "📦" },
+    { href: "/hesabim/adresler", label: t("header.addresses"), icon: "📍" },
+    { href: "/hesabim/favoriler", label: t("header.favorites"), icon: "❤️" },
+    { href: "/hesabim/faturalar", label: t("header.invoices"), icon: "🧾" },
+    { href: "/hesabim/iadeler", label: t("header.returns"), icon: "↩️" },
+    { href: "/hesabim/kuponlar", label: t("header.coupons"), icon: "🎟️" },
+    { href: "/hesabim/yorumlar", label: t("header.reviews"), icon: "💬" },
+  ];
 
   useEffect(() => {
     if (!loading && !user) router.replace("/giris");
@@ -35,7 +37,6 @@ export default function HesabimLayout({ children }: { children: React.ReactNode 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
       <div className="flex gap-8 items-start">
-        {/* Sidebar */}
         <aside className="hidden md:block w-52 shrink-0">
           <nav className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {NAV_LINKS.map((l) => (
@@ -58,7 +59,6 @@ export default function HesabimLayout({ children }: { children: React.ReactNode 
           </nav>
         </aside>
 
-        {/* Page content */}
         <main className="flex-1 min-w-0">{children}</main>
       </div>
     </div>

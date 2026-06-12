@@ -18,15 +18,15 @@ const I18nContext = createContext<I18nContextValue>({
 });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('tr');
+  const [lang, setLangState] = useState<Lang>(() => {
+    if (typeof window === "undefined") return "tr";
+    const saved = localStorage.getItem("ecom:lang") as Lang | null;
+    return saved && translations[saved] ? saved : "tr";
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem('ecom:lang') as Lang | null;
-    if (saved && translations[saved]) {
-      setLangState(saved);
-      document.documentElement.lang = saved;
-    }
-  }, []);
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);

@@ -9,7 +9,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 import {
   Settings, Globe, Palette, Truck, Menu, Shield, FileText,
   Save, Upload, Loader2, CheckCircle, GripVertical,
-  Share2, Image as ImageIcon, Link, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  Share2, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Plus, Pencil, Trash2, HelpCircle, RefreshCw, MapPin, Clock, Phone, Mail,
   SendHorizonal, X, XCircle, MessageCircle, CreditCard, Building2, Lock,
   Users, KeyRound, Database, Wifi, Activity,
@@ -66,6 +66,29 @@ const DEFAULTS: SiteSettings = {
   AdminBaseUrl_dev: "http://localhost:3001",
   AdminBaseUrl_staging: "",
   AdminBaseUrl_prod: "",
+  // İş yönetimi
+  "I18nJob:EnableAutoRun": "false",
+  "I18nJob:AllowSourceMutation": "false",
+  "I18nJob:AllowDocsWrite": "false",
+  "I18nJob:TriggerBuilderFromScanner": "false",
+  "I18nJob:ProjectRoot": "",
+  "I18nJob:DocsPath": "",
+  "I18nJob:ScheduleTimeZone": "Turkey Standard Time",
+  "I18nJob:DictionaryBuilderWindowStart": "01:00:00",
+  "I18nJob:DictionaryBuilderWindowEnd": "07:00:00",
+  "CustomerI18nJob:EnableAutoRun": "false",
+  "CustomerI18nJob:AllowSourceMutation": "false",
+  "CustomerI18nJob:AllowDocsWrite": "false",
+  "CustomerI18nJob:TriggerBuilderFromScanner": "false",
+  "CustomerI18nJob:ProjectRoot": "",
+  "CustomerI18nJob:DocsPath": "",
+  "CustomerI18nJob:ScheduleTimeZone": "Turkey Standard Time",
+  "CustomerI18nJob:DictionaryBuilderWindowStart": "01:00:00",
+  "CustomerI18nJob:DictionaryBuilderWindowEnd": "07:00:00",
+  "VerificationJob:ApiBaseUrl": "http://localhost:5124",
+  "VerificationJob:ProjectRoot": "",
+  "VerificationJob:LogFilePath": "",
+  "AdminLintAudit:TodoPath": "TODO_PENDING.md",
   // Chatbot
   ChatbotEnabled: "false",
   ChatbotProvider: "whatsapp",
@@ -429,8 +452,6 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
   const gap = columns >= 5 ? 2 : 3;
   const cw  = Math.floor((168 - (displayCols - 1) * gap) / displayCols);
   const cardH = Math.min(112 - cardsY - 6, columns >= 5 ? 24 : columns <= 2 ? 48 : columns === 3 ? 38 : 34);
-  const imgH  = id === "instagram" ? cardH : Math.floor(cardH * 0.55);
-
   return (
     <svg viewBox="0 0 180 112" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", width: "100%", height: "100%" }}>
       {/* Arka plan */}
@@ -549,7 +570,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
   );
 }
 
-type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "sistem" | "bildirimler";
+type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "otomasyon" | "sistem" | "bildirimler";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "genel",    label: "Genel",    icon: <Globe size={14} /> },
@@ -563,6 +584,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "mesajlar", label: "Mesajlar", icon: <MessageSquare size={14} /> },
   { id: "yetkiler", label: "Yetkiler", icon: <Shield size={14} /> },
   { id: "lisans",   label: "Lisans",   icon: <KeyRound size={14} /> },
+  { id: "otomasyon", label: "Otomasyon", icon: <Activity size={14} /> },
   { id: "bildirimler", label: "Bildirimler", icon: <BellRing size={14} /> },
   { id: "sistem",   label: "Sistem",   icon: <Settings size={14} /> },
 ];
@@ -627,6 +649,7 @@ function MenuSorter({
   groupConfig: MenuGroupConfig;
   onGroupConfigChange: (c: MenuGroupConfig) => void;
 }) {
+  const { t } = useI18n();
   const [dragInfo, setDragInfo] = useState<{ groupId: string; fromIdx: number } | null>(null);
   const [overInfo, setOverInfo] = useState<{ groupId: string; idx: number } | null>(null);
 
@@ -764,7 +787,7 @@ function MenuSorter({
                   onDragOver={e => { e.preventDefault(); setOverInfo({ groupId: group.groupId, idx: 0 }); }}
                   onDrop={() => handleDrop(group.groupId, 0)}
                 >
-                  Boş grup — buraya sürükleyin
+                  {t("auto.bosGrup", "Boş grup — buraya sürükleyin")}
                 </div>
               )}
               {group.items.map((href, itemIdx) => {
@@ -822,6 +845,7 @@ function MenuSorter({
 
 /* ─── FAQ editor ─────────────────────────────────────────────────────── */
 function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<FaqItem[]>(() => {
     try { return JSON.parse(value) as FaqItem[]; } catch { return []; }
   });
@@ -830,7 +854,10 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
   useEffect(() => {
     if (value !== lastValue.current) {
       lastValue.current = value;
-      try { setItems(JSON.parse(value) as FaqItem[]); } catch { setItems([]); }
+      const timer = window.setTimeout(() => {
+        try { setItems(JSON.parse(value) as FaqItem[]); } catch { setItems([]); }
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [value]);
 
@@ -850,21 +877,21 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
     <div className="space-y-3">
       {items.length === 0 && (
         <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
-          Henüz soru yok. Eklemek için aşağıdaki butonu kullanın.
+          {t("auto.henuzSoruYok", "Henüz soru yok. Eklemek için aşağıdaki butonu kullanın.")}
         </div>
       )}
       {items.map((item, i) => (
         <div key={i} className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <HelpCircle size={14} className="text-teal-500 shrink-0" />
-            <span className="text-xs font-semibold text-slate-500">Soru {i + 1}</span>
+            <span className="text-xs font-semibold text-slate-500">{t("auto.soruN", "Soru")} {i + 1}</span>
             <button onClick={() => remove(i)}
               className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition">
               <Trash2 size={13} />
             </button>
           </div>
           <input value={item.q} onChange={e => setField(i, "q", e.target.value)}
-            placeholder="Soru metni..."
+            placeholder={t("auto.soruMetni", "Soru metni...")}
             className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
           <RichTextEditor
             value={item.a}
@@ -875,7 +902,7 @@ function FaqEditor({ value, onChange }: { value: string; onChange: (v: string) =
       ))}
       <button onClick={add}
         className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 rounded-xl px-4 py-2.5 transition w-full justify-center">
-        <Plus size={15} /> Soru Ekle
+        <Plus size={15} /> {t("auto.soruEkle", "Soru Ekle")}
       </button>
     </div>
   );
@@ -887,10 +914,11 @@ function TextEditor({ label, settingKey, value, onChange, hint }: {
   onChange: (key: string, val: string) => void;
   rows?: number; hint?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       <label className="text-xs font-semibold text-slate-600 block">{label}</label>
-      <RichTextEditor value={value} onChange={v => onChange(settingKey, v)} placeholder="İçerik buraya girilecek..." />
+      <RichTextEditor value={value} onChange={v => onChange(settingKey, v)} placeholder={t("auto.icerikBurayaGirilecek", "İçerik buraya girilecek...")} />
       {hint && <p className="text-xs text-slate-400">{hint}</p>}
     </div>
   );
@@ -937,6 +965,7 @@ function getContrastRatio(hex1: string, hex2: string): number {
 }
 
 function CarrierManager() {
+  const { t } = useI18n();
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
   const [loading, setLoading]   = useState(true);
   const [modal, setModal]       = useState<"create" | "edit" | null>(null);
@@ -952,7 +981,10 @@ function CarrierManager() {
     catch { /* empty */ } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   function openCreate() { setForm({ ...emptyCarrierForm }); setEditing(null); setFormError(""); setModal("create"); }
   function openEdit(c: ShippingCarrier) {
@@ -967,7 +999,7 @@ function CarrierManager() {
   }
 
   async function handleSave() {
-    if (!form.name.trim() || !form.code.trim()) { setFormError("Firma adı ve kod zorunludur."); return; }
+    if (!form.name.trim() || !form.code.trim()) { setFormError(t("auto.firmaAdiKodZorunlu", "Firma adı ve kod zorunludur.")); return; }
     setSaving(true); setFormError("");
     try {
       const body = {
@@ -998,38 +1030,38 @@ function CarrierManager() {
     <div className="space-y-4 mt-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold text-slate-700">Kargo Firmaları</p>
-          <p className="text-xs text-slate-400 mt-0.5">Alternatif kargo firmalarını, fiyatları ve takip URL şablonlarını yönetin.</p>
+          <p className="text-sm font-bold text-slate-700">{t("auto.kargoFirmalari", "Kargo Firmaları")}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{t("auto.kargoFirmalarıAciklama", "Alternatif kargo firmalarını, fiyatları ve takip URL şablonlarını yönetin.")}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={load} className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:bg-slate-50 transition">
             <RefreshCw size={14} />
           </button>
           <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition">
-            <Plus size={14} /> Firma Ekle
+            <Plus size={14} /> {t("auto.firmaEkle", "Firma Ekle")}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className="text-xs text-slate-400 py-4 text-center">Yükleniyor...</p>
+        <p className="text-xs text-slate-400 py-4 text-center">{t("action.loading", "Yükleniyor...")}</p>
       ) : carriers.length === 0 ? (
         <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center">
           <Truck size={24} className="mx-auto text-slate-300 mb-2" />
-          <p className="text-sm text-slate-400">Henüz kargo firması eklenmemiş.</p>
-          <button onClick={openCreate} className="mt-3 px-4 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition">İlk Firmayı Ekle</button>
+          <p className="text-sm text-slate-400">{t("auto.henuzKargoYok", "Henüz kargo firması eklenmemiş.")}</p>
+          <button onClick={openCreate} className="mt-3 px-4 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition">{t("action.add", "Ekle")}</button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left px-4 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Firma</th>
-                <th className="text-left px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Kod</th>
-                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Baz Fiyat</th>
-                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Ücretsiz Eşik</th>
-                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Gün</th>
-                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.firma", "Firma")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.kod", "Kod")}</th>
+                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.bazFiyat", "Baz Fiyat")}</th>
+                <th className="text-right px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.ucretsizEsik", "Ücretsiz Eşik")}</th>
+                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.gun", "Gün")}</th>
+                <th className="text-center px-3 py-2.5 font-semibold text-slate-500 uppercase tracking-wider">{t("label.status", "Durum")}</th>
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -1057,8 +1089,8 @@ function CarrierManager() {
                   </td>
                   <td className="px-3 py-2.5 text-center">
                     {c.isActive
-                      ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">Aktif</span>
-                      : <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Pasif</span>}
+                      ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">{t("status.active", "Aktif")}</span>
+                      : <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">{t("status.passive", "Pasif")}</span>}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end">
@@ -1080,28 +1112,28 @@ function CarrierManager() {
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <Truck size={16} className="text-teal-600" />
-                {modal === "create" ? "Yeni Kargo Firması" : "Firma Düzenle"}
+                {modal === "create" ? t("carrier.newFirm", "Yeni Kargo Firması") : t("carrier.editFirm", "Firma Düzenle")}
               </h2>
               <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
             </div>
             <div className="p-6 space-y-4">
               {formError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{formError}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={cl}>Firma Adı <span className="text-red-500">*</span></label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className={ci} placeholder="Yurtiçi Kargo" /></div>
-                <div><label className={cl}>Kod <span className="text-red-500">*</span></label><input value={form.code} onChange={e => setForm(f => ({...f, code: e.target.value.toLowerCase()}))} className={ci} placeholder="yurtici" /></div>
-                <div><label className={cl}>Baz Fiyat (TRY)</label><input type="number" min={0} step={0.01} value={form.basePrice} onChange={e => setForm(f => ({...f, basePrice: +e.target.value}))} className={ci} /></div>
-                <div><label className={cl}>Ücretsiz Kargo Eşiği (TRY)</label><input type="number" min={0} step={0.01} value={form.freeShippingThreshold ?? ""} onChange={e => setForm(f => ({...f, freeShippingThreshold: e.target.value ? +e.target.value : null}))} className={ci} placeholder="Boş = yok" /></div>
-                <div><label className={cl}>Tahmini Teslimat (gün)</label><input type="number" min={1} max={30} value={form.estimatedDays} onChange={e => setForm(f => ({...f, estimatedDays: +e.target.value}))} className={ci} /></div>
-                <div><label className={cl}>Maks. Ağırlık (kg)</label><input type="number" min={0} step={0.1} value={form.maxWeightKg ?? ""} onChange={e => setForm(f => ({...f, maxWeightKg: e.target.value ? +e.target.value : null}))} className={ci} placeholder="Boş = sınırsız" /></div>
+                <div><label className={cl}>{t("auto.firmaAdi", "Firma Adı")} <span className="text-red-500">*</span></label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className={ci} placeholder="Yurtiçi Kargo" /></div>
+                <div><label className={cl}>{t("auto.kod", "Kod")} <span className="text-red-500">*</span></label><input value={form.code} onChange={e => setForm(f => ({...f, code: e.target.value.toLowerCase()}))} className={ci} placeholder="yurtici" /></div>
+                <div><label className={cl}>{t("auto.bazFiyatTry", "Baz Fiyat (TRY)")}</label><input type="number" min={0} step={0.01} value={form.basePrice} onChange={e => setForm(f => ({...f, basePrice: +e.target.value}))} className={ci} /></div>
+                <div><label className={cl}>{t("auto.ucretsizKargoEsigi", "Ücretsiz Kargo Eşiği (TRY)")}</label><input type="number" min={0} step={0.01} value={form.freeShippingThreshold ?? ""} onChange={e => setForm(f => ({...f, freeShippingThreshold: e.target.value ? +e.target.value : null}))} className={ci} placeholder={t("auto.bosYok", "Boş = yok")} /></div>
+                <div><label className={cl}>{t("auto.tahminTeslimat", "Tahmini Teslimat (gün)")}</label><input type="number" min={1} max={30} value={form.estimatedDays} onChange={e => setForm(f => ({...f, estimatedDays: +e.target.value}))} className={ci} /></div>
+                <div><label className={cl}>{t("auto.maksAgirlik", "Maks. Ağırlık (kg)")}</label><input type="number" min={0} step={0.1} value={form.maxWeightKg ?? ""} onChange={e => setForm(f => ({...f, maxWeightKg: e.target.value ? +e.target.value : null}))} className={ci} placeholder={t("auto.bosSinirsiz", "Boş = sınırsız")} /></div>
               </div>
-              <div><label className={cl}>Takip URL Şablonu</label><input value={form.trackingUrlTemplate} onChange={e => setForm(f => ({...f, trackingUrlTemplate: e.target.value}))} className={ci} placeholder="https://track.example.com/{0}" /></div>
+              <div><label className={cl}>{t("auto.takipUrlSablonu", "Takip URL Şablonu")}</label><input value={form.trackingUrlTemplate} onChange={e => setForm(f => ({...f, trackingUrlTemplate: e.target.value}))} className={ci} placeholder="https://track.example.com/{0}" /></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={cl}>Logo URL</label><input value={form.logoUrl} onChange={e => setForm(f => ({...f, logoUrl: e.target.value}))} className={ci} /></div>
+                <div><label className={cl}>{t("label.url", "Logo URL")}</label><input value={form.logoUrl} onChange={e => setForm(f => ({...f, logoUrl: e.target.value}))} className={ci} /></div>
                 <div><label className={cl}>API Endpoint</label><input value={form.apiEndpoint} onChange={e => setForm(f => ({...f, apiEndpoint: e.target.value}))} className={ci} /></div>
               </div>
-              <div><label className={cl}>Notlar</label><textarea rows={2} value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={ci + " resize-none"} /></div>
+              <div><label className={cl}>{t("auto.notlar", "Notlar")}</label><textarea rows={2} value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={ci + " resize-none"} /></div>
               <div>
-                <label className={cl}>Ağırlık Bazlı Fiyatlandırma (JSON)</label>
+                <label className={cl}>{t("auto.agirlikFiyatlandirma", "Ağırlık Bazlı Fiyatlandırma (JSON)")}</label>
                 <textarea rows={3} value={form.weightPricingJson} onChange={e => setForm(f => ({...f, weightPricingJson: e.target.value}))} className={ci + " resize-none font-mono text-xs"} placeholder='[{"minKg":0,"maxKg":1,"price":29.90}]' />
               </div>
               {modal === "edit" && (
@@ -1111,13 +1143,13 @@ function CarrierManager() {
                     <div className="w-10 h-5 bg-slate-200 peer-checked:bg-teal-500 rounded-full peer transition-colors" />
                     <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
                   </label>
-                  <span className="text-sm text-slate-700">Aktif</span>
+                  <span className="text-sm text-slate-700">{t("status.active", "Aktif")}</span>
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModal(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">İptal</button>
+                <button onClick={() => setModal(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-60">
-                  {saving ? "Kaydediliyor..." : modal === "create" ? "Ekle" : "Kaydet"}
+                  {saving ? t("action.saving", "Kaydediliyor...") : modal === "create" ? t("action.add", "Ekle") : t("action.save", "Kaydet")}
                 </button>
               </div>
             </div>
@@ -1131,12 +1163,12 @@ function CarrierManager() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center"><Trash2 size={18} className="text-red-600" /></div>
-              <div><h3 className="font-bold text-slate-800">Firmayı Sil</h3><p className="text-sm text-slate-500">{deleteTarget.name}</p></div>
+              <div><h3 className="font-bold text-slate-800">{t("auto.firmaySil", "Firmayı Sil")}</h3><p className="text-sm text-slate-500">{deleteTarget.name}</p></div>
             </div>
-            <p className="text-sm text-slate-600">Bu kargo firması kalıcı olarak silinecek. Emin misiniz?</p>
+            <p className="text-sm text-slate-600">{t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">İptal</button>
-              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition">Sil</button>
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">{t("action.cancel", "Vazgeç")}</button>
+              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition">{t("action.delete", "Sil")}</button>
             </div>
           </div>
         </div>
@@ -1146,7 +1178,7 @@ function CarrierManager() {
 }
 
 /* ─── Ana sayfa ─────────────────────────────────────────────────────── */
-const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","sistem"];
+const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","otomasyon","sistem"];
 
 export default function YonetimPage() {
   const { t } = useI18n();
@@ -1258,8 +1290,6 @@ export default function YonetimPage() {
   const [revealError, setRevealError]         = useState("");
   const [revealLoading, setRevealLoading]     = useState(false);
   const [keyCopied, setKeyCopied]             = useState(false);
-  const logoRef    = useRef<HTMLInputElement>(null);
-  const faviconRef = useRef<HTMLInputElement>(null);
   const adminLogoNamedRef  = useRef<HTMLInputElement>(null);
   const adminLogoIconRef   = useRef<HTMLInputElement>(null);
   const adminFaviconRef    = useRef<HTMLInputElement>(null);
@@ -1318,15 +1348,39 @@ export default function YonetimPage() {
     setRbacMatrix(defaultMatrix);
   }
 
+  // Legacy functions — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
+  function openRevealModal() { setRevealPassword(""); setRevealLoading(false); setRevealError(""); setKeyCopied(false); }
+  function closeRevealModal() { setRevealPassword(""); setRevealError(""); setKeyCopied(false); }
+  async function handleRevealKey() { if (!revealPassword.trim()) { setRevealError(""); return; } setRevealLoading(true); setRevealLoading(false); }
+
+  const loadLicenseAssignments = useCallback(() => {
+    setLicAssignmentsLoading(true);
+    api.get<unknown[]>("/api/admin/license-assignments")
+      .then(setLicAssignments)
+      .catch(() => {})
+      .finally(() => setLicAssignmentsLoading(false));
+  }, []);
+
+  const loadLicenseHistory = useCallback(() => {
+    setLicHistoryLoading(true);
+    api.get<unknown[]>("/api/admin/license-assignments/history?limit=50")
+      .then(setLicHistory)
+      .catch(() => {})
+      .finally(() => setLicHistoryLoading(false));
+  }, []);
+
   useEffect(() => {
     if (tab !== "lisans") return;
-    setDevKeyLoading(true);
-    api.get<{ isConfigured: boolean; maskedKey: string | null; fullKey?: string; issuer?: string; notBefore?: string; expiresAt?: string; revealPasswordSet: boolean }>("/api/admin/dev-key")
-      .then(setDevKeyStatus)
-      .catch(() => {})
-      .finally(() => setDevKeyLoading(false));
-    if (isSuperAdmin) { loadLicenseAssignments(); loadLicenseHistory(); }
-  }, [tab]);
+    const timer = window.setTimeout(() => {
+      setDevKeyLoading(true);
+      api.get<{ isConfigured: boolean; maskedKey: string | null; fullKey?: string; issuer?: string; notBefore?: string; expiresAt?: string; revealPasswordSet: boolean }>("/api/admin/dev-key")
+        .then(setDevKeyStatus)
+        .catch(() => {})
+        .finally(() => setDevKeyLoading(false));
+      if (isSuperAdmin) { loadLicenseAssignments(); loadLicenseHistory(); }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [tab, isSuperAdmin, loadLicenseAssignments, loadLicenseHistory]);
 
   // ── Bildirimler tab state ───────────────────────────────────────────────────
   const [alertEnabled, setAlertEnabled]   = useState(false);
@@ -1339,11 +1393,14 @@ export default function YonetimPage() {
 
   useEffect(() => {
     if (tab !== "bildirimler") return;
-    const enabled = settings["Alert:Enabled"] === "true";
-    const emails  = (settings["Alert:Emails"] ?? "")
-      .split(",").map(e => e.trim()).filter(Boolean);
-    setAlertEnabled(enabled);
-    setAlertEmails(emails);
+    const timer = window.setTimeout(() => {
+      const enabled = settings["Alert:Enabled"] === "true";
+      const emails  = (settings["Alert:Emails"] ?? "")
+        .split(",").map(e => e.trim()).filter(Boolean);
+      setAlertEnabled(enabled);
+      setAlertEmails(emails);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [tab, settings]);
 
   async function saveAlertSettings() {
@@ -1377,26 +1434,6 @@ export default function YonetimPage() {
   }
 
   // Legacy functions — referenced by old Sistem tab code wrapped in {false && ...}, kept for TS compatibility
-  function openRevealModal() { setRevealPassword(""); setRevealLoading(false); setRevealError(""); setKeyCopied(false); }
-  function closeRevealModal() { setRevealPassword(""); setRevealError(""); setKeyCopied(false); }
-  async function handleRevealKey() { if (!revealPassword.trim()) { setRevealError(""); return; } setRevealLoading(true); setRevealLoading(false); }
-
-  function loadLicenseAssignments() {
-    setLicAssignmentsLoading(true);
-    api.get<unknown[]>("/api/admin/license-assignments")
-      .then(setLicAssignments)
-      .catch(() => {})
-      .finally(() => setLicAssignmentsLoading(false));
-  }
-
-  function loadLicenseHistory() {
-    setLicHistoryLoading(true);
-    api.get<unknown[]>("/api/admin/license-assignments/history?limit=50")
-      .then(setLicHistory)
-      .catch(() => {})
-      .finally(() => setLicHistoryLoading(false));
-  }
-
   async function handleAssignLicense() {
     setLicAssignError(""); setLicAssignResult(null);
     if (!licAssignEmail.trim()) { setLicAssignError("E-posta veya kullanıcı adı zorunludur."); return; }
@@ -1586,19 +1623,19 @@ export default function YonetimPage() {
     <div className="space-y-6 max-w-4xl">
       {saved && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-lg">
-          <CheckCircle size={16} /> Kaydedildi
+          <CheckCircle size={16} /> {t("msg.saved", "Başarıyla kaydedildi")}
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("nav./yonetim", "Yönetim")}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Site, panel ve içerik ayarları</p>
+          <p className="text-sm text-slate-500 mt-0.5">{t("auto.sitePanelAyarlari", "Site, panel ve içerik ayarları")}</p>
         </div>
         <button onClick={save} disabled={saving}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition shadow">
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          Kaydet
+          {t("action.save", "Kaydet")}
         </button>
       </div>
 
@@ -1610,14 +1647,32 @@ export default function YonetimPage() {
         </button>
         <div ref={tabsRef} className="overflow-x-auto pb-0.5 flex-1 scroll-smooth" style={{ scrollbarWidth: "none" }}>
           <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 min-w-max">
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition whitespace-nowrap shrink-0 ${
-                  tab === t.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}>
-                {t.icon} {t.label}
-              </button>
-            ))}
+            {TABS.map(tabItem => {
+              const tabLabel: Record<string, string> = {
+                genel:       t("settings.tab.genel", "Genel"),
+                gorunum:     t("settings.tab.gorunum", "Görünüm"),
+                sablon:      t("settings.tab.sablon", "Şablon"),
+                kargo:       t("settings.tab.kargo", "Kargo"),
+                menu:        t("settings.tab.menu", "Menü"),
+                icerik:      t("settings.tab.icerikler", "İçerik"),
+                chatbot:     t("settings.tab.chatbot", "Chatbot"),
+                odeme:       t("settings.tab.odeme", "Ödeme"),
+                mesajlar:    t("settings.tab.mesajlar", "Mesajlar"),
+                yetkiler:    t("settings.tab.yetkiler", "Yetkiler"),
+                lisans:      t("settings.tab.lisans", "Lisans"),
+                otomasyon:   t("settings.tab.otomasyon", "Otomasyon"),
+                bildirimler: t("settings.tab.bildirim", "Bildirimler"),
+                sistem:      t("settings.tab.sistem", "Sistem"),
+              };
+              return (
+                <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition whitespace-nowrap shrink-0 ${
+                    tab === tabItem.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}>
+                  {tabItem.icon} {tabLabel[tabItem.id] ?? tabItem.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <button onClick={() => tabsRef.current?.scrollBy({ left: 120, behavior: "smooth" })}
@@ -1629,38 +1684,38 @@ export default function YonetimPage() {
       {/* ── Genel ── */}
       {tab === "genel" && (
         <div className="space-y-5">
-          <Section title="Site Bilgileri" icon={<Globe size={16} />}>
+          <Section title={t("settings.site", "Site Bilgileri")} icon={<Globe size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Site Adı" hint="Müşteri sitesi tarayıcı sekmesi, başlık ve tüm sayfalarda görünür">
+              <Field label={t("settings.siteName", "Site Adı")} hint="Müşteri sitesi tarayıcı sekmesi, başlık ve tüm sayfalarda görünür">
                 <input value={settings.SiteName} onChange={e => set("SiteName", e.target.value)} className={inp} placeholder="Örn: Mağaza Adı" />
               </Field>
-              <Field label="Admin Panel Başlığı" hint="Admin paneli sol üst köşesi ve tarayıcı sekmesinde görünür">
+              <Field label={t("settings.adminTitle", "Admin Panel Başlığı")} hint="Admin paneli sol üst köşesi ve tarayıcı sekmesinde görünür">
                 <input value={settings.AdminTitle} onChange={e => set("AdminTitle", e.target.value)} className={inp} placeholder="Örn: Yönetim Paneli" />
               </Field>
-              <Field label="Para Birimi">
+              <Field label={t("settings.currency", "Para Birimi")}>
                 <select value={settings.Currency} onChange={e => set("Currency", e.target.value)} className={inp}>
-                  <option value="TRY">TRY — Türk Lirası</option>
-                  <option value="USD">USD — Amerikan Doları</option>
-                  <option value="EUR">EUR — Euro</option>
-                  <option value="GBP">GBP — İngiliz Sterlini</option>
+                  <option value="TRY">{t("auto.currencyTRY", "TRY — Türk Lirası")}</option>
+                  <option value="USD">{t("auto.currencyUSD", "USD — Amerikan Doları")}</option>
+                  <option value="EUR">{t("auto.currencyEUR", "EUR — Euro")}</option>
+                  <option value="GBP">{t("auto.currencyGBP", "GBP — İngiliz Sterlini")}</option>
                 </select>
               </Field>
-              <Field label="KDV Oranı (%)" hint="Varsayılan vergi oranı">
+              <Field label={t("settings.taxRate", "KDV Oranı (%)")} hint="Varsayılan vergi oranı">
                 <input type="number" value={settings.DefaultTaxRate} onChange={e => set("DefaultTaxRate", e.target.value)} className={inp} min="0" max="100" />
               </Field>
             </div>
           </Section>
-          <Section title="İletişim Bilgileri" icon={<Settings size={16} />}>
+          <Section title={t("settings.contact", "İletişim Bilgileri")} icon={<Settings size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="İletişim E-postası">
+              <Field label={t("settings.contactEmail", "İletişim E-postası")}>
                 <input type="email" value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp} placeholder="info@magaza.com" />
               </Field>
-              <Field label="İletişim Telefonu">
+              <Field label={t("settings.contactPhone", "İletişim Telefonu")}>
                 <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp} placeholder="+90 532 000 00 00" />
               </Field>
             </div>
           </Section>
-          <Section title="Sosyal Medya" icon={<Share2 size={16} />}>
+          <Section title={t("settings.social", "Sosyal Medya")} icon={<Share2 size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
                 { label: "Instagram", key: "SocialInstagram", ph: "https://instagram.com/magaza" },
@@ -1692,39 +1747,39 @@ export default function YonetimPage() {
                 <ImageIcon size={14} />
               </div>
               <div>
-                <p className="text-sm font-bold text-teal-900">Logo Sistemi Nasıl Çalışır?</p>
+                <p className="text-sm font-bold text-teal-900">{t("auto.logoSistemiNasil", "Logo Sistemi Nasıl Çalışır?")}</p>
                 <p className="text-xs text-teal-700 mt-0.5 leading-relaxed">
-                  Sistem iki mod arasında otomatik geçiş yapar: <strong>Görsel Logo</strong> (yüklediğiniz PNG/JPG/SVG) veya <strong>Metin Logo</strong> (site adınız şık bir yazı tipinde).
+                  {t("auto.logoSistemiAciklama", "Sistem iki mod arasında otomatik geçiş yapar:")} <strong>{t("auto.gorselLogo", "Görsel Logo")}</strong> {t("auto.yukledginizPng", "(yüklediğiniz PNG/JPG/SVG)")} {t("auto.veyaMetinLogo", "veya")} <strong>{t("auto.metinLogo", "Metin Logo")}</strong> {t("auto.siteAdinizYaziTipi", "(site adınız şık bir yazı tipinde).")}
                 </p>
               </div>
             </div>
 
             {/* Öncelik akışı */}
             <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Müşteri Sitesi — Header Logo Öncelik Sırası</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("auto.musteriSitesiLogoPriority", "Müşteri Sitesi — Header Logo Öncelik Sırası")}</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-teal-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">İsimli Logo yüklüyse → görsel gösterilir</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoNamed</code> dolu ise bu resim header'da öncelikli olarak görünür. En fazla 280 × 72 px alan kullanır.</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.isimliLogoYukluyse", "İsimli Logo yüklüyse → görsel gösterilir")}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoNamed</code> dolu ise bu resim header&apos;da öncelikli olarak görünür. En fazla 280 × 72 px alan kullanır.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-teal-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">İsimli yoksa, İsimsiz Logo yüklüyse → o gösterilir</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoIcon</code> dolu ise ikon resmi header'da görünür.</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.isimliYoksaIsimsiz", "İsimli yoksa, İsimsiz Logo yüklüyse → o gösterilir")}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">CustomerLogoIcon</code> dolu ise ikon resmi header&apos;da görünür.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Her ikisi de boşsa → Metin Logo otomatik devreye girer</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.herIkisiBossaMetin", "Her ikisi de boşsa → Metin Logo otomatik devreye girer")}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       Site adınız (<code className="bg-slate-100 px-1 rounded">SiteName</code>) Pacifico yazı tipiyle logo gibi işlenir.
                       Üç ve daha fazla kelimeli adlarda son kelime vurgu rengiyle ayrı satırda gösterilir.
-                      Örnek: <em className="text-teal-600">"Neslinin Rengi&nbsp;<span className="text-orange-500">Atölyesi</span>"</em>
+                      Örnek: <em className="text-teal-600">&quot;Neslinin Rengi&nbsp;<span className="text-orange-500">Atölyesi</span>&quot;</em>
                     </p>
                   </div>
                 </div>
@@ -1736,7 +1791,7 @@ export default function YonetimPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Alan</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("auto.alan", "Alan")}</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Header</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Footer</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Favicon</th>
@@ -1744,27 +1799,27 @@ export default function YonetimPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimli Logo</td>
-                    <td className="px-3 py-2 text-teal-600">✓ Öncelikli</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">{t("auto.musteriIsimliLogo", "Müşteri İsimli Logo")}</td>
+                    <td className="px-3 py-2 text-teal-600">✓ {t("auto.oncelikli", "Öncelikli")}</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                   </tr>
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri İsimsiz Logo</td>
-                    <td className="px-3 py-2 text-teal-500">✓ Yedek</td>
-                    <td className="px-3 py-2 text-teal-600">✓ İkon kutusu</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">{t("auto.musteriIsimsizLogo", "Müşteri İsimsiz Logo")}</td>
+                    <td className="px-3 py-2 text-teal-500">✓ {t("auto.yedek", "Yedek")}</td>
+                    <td className="px-3 py-2 text-teal-600">✓ {t("auto.ikonKutusu", "İkon kutusu")}</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                   </tr>
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-700">Müşteri Favicon</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">{t("auto.musteriFavicon", "Müşteri Favicon")}</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                     <td className="px-3 py-2 text-teal-600">✓ Sekme ikonu</td>
                   </tr>
                   <tr className="bg-orange-50">
-                    <td className="px-3 py-2 font-medium text-slate-700">Metin Logo <span className="text-[10px] text-orange-500 font-normal">(otomatik)</span></td>
-                    <td className="px-3 py-2 text-orange-500">✓ İkisi de boşsa</td>
-                    <td className="px-3 py-2 text-orange-500">✓ Her zaman</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">{t("auto.metinLogoOtomatik", "Metin Logo")} <span className="text-[10px] text-orange-500 font-normal">({t("auto.otomatik", "otomatik")})</span></td>
+                    <td className="px-3 py-2 text-orange-500">✓ {t("auto.ikisiBossa", "İkisi de boşsa")}</td>
+                    <td className="px-3 py-2 text-orange-500">✓ {t("auto.herZaman", "Her zaman")}</td>
                     <td className="px-3 py-2 text-slate-400">—</td>
                   </tr>
                 </tbody>
@@ -1773,26 +1828,26 @@ export default function YonetimPage() {
 
             {/* Admin sidebar notu */}
             <div className="bg-white rounded-xl border border-teal-100 p-4 space-y-3">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admin Paneli — Sidebar Logo</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("auto.adminPaneliSidebarLogo", "Admin Paneli — Sidebar Logo")}</p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-indigo-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">◀</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Daraltılmış sidebar → her zaman Admin İsimsiz Logo ikonu</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.daraltilmisSidebar", "Daraltılmış sidebar → her zaman Admin İsimsiz Logo ikonu")}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boşsa <code className="bg-slate-100 px-1 rounded">/logo-icon.png</code> gösterilir.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + Admin İsimli Logo yüklüyse → görsel</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.genisletilmisIsimliYukluyse", "Genişletilmiş + Admin İsimli Logo yüklüyse → görsel")}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoNamed</code> dolu olduğunda tam logo görseli gösterilir.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">▶</span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">Genişletilmiş + İsimli Logo boşsa → Metin Logo</p>
+                    <p className="text-xs font-semibold text-slate-700">{t("auto.genisletilmisIsimliBosMetnLogo", "Genişletilmiş + İsimli Logo boşsa → Metin Logo")}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Site adı Inter Bold yazı tipiyle beyaz renkte, 3+ kelimeli adlarda son kelime teal vurguyla alt satırda gösterilir.</p>
                   </div>
                 </div>
@@ -1802,15 +1857,14 @@ export default function YonetimPage() {
             <div className="flex items-center gap-2 text-[11px] text-teal-600 bg-teal-100 rounded-xl px-3 py-2">
               <span>💡</span>
               <span>
-                <strong>Metin logoya geçmek için:</strong> Müşteri İsimli Logo ve İsimsiz Logo alanlarını boşaltın (URL'yi silin + Kaydet).
-                Site adınız otomatik olarak Pacifico yazı tipiyle logo gibi görünecektir.
+                <strong>{t("auto.metinLogoyaGecmekIcin", "Metin logoya geçmek için:")}</strong> {t("auto.metinLogoyaGecAciklama", "Müşteri İsimli Logo ve İsimsiz Logo alanlarını boşaltın (URL'yi silin + Kaydet). Site adınız otomatik olarak Pacifico yazı tipiyle logo gibi görünecektir.")}
               </span>
             </div>
           </div>
 
           {/* Admin Panel Görselleri */}
-          <Section title="Admin Panel Görselleri" icon={<ImageIcon size={16} />}
-            subtitle="Admin panelinin sidebar'ında ve tarayıcı sekmesinde görünen görseller.">
+          <Section title={t("auto.adminPanelGorselleri", "Admin Panel Görselleri")} icon={<ImageIcon size={16} />}
+            subtitle={t("auto.adminPanelGorselleriAciklama", "Admin panelinin sidebar'ında ve tarayıcı sekmesinde görünen görseller.")}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* İsimli Logo */}
               {(() => {
@@ -1818,12 +1872,12 @@ export default function YonetimPage() {
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
-                    <p className="text-[11px] text-slate-400">Marka adı içeren tam logo (sidebar genişken).</p>
+                    <p className="text-xs font-bold text-slate-700">{t("auto.isimliLogo", "İsimli Logo")}</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.isimliLogoAciklama", "Marka adı içeren tam logo (sidebar genişken).")}</p>
                     <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
+                        : <span className="text-slate-500 text-xs">{t("msg.loadFailed", "Yüklenemedi.")}</span>}
                     </div>
                     <input ref={adminLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1831,12 +1885,12 @@ export default function YonetimPage() {
                       <button onClick={() => adminLogoNamedRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
-                          <Trash2 size={12} /> Sil
+                          <Trash2 size={12} /> {t("action.delete", "Sil")}
                         </button>
                       )}
                     </div>
@@ -1853,12 +1907,12 @@ export default function YonetimPage() {
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
-                    <p className="text-[11px] text-slate-400">Sadece ikon (sidebar daraltılmışken).</p>
+                    <p className="text-xs font-bold text-slate-700">{t("auto.isimsizLogo", "İsimsiz Logo")}</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.isimsizLogoAciklama", "Sadece ikon (sidebar daraltılmışken).")}</p>
                     <div className="h-36 rounded-xl bg-[#1c2044] border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-500 text-xs">Yüklenmedi</span>}
+                        : <span className="text-slate-500 text-xs">{t("msg.loadFailed", "Yüklenemedi.")}</span>}
                     </div>
                     <input ref={adminLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1866,12 +1920,12 @@ export default function YonetimPage() {
                       <button onClick={() => adminLogoIconRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
-                          <Trash2 size={12} /> Sil
+                          <Trash2 size={12} /> {t("action.delete", "Sil")}
                         </button>
                       )}
                     </div>
@@ -1890,7 +1944,7 @@ export default function YonetimPage() {
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
-                    <p className="text-[11px] text-slate-400">Admin paneli tarayıcı sekmesi ikonu.</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.adminFaviconAciklama", "Admin paneli tarayıcı sekmesi ikonu.")}</p>
                     {/* Büyük önizleme */}
                     <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
@@ -1910,7 +1964,7 @@ export default function YonetimPage() {
                     <button type="button" onClick={() => adminFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
+                      {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                     </button>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
@@ -1923,8 +1977,8 @@ export default function YonetimPage() {
           </Section>
 
           {/* Müşteri Sitesi Görselleri */}
-          <Section title="Müşteri Sitesi Görselleri" icon={<ImageIcon size={16} />}
-            subtitle="Müşteri mağazasının header'ında ve tarayıcı sekmesinde görünen görseller.">
+          <Section title={t("auto.musteriSitesiGorselleri", "Müşteri Sitesi Görselleri")} icon={<ImageIcon size={16} />}
+            subtitle={t("auto.musteriSitesiGorselleriAciklama", "Müşteri mağazasının header'ında ve tarayıcı sekmesinde görünen görseller.")}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* İsimli Logo */}
               {(() => {
@@ -1932,12 +1986,12 @@ export default function YonetimPage() {
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimli Logo</p>
-                    <p className="text-[11px] text-slate-400">Marka adı dahil tam logo (header'da öncelikli).</p>
+                    <p className="text-xs font-bold text-slate-700">{t("auto.isimliLogo", "İsimli Logo")}</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.isimliLogoMusteriAciklama", "Marka adı dahil tam logo (header'da öncelikli).")}</p>
                     <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden px-4">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimli Logo" className="max-h-full max-w-full object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
+                        : <span className="text-slate-400 text-xs">{t("msg.loadFailed", "Yüklenemedi.")}</span>}
                     </div>
                     <input ref={customerLogoNamedRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1945,12 +1999,12 @@ export default function YonetimPage() {
                       <button onClick={() => customerLogoNamedRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
-                          <Trash2 size={12} /> Sil
+                          <Trash2 size={12} /> {t("action.delete", "Sil")}
                         </button>
                       )}
                     </div>
@@ -1967,12 +2021,12 @@ export default function YonetimPage() {
                 const busy = uploadingKey === key;
                 return (
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-700">İsimsiz Logo</p>
-                    <p className="text-[11px] text-slate-400">Sadece marka ikonu / sembolü.</p>
+                    <p className="text-xs font-bold text-slate-700">{t("auto.isimsizLogo", "İsimsiz Logo")}</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.isimsizLogoMusteriAciklama", "Sadece marka ikonu / sembolü.")}</p>
                     <div className="h-36 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
                         ? <img src={settings[key]} alt="İsimsiz Logo" className="w-24 h-24 object-contain" /> // eslint-disable-line
-                        : <span className="text-slate-400 text-xs">Yüklenmedi</span>}
+                        : <span className="text-slate-400 text-xs">{t("msg.loadFailed", "Yüklenemedi.")}</span>}
                     </div>
                     <input ref={customerLogoIconRef} type="file" accept="image/*" className="hidden"
                       onChange={e => e.target.files?.[0] && uploadFor(e.target.files[0], key)} />
@@ -1980,12 +2034,12 @@ export default function YonetimPage() {
                       <button onClick={() => customerLogoIconRef.current?.click()} disabled={busy}
                         className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition flex-1 justify-center">
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                        {busy ? "Yükleniyor..." : "Yükle"}
+                        {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                       </button>
                       {settings[key] && (
                         <button onClick={() => set(key, "")}
                           className="flex items-center gap-1 text-xs border border-red-200 text-red-500 rounded-xl px-3 py-2 hover:bg-red-50 transition">
-                          <Trash2 size={12} /> Sil
+                          <Trash2 size={12} /> {t("action.delete", "Sil")}
                         </button>
                       )}
                     </div>
@@ -2004,7 +2058,7 @@ export default function YonetimPage() {
                 return (
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-slate-700">Favicon</p>
-                    <p className="text-[11px] text-slate-400">Müşteri sitesi tarayıcı sekmesi ikonu.</p>
+                    <p className="text-[11px] text-slate-400">{t("auto.musteriFaviconAciklama", "Müşteri sitesi tarayıcı sekmesi ikonu.")}</p>
                     {/* Büyük önizleme */}
                     <div className="h-44 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                       {settings[key]
@@ -2024,7 +2078,7 @@ export default function YonetimPage() {
                     <button type="button" onClick={() => customerFaviconRef.current?.click()} disabled={busy}
                       className="flex items-center gap-1.5 text-xs border border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition w-full justify-center">
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                      {busy ? "Yükleniyor..." : "Yükle"}
+                      {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                     </button>
                     {settings[key] && (
                       <input value={settings[key]} onChange={e => set(key, e.target.value)}
@@ -2035,8 +2089,8 @@ export default function YonetimPage() {
               })()}
             </div>
           </Section>
-          <Section title="Tema Ön Ayarları" icon={<Palette size={16} />}>
-            <p className="text-xs text-slate-500 mb-3">Hazır tema paketlerinden birini seçerek tüm renkleri tek seferde uygulayın.</p>
+          <Section title={t("auto.temaOnAyarlari", "Tema Ön Ayarları")} icon={<Palette size={16} />}>
+            <p className="text-xs text-slate-500 mb-3">{t("auto.hazirTemaPaketleri", "Hazır tema paketlerinden birini seçerek tüm renkleri tek seferde uygulayın.")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {THEME_PRESETS.map(preset => (
                 <button
@@ -2055,7 +2109,7 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          <Section title="Müşteri Sitesi Renkleri" icon={<Palette size={16} />}>
+          <Section title={t("auto.musteriSitesiRenkleri", "Müşteri Sitesi Renkleri")} icon={<Palette size={16} />}>
             {/* Canlı kontrast önizlemesi */}
             {(() => {
               const bg   = settings.CustomerBgColor   || "#F7FAFA";
@@ -2066,26 +2120,26 @@ export default function YonetimPage() {
               return (
                 <div className="mb-4 rounded-xl border overflow-hidden" style={{ borderColor: ok ? "#bbf7d0" : aa ? "#fde68a" : "#fca5a5" }}>
                   <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: bg }}>
-                    <span className="text-sm font-semibold" style={{ color: text }}>Örnek Sayfa Metni</span>
+                    <span className="text-sm font-semibold" style={{ color: text }}>{t("auto.ornekSayfaMetni", "Örnek Sayfa Metni")}</span>
                     <span className="text-xs opacity-60" style={{ color: text }}>Aa 123</span>
                   </div>
                   <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : aa ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
                     <span>{ok ? "✓" : aa ? "⚠" : "✗"}</span>
-                    <span>Kontrast oranı: {ratio.toFixed(1)}:1 — {ok ? "WCAG AA/AAA geçer" : aa ? "Yalnızca büyük metin için yeterli" : "Kontrast yetersiz — yazı görünmeyebilir"}</span>
+                    <span>{t("auto.kontrastOrani", "Kontrast oranı:")} {ratio.toFixed(1)}:1 — {ok ? t("auto.wcagAAAGece", "WCAG AA/AAA geçer") : aa ? t("auto.yalnızcaBuyukMetin", "Yalnızca büyük metin için yeterli") : t("auto.kontrastYetersiz", "Kontrast yetersiz — yazı görünmeyebilir")}</span>
                   </div>
                 </div>
               );
             })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { label: "Birincil Renk (Butonlar, linkler)", key: "PrimaryColor", default: "#0d9488" },
-                { label: "Vurgu Rengi (Rozetler, öne çıkan)", key: "AccentColor", default: "#7c3aed" },
-                { label: "Arka Plan Rengi", key: "CustomerBgColor", default: "#F7FAFA" },
-                { label: "Yazı Rengi", key: "CustomerTextColor", default: "#1c2044" },
-                { label: "Kart / İçerik Arka Planı", key: "CustomerCardBgColor", default: "#ffffff" },
-                { label: "Header Arka Planı", key: "CustomerHeaderBgColor", default: "#ffffff" },
-                { label: "Kenarlık / Border Rengi", key: "CustomerBorderColor", default: "#ccfbf1" },
-                { label: "Buton Yazı Rengi", key: "CustomerButtonTextColor", default: "#ffffff" },
+                { label: t("auto.birincilRenkButon", "Birincil Renk (Butonlar, linkler)"), key: "PrimaryColor", default: "#0d9488" },
+                { label: t("auto.vurguRenkiRozet", "Vurgu Rengi (Rozetler, öne çıkan)"), key: "AccentColor", default: "#7c3aed" },
+                { label: t("auto.arkaplanRengi", "Arka Plan Rengi"), key: "CustomerBgColor", default: "#F7FAFA" },
+                { label: t("auto.yaziRengi", "Yazı Rengi"), key: "CustomerTextColor", default: "#1c2044" },
+                { label: t("auto.kartIcerikArkaplan", "Kart / İçerik Arka Planı"), key: "CustomerCardBgColor", default: "#ffffff" },
+                { label: t("auto.headerArkaplan", "Header Arka Planı"), key: "CustomerHeaderBgColor", default: "#ffffff" },
+                { label: t("auto.kenarlikBorderRengi", "Kenarlık / Border Rengi"), key: "CustomerBorderColor", default: "#ccfbf1" },
+                { label: t("auto.butonYaziRengi", "Buton Yazı Rengi"), key: "CustomerButtonTextColor", default: "#ffffff" },
               ].map(({ label, key, default: def }) => (
                 <div key={key} className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
                   <div className="flex items-center gap-2.5">
@@ -2111,7 +2165,7 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          <Section title="Admin Panel Renkleri" icon={<Palette size={16} />}>
+          <Section title={t("auto.adminPanelRenkleri", "Admin Panel Renkleri")} icon={<Palette size={16} />}>
             {/* Sidebar önizlemesi */}
             {(() => {
               const sidebar  = settings.AdminSidebarColor  || "#1c2044";
@@ -2126,17 +2180,17 @@ export default function YonetimPage() {
                   </div>
                   <div className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 ${ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                     <span>{ok ? "✓" : "✗"}</span>
-                    <span>Sidebar ↔ Beyaz metin kontrastı: {ratio.toFixed(1)}:1 — {ok ? "Okunabilir" : "Yazılar görünmeyebilir"}</span>
+                    <span>{t("auto.sidebarKontrastOrani", "Sidebar ↔ Beyaz metin kontrastı:")} {ratio.toFixed(1)}:1 — {ok ? t("auto.okunabilir", "Okunabilir") : t("auto.yazilarGorunmeyebilir", "Yazılar görünmeyebilir")}</span>
                   </div>
                 </div>
               );
             })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Sidebar Rengi", key: "AdminSidebarColor", default: "#1c2044" },
-                { label: "Birincil Renk", key: "AdminPrimaryColor", default: "#0d9488" },
-                { label: "Vurgu Rengi", key: "AdminAccentColor", default: "#7c3aed" },
-                { label: "İçerik Arka Planı", key: "AdminBgColor", default: "#f8fafc" },
+                { label: t("auto.sidebarRengi", "Sidebar Rengi"), key: "AdminSidebarColor", default: "#1c2044" },
+                { label: t("auto.birincilRenk", "Birincil Renk"), key: "AdminPrimaryColor", default: "#0d9488" },
+                { label: t("auto.vurguRengi", "Vurgu Rengi"), key: "AdminAccentColor", default: "#7c3aed" },
+                { label: t("auto.icerikArkaplan", "İçerik Arka Planı"), key: "AdminBgColor", default: "#f8fafc" },
               ].map(({ label, key, default: def }) => (
                 <div key={key} className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
                   <div className="flex items-center gap-2.5">
@@ -2162,14 +2216,14 @@ export default function YonetimPage() {
             </div>
           </Section>
 
-          <Section title="Yazı Tipi & Boyutu" icon={<Palette size={16} />}>
+          <Section title={t("settings.fonts", "Yazı Tipi & Boyutu")} icon={<Palette size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Customer font */}
               <div className="space-y-4">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> Müşteri Sitesi
+                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> {t("auto.musteriSitesi", "Müşteri Sitesi")}
                 </p>
-                <Field label="Yazı Tipi">
+                <Field label={t("auto.yaziTipi", "Yazı Tipi")}>
                   <select value={settings.CustomerFontFamily || "Inter"} onChange={e => set("CustomerFontFamily", e.target.value)} className={inp}>
                     {["— Sans-serif —", ...FONT_OPTIONS.filter(f => f.category === "Sans-serif").map(f => f.value)].map(f =>
                       f.startsWith("—") ? <option key={f} disabled>{f}</option> : <option key={f} value={f}>{f}</option>
@@ -2180,30 +2234,30 @@ export default function YonetimPage() {
                     {FONT_OPTIONS.filter(f => f.category === "Monospace").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Yazı Boyutu">
+                <Field label={t("auto.yaziBoyutu", "Yazı Boyutu")}>
                   <select value={settings.CustomerFontSize || "base"} onChange={e => set("CustomerFontSize", e.target.value)} className={inp}>
-                    <option value="sm">Küçük (sm) — 14px temel</option>
-                    <option value="base">Normal (base) — 16px temel</option>
-                    <option value="lg">Büyük (lg) — 18px temel</option>
-                    <option value="xl">Çok Büyük (xl) — 20px temel</option>
+                    <option value="sm">{t("auto.kucukSm", "Küçük (sm) — 14px temel")}</option>
+                    <option value="base">{t("auto.normalBase", "Normal (base) — 16px temel")}</option>
+                    <option value="lg">{t("auto.buyukLg", "Büyük (lg) — 18px temel")}</option>
+                    <option value="xl">{t("auto.cokBuyukXl", "Çok Büyük (xl) — 20px temel")}</option>
                   </select>
                 </Field>
                 {/* Preview */}
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">{t("auto.onizleme", "Önizleme")}</p>
                   <div style={{ fontFamily: `"${settings.CustomerFontFamily || "Inter"}", sans-serif` }}>
-                    <p className="text-lg font-bold mb-1" style={{ color: settings.PrimaryColor || "#0d9488" }}>Başlık Metni</p>
-                    <p className="text-sm text-slate-600">Normal paragraf metni. Ürün açıklamaları ve sayfa içerikleri bu fontla görünür.</p>
-                    <p className="text-xs mt-2" style={{ color: settings.AccentColor || "#7c3aed" }}>Vurgu metni ve rozetler</p>
+                    <p className="text-lg font-bold mb-1" style={{ color: settings.PrimaryColor || "#0d9488" }}>{t("auto.baslikMetni", "Başlık Metni")}</p>
+                    <p className="text-sm text-slate-600">{t("auto.normalParagrafMetni", "Normal paragraf metni. Ürün açıklamaları ve sayfa içerikleri bu fontla görünür.")}</p>
+                    <p className="text-xs mt-2" style={{ color: settings.AccentColor || "#7c3aed" }}>{t("auto.vurguMetniRozetler", "Vurgu metni ve rozetler")}</p>
                   </div>
                 </div>
               </div>
               {/* Admin font */}
               <div className="space-y-4">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" /> Admin Panel
+                  <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" /> {t("auto.adminPanel", "Admin Panel")}
                 </p>
-                <Field label="Yazı Tipi">
+                <Field label={t("auto.yaziTipi", "Yazı Tipi")}>
                   <select value={settings.AdminFontFamily || "Inter"} onChange={e => set("AdminFontFamily", e.target.value)} className={inp}>
                     {FONT_OPTIONS.filter(f => f.category === "Sans-serif").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                     <option disabled>— Serif —</option>
@@ -2212,27 +2266,27 @@ export default function YonetimPage() {
                     {FONT_OPTIONS.filter(f => f.category === "Monospace").map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Yazı Boyutu">
+                <Field label={t("auto.yaziBoyutu", "Yazı Boyutu")}>
                   <select value={settings.AdminFontSize || "base"} onChange={e => set("AdminFontSize", e.target.value)} className={inp}>
-                    <option value="sm">Küçük (sm) — 14px temel</option>
-                    <option value="base">Normal (base) — 16px temel</option>
-                    <option value="lg">Büyük (lg) — 18px temel</option>
-                    <option value="xl">Çok Büyük (xl) — 20px temel</option>
+                    <option value="sm">{t("auto.kucukSm", "Küçük (sm) — 14px temel")}</option>
+                    <option value="base">{t("auto.normalBase", "Normal (base) — 16px temel")}</option>
+                    <option value="lg">{t("auto.buyukLg", "Büyük (lg) — 18px temel")}</option>
+                    <option value="xl">{t("auto.cokBuyukXl", "Çok Büyük (xl) — 20px temel")}</option>
                   </select>
                 </Field>
                 {/* Preview */}
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">{t("auto.onizleme", "Önizleme")}</p>
                   <div style={{ fontFamily: `"${settings.AdminFontFamily || "Inter"}", sans-serif` }}>
-                    <p className="text-lg font-bold mb-1" style={{ color: settings.AdminPrimaryColor || "#0d9488" }}>Panel Başlığı</p>
-                    <p className="text-sm text-slate-600">Dashboard ve yönetim ekranlarında bu font kullanılır.</p>
-                    <p className="text-xs mt-2 font-mono" style={{ color: settings.AdminAccentColor || "#7c3aed" }}>BADGE · ETİKET · UYARI</p>
+                    <p className="text-lg font-bold mb-1" style={{ color: settings.AdminPrimaryColor || "#0d9488" }}>{t("auto.panelBasligi", "Panel Başlığı")}</p>
+                    <p className="text-sm text-slate-600">{t("auto.dashboardFontKullanilir", "Dashboard ve yönetim ekranlarında bu font kullanılır.")}</p>
+                    <p className="text-xs mt-2 font-mono" style={{ color: settings.AdminAccentColor || "#7c3aed" }}>{t("auto.badgeEtiketUyari", "BADGE · ETİKET · UYARI")}</p>
                   </div>
                 </div>
               </div>
             </div>
             <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-              Font ve renk değişiklikleri kaydedildikten sonra sayfa yenilenince tam olarak uygulanır.
+              {t("auto.fontRenkKaydetSonraUygula", "Font ve renk değişiklikleri kaydedildikten sonra sayfa yenilenince tam olarak uygulanır.")}
             </div>
           </Section>
         </div>
@@ -2241,10 +2295,9 @@ export default function YonetimPage() {
       {/* ── Şablon ── */}
       {tab === "sablon" && (
         <div className="space-y-5">
-          <Section title="Müşteri Sitesi Şablonu" icon={<Layers size={16} />}>
+          <Section title={t("auto.musteriSitesiSablon", "Müşteri Sitesi Şablonu")} icon={<Layers size={16} />}>
             <p className="text-xs text-slate-500 mb-5">
-              Şablon, müşteri sitesinin genel yerleşimini, başlık stilini, köşe yuvarlaklığını ve arka plan renklerini belirler.
-              Görünüm sekmesindeki renk ve font özelleştirmeleri seçtiğiniz şablonun üzerine uygulanır.
+              {t("auto.sablonAciklama", "Şablon, müşteri sitesinin genel yerleşimini, başlık stilini, köşe yuvarlaklığını ve arka plan renklerini belirler. Görünüm sekmesindeki renk ve font özelleştirmeleri seçtiğiniz şablonun üzerine uygulanır.")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TEMPLATES.map(tmpl => {
@@ -2266,7 +2319,7 @@ export default function YonetimPage() {
                       </div>
                       {isActive && (
                         <div className="absolute top-2 right-2 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          ✓ Aktif
+                          ✓ {t("status.active", "Aktif")}
                         </div>
                       )}
                     </div>
@@ -2294,24 +2347,23 @@ export default function YonetimPage() {
             <div className="mt-5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
               <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
               <p className="text-xs text-amber-800">
-                <strong>Not:</strong> Şablon değişikliği kaydedildikten sonra müşteri sitesinin yenilenmesi gerekebilir (Next.js cache).
-                Koyu tema şablonunda bazı bileşenler henüz tam uyumlu olmayabilir — zamanla iyileştirilecektir.
+                <strong>{t("auto.not", "Not:")}</strong> {t("auto.sablonDegisiklikNot", "Şablon değişikliği kaydedildikten sonra müşteri sitesinin yenilenmesi gerekebilir (Next.js cache). Koyu tema şablonunda bazı bileşenler henüz tam uyumlu olmayabilir — zamanla iyileştirilecektir.")}
               </p>
             </div>
           </Section>
 
           {/* Canlı Önizleme */}
-          <Section title="Şablon Karşılaştırması" icon={<Eye size={16} />}>
-            <p className="text-xs text-slate-500 mb-4">Her şablonun görsel farklılıkları aşağıda özetlenmiştir.</p>
+          <Section title={t("auto.sablonKarsilastirma", "Şablon Karşılaştırması")} icon={<Eye size={16} />}>
+            <p className="text-xs text-slate-500 mb-4">{t("auto.herSablonGoselFarkliliklari", "Her şablonun görsel farklılıkları aşağıda özetlenmiştir.")}</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Şablon</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Kart Tipi</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Izgara</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Başlık</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">Uygun Kullanım</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.sablon", "Şablon")}</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.kartTipi", "Kart Tipi")}</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.izgara", "Izgara")}</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.baslik", "Başlık")}</th>
+                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.uygunKullanim", "Uygun Kullanım")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2350,15 +2402,15 @@ export default function YonetimPage() {
       {/* ── Kargo ── */}
       {tab === "kargo" && (
         <div className="space-y-4">
-          <Section title="Kargo Ayarları" icon={<Truck size={16} />}>
+          <Section title={t("auto.kargoAyarlari", "Kargo Ayarları")} icon={<Truck size={16} />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Ücretsiz Kargo Limiti" hint="Bu tutarın üzerindeki siparişlere ücretsiz kargo">
+              <Field label={t("auto.ucretsizKargoLimiti", "Ücretsiz Kargo Limiti")} hint={t("auto.ucretsizKargoLimitiHint", "Bu tutarın üzerindeki siparişlere ücretsiz kargo")}>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₺</span>
                   <input type="number" value={settings.FreeShippingLimit} onChange={e => set("FreeShippingLimit", e.target.value)} className={inp + " pl-8"} placeholder="500" min="0" />
                 </div>
               </Field>
-              <Field label="Varsayılan Kargo Ücreti" hint="Limiti geçmeyen siparişlere uygulanır">
+              <Field label={t("auto.varsayilanKargoUcreti", "Varsayılan Kargo Ücreti")} hint={t("auto.varsayilanKargoUcretiHint", "Limiti geçmeyen siparişlere uygulanır")}>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₺</span>
                   <input type="number" value={settings.DefaultShippingCost} onChange={e => set("DefaultShippingCost", e.target.value)} className={inp + " pl-8"} placeholder="29.90" min="0" step="0.01" />
@@ -2367,14 +2419,14 @@ export default function YonetimPage() {
             </div>
             <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
               <p className="text-sm text-slate-600">
-                <span className="font-semibold">Özet: </span>
-                ₺{settings.FreeShippingLimit || "—"} ve üzeri siparişler ücretsiz, altındakiler ₺{settings.DefaultShippingCost || "—"} kargo ücreti öder.
+                <span className="font-semibold">{t("auto.ozet", "Özet:")} </span>
+                ₺{settings.FreeShippingLimit || "—"} {t("auto.kargoOzetMesaj", "ve üzeri siparişler ücretsiz, altındakiler")} ₺{settings.DefaultShippingCost || "—"} {t("auto.kargoUcretiOder", "kargo ücreti öder.")}
               </p>
             </div>
           </Section>
 
-          <Section title="Kargo Firmaları" icon={<Truck size={16} />}
-            subtitle="Alternatif kargo firmalarını, fiyatları ve takip ayarlarını buradan yönetin. Kargo süreçlerini ve sevkiyat takibini Kargo Takip sayfasından yapabilirsiniz.">
+          <Section title={t("auto.kargoFirmalari", "Kargo Firmaları")} icon={<Truck size={16} />}
+            subtitle={t("auto.kargoFirmalariAciklama2", "Alternatif kargo firmalarını, fiyatları ve takip ayarlarını buradan yönetin. Kargo süreçlerini ve sevkiyat takibini Kargo Takip sayfasından yapabilirsiniz.")}>
             <CarrierManager />
           </Section>
         </div>
@@ -2382,8 +2434,8 @@ export default function YonetimPage() {
 
       {/* ── Menü ── */}
       {tab === "menu" && (
-        <Section title="Menü Sıralaması" icon={<Menu size={16} />}
-          subtitle="Grupları ve öğeleri sürükle-bırak ya da ok butonlarıyla sıralayın. Grup adını ve ikonunu düzenleyebilir, öğeleri başka gruba taşıyabilirsiniz. Kaydet'e basınca sol menüye yansır.">
+        <Section title={t("auto.menuSiralamasi", "Menü Sıralaması")} icon={<Menu size={16} />}
+          subtitle={t("auto.menuSiralamasiAciklama", "Grupları ve öğeleri sürükle-bırak ya da ok butonlarıyla sıralayın. Grup adını ve ikonunu düzenleyebilir, öğeleri başka gruba taşıyabilirsiniz. Kaydet'e basınca sol menüye yansır.")}>
           <MenuSorter
             order={menuOrder}
             onOrderChange={setMenuOrder}
@@ -2395,7 +2447,7 @@ export default function YonetimPage() {
               setMenuOrder(ALL_MENU_ITEMS.map(m => m.href));
               setMenuGroupConfig({ groupOrder: DEFAULT_GROUP_ORDER, groupLabels: { ...DEFAULT_GROUP_LABELS }, groupIcons: { ...DEFAULT_GROUP_ICONS }, itemGroups: {} });
             }} className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition">
-              Tümünü varsayılana sıfırla
+              {t("auto.tumunuVarsayilanaSifirla", "Tümünü varsayılana sıfırla")}
             </button>
           </div>
         </Section>
@@ -2420,65 +2472,65 @@ export default function YonetimPage() {
 
           {/* SSS */}
           {contentSub === "sss" && (
-            <Section title="Sık Sorulan Sorular" icon={<HelpCircle size={16} />}
-              subtitle="Müşteri sitesinde /sss sayfasında görünür. Soru ve cevapları düzenleyebilirsiniz.">
+            <Section title={t("auto.sss", "Sık Sorulan Sorular")} icon={<HelpCircle size={16} />}
+              subtitle={t("auto.sssAciklama", "Müşteri sitesinde /sss sayfasında görünür. Soru ve cevapları düzenleyebilirsiniz.")}>
               <FaqEditor value={settings.Page_SSS} onChange={v => set("Page_SSS", v)} />
             </Section>
           )}
 
           {/* İade & Değişim */}
           {contentSub === "iade" && (
-            <Section title="İade & Değişim" icon={<RefreshCw size={16} />}
-              subtitle="/iade-degisim sayfasında görünür. Paragraflar arasında boş satır bırakın.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_IadeVeDegisim"
+            <Section title={t("auto.iadeDegisim", "İade & Değişim")} icon={<RefreshCw size={16} />}
+              subtitle={t("auto.iadeDegisimAciklama", "/iade-degisim sayfasında görünür. Paragraflar arasında boş satır bırakın.")}>
+              <TextEditor label={t("auto.sayfaIcerigi", "Sayfa İçeriği")} settingKey="Page_IadeVeDegisim"
                 value={settings.Page_IadeVeDegisim} onChange={set} rows={16}
-                hint="Paragrafları boş satırla ayırın. İpucu: başlık satırı için satır başına # koyabilirsiniz." />
+                hint={t("auto.paragraflariBosAyirin", "Paragrafları boş satırla ayırın. İpucu: başlık satırı için satır başına # koyabilirsiniz.")} />
             </Section>
           )}
 
           {/* Kargo Takibi */}
           {contentSub === "kargo" && (
-            <Section title="Kargo Takibi" icon={<Truck size={16} />}
-              subtitle="/kargo-takibi sayfasında görünür.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_KargoTakibi"
+            <Section title={t("auto.kargoTakibi", "Kargo Takibi")} icon={<Truck size={16} />}
+              subtitle={t("auto.kargoTakibiAciklama", "/kargo-takibi sayfasında görünür.")}>
+              <TextEditor label={t("auto.sayfaIcerigi", "Sayfa İçeriği")} settingKey="Page_KargoTakibi"
                 value={settings.Page_KargoTakibi} onChange={set} rows={14} />
             </Section>
           )}
 
           {/* İletişim */}
           {contentSub === "iletisim" && (
-            <Section title="İletişim Sayfası" icon={<Phone size={16} />}
-              subtitle="/iletisim sayfasında görünür. Genel e-posta ve telefon Genel sekmesinden alınır.">
+            <Section title={t("auto.iletisimSayfasi", "İletişim Sayfası")} icon={<Phone size={16} />}
+              subtitle={t("auto.iletisimSayfasiAciklama", "/iletisim sayfasında görünür. Genel e-posta ve telefon Genel sekmesinden alınır.")}>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="E-posta" hint="Genel sekmedeki ContactEmail kullanılır">
+                  <Field label={t("label.email", "E-posta")} hint={t("auto.genelSekmeContactEmail", "Genel sekmedeki ContactEmail kullanılır")}>
                     <div className="relative">
                       <Mail size={14} className="absolute left-3 top-3 text-slate-400" />
                       <input value={settings.ContactEmail} onChange={e => set("ContactEmail", e.target.value)} className={inp + " pl-9"} placeholder="destek@magaza.com" />
                     </div>
                   </Field>
-                  <Field label="Telefon">
+                  <Field label={t("label.phone", "Telefon")}>
                     <div className="relative">
                       <Phone size={14} className="absolute left-3 top-3 text-slate-400" />
                       <input value={settings.ContactPhone} onChange={e => set("ContactPhone", e.target.value)} className={inp + " pl-9"} placeholder="0850 000 00 00" />
                     </div>
                   </Field>
                 </div>
-                <Field label="Çalışma Saatleri">
+                <Field label={t("auto.calismaSaatleri", "Çalışma Saatleri")}>
                   <div className="relative">
                     <Clock size={14} className="absolute left-3 top-3 text-slate-400" />
                     <input value={settings.Page_Iletisim_Hours} onChange={e => set("Page_Iletisim_Hours", e.target.value)}
-                      className={inp + " pl-9"} placeholder="Hafta içi 09:00 – 18:00, Cumartesi 10:00 – 16:00" />
+                      className={inp + " pl-9"} placeholder={t("auto.calismaSaatleriPlaceholder", "Hafta içi 09:00 – 18:00, Cumartesi 10:00 – 16:00")} />
                   </div>
                 </Field>
-                <Field label="Adres">
+                <Field label={t("auto.adres", "Adres")}>
                   <div className="relative">
                     <MapPin size={14} className="absolute left-3 top-3 text-slate-400" />
                     <textarea value={settings.Page_Iletisim_Address} onChange={e => set("Page_Iletisim_Address", e.target.value)}
-                      rows={3} className={inp + " pl-9 resize-none"} placeholder="Şirket adresi..." />
+                      rows={3} className={inp + " pl-9 resize-none"} placeholder={t("auto.sirketAdresi", "Şirket adresi...")} />
                   </div>
                 </Field>
-                <Field label="Google Maps Embed URL" hint="Google Maps'ten 'Haritayı Göm' > iframe src değeri">
+                <Field label="Google Maps Embed URL" hint={t("auto.googleMapsHint", "Google Maps'ten 'Haritayı Göm' > iframe src değeri")}>
                   <div className="relative">
                     <MapPin size={14} className="absolute left-3 top-3 text-slate-400" />
                     <input value={settings.Page_Iletisim_MapUrl} onChange={e => set("Page_Iletisim_MapUrl", e.target.value)}
@@ -2491,43 +2543,43 @@ export default function YonetimPage() {
 
           {/* Hakkımızda */}
           {contentSub === "hakkimizda" && (
-            <Section title="Hakkımızda" icon={<FileText size={16} />}
-              subtitle="/hakkimizda sayfasında görünür.">
-              <TextEditor label="Sayfa İçeriği" settingKey="Page_Hakkimizda"
+            <Section title={t("auto.hakkimizda", "Hakkımızda")} icon={<FileText size={16} />}
+              subtitle={t("auto.hakkimizdaAciklama", "/hakkimizda sayfasında görünür.")}>
+              <TextEditor label={t("auto.sayfaIcerigi", "Sayfa İçeriği")} settingKey="Page_Hakkimizda"
                 value={settings.Page_Hakkimizda} onChange={set} rows={16} />
             </Section>
           )}
 
           {/* KVKK */}
           {contentSub === "kvkk" && (
-            <Section title="KVKK Metni" icon={<FileText size={16} />}
-              subtitle="/kvkk sayfasında görünür. Hukuki metni buraya yapıştırabilirsiniz.">
-              <TextEditor label="KVKK İçeriği" settingKey="Page_KVKK"
+            <Section title={t("auto.kvkkMetni", "KVKK Metni")} icon={<FileText size={16} />}
+              subtitle={t("auto.kvkkAciklama", "/kvkk sayfasında görünür. Hukuki metni buraya yapıştırabilirsiniz.")}>
+              <TextEditor label={t("auto.kvkkIcerigi", "KVKK İçeriği")} settingKey="Page_KVKK"
                 value={settings.Page_KVKK} onChange={set} rows={20} />
             </Section>
           )}
 
           {/* Gizlilik */}
           {contentSub === "gizlilik" && (
-            <Section title="Gizlilik Politikası" icon={<FileText size={16} />}
-              subtitle="/gizlilik sayfasında görünür.">
-              <TextEditor label="Gizlilik Politikası İçeriği" settingKey="Page_Gizlilik"
+            <Section title={t("auto.gizlilikPolitikasi", "Gizlilik Politikası")} icon={<FileText size={16} />}
+              subtitle={t("auto.gizlilikAciklama", "/gizlilik sayfasında görünür.")}>
+              <TextEditor label={t("auto.gizlilikPolitikasiIcerigi", "Gizlilik Politikası İçeriği")} settingKey="Page_Gizlilik"
                 value={settings.Page_Gizlilik} onChange={set} rows={20} />
             </Section>
           )}
 
           {/* Footer */}
           {contentSub === "footer" && (
-            <Section title="Footer Bilgileri" icon={<Globe size={16} />}
-              subtitle="Müşteri sitesinin alt bölümünde görünen bilgiler.">
+            <Section title={t("auto.footerBilgileri", "Footer Bilgileri")} icon={<Globe size={16} />}
+              subtitle={t("auto.footerBilgileriAciklama", "Müşteri sitesinin alt bölümünde görünen bilgiler.")}>
               <div className="space-y-4">
-                <Field label="Marka Sloganı" hint="Logo altında görünen kısa açıklama. Yeni satır için Enter kullanın.">
+                <Field label={t("auto.markaSlogani", "Marka Sloganı")} hint={t("auto.markaSloganiHint", "Logo altında görünen kısa açıklama. Yeni satır için Enter kullanın.")}>
                   <textarea value={settings.Footer_Tagline} onChange={e => set("Footer_Tagline", e.target.value)}
-                    rows={3} className={inp + " resize-none"} placeholder="Keyifli alışverişin yeni adresi." />
+                    rows={3} className={inp + " resize-none"} placeholder={t("auto.keyifliAlisverisPlaceholder", "Keyifli alışverişin yeni adresi.")} />
                 </Field>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
-                  Sosyal medya bağlantıları için <button className="text-teal-600 underline" onClick={() => setTab("genel")}>Genel sekmesine</button> gidin.
-                  İletişim bilgileri (e-posta & telefon) <button className="text-teal-600 underline" onClick={() => setContentSub("iletisim")}>İletişim bölümünden</button> yönetilir.
+                  {t("auto.sosyalMedyaIcin", "Sosyal medya bağlantıları için")} <button className="text-teal-600 underline" onClick={() => setTab("genel")}>{t("auto.genelSekmesine", "Genel sekmesine")}</button> {t("auto.gidin", "gidin.")}
+                  {t("auto.iletisimBilgileriYonetilir", "İletişim bilgileri (e-posta & telefon)")} <button className="text-teal-600 underline" onClick={() => setContentSub("iletisim")}>{t("auto.iletisimBolumunden", "İletişim bölümünden")}</button> {t("auto.yonetilir", "yönetilir.")}
                 </div>
               </div>
             </Section>
@@ -2538,17 +2590,17 @@ export default function YonetimPage() {
       {/* ── Chatbot ── */}
       {tab === "chatbot" && (
         <div className="space-y-5">
-          <Section title="Chatbot & Destek" icon={<MessageCircle size={16} />}
-            subtitle="WhatsApp veya Telegram üzerinden müşteri desteği sağlayın. n8n entegrasyonu ile akıllı bot yanıtları ekleyebilirsiniz.">
+          <Section title={t("auto.chatbotDestek", "Chatbot & Destek")} icon={<MessageCircle size={16} />}
+            subtitle={t("auto.chatbotDestekAciklama", "WhatsApp veya Telegram üzerinden müşteri desteği sağlayın. n8n entegrasyonu ile akıllı bot yanıtları ekleyebilirsiniz.")}>
             <div className="space-y-5">
               {/* Enable/disable */}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">Chatbot Widget</p>
+                  <p className="text-sm font-semibold text-slate-700">{t("auto.chatbotWidget", "Chatbot Widget")}</p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {settings.ChatbotEnabled === "true"
-                      ? "Widget aktif — müşteri sitesinde sohbet butonu görünür."
-                      : "Widget pasif — müşteri sitesinde hiç görünmez."}
+                      ? t("auto.widgetAktif", "Widget aktif — müşteri sitesinde sohbet butonu görünür.")
+                      : t("auto.widgetPasif", "Widget pasif — müşteri sitesinde hiç görünmez.")}
                   </p>
                 </div>
                 <button
@@ -2563,11 +2615,11 @@ export default function YonetimPage() {
               </div>
 
               {/* Provider */}
-              <Field label="Kanal" hint="Hangi kanallar gösterilsin?">
+              <Field label={t("auto.kanal", "Kanal")} hint={t("auto.kanalHint", "Hangi kanallar gösterilsin?")}>
                 <select value={settings.ChatbotProvider} onChange={e => set("ChatbotProvider", e.target.value)} className={inp}>
                   <option value="whatsapp">WhatsApp</option>
                   <option value="telegram">Telegram</option>
-                  <option value="both">Her İkisi</option>
+                  <option value="both">{t("auto.herIkisi", "Her İkisi")}</option>
                 </select>
               </Field>
 
@@ -2577,11 +2629,11 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
                     <MessageCircle size={15} /> WhatsApp
                   </p>
-                  <Field label="Numara" hint="Uluslararası format: +905xxxxxxxxx">
+                  <Field label={t("auto.numara", "Numara")} hint={t("auto.numaraHint", "Uluslararası format: +905xxxxxxxxx")}>
                     <input value={settings.WhatsAppNumber} onChange={e => set("WhatsAppNumber", e.target.value)}
                       className={inp} placeholder="+905321234567" />
                   </Field>
-                  <Field label="Karşılama Mesajı" hint="Müşteri tıkladığında önceden dolu gelecek mesaj">
+                  <Field label={t("auto.karsilamaMesaji", "Karşılama Mesajı")} hint={t("auto.karsilamaMesajiHint", "Müşteri tıkladığında önceden dolu gelecek mesaj")}>
                     <input value={settings.WhatsAppWelcomeMessage} onChange={e => set("WhatsAppWelcomeMessage", e.target.value)}
                       className={inp} />
                   </Field>
@@ -2594,11 +2646,11 @@ export default function YonetimPage() {
                   <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
                     <MessageCircle size={15} /> Telegram
                   </p>
-                  <Field label="Bot Kullanıcı Adı" hint="Örn: @MagazaBot">
+                  <Field label={t("auto.botKullaniciAdi", "Bot Kullanıcı Adı")} hint={t("auto.botKullaniciAdiHint", "Örn: @MagazaBot")}>
                     <input value={settings.TelegramBotUsername} onChange={e => set("TelegramBotUsername", e.target.value)}
                       className={inp} placeholder="@MagazaBot" />
                   </Field>
-                  <Field label="Bot Token" hint="BotFather'dan alınan token. Asla halka açık edilmez.">
+                  <Field label={t("auto.botToken", "Bot Token")} hint={t("auto.botTokenHint", "BotFather'dan alınan token. Asla halka açık edilmez.")}>
                     <input type="password" value={settings.TelegramBotToken} onChange={e => set("TelegramBotToken", e.target.value)}
                       className={inp} placeholder="1234567890:AABBCCDDEEFFaabbccddeeff" />
                   </Field>
@@ -2609,13 +2661,13 @@ export default function YonetimPage() {
               <div className="space-y-3 p-4 border border-violet-200 rounded-xl bg-violet-50/50">
                 <p className="text-sm font-semibold text-violet-700 flex items-center gap-2">
                   <Settings size={15} /> n8n / Antigravity Webhook
-                  <span className="text-xs font-normal text-violet-500">(İsteğe bağlı — inline chat için)</span>
+                  <span className="text-xs font-normal text-violet-500">({t("auto.istegeBagliInlineChat", "İsteğe bağlı — inline chat için")})</span>
                 </p>
-                <Field label="Webhook URL" hint="n8n Webhook node URL'si. Doldurulursa widget içi mesajlaşma aktif olur.">
+                <Field label="Webhook URL" hint={t("auto.webhookUrlHint", "n8n Webhook node URL'si. Doldurulursa widget içi mesajlaşma aktif olur.")}>
                   <input value={settings.N8nWebhookUrl} onChange={e => set("N8nWebhookUrl", e.target.value)}
                     className={inp} placeholder="https://n8n.example.com/webhook/chatbot" />
                 </Field>
-                <Field label="API Key" hint="Opsiyonel. X-Api-Key header'ında gönderilir.">
+                <Field label="API Key" hint={t("auto.apiKeyOpsiyonel", "Opsiyonel. X-Api-Key header'ında gönderilir.")}>
                   <input type="password" value={settings.N8nApiKey} onChange={e => set("N8nApiKey", e.target.value)}
                     className={inp} placeholder="sk-..." />
                 </Field>
@@ -2629,15 +2681,15 @@ export default function YonetimPage() {
       {tab === "odeme" && (
         <div className="space-y-5">
           {/* Banka/Havale */}
-          <Section title="Banka Havalesi / EFT" icon={<Building2 size={16} />}
-            subtitle="Müşteriler sipariş sonrası IBAN'a havale yaparak ödeme yapabilir.">
+          <Section title={t("auto.bankaHavalesi", "Banka Havalesi / EFT")} icon={<Building2 size={16} />}
+            subtitle={t("auto.bankaHavalesiAciklama", "Müşteriler sipariş sonrası IBAN'a havale yaparak ödeme yapabilir.")}>
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Havale ile Ödeme</p>
+                <p className="text-sm font-semibold text-slate-700">{t("auto.havaleIleOdeme", "Havale ile Ödeme")}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {settings.PaymentHavaleEnabled === "true"
-                    ? "Aktif — ödeme seçeneklerinde görünür."
-                    : "Pasif — ödeme seçeneklerinde gösterilmez."}
+                    ? t("auto.havaleAktif", "Aktif — ödeme seçeneklerinde görünür.")
+                    : t("auto.havalePasif", "Pasif — ödeme seçeneklerinde gösterilmez.")}
                 </p>
               </div>
               <button onClick={() => set("PaymentHavaleEnabled", settings.PaymentHavaleEnabled === "true" ? "false" : "true")}
@@ -2646,19 +2698,19 @@ export default function YonetimPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Banka Adı">
+              <Field label={t("auto.bankaAdi", "Banka Adı")}>
                 <input value={settings.PaymentHavaleBankName} onChange={e => set("PaymentHavaleBankName", e.target.value)}
-                  className={inp} placeholder="Örn: Ziraat Bankası" />
+                  className={inp} placeholder={t("auto.orneginZiraat", "Örn: Ziraat Bankası")} />
               </Field>
-              <Field label="Hesap Sahibi Adı">
+              <Field label={t("auto.hesapSahibiAdi", "Hesap Sahibi Adı")}>
                 <input value={settings.PaymentHavaleAccountName} onChange={e => set("PaymentHavaleAccountName", e.target.value)}
-                  className={inp} placeholder="Şirket / Ad Soyad" />
+                  className={inp} placeholder={t("auto.sirketAdSoyad", "Şirket / Ad Soyad")} />
               </Field>
-              <Field label="IBAN" hint="TR ile başlayan 26 haneli numara">
+              <Field label="IBAN" hint={t("auto.ibanHint", "TR ile başlayan 26 haneli numara")}>
                 <input value={settings.PaymentHavaleIBAN} onChange={e => set("PaymentHavaleIBAN", e.target.value)}
                   className={inp + " font-mono"} placeholder="TR00 0000 0000 0000 0000 0000 00" />
               </Field>
-              <Field label="Açıklama" hint="Müşteriye gösterilecek havale açıklaması">
+              <Field label={t("label.description", "Açıklama")} hint={t("auto.havaleAciklamaHint", "Müşteriye gösterilecek havale açıklaması")}>
                 <input value={settings.PaymentHavaleDescription} onChange={e => set("PaymentHavaleDescription", e.target.value)}
                   className={inp} placeholder="Sipariş numarasını açıklamaya yazınız" />
               </Field>
@@ -2666,13 +2718,13 @@ export default function YonetimPage() {
           </Section>
 
           {/* SanalPos */}
-          <Section title="Sanal POS / Kredi Kartı" icon={<CreditCard size={16} />}
-            subtitle="Ödeme altyapısı entegrasyonu. API bilgileri güvende saklanır.">
+          <Section title={t("auto.sanalPosKrediKart", "Sanal POS / Kredi Kartı")} icon={<CreditCard size={16} />}
+            subtitle={t("auto.sanalPosAciklama", "Ödeme altyapısı entegrasyonu. API bilgileri güvende saklanır.")}>
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Kredi / Banka Kartı ile Ödeme</p>
+                <p className="text-sm font-semibold text-slate-700">{t("auto.krediKartiIleOdeme", "Kredi / Banka Kartı ile Ödeme")}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {settings.PaymentSanalPosEnabled === "true" ? "Aktif" : "Pasif"}
+                  {settings.PaymentSanalPosEnabled === "true" ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                 </p>
               </div>
               <button onClick={() => set("PaymentSanalPosEnabled", settings.PaymentSanalPosEnabled === "true" ? "false" : "true")}
@@ -2681,7 +2733,7 @@ export default function YonetimPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Ödeme Sağlayıcı">
+              <Field label={t("auto.odemeSaglayici", "Ödeme Sağlayıcı")}>
                 <select value={settings.PaymentSanalPosProvider} onChange={e => set("PaymentSanalPosProvider", e.target.value)} className={inp}>
                   <option value="iyzico">İyzico</option>
                   <option value="paytr">PayTR</option>
@@ -2691,18 +2743,18 @@ export default function YonetimPage() {
                   <option value="stripe">Stripe</option>
                 </select>
               </Field>
-              <Field label="Test Modu">
+              <Field label={t("auto.testModu", "Test Modu")}>
                 <div className="flex items-center gap-3 mt-1">
                   <button onClick={() => set("PaymentSanalPosTestMode", settings.PaymentSanalPosTestMode === "true" ? "false" : "true")}
                     className={`relative w-12 h-6 rounded-full transition-colors ${settings.PaymentSanalPosTestMode === "true" ? "bg-amber-400" : "bg-slate-300"}`}>
                     <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.PaymentSanalPosTestMode === "true" ? "left-7" : "left-1"}`} />
                   </button>
                   <span className="text-xs text-slate-500">
-                    {settings.PaymentSanalPosTestMode === "true" ? "Test modu açık — gerçek para çekilmez" : "Canlı mod — gerçek işlemler yapılır"}
+                    {settings.PaymentSanalPosTestMode === "true" ? t("auto.testModuAcik", "Test modu açık — gerçek para çekilmez") : t("auto.canliMod", "Canlı mod — gerçek işlemler yapılır")}
                   </span>
                 </div>
               </Field>
-              <Field label="Merchant ID / Mağaza ID">
+              <Field label={t("auto.merchantId", "Merchant ID / Mağaza ID")}>
                 <input value={settings.PaymentSanalPosMerchantId} onChange={e => set("PaymentSanalPosMerchantId", e.target.value)}
                   className={inp} placeholder="12345678" />
               </Field>
@@ -2713,7 +2765,7 @@ export default function YonetimPage() {
                     className={inp + " pl-8"} placeholder="api_key_..." />
                 </div>
               </Field>
-              <Field label="API Secret / Private Key" hint="Şifreli saklanır.">
+              <Field label={t("auto.apiSecretPrivateKey", "API Secret / Private Key")} hint={t("auto.sifreliSaklanir", "Şifreli saklanır.")}>
                 <div className="relative">
                   <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
                   <input type="password" value={settings.PaymentSanalPosApiSecret} onChange={e => set("PaymentSanalPosApiSecret", e.target.value)}
@@ -2723,7 +2775,7 @@ export default function YonetimPage() {
             </div>
             {settings.PaymentSanalPosTestMode !== "true" && settings.PaymentSanalPosEnabled === "true" && (
               <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-                <CreditCard size={14} /> Canlı mod aktif — gerçek kart bilgileri işlenecek. Entegrasyon testini tamamladığınızdan emin olun.
+                <CreditCard size={14} /> {t("auto.canliModAktifKart", "Canlı mod aktif — gerçek kart bilgileri işlenecek. Entegrasyon testini tamamladığınızdan emin olun.")}
               </div>
             )}
           </Section>
@@ -2735,48 +2787,48 @@ export default function YonetimPage() {
         <div className="space-y-5">
           {[
             {
-              title: "Doğrulama Mesajları",
+              title: t("auto.dogrulamaMesajlari", "Doğrulama Mesajları"),
               color: "violet",
               icon: "🔒",
               items: [
-                { key: "Msg_RequiredField",  label: "Zorunlu Alan",         hint: "Form alanları boş bırakıldığında" },
-                { key: "Msg_InvalidEmail",   label: "Geçersiz E-posta",     hint: "E-posta formatı yanlış olduğunda" },
-                { key: "Msg_PasswordMin",    label: "Şifre Çok Kısa",       hint: "Şifre minimum uzunluğu karşılamıyor" },
-                { key: "Msg_PasswordMatch",  label: "Şifre Uyuşmuyor",      hint: "Şifre tekrar alanı eşleşmiyor" },
+                { key: "Msg_RequiredField",  label: t("auto.zorunluAlan", "Zorunlu Alan"),         hint: t("auto.zorunluAlanHint", "Form alanları boş bırakıldığında") },
+                { key: "Msg_InvalidEmail",   label: t("auto.gecersizEposta", "Geçersiz E-posta"),     hint: t("auto.gecersizEpostaHint", "E-posta formatı yanlış olduğunda") },
+                { key: "Msg_PasswordMin",    label: t("auto.sifreCokKisa", "Şifre Çok Kısa"),       hint: t("auto.sifreCokKisaHint", "Şifre minimum uzunluğu karşılamıyor") },
+                { key: "Msg_PasswordMatch",  label: t("auto.sifreUyusmuyor", "Şifre Uyuşmuyor"),      hint: t("auto.sifreUyusmuyorHint", "Şifre tekrar alanı eşleşmiyor") },
               ],
             },
             {
-              title: "Sipariş Mesajları",
+              title: t("auto.siparissMesajlari", "Sipariş Mesajları"),
               color: "teal",
               icon: "📦",
               items: [
-                { key: "Msg_OrderSuccess",   label: "Sipariş Oluşturuldu",  hint: "Başarılı sipariş sonrası gösterilir" },
-                { key: "Msg_OrderCancelled", label: "Sipariş İptal Edildi", hint: "İptal işlemi sonrası gösterilir" },
-                { key: "Msg_OrderShipped",   label: "Kargoya Verildi",      hint: "Kargo durumu güncellenince" },
+                { key: "Msg_OrderSuccess",   label: t("auto.siparisOlusturuldu", "Sipariş Oluşturuldu"),  hint: t("auto.siparisOlusturulduHint", "Başarılı sipariş sonrası gösterilir") },
+                { key: "Msg_OrderCancelled", label: t("auto.siparisIptalEdildi", "Sipariş İptal Edildi"), hint: t("auto.siparisIptalEdildiHint", "İptal işlemi sonrası gösterilir") },
+                { key: "Msg_OrderShipped",   label: t("auto.kargoyaVerildi", "Kargoya Verildi"),      hint: t("auto.kargoyaVerildiHint", "Kargo durumu güncellenince") },
               ],
             },
             {
-              title: "Sepet Mesajları",
+              title: t("auto.sepetMesajlari", "Sepet Mesajları"),
               color: "amber",
               icon: "🛒",
               items: [
-                { key: "Msg_CartItemAdded",  label: "Ürün Eklendi",         hint: "Sepete ürün eklenince" },
-                { key: "Msg_OutOfStock",     label: "Stok Yetersiz",        hint: "İstenen miktar stokta yok" },
-                { key: "Msg_CartEmpty",      label: "Sepet Boş",            hint: "Sepet sayfasında ürün yoksa" },
-                { key: "Msg_CouponApplied",  label: "Kupon Uygulandı",      hint: "Geçerli kupon girilince" },
-                { key: "Msg_CouponInvalid",  label: "Geçersiz Kupon",       hint: "Hatalı veya süresi dolmuş kupon" },
+                { key: "Msg_CartItemAdded",  label: t("auto.urunEklendi", "Ürün Eklendi"),         hint: t("auto.urunEklendiHint", "Sepete ürün eklenince") },
+                { key: "Msg_OutOfStock",     label: t("auto.stokYetersiz", "Stok Yetersiz"),        hint: t("auto.stokYetersizHint", "İstenen miktar stokta yok") },
+                { key: "Msg_CartEmpty",      label: t("auto.sepetBos", "Sepet Boş"),            hint: t("auto.sepetBosHint", "Sepet sayfasında ürün yoksa") },
+                { key: "Msg_CouponApplied",  label: t("auto.kuponUygulandi", "Kupon Uygulandı"),      hint: t("auto.kuponUygulandiHint", "Geçerli kupon girilince") },
+                { key: "Msg_CouponInvalid",  label: t("auto.gecersizKupon", "Geçersiz Kupon"),       hint: t("auto.gecersizKuponHint", "Hatalı veya süresi dolmuş kupon") },
               ],
             },
             {
-              title: "Sistem & Hata Mesajları",
+              title: t("auto.sistemHataMesajlari", "Sistem & Hata Mesajları"),
               color: "red",
               icon: "⚠️",
               items: [
-                { key: "Msg_GenericError",   label: "Genel Hata",           hint: "Beklenmeyen hatalar için" },
-                { key: "Msg_NetworkError",   label: "Bağlantı Hatası",      hint: "İnternet kesilince" },
-                { key: "Msg_Unauthorized",   label: "Yetkisiz Erişim",      hint: "Giriş gerektiren sayfalarda" },
-                { key: "Msg_MaintenanceMode",label: "Bakım Modu",           hint: "Site bakımda iken" },
-                { key: "Msg_LowStockWarning",label: "Düşük Stok",          hint: "Az miktarda ürün kaldığında" },
+                { key: "Msg_GenericError",   label: t("auto.genelHata", "Genel Hata"),           hint: t("auto.genelHataHint", "Beklenmeyen hatalar için") },
+                { key: "Msg_NetworkError",   label: t("auto.baglantiHatasi", "Bağlantı Hatası"),      hint: t("auto.baglantiHatasiHint", "İnternet kesilince") },
+                { key: "Msg_Unauthorized",   label: t("auto.yetkisizErisim", "Yetkisiz Erişim"),      hint: t("auto.yetkisizErisimHint", "Giriş gerektiren sayfalarda") },
+                { key: "Msg_MaintenanceMode",label: t("auto.bakimModu", "Bakım Modu"),           hint: t("auto.bakimModuHint", "Site bakımda iken") },
+                { key: "Msg_LowStockWarning",label: t("auto.dusukStok", "Düşük Stok"),          hint: t("auto.dusukStokHint", "Az miktarda ürün kaldığında") },
               ],
             },
             {
@@ -2876,7 +2928,12 @@ export default function YonetimPage() {
           {/* Özel Mesajlar */}
           {Object.keys(settings).filter(k => k.startsWith("Msg_Custom_")).length > 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-              <button type="button" onClick={() => setOpenMsgGroups(prev => { const s = new Set(prev); s.has("Özel Mesajlar") ? s.delete("Özel Mesajlar") : s.add("Özel Mesajlar"); return s; })}
+              <button type="button" onClick={() => setOpenMsgGroups(prev => {
+                const s = new Set(prev);
+                if (s.has("Özel Mesajlar")) s.delete("Özel Mesajlar");
+                else s.add("Özel Mesajlar");
+                return s;
+              })}
                 className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-slate-50 transition">
                 <span className="text-lg">✏️</span>
                 <h3 className="text-sm font-bold text-slate-800">Özel Mesajlar</h3>
@@ -2948,7 +3005,7 @@ export default function YonetimPage() {
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">
             <p className="font-semibold mb-1">Geliştirici Notu</p>
-            <p>Bu mesajlar SiteSettings tablosunda saklanır. Frontend bileşenler <code className="font-mono bg-blue-100 px-1 rounded">GET /api/settings/theme</code> endpoint'inden okuyabilir ya da hardcoded varsayılan değerleri kullanabilir. Kaydet butonuna bastıktan sonra aktif olur.</p>
+            <p>Bu mesajlar SiteSettings tablosunda saklanır. Frontend bileşenler <code className="font-mono bg-blue-100 px-1 rounded">GET /api/settings/theme</code> endpoint&apos;inden okuyabilir ya da hardcoded varsayılan değerleri kullanabilir. Kaydet butonuna bastıktan sonra aktif olur.</p>
           </div>
         </div>
       )}
@@ -3054,7 +3111,7 @@ export default function YonetimPage() {
                               {row.module}
                               {row.module === "Test" && (
                                 <span className="text-[9px] bg-amber-50 text-amber-600 border border-amber-200 px-1 py-0.5 rounded font-bold" title="Production ortamında SuperAdmin bile olsa varsayılan gizlidir">
-                                  prod'da gizli
+                                  prod&apos;da gizli
                                 </span>
                               )}
                               {isChanged && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">değişti</span>}
@@ -3097,6 +3154,138 @@ export default function YonetimPage() {
             <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
               <Users size={12} /> Kullanıcıya rol atamak için <button className="text-teal-600 underline underline-offset-2" onClick={() => window.open("/kullanicilar", "_self")}>Kullanıcılar</button> sayfasına gidin.
             </p>
+          </Section>
+        </div>
+      )}
+
+      {/* ── Otomasyon ── */}
+      {tab === "otomasyon" && (
+        <div className="space-y-5">
+          <Section
+            title={t("auto.jobKonfigurasyonlari", "Job Konfigürasyonları")}
+            icon={<Activity size={16} />}
+            subtitle={t("auto.jobKonfigurasyonlariAciklama", "Bu ayarlar arka plan işlerinin otomatik çalışmasını, hangi dosyalara yazabileceğini ve i18n tarama penceresini belirler. Kaydettikten sonra scheduler bir sonraki döngüde yeni değerleri okur.")}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <ToggleRow
+                  label={t("auto.i18nAutoRun", "I18n jobları otomatik çalışsın")}
+                  checked={settings["I18nJob:EnableAutoRun"] === "true"}
+                  onToggle={() => set("I18nJob:EnableAutoRun", settings["I18nJob:EnableAutoRun"] === "true" ? "false" : "true")}
+                  hint={t("auto.i18nAutoRunHint", "Scheduler yalnızca bu bayrak açıksa i18n joblarını zaman penceresine göre otomatik çalıştırır.")}
+                />
+                <ToggleRow
+                  label={t("auto.i18nSourceMutation", "Kaynak dosyalarına yazılsın")}
+                  checked={settings["I18nJob:AllowSourceMutation"] === "true"}
+                  onToggle={() => set("I18nJob:AllowSourceMutation", settings["I18nJob:AllowSourceMutation"] === "true" ? "false" : "true")}
+                  hint={t("auto.i18nSourceMutationHint", "Açılırsa dictionary builder i18n.ts dosyasını günceller; kapalıysa yalnızca öneri modunda kalır.")}
+                />
+                <ToggleRow
+                  label={t("auto.i18nDocsWrite", "Dokümanlara yazılsın")}
+                  checked={settings["I18nJob:AllowDocsWrite"] === "true"}
+                  onToggle={() => set("I18nJob:AllowDocsWrite", settings["I18nJob:AllowDocsWrite"] === "true" ? "false" : "true")}
+                  hint={t("auto.i18nDocsWriteHint", "Açılırsa i18n tarama ve durum raporları dotnet-ecom-docs içine yazılır.")}
+                />
+                <ToggleRow
+                  label={t("auto.i18nTriggerBuilder", "Scanner builder'ı tetiklesin")}
+                  checked={settings["I18nJob:TriggerBuilderFromScanner"] === "true"}
+                  onToggle={() => set("I18nJob:TriggerBuilderFromScanner", settings["I18nJob:TriggerBuilderFromScanner"] === "true" ? "false" : "true")}
+                  hint={t("auto.i18nTriggerBuilderHint", "Scanner hardcoded satır bulursa dictionary builder job'ını kuyruklar.")}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label={t("auto.i18nProjectRoot", "Proje Kökü")} hint={t("auto.i18nProjectRootHint", "Boş bırakılırsa backend otomatik kök dizini arar.")}>
+                  <input value={settings["I18nJob:ProjectRoot"]} onChange={e => set("I18nJob:ProjectRoot", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\Ecom" />
+                </Field>
+                <Field label={t("auto.i18nDocsPath", "Doküman Klasörü")} hint={t("auto.i18nDocsPathHint", "Boş bırakılırsa sibling dotnet-ecom-docs klasörü aranır.")}>
+                  <input value={settings["I18nJob:DocsPath"]} onChange={e => set("I18nJob:DocsPath", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\dotnet-ecom-docs" />
+                </Field>
+                <Field label={t("auto.i18nTimeZone", "Zaman Dilimi")}>
+                  <input value={settings["I18nJob:ScheduleTimeZone"]} onChange={e => set("I18nJob:ScheduleTimeZone", e.target.value)} className={inp} placeholder="Turkey Standard Time" />
+                </Field>
+                <Field label={t("auto.i18nWindowStart", "Dictionary Window Başlangıç")}>
+                  <input value={settings["I18nJob:DictionaryBuilderWindowStart"]} onChange={e => set("I18nJob:DictionaryBuilderWindowStart", e.target.value)} className={inp} placeholder="01:00:00" />
+                </Field>
+                <Field label={t("auto.i18nWindowEnd", "Dictionary Window Bitiş")}>
+                  <input value={settings["I18nJob:DictionaryBuilderWindowEnd"]} onChange={e => set("I18nJob:DictionaryBuilderWindowEnd", e.target.value)} className={inp} placeholder="07:00:00" />
+                </Field>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title={t("auto.customerJobKonfigurasyonlari", "Customer I18n Konfigürasyonları")}
+            icon={<Globe size={16} />}
+            subtitle={t("auto.customerJobKonfigurasyonlariAciklama", "Customer ekranları için ayrı i18n tarama ve sözlük oluşturma akışını burada yönetebilirsiniz. Bu blok admin ayarlarından bağımsızdır.")}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <ToggleRow
+                  label={t("auto.customerI18nAutoRun", "Customer I18n jobları otomatik çalışsın")}
+                  checked={settings["CustomerI18nJob:EnableAutoRun"] === "true"}
+                  onToggle={() => set("CustomerI18nJob:EnableAutoRun", settings["CustomerI18nJob:EnableAutoRun"] === "true" ? "false" : "true")}
+                  hint={t("auto.customerI18nAutoRunHint", "Scheduler yalnızca bu bayrak açıksa customer i18n joblarını zaman penceresine göre otomatik çalıştırır.")}
+                />
+                <ToggleRow
+                  label={t("auto.customerI18nSourceMutation", "Customer kaynak dosyalarına yazılsın")}
+                  checked={settings["CustomerI18nJob:AllowSourceMutation"] === "true"}
+                  onToggle={() => set("CustomerI18nJob:AllowSourceMutation", settings["CustomerI18nJob:AllowSourceMutation"] === "true" ? "false" : "true")}
+                  hint={t("auto.customerI18nSourceMutationHint", "Açılırsa dictionary builder customer i18n.ts dosyasını günceller; kapalıysa yalnızca öneri modunda kalır.")}
+                />
+                <ToggleRow
+                  label={t("auto.customerI18nDocsWrite", "Customer dokümanlarına yazılsın")}
+                  checked={settings["CustomerI18nJob:AllowDocsWrite"] === "true"}
+                  onToggle={() => set("CustomerI18nJob:AllowDocsWrite", settings["CustomerI18nJob:AllowDocsWrite"] === "true" ? "false" : "true")}
+                  hint={t("auto.customerI18nDocsWriteHint", "Açılırsa customer i18n tarama ve durum raporları dotnet-ecom-docs içine yazılır.")}
+                />
+                <ToggleRow
+                  label={t("auto.customerI18nTriggerBuilder", "Customer scanner builder'ı tetiklesin")}
+                  checked={settings["CustomerI18nJob:TriggerBuilderFromScanner"] === "true"}
+                  onToggle={() => set("CustomerI18nJob:TriggerBuilderFromScanner", settings["CustomerI18nJob:TriggerBuilderFromScanner"] === "true" ? "false" : "true")}
+                  hint={t("auto.customerI18nTriggerBuilderHint", "Scanner hardcoded satır bulursa customer dictionary builder job'ını kuyruklar.")}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label={t("auto.customerI18nProjectRoot", "Proje Kökü")} hint={t("auto.customerI18nProjectRootHint", "Boş bırakılırsa backend otomatik kök dizini arar.")}>
+                  <input value={settings["CustomerI18nJob:ProjectRoot"]} onChange={e => set("CustomerI18nJob:ProjectRoot", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\Ecom" />
+                </Field>
+                <Field label={t("auto.customerI18nDocsPath", "Doküman Klasörü")} hint={t("auto.customerI18nDocsPathHint", "Boş bırakılırsa sibling dotnet-ecom-docs klasörü aranır.")}>
+                  <input value={settings["CustomerI18nJob:DocsPath"]} onChange={e => set("CustomerI18nJob:DocsPath", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\dotnet-ecom-docs" />
+                </Field>
+                <Field label={t("auto.customerI18nTimeZone", "Zaman Dilimi")}>
+                  <input value={settings["CustomerI18nJob:ScheduleTimeZone"]} onChange={e => set("CustomerI18nJob:ScheduleTimeZone", e.target.value)} className={inp} placeholder="Turkey Standard Time" />
+                </Field>
+                <Field label={t("auto.customerI18nWindowStart", "Dictionary Window Başlangıç")}>
+                  <input value={settings["CustomerI18nJob:DictionaryBuilderWindowStart"]} onChange={e => set("CustomerI18nJob:DictionaryBuilderWindowStart", e.target.value)} className={inp} placeholder="01:00:00" />
+                </Field>
+                <Field label={t("auto.customerI18nWindowEnd", "Dictionary Window Bitiş")}>
+                  <input value={settings["CustomerI18nJob:DictionaryBuilderWindowEnd"]} onChange={e => set("CustomerI18nJob:DictionaryBuilderWindowEnd", e.target.value)} className={inp} placeholder="07:00:00" />
+                </Field>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title={t("auto.verificationKonfigurasyonu", "Doğrulama ve İzleme")}
+            icon={<Database size={16} />}
+            subtitle={t("auto.verificationKonfigurasyonuAciklama", "Doğrulama, lint backlog ve log dosyası yollarını burada yönetebilirsiniz. Bu değerler job'ların hangi hedefe yazacağını belirler.")}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label={t("auto.verificationApiBase", "Verification API Base URL")} hint={t("auto.verificationApiBaseHint", "Todo verification job API kontrolleri için bu adresi kullanır.")}>
+                <input value={settings["VerificationJob:ApiBaseUrl"]} onChange={e => set("VerificationJob:ApiBaseUrl", e.target.value)} className={inp} placeholder="http://localhost:5124" />
+              </Field>
+              <Field label={t("auto.verificationProjectRoot", "Verification Project Root")} hint={t("auto.verificationProjectRootHint", "Boş bırakılırsa backend kendi root'unu bulmaya çalışır.")}>
+                <input value={settings["VerificationJob:ProjectRoot"]} onChange={e => set("VerificationJob:ProjectRoot", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\Ecom" />
+              </Field>
+              <Field label={t("auto.verificationLogPath", "Verification Log Path")} hint={t("auto.verificationLogPathHint", "Boş bırakılırsa dotnet-ecom-docs/VERIFICATION_LOG.md hedeflenir.")}>
+                <input value={settings["VerificationJob:LogFilePath"]} onChange={e => set("VerificationJob:LogFilePath", e.target.value)} className={inp} placeholder="C:\\PROJECTS\\DOTNET\\dotnet-ecom-docs\\VERIFICATION_LOG.md" />
+              </Field>
+              <Field label={t("auto.lintTodoPath", "Lint TODO Path")} hint={t("auto.lintTodoPathHint", "Admin lint backlog dosyasının konumu.")}>
+                <input value={settings["AdminLintAudit:TodoPath"]} onChange={e => set("AdminLintAudit:TodoPath", e.target.value)} className={inp} placeholder="TODO_PENDING.md" />
+              </Field>
+            </div>
           </Section>
         </div>
       )}
@@ -3483,7 +3672,7 @@ export default function YonetimPage() {
                   <p className="font-semibold">Anahtar yapılandırılmamış</p>
                   <p className="text-xs mt-1 text-amber-700">
                     <code className="bg-amber-100 px-1 rounded">appsettings.Development.json</code> dosyasında{" "}
-                    <code className="bg-amber-100 px-1 rounded">"License"</code> anahtarı eksik veya boş.
+                    <code className="bg-amber-100 px-1 rounded">&quot;License&quot;</code> anahtarı eksik veya boş.
                     Aşağıdaki rehberi takip ederek yapılandır.
                   </p>
                 </div>
@@ -3519,7 +3708,7 @@ export default function YonetimPage() {
               <div className="p-4 space-y-4">
 
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 1 — Token'ı Görüntüle</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Adım 1 — Token&apos;ı Görüntüle</p>
                   <ol className="space-y-1">
                     {[
                       '"Görüntüle" butonuna tıkla',
@@ -3546,8 +3735,8 @@ export default function YonetimPage() {
                       <p className="text-emerald-300">{'ECOM_LICENSE=<buraya yapıştır>'}</p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
-                    <Shield size={10} /> appsettings.Development.json gitignore'dadır — token git'e commit edilmez.
+                    <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <Shield size={10} /> appsettings.Development.json gitignore&apos;dadır — token git&apos;e commit edilmez.
                   </p>
                 </div>
 
@@ -3557,15 +3746,15 @@ export default function YonetimPage() {
                     <p className="text-slate-400">{'# backend/ dizininden'}</p>
                     <p className="text-teal-300">{'dotnet run --project src/Ecom.API'}</p>
                   </div>
-                  <p className="text-xs text-slate-500">Başarılıysa bu sayfaya geri dön — durum "Yapılandırılmış" olarak güncellenir.</p>
+                  <p className="text-xs text-slate-500">Başarılıysa bu sayfaya geri dön — durum &quot;Yapılandırılmış&quot; olarak güncellenir.</p>
                 </div>
 
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
                   <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Sorun Giderme</p>
                   {[
-                    { s: "Uygulama başlamıyor", c: "Token eksik veya imzası hatalı. Terminal'deki hatayı oku ve token'ı tekrar kopyala/yapıştır." },
+                    { s: "Uygulama başlamıyor", c: "Token eksik veya imzası hatalı. Terminal&apos;deki hatayı oku ve token&apos;ı tekrar kopyala/yapıştır." },
                     { s: "Giriş 401 veriyor", c: "JWT anahtarı lisanstan türetilir. Token değişmişse oturumu kapatıp tekrar giriş yap." },
-                    { s: "Tüm API'ler 503 veriyor", c: "LicenseMiddleware engelledi. Dosyaya yapıştırılan token tam ve tek satır olmalı." },
+                    { s: "Tüm API&apos;ler 503 veriyor", c: "LicenseMiddleware engelledi. Dosyaya yapıştırılan token tam ve tek satır olmalı." },
                   ].map(r => (
                     <div key={r.s} className="flex gap-2 text-xs">
                       <span className="text-red-500 font-semibold shrink-0 w-40">{r.s}</span>
@@ -3601,7 +3790,7 @@ export default function YonetimPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-0.5">Issuer</label>
-                    <p className="text-[10px] text-slate-400 mb-1.5">Kim verdi? Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir, doğrulamayı etkilemez.</p>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Kim verdi? Token&apos;da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir, doğrulamayı etkilemez.</p>
                     <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
@@ -3958,7 +4147,7 @@ export default function YonetimPage() {
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                   <div>
                     <p className="text-xs font-bold text-slate-700 mb-0.5">Yeni RSA-2048 Anahtar Çifti Üret</p>
-                    <p className="text-[11px] text-slate-500">Hiç private key'iniz yoksa buradan üretin. Private key aşağıya, public key LicenseValidator.cs'e yapıştırılır.</p>
+                    <p className="text-[11px] text-slate-500">Hiç private key&apos;iniz yoksa buradan üretin. Private key aşağıya, public key LicenseValidator.cs&apos;e yapıştırılır.</p>
                   </div>
                   <button onClick={handleGenerateKeyPair} disabled={licGenKeyPairLoading}
                     className="flex items-center gap-2 px-4 py-2 bg-[#12304A] hover:bg-[#1a4670] text-white text-xs font-semibold rounded-xl transition disabled:opacity-50">
@@ -3968,7 +4157,7 @@ export default function YonetimPage() {
                   {licGenPubKey && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest">
-                        <AlertTriangle size={11} /> Public key — LicenseValidator.cs'e yapıştırın
+                        <AlertTriangle size={11} /> Public key — LicenseValidator.cs&apos;e yapıştırın
                       </div>
                       <div className="relative bg-slate-900 rounded-xl p-3">
                         <p className="font-mono text-[10px] text-amber-300 break-all leading-relaxed pr-16">{licGenPubKey}</p>
@@ -3979,7 +4168,7 @@ export default function YonetimPage() {
                           {licGenPubKeyCopied ? "Kopyalandı" : "Kopyala"}
                         </button>
                       </div>
-                      <p className="text-[10px] text-slate-400">Private key aşağıda otomatik dolduruldu. Sayfayı kapatmadan not alın — bir daha göremezsiniz.</p>
+                    <p className="text-[10px] text-slate-400">Private key aşağıda otomatik dolduruldu. Sayfayı kapatmadan not alın — bir daha göremezsiniz.</p>
                     </div>
                   )}
                 </div>
@@ -3998,7 +4187,7 @@ export default function YonetimPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-0.5">Issuer</label>
-                    <p className="text-[10px] text-slate-400 mb-1.5">Token'da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir.</p>
+                    <p className="text-[10px] text-slate-400 mb-1.5">Token&apos;da <code className="bg-slate-100 px-0.5 rounded">iss</code> olarak saklanır — izlenebilirlik içindir.</p>
                     <input value={licGenIssuer} onChange={e => setLicGenIssuer(e.target.value)}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   </div>
@@ -4420,7 +4609,7 @@ export default function YonetimPage() {
                   {[
                     { step: "1", icon: <Mail     size={11} />, title: "Mail Bekleyin",      desc: "SuperAdmin lisans atadığında e-posta alırsınız. Mailinde token ve görüntüleme şifreniz (XXXX-XXXX-XXXX-XXXX) yer alır." },
                     { step: "2", icon: <Eye      size={11} />, title: "Şifreyle Görüntüle", desc: "Aktivasyon Anahtarı bölümüne görüntüleme şifrenizi girin. Lisans token'ınız ekranda belirir, kopyalayın." },
-                    { step: "3", icon: <KeyRound size={11} />, title: "Token'ı Kullanın",   desc: "Token'ı ECOM_LICENSE değişkenine yapıştırın ve API'yi yeniden başlatın. JWT key bu token'dan türetilir." },
+                    { step: "3", icon: <KeyRound size={11} />, title: "Token&apos;ı Kullanın",   desc: "Token&apos;ı ECOM_LICENSE değişkenine yapıştırın ve API&apos;yi yeniden başlatın. JWT key bu token&apos;dan türetilir." },
                   ].map(item => (
                     <div key={item.step} className="flex gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
                       <div className="flex flex-col items-center gap-1.5 shrink-0">
@@ -4452,7 +4641,7 @@ export default function YonetimPage() {
                     { tag: "HOST",  color: "violet", s: "Lisans bu sunucuya ait değil",     c: "Host binding aktif; token'daki host alanı sunucu hostname/IP ile eşleşmiyor. Host boş bırakarak yeni token üretin." },
                     { tag: "TOKEN", color: "slate",  s: "Token üretilemiyor",               c: "Private key PKCS8 DER base64 olmalı. PEM başlıkları (-----BEGIN PRIVATE KEY-----) girilmemeli, yalnızca base64 içeriği." },
                     { tag: "ATAMA", color: "slate",  s: "Görüntüleme şifresi çalışmıyor",  c: "Büyük/küçük harf duyarlıdır. Birden fazla atama varsa en son atanan şifre geçerlidir." },
-                    { tag: "ATAMA", color: "slate",  s: "Kullanıcı bulunamadı",            c: "E-posta tam eşleşmeli veya Ad Soyad tam girilmeli (ör: 'Ahmet Yılmaz'). Boşluklara dikkat edin." },
+                    { tag: "ATAMA", color: "slate",  s: "Kullanıcı bulunamadı",            c: "E-posta tam eşleşmeli veya Ad Soyad tam girilmeli (ör: &apos;Ahmet Yılmaz&apos;). Boşluklara dikkat edin." },
                   ].map(r => (
                     <div key={r.s} className="flex gap-3 items-start p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 font-mono ${
@@ -4496,6 +4685,36 @@ function Section({ title, subtitle, icon, children }: {
         </div>
       </div>
       {children}
+    </div>
+  );
+}
+
+function ToggleRow({ label, hint, checked, onToggle }: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-slate-700">{label}</p>
+        {hint && <p className="text-xs text-slate-400 mt-1 leading-relaxed">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        aria-pressed={checked}
+        onClick={onToggle}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          checked ? "bg-teal-600" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
     </div>
   );
 }

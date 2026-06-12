@@ -1,32 +1,27 @@
 "use client";
 
-// İade & Değişim sayfası: politika metni + giriş yapmış kullanıcılar için
-// sipariş numarası girişiyle doğrudan iade talebi formu sunar.
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
+import { useI18n } from "@/contexts/I18nContext";
 
-// İade koşullarını açıklayan politika maddeleri
 const POLICY_ITEMS = [
-  { icon: "📅", title: "14 Gün İade Hakkı", desc: "Teslim tarihinden itibaren 14 gün içinde iade talebinde bulunabilirsiniz." },
-  { icon: "📦", title: "Orijinal Ambalaj", desc: "Ürünlerin orijinal ambalajında ve kullanılmamış durumda olması gerekmektedir." },
-  { icon: "🚚", title: "Ücretsiz Kargo", desc: "Onaylanan iadeler için kargo bedeli tarafımızca karşılanır." },
-  { icon: "💳", title: "İade Süresi", desc: "İade onayından sonra ödeme 3-7 iş günü içinde hesabınıza aktarılır." },
+  { icon: "📅", titleKey: "14 Gün İade Hakkı", desc: "Teslim tarihinden itibaren 14 gün içinde iade talebinde bulunabilirsiniz." },
+  { icon: "📦", titleKey: "Orijinal Ambalaj", desc: "Ürünlerin orijinal ambalajında ve kullanılmamış durumda olması gerekmektedir." },
+  { icon: "🚚", titleKey: "Ücretsiz Kargo", desc: "Onaylanan iadeler için kargo bedeli tarafımızca karşılanır." },
+  { icon: "💳", titleKey: "İade Süresi", desc: "İade onayından sonra ödeme 3-7 iş günü içinde hesabınıza aktarılır." },
 ];
 
 export default function IadeDegisimPage() {
+  const { t } = useI18n();
   const { user } = useAuth();
-  const router = useRouter();
 
-  // İade talebi formu state'leri (giriş yapmış kullanıcılar için)
   const [orderNumber, setOrderNumber] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ text: string; ok: boolean } | null>(null);
 
-  // Giriş yapmış kullanıcı için sipariş numarasıyla iade talebi gönderir
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!orderNumber.trim()) return;
@@ -48,37 +43,33 @@ export default function IadeDegisimPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
-      {/* Başlık */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">İade & Değişim</h1>
-        <p className="text-slate-500">Kolay iade, hızlı geri ödeme. Alışverişinizden memnun kalmazsanız yanınızdayız.</p>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">{t("return.heading")}</h1>
+        <p className="text-slate-500">{t("return.desc")}</p>
       </div>
 
-      {/* Politika kartları */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {POLICY_ITEMS.map((item) => (
-          <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4 items-start shadow-sm">
+          <div key={item.titleKey} className="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4 items-start shadow-sm">
             <span className="text-2xl shrink-0">{item.icon}</span>
             <div>
-              <p className="text-sm font-semibold text-slate-800">{item.title}</p>
+              <p className="text-sm font-semibold text-slate-800">{item.titleKey}</p>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.desc}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* İade talebi bölümü */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-          <h2 className="text-base font-semibold text-slate-800">İade Talebi Oluştur</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Sipariş numaranızı girin ve iade nedeninizi belirtin.</p>
+          <h2 className="text-base font-semibold text-slate-800">{t("return.request_title")}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{t("return.request_desc")}</p>
         </div>
 
         {user ? (
-          // Giriş yapmış kullanıcı: doğrudan iade talebi formu
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Sipariş Numarası *</label>
+              <label className="block text-xs text-slate-500 mb-1">{t("return.order_no")}</label>
               <input
                 value={orderNumber}
                 onChange={e => setOrderNumber(e.target.value)}
@@ -93,7 +84,7 @@ export default function IadeDegisimPage() {
               </p>
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">İade Nedeni (isteğe bağlı)</label>
+              <label className="block text-xs text-slate-500 mb-1">{t("return.reason")}</label>
               <textarea
                 value={reason}
                 onChange={e => setReason(e.target.value)}
@@ -112,11 +103,10 @@ export default function IadeDegisimPage() {
               disabled={submitting || !orderNumber.trim()}
               className="w-full bg-teal-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
             >
-              {submitting ? "Gönderiliyor..." : "İade Talebi Gönder"}
+              {submitting ? t("return.sending") : t("return.submit")}
             </button>
           </form>
         ) : (
-          // Giriş yapmamış kullanıcı: giriş yönlendirmesi
           <div className="p-6 text-center space-y-4">
             <p className="text-sm text-slate-600">
               İade talebi oluşturmak için hesabınıza giriş yapmanız gerekmektedir.
@@ -126,22 +116,21 @@ export default function IadeDegisimPage() {
                 href="/giris?redirect=/hesabim/siparisler"
                 className="bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition"
               >
-                Giriş Yap
+                {t("return.login")}
               </Link>
               <Link
                 href="/siparis-sorgula"
                 className="border border-slate-300 text-slate-600 text-sm px-6 py-2.5 rounded-xl hover:bg-slate-50 transition"
               >
-                Misafir Sipariş Sorgula
+                {t("return.guest")}
               </Link>
             </div>
           </div>
         )}
       </div>
 
-      {/* İptal edilemeyen ürünler */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-amber-800 mb-2">İade Edilemeyen Ürünler</p>
+        <p className="text-sm font-semibold text-amber-800 mb-2">{t("return.not_refundable")}</p>
         <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
           <li>Kişiye özel üretilen veya kişiselleştirilen ürünler</li>
           <li>Dijital içerikler ve yazılım lisansları</li>
@@ -150,7 +139,6 @@ export default function IadeDegisimPage() {
         </ul>
       </div>
 
-      {/* Yardım */}
       <p className="text-sm text-slate-500 text-center">
         Sorularınız için{" "}
         <Link href="/iletisim" className="text-teal-600 hover:underline font-medium">

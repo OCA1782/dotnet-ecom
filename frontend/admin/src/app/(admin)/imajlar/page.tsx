@@ -95,7 +95,10 @@ export default function ImajlarPage() {
     }
   }, [page, source, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,11 +143,11 @@ export default function ImajlarPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">{t("nav./imajlar", "İmaj Yönetimi")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Ürün, kategori, marka ve duyurulardaki tüm görseller
+            {t("ui.imajlarSubtitle", "Ürün, kategori, marka ve duyurulardaki tüm görseller")}
           </p>
         </div>
         <div className="text-sm text-slate-500">
-          {total} görsel
+          {total} {t("ui.image", "görsel")}
         </div>
       </div>
 
@@ -155,7 +158,7 @@ export default function ImajlarPage() {
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Kaynak adı veya URL ara..."
+            placeholder={t("ui.imageSearchPlaceholder", "Kaynak adı veya URL ara...")}
             className="w-full pl-8 pr-8 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           {searchInput && (
@@ -173,12 +176,12 @@ export default function ImajlarPage() {
             onChange={e => { setSource(e.target.value); setPage(1); }}
             className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
           >
-            <option value="">Tüm Kaynaklar</option>
-            <option value="product">Ürünler</option>
-            <option value="category">Kategoriler</option>
-            <option value="brand">Markalar</option>
-            <option value="announcement">Duyurular</option>
-            <option value="user">Kullanıcılar</option>
+            <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
+            <option value="product">{t("ui.products", "Ürünler")}</option>
+            <option value="category">{t("ui.categories", "Kategoriler")}</option>
+            <option value="brand">{t("ui.brands", "Markalar")}</option>
+            <option value="announcement">{t("ui.announcements", "Duyurular")}</option>
+            <option value="user">{t("ui.users", "Kullanıcılar")}</option>
           </select>
         </div>
       </div>
@@ -193,10 +196,10 @@ export default function ImajlarPage() {
       ) : data?.items.length === 0 ? (
         <div className="text-center py-20">
           <ImageIcon size={40} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-400 font-medium">Görsel bulunamadı</p>
+          <p className="text-slate-400 font-medium">{t("ui.imageNotFound", "Görsel bulunamadı")}</p>
           {(search || source) && (
             <button onClick={() => { clearSearch(); setSource(""); }} className="mt-2 text-sm text-teal-600 hover:underline">
-              Filtreleri temizle
+              {t("filter.clearFilters", "Filtreleri Temizle")}
             </button>
           )}
         </div>
@@ -220,23 +223,23 @@ export default function ImajlarPage() {
                   <div className="flex items-start justify-between gap-1 flex-wrap">
                     <SourceBadge type={img.sourceType} />
                     {img.isMain && (
-                      <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">Ana</span>
+                      <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">{t("ui.mainImage", "Ana")}</span>
                     )}
                   </div>
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => setLightbox(img)} title="Büyüt"
+                    <button onClick={() => setLightbox(img)} title={t("action.preview", "Önizle")}
                       className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
                       <Eye size={12} />
                     </button>
-                    <button onClick={() => copyUrl(img)} title="URL Kopyala"
+                    <button onClick={() => copyUrl(img)} title={t("ui.copyUrl", "URL Kopyala")}
                       className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
                       {copiedId === img.id ? <Check size={12} /> : <Copy size={12} />}
                     </button>
-                    <a href={img.url} target="_blank" rel="noreferrer" title="Yeni sekmede aç"
+                    <a href={img.url} target="_blank" rel="noreferrer" title={t("ui.openNewTab", "Yeni sekmede aç")}
                       className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
                       <ExternalLink size={12} />
                     </a>
-                    <button onClick={() => setDeleteTarget(img)} title="Kaldır"
+                    <button onClick={() => setDeleteTarget(img)} title={t("ui.removeImage", "Kaldır")}
                       className="w-7 h-7 bg-red-500/70 hover:bg-red-500 text-white rounded-lg flex items-center justify-center transition">
                       <Trash2 size={12} />
                     </button>
@@ -249,7 +252,7 @@ export default function ImajlarPage() {
                 <div className="flex items-center gap-1 flex-wrap">
                   <SourceBadge type={img.sourceType} />
                   {img.isMain && (
-                    <span className="text-[10px] font-semibold text-teal-600">Ana</span>
+                    <span className="text-[10px] font-semibold text-teal-600">{t("ui.mainImage", "Ana")}</span>
                   )}
                 </div>
                 <p className="text-[11px] font-medium text-slate-700 truncate" title={img.sourceName}>
@@ -268,7 +271,7 @@ export default function ImajlarPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} görsel
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} {t("ui.image", "görsel")}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -308,7 +311,7 @@ export default function ImajlarPage() {
                 <SourceBadge type={lightbox.sourceType} />
                 <span className="text-white font-medium text-sm">{lightbox.sourceName}</span>
                 {lightbox.isMain && (
-                  <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">Ana görsel</span>
+                  <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">{t("ui.mainImageFull", "Ana görsel")}</span>
                 )}
               </div>
               <p className="text-slate-400 text-xs break-all">{lightbox.url}</p>
@@ -332,8 +335,8 @@ export default function ImajlarPage() {
                 <Trash2 size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-800">Görseli Kaldır</h2>
-                <p className="text-xs text-slate-500">Bu işlem geri alınamaz</p>
+                <h2 className="font-bold text-slate-800">{t("ui.removeImageTitle", "Görseli Kaldır")}</h2>
+                <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
               </div>
             </div>
             <div className="flex gap-3 p-3 bg-slate-50 rounded-xl">
@@ -352,9 +355,9 @@ export default function ImajlarPage() {
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              Bu görseli <strong>{SOURCE_LABELS[deleteTarget.sourceType] ?? deleteTarget.sourceType}</strong> kaydından kaldırmak istediğinizden emin misiniz?
-              {deleteTarget.sourceType === "product" && " Ürün görsel kaydı silinecek."}
-              {deleteTarget.sourceType !== "product" && " Kayıtta görsel alanı boşaltılacak."}
+              {t("ui.removeImageConfirmPrefix", "Bu görseli")} <strong>{SOURCE_LABELS[deleteTarget.sourceType] ?? deleteTarget.sourceType}</strong> {t("ui.removeImageConfirmSuffix", "kaydından kaldırmak istediğinizden emin misiniz?")}
+              {deleteTarget.sourceType === "product" && ` ${t("ui.productImageWillDelete", "Ürün görsel kaydı silinecek.")}`}
+              {deleteTarget.sourceType !== "product" && ` ${t("ui.imageFieldWillClear", "Kayıtta görsel alanı boşaltılacak.")}`}
             </p>
             <div className="flex justify-end gap-3 pt-1">
               <button
@@ -362,14 +365,14 @@ export default function ImajlarPage() {
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
               >
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition"
               >
-                {deleting ? "Kaldırılıyor..." : "Kaldır"}
+                {deleting ? t("ui.removing", "Kaldırılıyor...") : t("ui.remove", "Kaldır")}
               </button>
             </div>
           </div>

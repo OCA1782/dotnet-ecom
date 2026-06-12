@@ -386,12 +386,6 @@ const COLOR_BADGE: Record<string, string> = {
   orange: "bg-orange-100 text-orange-700", sky: "bg-sky-100 text-sky-700", violet: "bg-violet-100 text-violet-700",
   red: "bg-red-100 text-red-700", emerald: "bg-emerald-100 text-emerald-700", slate: "bg-slate-100 text-slate-600", pink: "bg-pink-100 text-pink-700",
 };
-const COLOR_PROGRESS: Record<string, string> = {
-  amber: "bg-amber-400", teal: "bg-teal-500", indigo: "bg-indigo-500",
-  orange: "bg-orange-500", sky: "bg-sky-500", violet: "bg-violet-500",
-  red: "bg-red-500", emerald: "bg-emerald-500", slate: "bg-slate-400", pink: "bg-pink-500",
-};
-
 const PRIORITY_LABEL: Record<string, { label: string; cls: string }> = {
   critical: { label: "Kritik",   cls: "bg-red-100 text-red-700 border border-red-200" },
   high:     { label: "Yüksek",  cls: "bg-orange-100 text-orange-700 border border-orange-200" },
@@ -827,6 +821,7 @@ const SEED_COLOR: Record<string, { card: string; btn: string; badge: string }> =
 type LogEntry = { text: string; type: "info" | "ok" | "error" | "warn" };
 
 function SeedDataTab() {
+  const { t } = useI18n();
   const [counts, setCounts] = useState<Record<string, number>>(
     Object.fromEntries(SEED_ENTITIES.map(e => [e.id, 10]))
   );
@@ -881,10 +876,9 @@ function SeedDataTab() {
       <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 flex items-start gap-3">
         <Factory size={18} className="text-blue-500 shrink-0 mt-0.5" />
         <div className="text-sm text-blue-800">
-          <span className="font-bold">Test Verisi Üretici</span>
-          {" — "}Seçtiğiniz varlık türü için belirlediğiniz sayıda <strong>kalıcı</strong> test kaydı oluşturur.
-          Oluşturulan veriler silinmez; tüm ekranlarda (Ürünler, Siparişler vb.) görünür ve kullanılabilir.
-          <span className="ml-1 text-blue-600 font-medium">Şifre: Test1234!</span>
+          <span className="font-bold">{t("auto.seedVerileri", "Seed Verileri")}</span>
+          {" — "}{t("auto.seedAciklama", "Seçtiğiniz varlık türü için belirlediğiniz sayıda kalıcı test kaydı oluşturur. Oluşturulan veriler silinmez; tüm ekranlarda görünür ve kullanılabilir.")}
+          <span className="ml-1 text-blue-600 font-medium">{t("auto.sifreTesti", "Şifre: Test1234!")}</span>
         </div>
       </div>
 
@@ -917,7 +911,7 @@ function SeedDataTab() {
               {/* Count input */}
               <div className="flex items-center gap-2">
                 <Hash size={12} className="text-slate-400 shrink-0" />
-                <span className="text-xs text-slate-500 shrink-0">Adet:</span>
+                <span className="text-xs text-slate-500 shrink-0">{t("auto.adet", "Adet:")} </span>
                 <div className="flex items-center gap-1 flex-1">
                   <button
                     onClick={() => setCounts(c => ({ ...c, [entity.id]: Math.max(1, (c[entity.id] ?? 10) - 5) }))}
@@ -956,8 +950,8 @@ function SeedDataTab() {
                 className={`flex items-center justify-center gap-1.5 text-white text-sm font-bold py-2 px-3 rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed ${colors.btn}`}
               >
                 {isLoading
-                  ? <><Loader2 size={14} className="animate-spin" /> Oluşturuluyor...</>
-                  : <><Factory size={14} /> {counts[entity.id] ?? 10} Kayıt Oluştur</>
+                  ? <><Loader2 size={14} className="animate-spin" /> {t("auto.olusturuluyor", "Oluşturuluyor...")}</>
+                  : <><Factory size={14} /> {counts[entity.id] ?? 10} {t("auto.kayitOlustur", "Kayıt Oluştur")}</>
                 }
               </button>
             </div>
@@ -973,10 +967,10 @@ function SeedDataTab() {
           className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 shadow"
         >
           <Factory size={15} />
-          Tüm Varlıkları Oluştur
+          {t("auto.tumVarliklariOlustur", "Tüm Varlıkları Oluştur")}
         </button>
         <button onClick={clearLogs} className="text-xs text-slate-400 hover:text-slate-600 transition px-2 py-1.5">
-          Logları Temizle
+          {t("auto.loglaritemizle", "Logları Temizle")}
         </button>
       </div>
 
@@ -1007,6 +1001,7 @@ function SeedDataTab() {
 }
 
 function TestModelPanel() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("users");
 
@@ -1018,8 +1013,8 @@ function TestModelPanel() {
       >
         <div className="flex items-center gap-2">
           <Database size={15} className="text-slate-500" />
-          <span className="font-semibold text-sm text-slate-800">Test Veri Modeli Referansı</span>
-          <span className="text-xs text-slate-400 ml-1">— testlere başlamadan önce bu verileri oluşturun</span>
+          <span className="font-semibold text-sm text-slate-800">{t("auto.testVeriModeliReferansi", "Test Veri Modeli Referansı")}</span>
+          <span className="text-xs text-slate-400 ml-1">{t("auto.testlereBaslamadan", "— testlere başlamadan önce bu verileri oluşturun")}</span>
         </div>
         {open ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
       </button>
@@ -1186,7 +1181,7 @@ export default function TestPage() {
               <div>
                 <h1 className="text-xl font-extrabold text-white">{t("page./test", "Test Merkezi")}</h1>
                 <p className="text-violet-300 text-xs mt-0.5">
-                  {total} test · {TEST_GROUPS.length} grup · Backend, Frontend ve Güvenlik
+                  {total} {t("auto.test", "test")} · {TEST_GROUPS.length} {t("auto.grup", "grup")} · {t("auto.backendFrontendGuvenlik", "Backend, Frontend ve Güvenlik")}
                 </p>
               </div>
             </div>
@@ -1198,7 +1193,7 @@ export default function TestPage() {
               </div>
               <div className="text-right hidden sm:block">
                 <p className="text-white text-sm font-bold">{passCount} / {total}</p>
-                <p className="text-violet-300 text-xs">test geçti</p>
+                <p className="text-violet-300 text-xs">{t("auto.testGecti", "test geçti")}</p>
               </div>
             </div>
           </div>
@@ -1206,10 +1201,10 @@ export default function TestPage() {
           {/* Stat pills */}
           <div className="flex gap-2 mt-4 flex-wrap">
             {[
-              { label: `${passCount} Geçti`,      cls: "bg-emerald-500/20 text-emerald-200" },
-              { label: `${failCount} Başarısız`,   cls: "bg-red-500/20 text-red-200" },
-              { label: `${skipCount} Atlandı`,     cls: "bg-slate-500/20 text-slate-300" },
-              { label: `${pendCount} Bekliyor`,    cls: "bg-white/10 text-white/60" },
+              { label: `${passCount} ${t("auto.gectiPill", "Geçti")}`,       cls: "bg-emerald-500/20 text-emerald-200" },
+              { label: `${failCount} ${t("auto.basarisizPill", "Başarısız")}`, cls: "bg-red-500/20 text-red-200" },
+              { label: `${skipCount} ${t("auto.atlandiPill", "Atlandı")}`,   cls: "bg-slate-500/20 text-slate-300" },
+              { label: `${pendCount} ${t("auto.bekliyorPill", "Bekliyor")}`, cls: "bg-white/10 text-white/60" },
             ].map(s => (
               <span key={s.label} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${s.cls}`}>{s.label}</span>
             ))}
@@ -1223,15 +1218,15 @@ export default function TestPage() {
               className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-bold px-4 py-2 rounded-xl transition disabled:opacity-50 shadow"
             >
               {runningAll
-                ? <><RefreshCw size={14} className="animate-spin" /> Çalışıyor...</>
-                : <><Play size={14} /> Tüm API Testlerini Çalıştır ({allApiCases.length})</>
+                ? <><RefreshCw size={14} className="animate-spin" /> {t("auto.calisıyor", "Çalışıyor...")}</>
+                : <><Play size={14} /> {t("auto.tumApiTestleriniCalistir", "Tüm API Testlerini Çalıştır")} ({allApiCases.length})</>
               }
             </button>
             <button
               onClick={resetAll}
               className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white border border-white/20 hover:border-white/40 px-3 py-2 rounded-xl transition"
             >
-              <RotateCcw size={13} /> Tümünü Sıfırla
+              <RotateCcw size={13} /> {t("auto.tumunuSifirla", "Tümünü Sıfırla")}
             </button>
           </div>
         </div>
@@ -1245,7 +1240,7 @@ export default function TestPage() {
             mainTab === "scenarios" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
           }`}
         >
-          <FlaskConical size={14} /> Test Senaryoları
+          <FlaskConical size={14} /> {t("auto.testSenaryolari", "Test Senaryoları")}
         </button>
         <button
           onClick={() => setMainTab("seed")}
@@ -1253,7 +1248,7 @@ export default function TestPage() {
             mainTab === "seed" ? "bg-teal-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
           }`}
         >
-          <Factory size={14} /> Test Verisi Üret
+          <Factory size={14} /> {t("auto.seedVerileri", "Seed Verileri")}
         </button>
       </div>
 
@@ -1270,10 +1265,10 @@ export default function TestPage() {
       <div className="flex gap-3 items-center flex-wrap">
         <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden text-sm shrink-0">
           {([
-            { key: "all",     label: `Tümü (${total})` },
-            { key: "pending", label: `Bekliyor (${pendCount})` },
-            { key: "fail",    label: `Başarısız (${failCount})` },
-            { key: "pass",    label: `Geçti (${passCount})` },
+            { key: "all",     label: `${t("filter.all", "Tümü")} (${total})` },
+            { key: "pending", label: `${t("auto.bekliyorPill", "Bekliyor")} (${pendCount})` },
+            { key: "fail",    label: `${t("auto.basarisizPill", "Başarısız")} (${failCount})` },
+            { key: "pass",    label: `${t("auto.gectiPill", "Geçti")} (${passCount})` },
           ] as { key: FilterTab; label: string }[]).map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               className={`px-3.5 py-2 font-medium transition ${
@@ -1290,7 +1285,7 @@ export default function TestPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Test ara..."
+            placeholder={t("auto.testAra", "Test ara...")}
             className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-300 bg-white"
           />
           {search && (
@@ -1305,7 +1300,7 @@ export default function TestPage() {
       {filteredGroups.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
           <Search size={32} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Sonuç bulunamadı</p>
+          <p className="font-medium">{t("table.noData", "Kayıt bulunamadı")}</p>
         </div>
       )}
 
@@ -1363,11 +1358,11 @@ export default function TestPage() {
                     className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition disabled:opacity-50"
                   >
                     {isRunning
-                      ? <><RefreshCw size={10} className="animate-spin" /> Çalışıyor</>
-                      : <><Play size={10} /> API Çalıştır</>}
+                      ? <><RefreshCw size={10} className="animate-spin" /> {t("auto.calisıyor", "Çalışıyor...")}</>
+                      : <><Play size={10} /> {t("auto.apiCalistir", "API Çalıştır")}</>}
                   </button>
                 )}
-                <button onClick={() => resetGroup(group.id)} title="Grubu Sıfırla"
+                <button onClick={() => resetGroup(group.id)} title={t("auto.grubuSifirla", "Grubu Sıfırla")}
                   className={`text-sm hover:opacity-80 transition px-1.5 ${COLOR_ICON[group.color]} opacity-50`}>
                   <RotateCcw size={12} />
                 </button>
@@ -1416,7 +1411,7 @@ export default function TestPage() {
                               {tc.url && (
                                 <a href={tc.url} target="_blank" rel="noreferrer"
                                   className="flex items-center gap-0.5 text-xs text-teal-600 hover:text-teal-700 hover:underline font-medium">
-                                  <ExternalLink size={11} /> Aç
+                                  <ExternalLink size={11} /> {t("auto.ac", "Aç")}
                                 </a>
                               )}
                               {tc.apiEndpoint && (
@@ -1446,7 +1441,7 @@ export default function TestPage() {
                               }`}>
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className={`font-bold ${apiRes.ok ? "text-emerald-700" : "text-red-600"}`}>
-                                    {apiRes.ok ? "✓ Başarılı" : "✗ Hata"}
+                                    {apiRes.ok ? `✓ ${t("auto.basarili", "Başarılı")}` : `✗ ${t("auto.hata", "Hata")}`}
                                   </span>
                                   <span className="text-slate-400">{apiRes.ms}ms</span>
                                 </div>
@@ -1465,7 +1460,7 @@ export default function TestPage() {
                             {/* Note */}
                             <input
                               type="text"
-                              placeholder="Not ekle (opsiyonel)..."
+                              placeholder={t("auto.notEkle", "Not ekle (opsiyonel)...")}
                               value={res?.note ?? ""}
                               onChange={e => setNote(tc.id, e.target.value)}
                               className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-300 placeholder-slate-300"
@@ -1481,7 +1476,7 @@ export default function TestPage() {
                                 className="flex items-center justify-center gap-1 text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-2.5 py-1.5 rounded-lg font-medium transition disabled:opacity-50 whitespace-nowrap"
                               >
                                 {isTcRunning ? <RefreshCw size={10} className="animate-spin" /> : <Play size={10} />}
-                                {isTcRunning ? "..." : "Test Et"}
+                                {isTcRunning ? "..." : t("auto.testEt", "Test Et")}
                               </button>
                             )}
                             <button
@@ -1491,7 +1486,7 @@ export default function TestPage() {
                                   ? "bg-emerald-500 text-white hover:bg-emerald-600"
                                   : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
                               }`}>
-                              <CheckCircle2 size={10} /> Geçti
+                              <CheckCircle2 size={10} /> {t("auto.gectiPill", "Geçti")}
                             </button>
                             <button
                               onClick={() => setStatus(tc.id, status === "fail" ? "pending" : "fail")}
@@ -1500,7 +1495,7 @@ export default function TestPage() {
                                   ? "bg-red-500 text-white hover:bg-red-600"
                                   : "bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
                               }`}>
-                              <XCircle size={10} /> Başarısız
+                              <XCircle size={10} /> {t("auto.basarisizPill", "Başarısız")}
                             </button>
                             <button
                               onClick={() => setStatus(tc.id, status === "skip" ? "pending" : "skip")}
@@ -1509,7 +1504,7 @@ export default function TestPage() {
                                   ? "bg-slate-400 text-white"
                                   : "bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200"
                               }`}>
-                              <AlertTriangle size={10} /> Atla
+                              <AlertTriangle size={10} /> {t("auto.atlandiPill", "Atlandı")}
                             </button>
                           </div>
                         </div>

@@ -9,7 +9,6 @@ const TOKEN_KEY = "token";
 const USER_KEY = "user";
 const REFRESH_TOKEN_KEY = "refresh_token";
 
-// Module-level listener set: tüm hook instance'larını senkronize eder
 const authListeners = new Set<() => void>();
 function broadcastAuthChange() { authListeners.forEach(l => l()); }
 
@@ -41,24 +40,24 @@ export interface LoginResult {
   requiresTwoFactor?: boolean;
 }
 
+function readStoredUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(USER_KEY);
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() => readStoredUser());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(USER_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-        // Silinen/pasifleştirilen hesabı tespit etmek için arka planda doğrula.
-        // Kullanıcı silinmişse backend 401 döner → api.ts localStorage'ı temizler
-        // → auth:force-logout event'i ateşlenir → aşağıdaki handler state'i sıfırlar.
-        api.get("/api/users/me").catch(() => {});
-      } catch {
-        localStorage.removeItem(USER_KEY);
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-      }
+    if (user) {
+      api.get("/api/users/me").catch(() => {});
     }
     setLoading(false);
 
@@ -82,12 +81,16 @@ export function useAuth() {
       authListeners.delete(handleAuthChange);
       window.removeEventListener("auth:force-logout", handleForceLogout);
     };
-  }, []);
+  }, [user]);
 
   const completeLogin = useCallback((data: LoginResult) => {
     localStorage.setItem(TOKEN_KEY, data.token);
     const authUser: AuthUser = {
-      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token,
+      userId: data.userId,
+      name: data.name,
+      surname: data.surname,
+      email: data.email,
+      token: data.token,
     };
     localStorage.setItem(USER_KEY, JSON.stringify(authUser));
     if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
@@ -118,7 +121,11 @@ export function useAuth() {
       const data = await api.post<LoginResult>("/api/auth/refresh", { refreshToken });
       localStorage.setItem(TOKEN_KEY, data.token);
       const authUser: AuthUser = {
-        userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token,
+        userId: data.userId,
+        name: data.name,
+        surname: data.surname,
+        email: data.email,
+        token: data.token,
       };
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));
       if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
@@ -133,7 +140,12 @@ export function useAuth() {
   const register = useCallback(
     async (email: string, password: string, name: string, surname: string, phoneNumber?: string): Promise<PendingRegistration> => {
       const data = await api.post<PendingRegistration>("/api/auth/register", {
-        email, password, name, surname, phoneNumber: phoneNumber || null, kvkkConsent: true,
+        email,
+        password,
+        name,
+        surname,
+        phoneNumber: phoneNumber || null,
+        kvkkConsent: true,
       });
       return data;
     },
@@ -179,7 +191,7 @@ export function useAuth() {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(null);
-    clearCartState(); // Clear cart immediately for all mounted components
+    clearCartState();
     broadcastAuthChange();
   }, []);
 

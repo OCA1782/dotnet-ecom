@@ -72,7 +72,10 @@ export default function ZiyaretcilerPage() {
     finally { setLoading(false); }
   }, [page, pageSize, ipFilter, pageFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasFilter = !!(ipFilter || pageFilter);
@@ -90,19 +93,19 @@ export default function ZiyaretcilerPage() {
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./ziyaretciler", "Ziyaretçi Logları")}</h1>
               <p className="text-teal-100 text-xs mt-0.5">
-                Müşteri sitesine gelen trafik — sayfa ziyaretleri, konum, tarayıcı bilgisi
+                {t("ziyaretciler.subtitle", "Müşteri sitesine gelen trafik — sayfa ziyaretleri, konum, tarayıcı bilgisi")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
               <Globe size={13} className="text-teal-200" />
-              <span className="text-white text-xs font-semibold">{total.toLocaleString("tr-TR")} kayıt</span>
+              <span className="text-white text-xs font-semibold">{total.toLocaleString("tr-TR")} {t("table.perPage", "kayıt")}</span>
             </div>
             <button onClick={load}
               className="flex items-center gap-2 bg-white text-teal-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-teal-50 transition shadow">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              Yenile
+              {t("action.refresh", "Yenile")}
             </button>
           </div>
         </div>
@@ -114,43 +117,43 @@ export default function ZiyaretcilerPage() {
           <MapPin size={18} className="text-teal-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
-              Ziyaretçiler
-              <span className="text-[10px] bg-teal-200 text-teal-700 px-1.5 py-0.5 rounded-full font-bold">Bu ekran</span>
+              {t("ui.visitors", "Ziyaretçiler")}
+              <span className="text-[10px] bg-teal-200 text-teal-700 px-1.5 py-0.5 rounded-full font-bold">{t("ui.thisScreen", "Bu ekran")}</span>
             </p>
             <p className="text-xs text-teal-600 mt-1 leading-relaxed">
-              Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa. <strong>Kim nereden geldi?</strong>
+              {t("ui.visitorsDesc", "Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa.")} <strong>{t("ui.visitorsQuestion", "Kim nereden geldi?")}</strong>
             </p>
-            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar</p>
+            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">{t("ui.visitorsSource", "Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar")}</p>
           </div>
         </div>
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
           <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-indigo-800 flex items-center gap-1.5">
-              Hareketler
+              {t("ui.movements", "Hareketler")}
               <Link href="/hareketler" className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-indigo-200 transition inline-flex items-center gap-0.5">
-                <LinkIcon size={8} /> Git
+                <LinkIcon size={8} /> {t("ui.go", "Git")}
               </Link>
             </p>
             <p className="text-xs text-indigo-600 mt-1 leading-relaxed">
-              Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri. <strong>Kim ne yaptı?</strong>
+              {t("ui.auditDesc", "Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri.")} <strong>{t("ui.auditQuestion", "Kim ne yaptı?")}</strong>
             </p>
-            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar</p>
+            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">{t("ui.auditSource", "Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar")}</p>
           </div>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
           <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-red-800 flex items-center gap-1.5">
-              Takip
+              {t("ui.tracking", "Takip")}
               <Link href="/takip" className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-red-200 transition inline-flex items-center gap-0.5">
-                <LinkIcon size={8} /> Git
+                <LinkIcon size={8} /> {t("ui.go", "Git")}
               </Link>
             </p>
             <p className="text-xs text-red-600 mt-1 leading-relaxed">
-              Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları. <strong>Sistem ne zaman, nerede hata verdi?</strong>
+              {t("ui.trackingDesc", "Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları.")} <strong>{t("ui.trackingQuestion", "Sistem ne zaman, nerede hata verdi?")}</strong>
             </p>
-            <p className="text-[10px] text-red-400 mt-1.5 font-medium">Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı</p>
+            <p className="text-[10px] text-red-400 mt-1.5 font-medium">{t("ui.trackingSource", "Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı")}</p>
           </div>
         </div>
       </div>
@@ -163,7 +166,7 @@ export default function ZiyaretcilerPage() {
           <Globe size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
-            placeholder="IP filtrele..."
+            placeholder={t("ziyaretciler.filterIp", "IP filtrele...")}
             value={ipFilter}
             onChange={e => { setIpFilter(e.target.value); setPage(1); }}
             className="pl-8 pr-3 py-1.5 w-full text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-900 bg-white"
@@ -174,7 +177,7 @@ export default function ZiyaretcilerPage() {
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Sayfa filtrele..."
+            placeholder={t("ziyaretciler.filterPage", "Sayfa filtrele...")}
             value={pageFilter}
             onChange={e => { setPageFilter(e.target.value); setPage(1); }}
             className="pl-8 pr-3 py-1.5 w-full text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-900 bg-white"
@@ -186,13 +189,13 @@ export default function ZiyaretcilerPage() {
           onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
         >
-          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
         </select>
 
         {hasFilter && (
           <button onClick={() => { setIpFilter(""); setPageFilter(""); setPage(1); }}
             className="text-xs text-slate-500 hover:text-slate-700 underline">
-            Filtreleri Temizle
+            {t("filter.clearFilters", "Filtreleri Temizle")}
           </button>
         )}
       </div>
@@ -203,16 +206,25 @@ export default function ZiyaretcilerPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Tarih", "Ziyaretçi", "IP Adresi", "Konum", "Sayfa", "Cihaz / Tarayıcı", "Referrer", "Koordinat"].map(h => (
+                {[
+                  t("col.date", "Tarih"),
+                  t("ziyaretciler.colVisitor", "Ziyaretçi"),
+                  t("col.ip", "IP Adresi"),
+                  t("ziyaretciler.colLocation", "Konum"),
+                  t("ziyaretciler.colPage", "Sayfa"),
+                  t("ziyaretciler.colDevice", "Cihaz / Tarayıcı"),
+                  t("ziyaretciler.colReferrer", "Referrer"),
+                  t("ziyaretciler.colCoord", "Koordinat"),
+                ].map(h => (
                   <th key={h} className="text-left px-5 py-3 text-slate-500 font-semibold text-xs uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Kayıt bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : logs.map(log => (
                 <tr key={log.id} className="hover:bg-slate-50/70 transition group">
                   <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">
@@ -231,7 +243,7 @@ export default function ZiyaretcilerPage() {
                         <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
                           <UserX size={11} className="text-slate-400" />
                         </span>
-                        <span className="text-slate-400">Misafir</span>
+                        <span className="text-slate-400">{t("ziyaretciler.guest", "Misafir")}</span>
                       </span>
                     )}
                     {log.userId && <p className="text-[10px] text-slate-400 font-mono mt-0.5 pl-[26px]">{log.userId.slice(0, 8)}…</p>}
@@ -294,14 +306,14 @@ export default function ZiyaretcilerPage() {
           {page > 1 && (
             <button onClick={() => setPage(p => p - 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">
-              ← Önceki
+              {t("table.prev", "← Önceki")}
             </button>
           )}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && (
             <button onClick={() => setPage(p => p + 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">
-              Sonraki →
+              {t("table.next", "Sonraki →")}
             </button>
           )}
         </div>

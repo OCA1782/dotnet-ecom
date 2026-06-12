@@ -1,12 +1,20 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { st } from "@/lib/server-i18n";
 
-export const metadata: Metadata = {
-  title: "Ödeme Başarılı",
-  robots: { index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: await st("payment.success.title"),
+    robots: { index: false },
+  };
+}
 
-export default function PaymentSuccessPage() {
+export default async function PaymentSuccessPage() {
+  const heading = await st("payment.success.heading");
+  const desc = await st("payment.success.desc");
+  const orders = await st("payment.success.orders");
+  const continueLabel = await st("payment.success.continue");
+
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center space-y-6">
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
@@ -16,10 +24,8 @@ export default function PaymentSuccessPage() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-slate-900">Ödemeniz Alındı!</h1>
-        <p className="text-slate-600">
-          Siparişiniz başarıyla oluşturuldu. Onay e-postası kısa süre içinde iletilecek.
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{heading}</h1>
+        <p className="text-slate-600">{desc}</p>
       </div>
 
       <div className="flex gap-3 justify-center pt-2">
@@ -27,13 +33,13 @@ export default function PaymentSuccessPage() {
           href="/hesabim/siparisler"
           className="bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition text-sm font-semibold"
         >
-          Siparişlerim
+          {orders}
         </Link>
         <Link
           href="/urunler"
           className="border border-slate-300 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm"
         >
-          Alışverişe Devam
+          {continueLabel}
         </Link>
       </div>
     </div>

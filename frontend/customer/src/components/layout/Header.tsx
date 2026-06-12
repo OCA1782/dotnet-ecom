@@ -9,6 +9,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import BrandLogo from "@/components/BrandLogo";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useI18n } from "@/contexts/I18nContext";
 
 type SuggestionItem = {
   type: "product" | "brand" | "category";
@@ -22,6 +23,7 @@ type SuggestionItem = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
 export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteName?: string }) {
+  const { t } = useI18n();
   const { itemCount, fetchCart } = useCart();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -32,9 +34,8 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
 
-  // Live search state
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -42,7 +43,10 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchCart();
@@ -54,22 +58,20 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
       const inButton = buttonRef.current?.contains(target);
       const inDropdown = dropdownRef.current?.contains(target);
       if (!inButton && !inDropdown) setMenuOpen(false);
-      // Close suggestions if click is outside search area
-      if (!searchRef.current?.contains(target)) {
-        setSuggestOpen(false);
-      }
+      if (!searchRef.current?.contains(target)) setSuggestOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Debounced search suggestions
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (search.length < 2) {
-      setSuggestions([]);
-      setSuggestOpen(false);
-      return;
+      const timer = window.setTimeout(() => {
+        setSuggestions([]);
+        setSuggestOpen(false);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     setSuggestLoading(true);
     debounceRef.current = setTimeout(async () => {
@@ -82,8 +84,11 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
           setSuggestOpen(true);
           setActiveIdx(-1);
         }
-      } catch { /* ignore */ }
-      finally { setSuggestLoading(false); }
+      } catch {
+        // ignore
+      } finally {
+        setSuggestLoading(false);
+      }
     }, 280);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
@@ -97,6 +102,17 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
   }, []);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  const accountLinks = [
+    { href: "/hesabim", label: t("header.account") },
+    { href: "/hesabim/siparisler", label: t("header.orders") },
+    { href: "/hesabim/favoriler", label: t("header.favorites") },
+    { href: "/hesabim/adresler", label: t("header.addresses") },
+    { href: "/hesabim/faturalar", label: t("header.invoices") },
+    { href: "/hesabim/iadeler", label: t("header.returns") },
+    { href: "/hesabim/kuponlar", label: t("header.coupons") },
+    { href: "/hesabim/yorumlar", label: t("header.reviews") },
+  ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,62 +161,26 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
         overflow: "hidden",
       }}
     >
-      <Link href="/hesabim" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", fontWeight: 600, color: "#0f766e", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Hesabım
-      </Link>
-      <Link href="/hesabim/siparisler" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Siparişlerim
-      </Link>
-      <Link href="/hesabim/favoriler" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Favorilerim
-      </Link>
-      <Link href="/hesabim/adresler" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Adreslerim
-      </Link>
-      <Link href="/hesabim/faturalar" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Faturalarım
-      </Link>
-      <Link href="/hesabim/iadeler" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        İadelerim
-      </Link>
-      <Link href="/hesabim/kuponlar" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Kuponlarım
-      </Link>
-      <Link href="/hesabim/yorumlar" onClick={closeMenu}
-        style={{ display: "block", padding: "0.625rem 1rem", fontSize: "0.875rem", color: "#334155", textDecoration: "none", backgroundColor: "transparent" }}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-      >
-        Yorumlarım
-      </Link>
+      {accountLinks.map((item, index) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          onClick={closeMenu}
+          style={{
+            display: "block",
+            padding: "0.625rem 1rem",
+            fontSize: "0.875rem",
+            fontWeight: index === 0 ? 600 : 400,
+            color: index === 0 ? "#0f766e" : "#334155",
+            textDecoration: "none",
+            backgroundColor: "transparent",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f0fdfa")}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+        >
+          {item.label}
+        </Link>
+      ))}
       <div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "0" }} />
       <button
         onClick={() => { closeMenu(); logout(); }}
@@ -208,7 +188,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
         onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#fef2f2")}
         onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
       >
-        Çıkış Yap
+        {t("header.logout")}
       </button>
     </div>,
     document.body
@@ -227,19 +207,20 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4 gap-6 flex-wrap" data-header-inner>
-            {/* Logo */}
             <Link href="/" data-slot="logo" className="flex-shrink-0 flex items-center gap-2">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt={siteName ?? "Mağaza"}
+                <img
+                  src={logoUrl}
+                  alt={siteName ?? "Mağaza"}
                   style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }}
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
               ) : (
                 <BrandLogo name={siteName ?? ""} size="md" />
               )}
             </Link>
 
-            {/* Search */}
             <form onSubmit={handleSearch} data-slot="search" className="flex-1 max-w-2xl hidden sm:flex">
               <div ref={searchRef} className="relative w-full">
                 <input
@@ -249,7 +230,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleKeyDown}
                   onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-                  placeholder="Ürün, kategori veya marka ara..."
+                  placeholder={t("nav.search_placeholder")}
                   autoComplete="off"
                   className="w-full pl-5 pr-12 py-3 rounded-2xl text-sm bg-white text-slate-900 placeholder-slate-400 border-2 border-teal-200 focus:outline-none focus:border-teal-400 transition"
                 />
@@ -257,25 +238,23 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
                   {suggestLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                 </button>
 
-                {/* Suggestions dropdown */}
                 {suggestOpen && suggestions.length > 0 && mounted && (
                   <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] overflow-hidden">
-                    {/* Group: kategoriler + markalar */}
                     {suggestions.filter(s => s.type !== "product").length > 0 && (
                       <div className="px-3 pt-2 pb-1 flex flex-wrap gap-2">
                         {suggestions.filter(s => s.type !== "product").map((item, i) => (
-                          <button key={i} onClick={() => handleSuggestionClick(item)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-xs font-medium text-slate-600 transition">
-                            {item.type === "category"
-                              ? <Layers size={11} className="shrink-0" />
-                              : <Tag size={11} className="shrink-0" />}
+                          <button
+                            key={i}
+                            onClick={() => handleSuggestionClick(item)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-xs font-medium text-slate-600 transition"
+                          >
+                            {item.type === "category" ? <Layers size={11} className="shrink-0" /> : <Tag size={11} className="shrink-0" />}
                             {item.name}
                           </button>
                         ))}
                       </div>
                     )}
 
-                    {/* Ürünler */}
                     {suggestions.filter(s => s.type === "product").length > 0 && (
                       <>
                         {suggestions.filter(s => s.type !== "product").length > 0 && (
@@ -285,8 +264,11 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
                           {suggestions.filter(s => s.type === "product").map((item, i) => {
                             const globalIdx = suggestions.indexOf(item);
                             return (
-                              <button key={i} onClick={() => handleSuggestionClick(item)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}>
+                              <button
+                                key={i}
+                                onClick={() => handleSuggestionClick(item)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}
+                              >
                                 {item.imageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
@@ -311,13 +293,14 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
                       </>
                     )}
 
-                    {/* Tüm sonuçlar */}
                     <div className="border-t border-slate-100 px-3 py-2">
-                      <button onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
-                        className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-1 transition">
+                      <button
+                        onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
+                        className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-1 transition"
+                      >
                         {totalProducts > 0
-                          ? `${totalProducts} ürünün tamamını gör →`
-                          : `"${search}" için tüm sonuçlara git →`}
+                          ? t("header.search.view_all_products").replace("{count}", String(totalProducts))
+                          : t("header.search.all_results").replace("{query}", search)}
                       </button>
                     </div>
                   </div>
@@ -325,22 +308,17 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
               </div>
             </form>
 
-            {/* Actions */}
             <div className="flex items-center gap-4" data-slot="actions">
               <LanguageSwitcher />
               {user ? (
-                <button
-                  ref={buttonRef}
-                  onClick={openMenu}
-                  className="flex items-center gap-1.5 text-sm transition"
-                >
+                <button ref={buttonRef} onClick={openMenu} className="flex items-center gap-1.5 text-sm transition">
                   <User size={20} />
-                  <span className="hidden sm:inline font-medium">Merhaba, {user.name}</span>
+                  <span className="hidden sm:inline font-medium">{t("header.greeting").replace("{name}", user.name)}</span>
                 </button>
               ) : (
                 <Link href="/giris" className="text-sm flex items-center gap-1.5 font-medium transition">
                   <User size={20} />
-                  <span className="hidden sm:inline">Giriş</span>
+                  <span className="hidden sm:inline">{t("nav.login")}</span>
                 </Link>
               )}
 

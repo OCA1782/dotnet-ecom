@@ -51,14 +51,14 @@ function FileTypeIcon({ contentType }: { contentType: string }) {
   return <File size={20} className="text-slate-400" />;
 }
 
-function TypeLabel({ contentType }: { contentType: string }) {
-  if (contentType.startsWith("image/")) return <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Görsel</span>;
-  if (contentType.startsWith("video/")) return <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Video</span>;
-  if (contentType === "application/pdf") return <span className="text-[10px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">PDF</span>;
-  if (contentType.includes("word") || contentType.includes("document")) return <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">Word</span>;
-  if (contentType.includes("excel") || contentType.includes("spreadsheet")) return <span className="text-[10px] font-semibold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Excel</span>;
-  if (contentType.startsWith("text/")) return <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full">Metin</span>;
-  return <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">Dosya</span>;
+function TypeLabel({ contentType, t }: { contentType: string; t: (key: string, fallback: string) => string }) {
+  if (contentType.startsWith("image/")) return <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{t("belgeler.typeImage", "Görsel")}</span>;
+  if (contentType.startsWith("video/")) return <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{t("belgeler.typeVideo", "Video")}</span>;
+  if (contentType === "application/pdf") return <span className="text-[10px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">{t("belgeler.typePdf", "PDF")}</span>;
+  if (contentType.includes("word") || contentType.includes("document")) return <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">{t("belgeler.typeWord", "Word")}</span>;
+  if (contentType.includes("excel") || contentType.includes("spreadsheet")) return <span className="text-[10px] font-semibold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{t("belgeler.typeExcel", "Excel")}</span>;
+  if (contentType.startsWith("text/")) return <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full">{t("belgeler.typeText", "Metin")}</span>;
+  return <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{t("belgeler.typeFile", "Dosya")}</span>;
 }
 
 export default function BelgelerPage() {
@@ -90,7 +90,10 @@ export default function BelgelerPage() {
     }
   }, [page, typeFilter, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,10 +135,10 @@ export default function BelgelerPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">{t("nav./belgeler", "Dosya Yönetimi")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Upload edilen tüm dosyalar — görseller, videolar, dokümanlar
+            {t("belgeler.subtitle", "Upload edilen tüm dosyalar — görseller, videolar, dokümanlar")}
           </p>
         </div>
-        <div className="text-sm text-slate-500">{total} dosya</div>
+        <div className="text-sm text-slate-500">{total} {t("belgeler.fileCount", "dosya")}</div>
       </div>
 
       {/* Filters */}
@@ -145,7 +148,7 @@ export default function BelgelerPage() {
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Dosya adı, bağlı kaynak veya yükleyen ara..."
+            placeholder={t("belgeler.searchPlaceholder", "Dosya adı, bağlı kaynak veya yükleyen ara...")}
             className="w-full pl-8 pr-8 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           {searchInput && (
@@ -162,10 +165,10 @@ export default function BelgelerPage() {
             onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
             className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
           >
-            <option value="">Tüm Tipler</option>
-            <option value="image">Görseller</option>
-            <option value="video">Videolar</option>
-            <option value="document">Dokümanlar</option>
+            <option value="">{t("belgeler.allTypes", "Tüm Tipler")}</option>
+            <option value="image">{t("belgeler.images", "Görseller")}</option>
+            <option value="video">{t("belgeler.videos", "Videolar")}</option>
+            <option value="document">{t("belgeler.documents", "Dokümanlar")}</option>
           </select>
         </div>
       </div>
@@ -180,15 +183,15 @@ export default function BelgelerPage() {
       ) : data?.items.length === 0 ? (
         <div className="text-center py-20">
           <FolderOpen size={40} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-400 font-medium">Dosya bulunamadı</p>
+          <p className="text-slate-400 font-medium">{t("belgeler.noFiles", "Dosya bulunamadı")}</p>
           {(search || typeFilter) && (
             <button onClick={() => { clearSearch(); setTypeFilter(""); }} className="mt-2 text-sm text-teal-600 hover:underline">
-              Filtreleri temizle
+              {t("filter.clearFilters", "Filtreleri Temizle")}
             </button>
           )}
           {!search && !typeFilter && (
             <p className="text-slate-400 text-sm mt-1">
-              Upload edilen dosyalar burada görünecek
+              {t("belgeler.emptyHint", "Upload edilen dosyalar burada görünecek")}
             </p>
           )}
         </div>
@@ -197,12 +200,12 @@ export default function BelgelerPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Dosya</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Tip</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Boyut</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Bağlı Kaynak</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Yükleyen</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Tarih</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("col.filename", "Dosya Adı")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("col.type", "Tip")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("col.size", "Boyut")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("belgeler.colSource", "Bağlı Kaynak")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("belgeler.colUploader", "Yükleyen")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("col.date", "Tarih")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -234,7 +237,7 @@ export default function BelgelerPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <TypeLabel contentType={file.contentType} />
+                    <TypeLabel contentType={file.contentType} t={t} />
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{formatBytes(file.fileSize)}</td>
                   <td className="px-4 py-3">
@@ -272,7 +275,7 @@ export default function BelgelerPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => copyUrl(file)}
-                        title="URL Kopyala"
+                        title={t("ui.copyUrl", "URL Kopyala")}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                       >
                         {copiedId === file.id ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
@@ -281,14 +284,14 @@ export default function BelgelerPage() {
                         href={file.url}
                         target="_blank"
                         rel="noreferrer"
-                        title="Dosyayı aç"
+                        title={t("belgeler.openFile", "Dosyayı aç")}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                       >
                         <ExternalLink size={13} />
                       </a>
                       <button
                         onClick={() => setDeleteTarget(file)}
-                        title="Sil"
+                        title={t("action.delete", "Sil")}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
                       >
                         <Trash2 size={13} />
@@ -306,7 +309,7 @@ export default function BelgelerPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} dosya
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} {t("belgeler.fileCount", "dosya")}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -337,8 +340,8 @@ export default function BelgelerPage() {
                 <Trash2 size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-800">Dosyayı Sil</h2>
-                <p className="text-xs text-slate-500">Bu işlem geri alınamaz</p>
+                <h2 className="font-bold text-slate-800">{t("ui.deleteFile", "Dosyayı Sil")}</h2>
+                <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
               </div>
             </div>
             <div className="flex gap-3 p-3 bg-slate-50 rounded-xl">
@@ -351,7 +354,7 @@ export default function BelgelerPage() {
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              Bu dosya kaydını silmek istediğinizden emin misiniz? Fiziksel dosya sunucudan silinmez.
+              {t("belgeler.deleteConfirmMsg", "Bu dosya kaydını silmek istediğinizden emin misiniz? Fiziksel dosya sunucudan silinmez.")}
             </p>
             <div className="flex justify-end gap-3 pt-1">
               <button
@@ -359,14 +362,14 @@ export default function BelgelerPage() {
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
               >
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition"
               >
-                {deleting ? "Siliniyor..." : "Sil"}
+                {deleting ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
               </button>
             </div>
           </div>

@@ -44,9 +44,12 @@ export default function SessionTimeoutWarning({ onRefresh, onLogout }: Props) {
   }, []);
 
   useEffect(() => {
-    check();
+    const initialId = window.setTimeout(check, 0);
     const id = setInterval(check, CHECK_INTERVAL_MS);
-    return () => clearInterval(id);
+    return () => {
+      window.clearTimeout(initialId);
+      clearInterval(id);
+    };
   }, [check]);
 
   async function handleRefresh() {

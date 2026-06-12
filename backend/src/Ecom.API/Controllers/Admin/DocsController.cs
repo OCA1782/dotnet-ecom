@@ -49,7 +49,7 @@ public class DocsController(
             return Ok(new { commits = Array.Empty<object>(), error = "Git repo bulunamadı" });
 
         var raw = RunGit(repoRoot,
-            $"log --format=\"|COMMIT|%H|%h|%an|%ad|%s\" --date=iso-strict --name-status -n {limit}");
+            $"log --format=\"|COMMIT|%H|%h|%an|%ad|%s\" --date=iso-strict --name-status -n {limit} -- *.md docs");
 
         if (raw is null)
             return Ok(new { commits = Array.Empty<object>(), error = "git log çalıştırılamadı" });
@@ -96,16 +96,10 @@ public class DocsController(
         }
 
         // 2. Local path — add files not already from GitHub
-        var docsPath = ResolveLocalDocsPath();
-        if (docsPath is not null)
+        var repoRoot = ResolveLocalDocsPath();
+        if (repoRoot is not null)
         {
-            var localFiles = Directory.GetFiles(docsPath, "*.md")
-                .Select(f => new
-                {
-                    name = Path.GetFileName(f),
-                    sizeKb = Math.Round(new FileInfo(f).Length / 1024.0, 1),
-                    lastModified = System.IO.File.GetLastWriteTimeUtc(f),
-                })
+            var localFiles = EnumerateLocalMarkdownFiles(repoRoot)
                 .Where(f => !seenNames.Contains(f.name))
                 .ToList();
             merged.AddRange(localFiles);
@@ -128,19 +122,21 @@ public class DocsController(
             return BadRequest(new { error = "Geçersiz dosya adı." });
 
         // 1. Local path (instant, always available)
-        var docsPath = ResolveLocalDocsPath();
-        if (docsPath is not null)
+        var repoRoot = ResolveLocalDocsPath();
+        if (repoRoot is not null)
         {
-            var filePath = Path.Combine(docsPath, name);
-            if (System.IO.File.Exists(filePath))
-                return Ok(new
-                {
-                    name,
-                    content = System.IO.File.ReadAllText(filePath),
-                    lastModified = System.IO.File.GetLastWriteTimeUtc(filePath),
-                    source = "local",
-                    generatedAt = DateTime.UtcNow,
-                });
+            foreach (var filePath in CandidateLocalMarkdownPaths(repoRoot, name))
+            {
+                if (System.IO.File.Exists(filePath))
+                    return Ok(new
+                    {
+                        name,
+                        content = System.IO.File.ReadAllText(filePath),
+                        lastModified = System.IO.File.GetLastWriteTimeUtc(filePath),
+                        source = "local",
+                        generatedAt = DateTime.UtcNow,
+                    });
+            }
         }
 
         // 2. GitHub (for files that exist only there, e.g. not yet pulled locally)
@@ -260,26 +256,52 @@ public class DocsController(
         if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured))
             return configured;
 
-        // 2. DOCS / docs folder in git repo root (case-insensitive search)
+        // 2. Git repo root (case-insensitive search)
         var repoRoot = FindGitRoot(env.ContentRootPath);
-        if (repoRoot is not null)
-        {
-            foreach (var name in new[] { "DOCS", "docs" })
-            {
-                var p = Path.Combine(repoRoot, name);
-                if (Directory.Exists(p)) return p;
-            }
-        }
+        if (repoRoot is not null) return repoRoot;
+
         var cwd = FindGitRoot(Directory.GetCurrentDirectory());
-        if (cwd is not null)
+        return cwd;
+    }
+
+    private static List<LocalMarkdownItem> EnumerateLocalMarkdownFiles(string repoRoot)
+    {
+        var files = new List<LocalMarkdownItem>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in Directory.GetFiles(repoRoot, "*.md", SearchOption.TopDirectoryOnly))
         {
-            foreach (var name in new[] { "DOCS", "docs" })
+            seen.Add(file);
+            files.Add(new LocalMarkdownItem(
+                Path.GetFileName(file),
+                Math.Round(new FileInfo(file).Length / 1024.0, 1),
+                System.IO.File.GetLastWriteTimeUtc(file)));
+        }
+
+        foreach (var docsDir in new[] { Path.Combine(repoRoot, "docs"), Path.Combine(repoRoot, "DOCS") })
+        {
+            if (!Directory.Exists(docsDir)) continue;
+
+            foreach (var file in Directory.GetFiles(docsDir, "*.md", SearchOption.AllDirectories))
             {
-                var p = Path.Combine(cwd, name);
-                if (Directory.Exists(p)) return p;
+                if (!seen.Add(file)) continue;
+                files.Add(new LocalMarkdownItem(
+                    Path.GetFileName(file),
+                    Math.Round(new FileInfo(file).Length / 1024.0, 1),
+                    System.IO.File.GetLastWriteTimeUtc(file)));
             }
         }
-        return null;
+
+        return files
+            .OrderByDescending(f => f.lastModified)
+            .ToList();
+    }
+
+    private static IEnumerable<string> CandidateLocalMarkdownPaths(string repoRoot, string fileName)
+    {
+        yield return Path.Combine(repoRoot, fileName);
+        yield return Path.Combine(repoRoot, "docs", fileName);
+        yield return Path.Combine(repoRoot, "DOCS", fileName);
     }
 
     // ── git-log helpers (unchanged) ────────────────────────────────────────
@@ -416,3 +438,5 @@ internal class GhCommitter
 {
     [JsonPropertyName("date")] public DateTime Date { get; set; }
 }
+
+internal sealed record LocalMarkdownItem(string name, double sizeKb, DateTime lastModified);

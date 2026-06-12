@@ -46,35 +46,42 @@ interface LogsResponse {
   logs: PaymentLog[];
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
-  Pending:           { label: "Bekliyor",           color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200", icon: Clock },
-  Paid:              { label: "Ödendi",              color: "text-emerald-700",bg: "bg-emerald-50",border: "border-emerald-200",icon: CheckCircle2 },
-  Failed:            { label: "Başarısız",           color: "text-red-700",   bg: "bg-red-50",    border: "border-red-200",   icon: XCircle },
-  Cancelled:         { label: "İptal Edildi",        color: "text-slate-600", bg: "bg-slate-100", border: "border-slate-200", icon: Ban },
-  Refunded:          { label: "İade Edildi",         color: "text-violet-700",bg: "bg-violet-50", border: "border-violet-200",icon: CheckCheck },
-  PartiallyRefunded: { label: "Kısmi İade",          color: "text-orange-700",bg: "bg-orange-50", border: "border-orange-200",icon: AlertTriangle },
-};
-
-const METHOD_MAP: Record<string, string> = {
-  CreditCard:     "Kredi Kartı",
-  DebitCard:      "Banka Kartı",
-  BankTransfer:   "Havale/EFT",
-  CashOnDelivery: "Kapıda Ödeme",
-};
-
-const STATUS_FILTERS = [
-  { value: "", label: "Tümü" },
-  { value: "Pending",   label: "Bekliyor" },
-  { value: "Paid",      label: "Ödendi" },
-  { value: "Failed",    label: "Başarısız" },
-  { value: "Cancelled", label: "İptal Edildi" },
-  { value: "Refunded",  label: "İade Edildi" },
-];
-
 const PAGE_SIZE = 20;
 
 export default function OdemelerPage() {
   const { t } = useI18n();
+
+  const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+    Pending:           { label: t("status.pending", "Bekliyor"),           color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200", icon: Clock },
+    Paid:              { label: "Ödendi",              color: "text-emerald-700",bg: "bg-emerald-50",border: "border-emerald-200",icon: CheckCircle2 },
+    Failed:            { label: "Başarısız",           color: "text-red-700",   bg: "bg-red-50",    border: "border-red-200",   icon: XCircle },
+    Cancelled:         { label: t("status.cancelled", "İptal Edildi"),        color: "text-slate-600", bg: "bg-slate-100", border: "border-slate-200", icon: Ban },
+    Refunded:          { label: "İade Edildi",         color: "text-violet-700",bg: "bg-violet-50", border: "border-violet-200",icon: CheckCheck },
+    PartiallyRefunded: { label: "Kısmi İade",          color: "text-orange-700",bg: "bg-orange-50", border: "border-orange-200",icon: AlertTriangle },
+  };
+
+  const METHOD_MAP: Record<string, string> = {
+    CreditCard:     "Kredi Kartı",
+    DebitCard:      "Banka Kartı",
+    BankTransfer:   "Havale/EFT",
+    CashOnDelivery: "Kapıda Ödeme",
+  };
+
+  const STATUS_FILTERS = [
+    { value: "", label: t("filter.all", "Tümü") },
+    { value: "Pending",   label: t("status.pending", "Bekliyor") },
+    { value: "Paid",      label: "Ödendi" },
+    { value: "Failed",    label: "Başarısız" },
+    { value: "Cancelled", label: t("status.cancelled", "İptal Edildi") },
+    { value: "Refunded",  label: "İade Edildi" },
+  ];
+
+  const actionConfig = {
+    approve: { title: t("action.approve", "Onayla"), color: "bg-emerald-600 hover:bg-emerald-700", icon: CheckCheck, desc: "Bu ödemeyi manuel olarak onaylıyorsunuz. Siparişin durumu 'Ödendi' olarak güncellenecek." },
+    suspend: { title: "Askıya Al",       color: "bg-amber-600 hover:bg-amber-700",   icon: PauseCircle, desc: "Bu sipariş 'Askıya Alındı' durumuna geçecek. Ödeme durumu değişmez." },
+    reject:  { title: t("action.reject", "Reddet"),          color: "bg-red-600 hover:bg-red-700",       icon: Ban,         desc: "Ödeme iptal edilecek ve sipariş 'İptal Edildi' durumuna geçecek." },
+  };
+
   const [data, setData] = useState<PaymentListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +116,10 @@ export default function OdemelerPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyFilter(status: string) {
     setStatusFilter(status);
@@ -153,7 +163,7 @@ export default function OdemelerPage() {
       setActionType(null);
       load(page, statusFilter, true);
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Bir hata oluştu.");
+      setActionError(err instanceof Error ? err.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setActionLoading(false);
     }
@@ -178,12 +188,6 @@ export default function OdemelerPage() {
     );
   }
 
-  const actionConfig = {
-    approve: { title: "Ödemeyi Onayla", color: "bg-emerald-600 hover:bg-emerald-700", icon: CheckCheck, desc: "Bu ödemeyi manuel olarak onaylıyorsunuz. Siparişin durumu 'Ödendi' olarak güncellenecek." },
-    suspend: { title: "Askıya Al",       color: "bg-amber-600 hover:bg-amber-700",   icon: PauseCircle, desc: "Bu sipariş 'Askıya Alındı' durumuna geçecek. Ödeme durumu değişmez." },
-    reject:  { title: "Reddet",          color: "bg-red-600 hover:bg-red-700",       icon: Ban,         desc: "Ödeme iptal edilecek ve sipariş 'İptal Edildi' durumuna geçecek." },
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -201,7 +205,7 @@ export default function OdemelerPage() {
           className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
         >
           <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-          Yenile
+          {t("action.refresh", "Yenile")}
         </button>
       </div>
 
@@ -242,26 +246,26 @@ export default function OdemelerPage() {
         {loading ? (
           <div className="p-10 text-center">
             <div className="animate-spin w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Yükleniyor...</p>
+            <p className="text-sm text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center">
             <CreditCard size={28} className="text-slate-300 mx-auto mb-2" />
-            <p className="text-sm text-slate-500">Ödeme kaydı bulunamadı.</p>
+            <p className="text-sm text-slate-500">{t("table.noData", "Kayıt bulunamadı")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Sipariş</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Müşteri</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Yöntem</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Tutar</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Durum</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Tarih</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t("col.orderNumber", "Sipariş No")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t("col.customer", "Müşteri")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t("col.payment", "Ödeme")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("col.amount", "Tutar")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t("col.status", "Durum")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t("col.date", "Tarih")}</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Kaynak</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">İşlemler</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("col.actions", "İşlemler")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -305,7 +309,7 @@ export default function OdemelerPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => openLogs(p)}
-                          title="Logları Görüntüle"
+                          title={t("action.view", "Görüntüle")}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
                         >
                           <FileText size={14} />
@@ -313,7 +317,7 @@ export default function OdemelerPage() {
                         {(p.status === "Pending" || p.status === "Failed") && (
                           <button
                             onClick={() => openAction(p, "approve")}
-                            title="Onayla"
+                            title={t("action.approve", "Onayla")}
                             className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
                           >
                             <CheckCheck size={14} />
@@ -331,7 +335,7 @@ export default function OdemelerPage() {
                         {(p.status === "Pending" || p.status === "Failed") && (
                           <button
                             onClick={() => openAction(p, "reject")}
-                            title="Reddet"
+                            title={t("action.reject", "Reddet")}
                             className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition"
                           >
                             <Ban size={14} />
@@ -350,14 +354,14 @@ export default function OdemelerPage() {
         {/* Pagination */}
         {data && data.total > PAGE_SIZE && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs text-slate-400">{data.total} kayıttan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} gösteriliyor</span>
+            <span className="text-xs text-slate-400">{data.total} {t("table.perPage", "kayıt")}tan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} gösteriliyor</span>
             <div className="flex gap-1">
               <button
                 onClick={() => gotoPage(page - 1)}
                 disabled={page === 1}
                 className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition"
               >
-                Önceki
+                {t("table.prev", "← Önceki")}
               </button>
               {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
                 <button
@@ -373,7 +377,7 @@ export default function OdemelerPage() {
                 disabled={page === totalPages}
                 className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition"
               >
-                Sonraki
+                {t("table.next", "Sonraki →")}
               </button>
             </div>
           </div>
@@ -419,14 +423,14 @@ export default function OdemelerPage() {
                   onClick={() => { setActionTarget(null); setActionType(null); }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
                 >
-                  İptal
+                  {t("action.cancel", "İptal")}
                 </button>
                 <button
                   onClick={submitAction}
                   disabled={actionLoading}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-60 ${cfg.color}`}
                 >
-                  {actionLoading ? "İşleniyor..." : cfg.title}
+                  {actionLoading ? t("action.loading", "Yükleniyor...") : cfg.title}
                 </button>
               </div>
             </div>
@@ -449,9 +453,9 @@ export default function OdemelerPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {logsLoading ? (
-                <div className="text-center py-10 text-slate-400 text-sm">Yükleniyor...</div>
+                <div className="text-center py-10 text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
               ) : logs.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-sm">Log kaydı bulunamadı.</div>
+                <div className="text-center py-10 text-slate-400 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
               ) : (
                 <ol className="relative border-l border-slate-200 ml-2 space-y-5">
                   {logs.map((log) => (

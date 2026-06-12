@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { useI18n } from "@/contexts/I18nContext";
@@ -40,6 +40,11 @@ const MOVEMENT_TYPE_LABELS: Record<string, string> = {
 
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
 
 export default function StockPage() {
   const { t } = useI18n();
@@ -108,11 +113,6 @@ export default function StockPage() {
     setPage(1);
   }
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
-  }
-
   // Adjust existing stock
   const [adjustTarget, setAdjustTarget] = useState<StockItem | null>(null);
   const [adjustForm, setAdjustForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
@@ -164,7 +164,10 @@ export default function StockPage() {
     finally { setLoading(false); }
   }, [page, criticalOnly, stockSearch, sortField, sortDir]);
 
-  useEffect(() => { fetchStocks(); }, [fetchStocks]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchStocks(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchStocks]);
 
   const fetchMovements = useCallback(async () => {
     setMovementsLoading(true);
@@ -178,11 +181,18 @@ export default function StockPage() {
     finally { setMovementsLoading(false); }
   }, [movementsPage, movementsTypeFilter]);
 
-  useEffect(() => { if (tab === "hareketler") fetchMovements(); }, [tab, fetchMovements]);
+  useEffect(() => {
+    if (tab !== "hareketler") return;
+    const id = window.setTimeout(() => { void fetchMovements(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [tab, fetchMovements]);
 
   // Search products for new stock entry
   useEffect(() => {
-    if (!productSearch || productSearch.length < 2) { setProductOptions([]); return; }
+    if (!productSearch || productSearch.length < 2) {
+      const id = window.setTimeout(() => setProductOptions([]), 0);
+      return () => window.clearTimeout(id);
+    }
     const timer = setTimeout(async () => {
       try {
         const data = await api.get<{ items: ProductOption[] }>(`/api/products?search=${encodeURIComponent(productSearch)}&pageSize=10&admin=true`);
@@ -238,12 +248,12 @@ export default function StockPage() {
   function handleExport() {
     exportToExcel(
       stocks.map(s => ({
-        "Ürün": s.productName, "SKU": s.sku,
+        [t("col.product", "Ürün")]: s.productName, "SKU": s.sku,
         "Toplam": s.quantity, "Rezerve": s.reservedQuantity,
         "Kullanılabilir": s.availableQuantity, "Kritik Seviye": s.criticalStockLevel,
-        "Kritik": s.isCritical ? "Evet" : "Hayır",
+        "Kritik": s.isCritical ? t("action.yes", "Evet") : t("action.no", "Hayır"),
       })),
-      "stok", "Stok"
+      "stok", t("col.stock", "Stok")
     );
   }
 
@@ -283,13 +293,13 @@ export default function StockPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ürün ID", "Miktar", "Tip", "Not"], "stok")}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">{t("action.downloadTemplate", "Şablon İndir")}</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel'e Aktar
+            <Download size={14} /> {t("action.exportExcel", "Excel'e Aktar")}
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
-            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <Upload size={14} /> {importing ? t("action.importing", "Aktarılıyor...") : t("action.importFile", "İçe Aktar")}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
           <button onClick={() => setShowNew(true)}
@@ -322,7 +332,7 @@ export default function StockPage() {
             </select>
             {movementsTypeFilter && (
               <button onClick={() => { setMovementsTypeFilter(""); setMovementsPage(1); }}
-                className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+                className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
             )}
           </div>
 
@@ -331,8 +341,8 @@ export default function StockPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Tarih</th>
-                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Ürün</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.date", "Tarih")}</th>
+                    <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.product", "Ürün")}</th>
                     <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">SKU</th>
                     <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Tip</th>
                     <th className="text-right px-4 py-3 text-slate-500 font-medium text-xs">Miktar</th>
@@ -343,9 +353,9 @@ export default function StockPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {movementsLoading ? (
-                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
                   ) : movements.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">Hareket kaydı bulunamadı</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
                   ) : movements.map(m => {
                     const typeColor = m.movementType === "StockIn" || m.movementType === "Return"
                       ? "bg-emerald-100 text-emerald-700"
@@ -381,9 +391,9 @@ export default function StockPage() {
 
           {movementsTotalPages > 1 && (
             <div className="flex justify-center gap-2">
-              {movementsPage > 1 && <button onClick={() => setMovementsPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
+              {movementsPage > 1 && <button onClick={() => setMovementsPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.prev", "← Önceki")}</button>}
               <span className="px-4 py-2 text-sm text-slate-500">{movementsPage} / {movementsTotalPages}</span>
-              {movementsPage < movementsTotalPages && <button onClick={() => setMovementsPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+              {movementsPage < movementsTotalPages && <button onClick={() => setMovementsPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.next", "Sonraki →")}</button>}
             </div>
           )}
         </div>
@@ -398,10 +408,10 @@ export default function StockPage() {
               placeholder="Ürün adı veya SKU ara..."
               className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-60 text-slate-900 bg-white" />
           </div>
-          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
           {(stockSearch || stockSearchInput) && (
             <button type="button" onClick={() => { setStockSearch(""); setStockSearchInput(""); setPage(1); }}
-              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
           )}
         </form>
         <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
@@ -495,10 +505,10 @@ export default function StockPage() {
               <div className="flex gap-3 pt-2">
                 <button onClick={handleAdjust} disabled={adjusting || !adjustForm.quantity}
                   className="flex-1 bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm">
-                  {adjusting ? "Kaydediliyor..." : "Kaydet"}
+                  {adjusting ? t("action.saving", "Kaydediliyor...") : t("action.save", "Kaydet")}
                 </button>
                 <button onClick={() => setAdjustTarget(null)}
-                  className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">İptal</button>
+                  className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">{t("action.cancel", "İptal")}</button>
               </div>
             </div>
           </div>
@@ -565,10 +575,10 @@ export default function StockPage() {
               <div className="flex gap-3 pt-2">
                 <button onClick={handleNewStock} disabled={newSaving || !selectedProduct || !newForm.quantity}
                   className="flex-1 bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm">
-                  {newSaving ? "Kaydediliyor..." : "Kaydet"}
+                  {newSaving ? t("action.saving", "Kaydediliyor...") : t("action.save", "Kaydet")}
                 </button>
                 <button onClick={() => { setShowNew(false); setSelectedProduct(null); setProductSearch(""); }}
-                  className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">İptal</button>
+                  className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">{t("action.cancel", "İptal")}</button>
               </div>
             </div>
           </div>
@@ -580,22 +590,22 @@ export default function StockPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Ürün</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.product", "Ürün")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">SKU</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Toplam</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Rezerve</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kullanılabilir</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Kritik Seviye</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.createdAt", "Oluşturma")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : stocks.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Stok kaydı bulunamadı</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : stocks.map((s, i) => (
                 <Fragment key={`${s.productId}-${s.variantId ?? i}`}>
                   <tr className={`transition-all ${
@@ -649,7 +659,7 @@ export default function StockPage() {
                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                           <Pencil size={18} />
                         </button>
-                        <button onClick={() => setDeleteTarget(s)} title="Stok Kaydını Sil"
+                        <button onClick={() => setDeleteTarget(s)} title={t("action.delete", "Sil")}
                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                           <Trash2 size={18} />
                         </button>
@@ -690,9 +700,9 @@ export default function StockPage() {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
+          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.prev", "← Önceki")}</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.next", "Sonraki →")}</button>}
         </div>
       )}
       </>}
@@ -724,14 +734,14 @@ export default function StockPage() {
             <div className="overflow-y-auto flex-1">
               {itemHistoryTab === "hareketler" ? (
                 itemMovementsLoading ? (
-                  <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                  <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
                 ) : itemMovements.length === 0 ? (
                   <p className="p-8 text-center text-slate-400">Bu ürüne ait stok hareketi bulunamadı.</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                       <tr>
-                        {["Tarih", "Tip", "Miktar", "Önceki", "Sonraki", "Not"].map(h => (
+                        {[t("col.date", "Tarih"), "Tip", "Miktar", "Önceki", "Sonraki", "Not"].map(h => (
                           <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                         ))}
                       </tr>
@@ -767,14 +777,14 @@ export default function StockPage() {
                 )
               ) : (
                 itemAuditLoading ? (
-                  <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                  <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
                 ) : itemAuditLogs.length === 0 ? (
                   <p className="p-8 text-center text-slate-400">Bu ürüne ait audit kaydı bulunamadı.</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                       <tr>
-                        {["Tarih", "İşlem", "Kullanıcı", "Detay"].map(h => (
+                        {[t("col.date", "Tarih"), "İşlem", t("col.user", "Kullanıcı"), t("action.details", "Detaylar")].map(h => (
                           <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                         ))}
                       </tr>
@@ -802,7 +812,7 @@ export default function StockPage() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
-              <button onClick={() => setItemHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+              <button onClick={() => setItemHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.close", "Kapat")}</button>
             </div>
           </div>
         </div>
@@ -819,18 +829,18 @@ export default function StockPage() {
               <div>
                 <h3 className="font-semibold text-slate-900">Stok Kaydını Sil</h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  <span className="font-medium text-slate-700">{deleteTarget.productName}</span> ürününe ait stok kaydı silinecek. Bu işlem geri alınamaz.
+                  <span className="font-medium text-slate-700">{deleteTarget.productName}</span> ürününe ait stok kaydı silinecek. {t("msg.irreversible", "Bu işlem geri alınamaz.")}
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting}
                 className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition disabled:opacity-50">
-                İptal
+                {t("action.cancel", "İptal")}
               </button>
               <button onClick={handleDeleteStock} disabled={deleting}
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
-                {deleting ? "Siliniyor..." : "Sil"}
+                {deleting ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
               </button>
             </div>
           </div>

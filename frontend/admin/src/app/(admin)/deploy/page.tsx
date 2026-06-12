@@ -82,11 +82,7 @@ const STATUS_ICON = {
   failed:  <XCircle size={14} className="text-red-500" />,
 };
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  running: { label: "Çalışıyor", cls: "bg-amber-100 text-amber-700 border-amber-200" },
-  success: { label: "Başarılı",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  failed:  { label: "Hatalı",    cls: "bg-red-100 text-red-700 border-red-200" },
-};
+// STATUS_LABEL is defined inside components that use t() to allow translation
 
 const INPUT_CLS = "w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent bg-white";
 const BTN_PRIMARY = "px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition";
@@ -132,6 +128,12 @@ function Info({ label, value, mono = false, className = "" }: {
 // ── Log row (shared between tabs and inline panels) ───────────────────────────
 
 function LogRow({ log, onViewLog }: { log: DeployLog; onViewLog: (id: string) => void }) {
+  const { t } = useI18n();
+  const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+    running: { label: t("status.running", "Çalışıyor"), cls: "bg-amber-100 text-amber-700 border-amber-200" },
+    success: { label: t("auto.basarili", "Başarılı"),   cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    failed:  { label: t("auto.hatali", "Hatalı"),       cls: "bg-red-100 text-red-700 border-red-200" },
+  };
   const st = STATUS_LABEL[log.status] ?? STATUS_LABEL.failed;
   return (
     <div className="flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-slate-50 transition group">
@@ -168,6 +170,7 @@ function LogRow({ log, onViewLog }: { log: DeployLog; onViewLog: (id: string) =>
 // ── Server Mini History (shown in expanded panel) ─────────────────────────────
 
 function ServerHistory({ serverId, onViewLog }: { serverId: string; onViewLog: (id: string) => void }) {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<DeployLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -180,7 +183,10 @@ function ServerHistory({ serverId, onViewLog }: { serverId: string; onViewLog: (
     }
   }, [serverId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   // Auto-refresh while any log is "running"
   useEffect(() => {
@@ -190,8 +196,8 @@ function ServerHistory({ serverId, onViewLog }: { serverId: string; onViewLog: (
     return () => clearInterval(id);
   }, [logs, load]);
 
-  if (loading) return <div className="flex items-center gap-2 text-xs text-slate-400 py-2"><Loader2 size={12} className="animate-spin" /> Geçmiş yükleniyor...</div>;
-  if (logs.length === 0) return <p className="text-xs text-slate-400 py-2">Bu sunucuda henüz deploy yapılmadı.</p>;
+  if (loading) return <div className="flex items-center gap-2 text-xs text-slate-400 py-2"><Loader2 size={12} className="animate-spin" /> {t("action.loading", "Yükleniyor...")}</div>;
+  if (logs.length === 0) return <p className="text-xs text-slate-400 py-2">{t("table.noData", "Kayıt bulunamadı")}</p>;
 
   return (
     <div className="space-y-0.5">
@@ -207,6 +213,8 @@ function ConfirmDeleteModal({ server, onConfirm, onClose }: {
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
@@ -225,8 +233,8 @@ function ConfirmDeleteModal({ server, onConfirm, onClose }: {
             <Trash2 size={18} className="text-red-600" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-slate-900">Sunucuyu Sil</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Bu işlem geri alınamaz</p>
+            <h2 className="text-base font-bold text-slate-900">{t("action.delete", "Sil")}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition">
             <X size={18} />
@@ -254,19 +262,19 @@ function ConfirmDeleteModal({ server, onConfirm, onClose }: {
 
           <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
             <AlertTriangle size={15} className="shrink-0 mt-0.5" />
-            <span>Sunucu ve deploy geçmişi <strong>kalıcı olarak silinecek</strong>. Bu işlem geri alınamaz.</span>
+            <span>{t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")} {t("msg.irreversible", "Bu işlem geri alınamaz.")}</span>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50/60 rounded-b-2xl">
-          <button onClick={onClose} className={BTN_GHOST}>İptal</button>
+          <button onClick={onClose} className={BTN_GHOST}>{t("action.cancel", "İptal")}</button>
           <button
             onClick={onConfirm}
             className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition"
           >
             <Trash2 size={14} />
-            Evet, Sil
+            {t("action.yes", "Evet")}, {t("action.delete", "Sil")}
           </button>
         </div>
       </div>
@@ -281,6 +289,7 @@ function ConfirmDeployModal({ server, onConfirm, onClose }: {
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const isProd = server.environment === "prod";
 
   useEffect(() => {
@@ -301,8 +310,8 @@ function ConfirmDeployModal({ server, onConfirm, onClose }: {
             <Rocket size={18} className="text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-slate-900">Deploy Başlatılıyor</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Onaylamadan önce bilgileri kontrol edin</p>
+            <h2 className="text-base font-bold text-slate-900">{t("action.run", "Çalıştır")}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition">
             <X size={18} />
@@ -338,7 +347,7 @@ function ConfirmDeployModal({ server, onConfirm, onClose }: {
               </div>
             </div>
             <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Deploy Dizini</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Deploy {t("col.path", "Yol")}</div>
               <div className="text-sm font-mono font-semibold text-slate-800 flex items-center gap-1.5">
                 <FolderOpen size={12} className="text-slate-400 shrink-0" />
                 <span className="truncate">{server.deployPath}</span>
@@ -351,21 +360,21 @@ function ConfirmDeployModal({ server, onConfirm, onClose }: {
             <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
               <ShieldAlert size={15} className="shrink-0 mt-0.5" />
               <div>
-                <div className="text-sm font-semibold">Production ortamı!</div>
-                <div className="text-xs text-red-600/80 mt-0.5">Bu sunucuya deploy yapılacak. Servis kısa süre kesintiye uğrayabilir.</div>
+                <div className="text-sm font-semibold">{t("status.error", "Hata")}</div>
+                <div className="text-xs text-red-600/80 mt-0.5">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</div>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl px-4 py-3 text-sm">
               <AlertTriangle size={14} className="shrink-0" />
-              Deploy başlatıldığında geri alınamaz. Sunucu yeniden başlatılacaktır.
+              {t("msg.irreversible", "Bu işlem geri alınamaz.")}
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50/60 rounded-b-2xl">
-          <button onClick={onClose} className={BTN_GHOST}>İptal</button>
+          <button onClick={onClose} className={BTN_GHOST}>{t("action.cancel", "İptal")}</button>
           <button
             onClick={onConfirm}
             className={`flex items-center gap-2 px-5 py-2 text-white text-sm font-semibold rounded-xl transition ${
@@ -373,7 +382,7 @@ function ConfirmDeployModal({ server, onConfirm, onClose }: {
             }`}
           >
             <Rocket size={14} />
-            {isProd ? "Evet, Production'a Deploy Et" : "Deploy Başlat"}
+            {isProd ? `${t("action.yes", "Evet")}, Production'a ${t("auto.deployEt", "Deploy Et")}` : t("action.run", "Çalıştır")}
           </button>
         </div>
       </div>
@@ -408,6 +417,7 @@ function ServerModal({ server, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState<ServerFormData>(
     server ? {
       name: server.name, environment: server.environment, host: server.host,
@@ -441,7 +451,7 @@ function ServerModal({ server, onClose, onSaved }: {
       }
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Kayıt başarısız");
+      setError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setSaving(false);
     }
@@ -462,9 +472,9 @@ function ServerModal({ server, onClose, onSaved }: {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-bold text-slate-900">
-              {server ? `Düzenle — ${server.name}` : "Yeni Sunucu Ekle"}
+              {server ? `${t("action.edit", "Düzenle")} — ${server.name}` : t("action.add", "Ekle")}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">SSH üzerinden deploy yapılacak sunucu</p>
+            <p className="text-xs text-slate-400 mt-0.5">SSH {t("ui.testConnection", "Bağlantı Test Et")}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition">
             <X size={18} />
@@ -475,7 +485,7 @@ function ServerModal({ server, onClose, onSaved }: {
         {isProd && (
           <div className="mx-6 mt-4 flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm shrink-0">
             <ShieldAlert size={15} className="shrink-0 mt-0.5" />
-            <span><strong>Production sunucusu.</strong> Bu sunucuya deploy yapmadan önce staging ortamında test edin.</span>
+            <span><strong>Production {t("col.environment", "Ortam")}.</strong> {t("msg.irreversible", "Bu işlem geri alınamaz.")}</span>
           </div>
         )}
 
@@ -484,20 +494,20 @@ function ServerModal({ server, onClose, onSaved }: {
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
 
             {/* Section 1: Bağlantı */}
-            <SectionHeader icon={Globe} title="Sunucu Bağlantısı" description="Erişim bilgileri ve ortam" />
+            <SectionHeader icon={Globe} title={t("ui.testConnection", "Bağlantı Test Et")} description={t("col.environment", "Ortam")} />
             <div className="col-span-2 grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-4">
-              <Field label="Sunucu Adı" required>
+              <Field label={t("col.name", "Ad")} required>
                 <input value={form.name} onChange={e => set("name", e.target.value)}
                   className={INPUT_CLS} placeholder="prod-web-01" autoFocus />
               </Field>
-              <Field label="Ortam">
+              <Field label={t("col.environment", "Ortam")}>
                 <select value={form.environment} onChange={e => set("environment", e.target.value)} className={INPUT_CLS}>
                   <option value="dev">🟢 Development</option>
                   <option value="staging">🔵 Staging</option>
                   <option value="prod">🔴 Production</option>
                 </select>
               </Field>
-              <Field label="Host / IP Adresi" required>
+              <Field label="Host / IP" required>
                 <input value={form.host} onChange={e => set("host", e.target.value)}
                   className={INPUT_CLS} placeholder="192.168.1.100 veya server.example.com" />
               </Field>
@@ -508,33 +518,33 @@ function ServerModal({ server, onClose, onSaved }: {
             </div>
 
             {/* Section 2: Kimlik */}
-            <SectionHeader icon={KeyRound} title="Kimlik Doğrulama" description="SSH bağlantı kimlik bilgileri" />
+            <SectionHeader icon={KeyRound} title="SSH" description="SSH" />
             <div className="col-span-2 grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-4">
-              <Field label="Kullanıcı Adı">
+              <Field label={t("col.name", "Ad")}>
                 <input value={form.username} onChange={e => set("username", e.target.value)}
                   className={INPUT_CLS} placeholder="deploy" />
               </Field>
-              <Field label="Yöntem">
+              <Field label={t("col.method", "Metot")}>
                 <select value={form.authType} onChange={e => set("authType", e.target.value)} className={INPUT_CLS}>
-                  <option value="password">🔑 Şifre</option>
-                  <option value="sshkey">🗝 SSH Anahtar Dosyası</option>
+                  <option value="password">🔑 {t("auto.sifre", "Şifre")}</option>
+                  <option value="sshkey">🗝 SSH {t("auto.anahtarDosyasi", "Anahtar Dosyası")}</option>
                 </select>
               </Field>
               <div className="col-span-2">
-                <Field label={form.authType === "sshkey" ? "Private Key İçeriği" : "SSH Şifresi"}>
+                <Field label={form.authType === "sshkey" ? "Private Key" : `SSH ${t("auto.sifresi", "Şifresi")}`}>
                   <div className="relative">
                     {form.authType === "sshkey" ? (
                       <>
                         <textarea value={form.plaintextCredential} onChange={e => set("plaintextCredential", e.target.value)}
                           className={`${INPUT_CLS} font-mono text-xs h-28 resize-none`}
                           placeholder={"-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA...\n-----END OPENSSH PRIVATE KEY-----"} />
-                        <p className="text-[11px] text-slate-400 mt-1">PEM formatında tam private key içeriğini yapıştırın. Şifreli olmamalı.</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{t("auto.pemFormatAciklama", "PEM formatında tam private key içeriğini yapıştırın. Şifreli olmamalı.")}</p>
                       </>
                     ) : (
                       <input type={showCred ? "text" : "password"} value={form.plaintextCredential}
                         onChange={e => set("plaintextCredential", e.target.value)}
                         className={`${INPUT_CLS} pr-10`}
-                        placeholder={server ? "Değiştirmemek için boş bırakın" : "Şifre"} />
+                        placeholder={server ? t("auto.degistirmemekIcinBos", "Değiştirmemek için boş bırakın") : t("auto.sifre", "Şifre")} />
                     )}
                     {form.authType === "password" && (
                       <button type="button" onClick={() => setShowCred(s => !s)}
@@ -548,13 +558,13 @@ function ServerModal({ server, onClose, onSaved }: {
             </div>
 
             {/* Section 3: Deploy */}
-            <SectionHeader icon={FolderOpen} title="Deploy Yapılandırması" description="Dizin, branch ve sağlık kontrolü" />
+            <SectionHeader icon={FolderOpen} title="Deploy" description={t("col.path", "Yol")} />
             <div className="col-span-2 grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-4">
-              <Field label="Deploy Dizini">
+              <Field label={`Deploy ${t("col.path", "Yol")}`}>
                 <input value={form.deployPath} onChange={e => set("deployPath", e.target.value)}
                   className={`${INPUT_CLS} font-mono text-sm`} placeholder="/opt/ecom" />
               </Field>
-              <Field label="Compose Dosyası">
+              <Field label="Compose">
                 <input value={form.composeFile} onChange={e => set("composeFile", e.target.value)}
                   className={`${INPUT_CLS} font-mono text-sm`} placeholder="docker-compose.yml" />
               </Field>
@@ -570,21 +580,21 @@ function ServerModal({ server, onClose, onSaved }: {
                   className={INPUT_CLS} placeholder="https://api.example.com/health" />
               </Field>
               <div className="col-span-2">
-                <Field label="Notlar">
+                <Field label="Not">
                   <textarea value={form.notes} onChange={e => set("notes", e.target.value)}
-                    className={`${INPUT_CLS} resize-none h-14`} placeholder="Açıklama, hatırlatıcı..." />
+                    className={`${INPUT_CLS} resize-none h-14`} placeholder={t("auto.aciklamaHatirlatic", "Açıklama, hatırlatıcı...")} />
                 </Field>
               </div>
               <label className="col-span-2 flex items-center gap-3 cursor-pointer p-3 bg-white rounded-xl border border-slate-200 hover:border-teal-300 transition select-none">
                 <input type="checkbox" checked={form.isActive} onChange={e => set("isActive", e.target.checked)}
                   className="w-4 h-4 accent-teal-600" />
                 <div>
-                  <div className="text-sm font-medium text-slate-800">Aktif sunucu</div>
-                  <div className="text-xs text-slate-400">İşaretsiz olursa deploy başlatılamaz</div>
+                  <div className="text-sm font-medium text-slate-800">{t("status.active", "Aktif")}</div>
+                  <div className="text-xs text-slate-400">{t("status.disabled", "Devre Dışı")}</div>
                 </div>
                 <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
                   form.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-slate-100 text-slate-500 border-slate-200"
-                }`}>{form.isActive ? "Aktif" : "Pasif"}</span>
+                }`}>{form.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}</span>
               </label>
             </div>
           </div>
@@ -599,13 +609,13 @@ function ServerModal({ server, onClose, onSaved }: {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/60 rounded-b-2xl shrink-0">
-          <p className="text-xs text-slate-400">Kimlik bilgileri şifrelenmiş olarak saklanır.</p>
+          <p className="text-xs text-slate-400">{t("auto.kimlikBilgileriSifreli", "Kimlik bilgileri şifrelenmiş olarak saklanır.")}</p>
           <div className="flex gap-2">
-            <button onClick={onClose} className={BTN_GHOST}>İptal</button>
+            <button onClick={onClose} className={BTN_GHOST}>{t("action.cancel", "İptal")}</button>
             <button onClick={save} disabled={saving || !form.name || !form.host}
               className={`${BTN_PRIMARY} flex items-center gap-2`}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {server ? "Güncelle" : "Sunucu Ekle"}
+              {saving ? t("action.saving", "Kaydediliyor...") : server ? t("action.update", "Güncelle") : t("action.save", "Kaydet")}
             </button>
           </div>
         </div>
@@ -616,7 +626,7 @@ function ServerModal({ server, onClose, onSaved }: {
 
 // ── Deploy Stream Modal ───────────────────────────────────────────────────────
 
-const DEPLOY_STEPS = ["SSH Bağlantı", "Git Fetch", "Docker Build", "Docker Up", "Temizlik", "Sağlık"];
+// DEPLOY_STEPS is defined inside DeployStreamModal to allow t() calls
 
 function logLineCls(line: string) {
   if (line.includes("✅") || line.includes("TAMAMLANDI")) return "text-emerald-400 font-semibold";
@@ -635,6 +645,15 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
   serverEnv: string;
   onClose: (finalStatus: "success" | "failed" | "running" | null) => void;
 }) {
+  const { t } = useI18n();
+  const DEPLOY_STEPS = [
+    t("auto.sshBaglanti", "SSH Bağlantı"),
+    "Git Fetch",
+    "Docker Build",
+    "Docker Up",
+    t("auto.temizlik", "Temizlik"),
+    t("auto.saglik", "Sağlık"),
+  ];
   const [lines, setLines] = useState<string[]>([]);
   const [done, setDone] = useState(false);
   const [status, setStatus] = useState<"running" | "success" | "failed">("running");
@@ -645,14 +664,16 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
   const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
-  const startRef = useRef(Date.now());
+  const startRef = useRef<number | null>(null);
   const currentStepRef = useRef(0);
   const doneRef = useRef(false);
 
   // Elapsed timer
   useEffect(() => {
     if (done) return;
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
+    const startedAt = startRef.current ?? Date.now();
+    if (startRef.current === null) startRef.current = startedAt;
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
     return () => clearInterval(id);
   }, [done]);
 
@@ -662,7 +683,10 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
 
   // Smooth progress bar animation
   useEffect(() => {
-    if (done) { setVisualPercent(100); return; }
+    if (done) {
+      const id = window.setTimeout(() => setVisualPercent(100), 0);
+      return () => window.clearTimeout(id);
+    }
 
     let frameId: number;
     let lastTime = performance.now();
@@ -788,7 +812,7 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
                     </span>
                   )}
                 </div>
-                <div className="text-slate-500 text-xs mt-0.5">Canlı Deploy Logu</div>
+                <div className="text-slate-500 text-xs mt-0.5">{t("tab.logs", "Loglar")}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -800,11 +824,11 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
                 </span>
               ) : status === "success" ? (
                 <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                  <CheckCircle size={12} /> Başarılı · {formatDur(elapsed)}
+                  <CheckCircle size={12} /> {t("status.success", "Başarılı")} · {formatDur(elapsed)}
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-red-400 text-xs font-medium">
-                  <XCircle size={12} /> Hata · {formatDur(elapsed)}
+                  <XCircle size={12} /> {t("status.error", "Hata")} · {formatDur(elapsed)}
                 </span>
               )}
               {done && (
@@ -865,7 +889,7 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
           className="flex-1 overflow-y-auto p-5 font-mono text-xs leading-5 space-y-px"
         >
           {lines.map((line, i) => (
-            <div key={i} className={logLineCls(line)}>{line || " "}</div>
+            <div key={i} className={logLineCls(line)}>{line || " "}</div>
           ))}
           {!done && <div className="text-slate-600 animate-pulse mt-1">▌</div>}
           <div ref={bottomRef} />
@@ -878,7 +902,7 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
             <button onClick={copyLog}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition">
               <Copy size={11} />
-              {copied ? "Kopyalandı!" : "Kopyala"}
+              {copied ? t("action.copy", "Kopyala") + "d!" : t("action.copy", "Kopyala")}
             </button>
             {/* Auto-scroll toggle */}
             {!done && (
@@ -891,7 +915,7 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
                   : "text-slate-500 border-white/10 hover:text-white"
               }`}>
                 <ArrowDown size={11} />
-                {autoScroll ? "Otomatik" : "Manuel"}
+                {autoScroll ? t("auto.otomatik", "Otomatik") : t("auto.manuel", "Manuel")}
               </button>
             )}
           </div>
@@ -903,10 +927,10 @@ function DeployStreamModal({ logId, serverName, serverEnv, onClose }: {
                   ? "bg-teal-600 hover:bg-teal-500 text-white"
                   : "bg-red-600 hover:bg-red-500 text-white"
               }`}>
-              {status === "success" ? "Geçmişe Git" : "Kapat"}
+              {status === "success" ? t("tab.history", "Geçmiş") : t("action.close", "Kapat")}
             </button>
           ) : (
-            <span className="text-xs text-slate-600">Deploy devam ediyor, lütfen bekleyin...</span>
+            <span className="text-xs text-slate-600">{t("action.processing", "İşleniyor...")}</span>
           )}
         </div>
       </div>
@@ -930,6 +954,12 @@ interface FullLogData {
 }
 
 function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }) {
+  const { t } = useI18n();
+  const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+    running: { label: t("status.running", "Çalışıyor"), cls: "bg-amber-100 text-amber-700 border-amber-200" },
+    success: { label: t("auto.basarili", "Başarılı"),   cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    failed:  { label: t("auto.hatali", "Hatalı"),       cls: "bg-red-100 text-red-700 border-red-200" },
+  };
   const [log, setLog] = useState<FullLogData | null>(null);
   const [copied, setCopied] = useState(false);
   const [search, setSearch] = useState("");
@@ -988,7 +1018,7 @@ function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }
               </div>
               <div>
                 <div className="text-white font-semibold text-sm leading-tight">
-                  {log?.serverName ?? "Deploy"} — Geçmiş Log
+                  {log?.serverName ?? "Deploy"} — {t("tab.history", "Geçmiş")} {t("tab.logs", "Loglar")}
                 </div>
                 {log && (
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -1044,12 +1074,12 @@ function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Log içinde ara..."
+                placeholder={t("filter.search", "Ara...")}
                 className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-300 placeholder-slate-600 focus:outline-none focus:border-teal-500/50 focus:bg-white/8 transition"
               />
               {search && (
                 <div className="absolute right-2 top-1.5 flex items-center gap-1.5">
-                  <span className="text-[10px] text-slate-500">{matchCount} satır</span>
+                  <span className="text-[10px] text-slate-500">{matchCount} {t("auto.satir", "satır")}</span>
                   <button onClick={() => setSearch("")} className="text-slate-600 hover:text-slate-300 transition"><X size={12} /></button>
                 </div>
               )}
@@ -1061,14 +1091,14 @@ function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }
         <div className="flex-1 overflow-y-auto px-5 py-4 font-mono text-xs leading-5">
           {log == null ? (
             <div className="flex items-center gap-2 text-slate-500 py-4">
-              <Loader2 size={14} className="animate-spin" />Yükleniyor...
+              <Loader2 size={14} className="animate-spin" />{t("action.loading", "Yükleniyor...")}
             </div>
           ) : log.status === "running" ? (
             <div className="flex items-center gap-2 text-amber-400 py-4">
-              <Loader2 size={14} className="animate-spin" />Deploy devam ediyor — log henüz kaydedilmedi.
+              <Loader2 size={14} className="animate-spin" />{t("action.processing", "İşleniyor...")}
             </div>
           ) : rawLines.length === 0 ? (
-            <span className="text-slate-600">Log bulunamadı.</span>
+            <span className="text-slate-600">{t("table.noData", "Kayıt bulunamadı")}</span>
           ) : (
             <div className="space-y-px">
               {filteredLines.map(({ l, i, match }) => (
@@ -1094,19 +1124,19 @@ function FullLogModal({ logId, onClose }: { logId: string; onClose: () => void }
           <div className="flex items-center gap-2">
             <button onClick={copyLog} disabled={!log?.fullLog}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition disabled:opacity-30">
-              <Copy size={11} />{copied ? "Kopyalandı!" : "Kopyala"}
+              <Copy size={11} />{copied ? t("action.copy", "Kopyala") + "d!" : t("action.copy", "Kopyala")}
             </button>
             <button onClick={downloadLog} disabled={!log?.fullLog}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition disabled:opacity-30">
-              <Download size={11} />İndir
+              <Download size={11} />{t("action.download", "İndir")}
             </button>
             {rawLines.length > 0 && (
-              <span className="text-xs text-slate-700">{rawLines.length} satır</span>
+              <span className="text-xs text-slate-700">{rawLines.length} {t("auto.satir", "satır")}</span>
             )}
           </div>
           <button onClick={onClose}
             className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-xl transition">
-            Kapat
+            {t("action.close", "Kapat")}
           </button>
         </div>
       </div>
@@ -1120,6 +1150,11 @@ type Tab = "servers" | "logs";
 
 export default function DeployPage() {
   const { t } = useI18n();
+  const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+    running: { label: t("status.running", "Çalışıyor"), cls: "bg-amber-100 text-amber-700 border-amber-200" },
+    success: { label: t("auto.basarili", "Başarılı"),   cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    failed:  { label: t("auto.hatali", "Hatalı"),       cls: "bg-red-100 text-red-700 border-red-200" },
+  };
   const [tab, setTab] = useState<Tab>("servers");
   const [servers, setServers] = useState<DeployServer[]>([]);
   const [logs, setLogs] = useState<DeployLog[]>([]);
@@ -1197,13 +1232,13 @@ export default function DeployPage() {
       setStreamServerName(server.name);
       setStreamServerEnv(server.environment);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Deploy başlatılamadı");
+      alert(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setDeploying(d => ({ ...d, [server.id]: false }));
     }
   }
 
-  function handleStreamClose(finalStatus: "success" | "failed" | "running" | null) {
+  function handleStreamClose() {
     setStreamLogId(null);
     loadServers();
     // Switch to logs tab and reload
@@ -1219,7 +1254,7 @@ export default function DeployPage() {
       const res = await api.post<{ result: string }>(`/api/admin/deploy/servers/${server.id}/test-connection`, {});
       setTestResults(r => ({ ...r, [server.id]: res.result }));
     } catch (e: unknown) {
-      setTestResults(r => ({ ...r, [server.id]: `Hata: ${e instanceof Error ? e.message : "Bağlantı başarısız"}` }));
+      setTestResults(r => ({ ...r, [server.id]: `${t("status.error", "Hata")}: ${e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu")}` }));
     } finally {
       setTesting(t => ({ ...t, [server.id]: false }));
     }
@@ -1231,7 +1266,7 @@ export default function DeployPage() {
       const res = await api.get<{ result: string }>(`/api/admin/deploy/servers/${server.id}/container-status`);
       setContainerResults(r => ({ ...r, [server.id]: res.result }));
     } catch (e: unknown) {
-      setContainerResults(r => ({ ...r, [server.id]: `Hata: ${e instanceof Error ? e.message : "Alınamadı"}` }));
+      setContainerResults(r => ({ ...r, [server.id]: `${t("status.error", "Hata")}: ${e instanceof Error ? e.message : t("msg.loadFailed", "Yüklenemedi.")}` }));
     } finally {
       setLoadingContainers(l => ({ ...l, [server.id]: false }));
     }
@@ -1259,11 +1294,11 @@ export default function DeployPage() {
             <Rocket size={24} className="text-teal-600" />
             {t("page./deploy", "Deploy Yönetimi")}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Sunucuları yapılandırın, deploy başlatın ve geçmişi takip edin</p>
+          <p className="text-slate-500 text-sm mt-1">{t("tab.deploy", "Deploy")}</p>
         </div>
         {tab === "servers" && (
           <button onClick={() => setServerModal("new")} className={`${BTN_PRIMARY} flex items-center gap-2`}>
-            <Plus size={16} />Sunucu Ekle
+            <Plus size={16} />{t("action.add", "Ekle")}
           </button>
         )}
       </div>
@@ -1271,8 +1306,8 @@ export default function DeployPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         {([
-          ["servers", Server, "Sunucular"],
-          ["logs",    History, `Geçmiş${logTotal > 0 ? ` (${logTotal})` : ""}`],
+          ["servers", Server, t("auto.sunucular", "Sunucular")],
+          ["logs",    History, `${t("tab.history", "Geçmiş")}${logTotal > 0 ? ` (${logTotal})` : ""}`],
         ] as [Tab, React.ComponentType<{size?: number; className?: string}>, string][]).map(([id, Icon, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -1300,17 +1335,17 @@ export default function DeployPage() {
                 </div>
               </div>
 
-              <h3 className="text-lg font-bold text-slate-800 mb-1">Henüz sunucu eklenmedi</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">{t("table.noData", "Kayıt bulunamadı")}</h3>
               <p className="text-sm text-slate-400 max-w-sm mb-6">
-                SSH bağlantısı kurulacak bir sunucu ekleyin. Docker Compose projelerinizi buradan deploy edebilirsiniz.
+                {t("msg.loadFailed", "Yüklenemedi.")}
               </p>
 
               {/* Feature list */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8 w-full max-w-lg">
                 {[
-                  { icon: Wifi,      label: "SSH bağlantı testi" },
-                  { icon: Terminal,  label: "Canlı deploy logu" },
-                  { icon: History,   label: "Deploy geçmişi" },
+                  { icon: Wifi,      label: t("ui.testConnection", "Bağlantı Test Et") },
+                  { icon: Terminal,  label: t("tab.logs", "Loglar") },
+                  { icon: History,   label: t("tab.history", "Geçmiş") },
                 ].map(({ icon: Icon, label }) => (
                   <div key={label} className="flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
                     <Icon size={15} className="text-teal-500 shrink-0" />
@@ -1324,7 +1359,7 @@ export default function DeployPage() {
                 className={`${BTN_PRIMARY} flex items-center gap-2 px-6 py-2.5`}
               >
                 <Plus size={16} />
-                İlk Sunucuyu Ekle
+                {t("action.add", "Ekle")}
               </button>
             </div>
           ) : (
@@ -1342,11 +1377,11 @@ export default function DeployPage() {
                         {server.environment}
                       </span>
                       {!server.isActive && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">pasif</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">{t("status.passive", "Pasif")}</span>
                       )}
                       {server.lastDeployStatus === "running" && (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 animate-pulse">
-                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />DEPLOY ÇALIŞIYOR
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />{t("status.running", "Çalışıyor")}
                         </span>
                       )}
                     </div>
@@ -1381,11 +1416,13 @@ export default function DeployPage() {
                       <ChevronDown size={16} className={`transition-transform ${expandedServer === server.id ? "rotate-180" : ""}`} />
                     </button>
                     <button onClick={() => setServerModal(server)}
-                      className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+                      className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition"
+                      title={t("action.edit", "Düzenle")}>
                       <Pencil size={15} />
                     </button>
                     <button onClick={() => setDeleteConfirmServer(server)} disabled={deleting === server.id}
-                      className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition">
+                      className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition"
+                      title={t("action.delete", "Sil")}>
                       {deleting === server.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                     </button>
                   </div>
@@ -1398,9 +1435,9 @@ export default function DeployPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <Info label="Branch" value={server.branch} mono />
                       <Info label="Compose" value={server.composeFile} mono />
-                      <Info label="Auth" value={server.authType === "sshkey" ? "SSH Anahtar" : "Şifre"} />
+                      <Info label="Auth" value={server.authType === "sshkey" ? t("auto.sshAnahtar", "SSH Anahtar") : t("auto.sifre", "Şifre")} />
                       {server.healthCheckUrl && <Info label="Health URL" value={server.healthCheckUrl} mono />}
-                      {server.notes && <Info label="Notlar" value={server.notes} className="col-span-2 md:col-span-4" />}
+                      {server.notes && <Info label="Not" value={server.notes} className="col-span-2 md:col-span-4" />}
                     </div>
 
                     {/* Tools row */}
@@ -1409,27 +1446,27 @@ export default function DeployPage() {
                         <button onClick={() => testConnection(server)} disabled={testing[server.id]}
                           className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 px-3 py-1.5 rounded-lg transition bg-white">
                           {testing[server.id] ? <Loader2 size={12} className="animate-spin" /> : <Wifi size={12} />}
-                          Bağlantı Test Et
+                          {t("ui.testConnection", "Bağlantı Test Et")}
                         </button>
                         <button onClick={() => loadContainers(server)} disabled={loadingContainers[server.id]}
                           className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 px-3 py-1.5 rounded-lg transition bg-white">
                           {loadingContainers[server.id] ? <Loader2 size={12} className="animate-spin" /> : <Container size={12} />}
-                          Container Durumu
+                          Container {t("col.status", "Durum")}
                         </button>
                         <button onClick={() => { setTab("logs"); setFilterServerId(server.id); loadLogs(1, server.id); }}
                           className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition bg-white">
                           <History size={12} />
-                          Tüm Geçmişi Gör
+                          {t("ui.viewLogs", "Logları Gör")}
                         </button>
                         <button onClick={loadServers}
                           className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition">
                           <RefreshCw size={12} />
-                          Yenile
+                          {t("action.refresh", "Yenile")}
                         </button>
                       </div>
                       {testResults[server.id] && (
                         <pre className={`text-xs p-3 rounded-xl font-mono whitespace-pre-wrap ${
-                          testResults[server.id].startsWith("Hata") || testResults[server.id].startsWith("❌")
+                          testResults[server.id].startsWith(t("status.error", "Hata")) || testResults[server.id].startsWith("❌")
                             ? "bg-red-50 text-red-600 border border-red-100"
                             : "bg-emerald-50 text-emerald-800 border border-emerald-100"
                         }`}>{testResults[server.id]}</pre>
@@ -1445,7 +1482,7 @@ export default function DeployPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <History size={13} className="text-slate-400" />
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Son Deploylar</span>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("tab.history", "Geçmiş")}</span>
                       </div>
                       <ServerHistory serverId={server.id} onViewLog={setFullLogId} />
                     </div>
@@ -1464,8 +1501,8 @@ export default function DeployPage() {
           <div className="flex items-center gap-3 px-5 py-4 border-b flex-wrap">
             <div className="flex items-center gap-2 text-slate-600">
               <Filter size={14} />
-              <span className="text-sm font-semibold">Deploy Geçmişi</span>
-              {logTotal > 0 && <span className="text-xs text-slate-400">({logTotal} kayıt)</span>}
+              <span className="text-sm font-semibold">{t("tab.history", "Geçmiş")}</span>
+              {logTotal > 0 && <span className="text-xs text-slate-400">({logTotal} {t("table.perPage", "kayıt")})</span>}
             </div>
 
             {/* Server filter */}
@@ -1478,7 +1515,7 @@ export default function DeployPage() {
                   loadLogs(1, v);
                 }}
                 className="ml-auto text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                <option value="">Tüm Sunucular</option>
+                <option value="">{t("filter.all", "Tümü")}</option>
                 {servers.map(s => (
                   <option key={s.id} value={s.id}>{s.name} ({s.environment})</option>
                 ))}
@@ -1489,12 +1526,13 @@ export default function DeployPage() {
             {logs.some(l => l.status === "running") && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium animate-pulse">
                 <Loader2 size={12} className="animate-spin" />
-                Deploy aktif — otomatik yenileniyor
+                {t("status.running", "Çalışıyor")} — {t("action.refresh", "Yenile")}
               </span>
             )}
 
             <button onClick={() => loadLogs(logPage, filterServerId)}
-              className="text-slate-400 hover:text-slate-700 transition p-1.5 rounded-lg hover:bg-slate-100">
+              className="text-slate-400 hover:text-slate-700 transition p-1.5 rounded-lg hover:bg-slate-100"
+              title={t("action.refresh", "Yenile")}>
               <RefreshCw size={15} />
             </button>
           </div>
@@ -1505,7 +1543,7 @@ export default function DeployPage() {
           ) : logs.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <History size={32} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">{filterServerId ? "Bu sunucuda henüz deploy yapılmadı." : "Henüz deploy yapılmadı."}</p>
+              <p className="text-sm">{t("table.noData", "Kayıt bulunamadı")}</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -1539,12 +1577,12 @@ export default function DeployPage() {
                     </div>
                     {log.status === "running" ? (
                       <span className="shrink-0 text-xs text-amber-500 flex items-center gap-1 animate-pulse">
-                        <Loader2 size={11} className="animate-spin" /> Canlı
+                        <Loader2 size={11} className="animate-spin" /> {t("status.running", "Çalışıyor")}
                       </span>
                     ) : (
                       <button onClick={() => setFullLogId(log.id)}
                         className="shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition">
-                        <Terminal size={12} />Log
+                        <Terminal size={12} />{t("ui.viewLogs", "Logları Gör")}
                       </button>
                     )}
                   </div>
@@ -1557,7 +1595,7 @@ export default function DeployPage() {
           {logTotal > 0 && (
             <div className="flex items-center justify-between px-5 py-4 border-t bg-slate-50/50">
               <span className="text-xs text-slate-400">
-                Sayfa {logPage} / {Math.max(totalPages, 1)} · {logTotal} kayıt
+                {logPage} / {Math.max(totalPages, 1)} · {logTotal} {t("table.perPage", "kayıt")}
               </span>
               {totalPages > 1 && (
                 <div className="flex items-center gap-1">

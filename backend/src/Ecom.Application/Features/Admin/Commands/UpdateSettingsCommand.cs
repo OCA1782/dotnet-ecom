@@ -30,6 +30,14 @@ public class UpdateSettingsHandler(IApplicationDbContext db)
     {
         "FreeShippingLimit" or "DefaultShippingCost" => "Shipping",
         "MaintenanceMode" or "AdminMenuOrder" => "System",
+        "I18nJob:EnableAutoRun" or "I18nJob:AllowSourceMutation" or "I18nJob:AllowDocsWrite" or
+        "I18nJob:TriggerBuilderFromScanner" or "I18nJob:ProjectRoot" or "I18nJob:DocsPath" or
+        "I18nJob:ScheduleTimeZone" or "I18nJob:DictionaryBuilderWindowStart" or "I18nJob:DictionaryBuilderWindowEnd" or
+        "CustomerI18nJob:EnableAutoRun" or "CustomerI18nJob:AllowSourceMutation" or "CustomerI18nJob:AllowDocsWrite" or
+        "CustomerI18nJob:TriggerBuilderFromScanner" or "CustomerI18nJob:ProjectRoot" or "CustomerI18nJob:DocsPath" or
+        "CustomerI18nJob:ScheduleTimeZone" or "CustomerI18nJob:DictionaryBuilderWindowStart" or "CustomerI18nJob:DictionaryBuilderWindowEnd" or
+        "VerificationJob:ApiBaseUrl" or "VerificationJob:ProjectRoot" or "VerificationJob:LogFilePath" or
+        "AdminLintAudit:TodoPath" => "Jobs",
         "LogoUrl" or "FaviconUrl" or "AdminTitle" => "Appearance",
         "ContactEmail" or "ContactPhone" or "SocialInstagram" or "SocialTwitter" or "SocialFacebook" => "Contact",
         _ => "General",

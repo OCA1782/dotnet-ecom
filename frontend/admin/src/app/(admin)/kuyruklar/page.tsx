@@ -80,24 +80,24 @@ const MAX_HISTORY = 24;
 
 // ── Static data ────────────────────────────────────────────────────────────
 
-const EVENT_TYPES: Array<{
-  name: string; queue: string; desc: string;
+const EVENT_TYPES_STATIC: Array<{
+  name: string; queue: string; descKey: string; descFallback: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   color: string; bgColor: string; borderColor: string;
 }> = [
-  { name: "OrderCreated",       queue: "order-created",        desc: "Yeni sipariş oluşturulduğunda tetiklenir. E-posta bildirimi ve saga başlatır.",      icon: ShoppingCart,     color: "text-teal-700",    bgColor: "bg-teal-50",    borderColor: "border-teal-200" },
-  { name: "PaymentCompleted",   queue: "payment-completed",    desc: "Ödeme başarıyla tamamlandığında. Siparişi işleniyor durumuna alır.",                   icon: CreditCard,       color: "text-emerald-700", bgColor: "bg-emerald-50", borderColor: "border-emerald-200" },
-  { name: "OrderStatusChanged", queue: "order-status-changed", desc: "Sipariş durumu güncellendiğinde. Müşteriye bildirim gönderir.",                       icon: ArrowRightCircle, color: "text-blue-700",    bgColor: "bg-blue-50",    borderColor: "border-blue-200" },
-  { name: "OrderCancelled",     queue: "order-cancelled",      desc: "Sipariş iptal edildiğinde. Stoku geri iade eder, ödeme iadesini başlatır.",           icon: XCircle,          color: "text-amber-700",   bgColor: "bg-amber-50",   borderColor: "border-amber-200" },
-  { name: "StockAlert",         queue: "stock-alert",          desc: "Stok kritik eşiğin altına düştüğünde. Admin'e uyarı e-postası gönderir.",            icon: Package,          color: "text-red-700",     bgColor: "bg-red-50",     borderColor: "border-red-200" },
-  { name: "ReturnRequested",    queue: "return-requested",     desc: "İade talebi oluşturulduğunda. Admin onayı bekletir, e-posta bildirir.",               icon: RotateCcw,        color: "text-violet-700",  bgColor: "bg-violet-50",  borderColor: "border-violet-200" },
+  { name: "OrderCreated",       queue: "order-created",        descKey: "auto.eventDesc.orderCreated",       descFallback: "Yeni sipariş oluşturulduğunda tetiklenir. E-posta bildirimi ve saga başlatır.",      icon: ShoppingCart,     color: "text-teal-700",    bgColor: "bg-teal-50",    borderColor: "border-teal-200" },
+  { name: "PaymentCompleted",   queue: "payment-completed",    descKey: "auto.eventDesc.paymentCompleted",   descFallback: "Ödeme başarıyla tamamlandığında. Siparişi işleniyor durumuna alır.",                   icon: CreditCard,       color: "text-emerald-700", bgColor: "bg-emerald-50", borderColor: "border-emerald-200" },
+  { name: "OrderStatusChanged", queue: "order-status-changed", descKey: "auto.eventDesc.orderStatusChanged", descFallback: "Sipariş durumu güncellendiğinde. Müşteriye bildirim gönderir.",                       icon: ArrowRightCircle, color: "text-blue-700",    bgColor: "bg-blue-50",    borderColor: "border-blue-200" },
+  { name: "OrderCancelled",     queue: "order-cancelled",      descKey: "auto.eventDesc.orderCancelled",     descFallback: "Sipariş iptal edildiğinde. Stoku geri iade eder, ödeme iadesini başlatır.",           icon: XCircle,          color: "text-amber-700",   bgColor: "bg-amber-50",   borderColor: "border-amber-200" },
+  { name: "StockAlert",         queue: "stock-alert",          descKey: "auto.eventDesc.stockAlert",         descFallback: "Stok kritik eşiğin altına düştüğünde. Admin'e uyarı e-postası gönderir.",            icon: Package,          color: "text-red-700",     bgColor: "bg-red-50",     borderColor: "border-red-200" },
+  { name: "ReturnRequested",    queue: "return-requested",     descKey: "auto.eventDesc.returnRequested",    descFallback: "İade talebi oluşturulduğunda. Admin onayı bekletir, e-posta bildirir.",               icon: RotateCcw,        color: "text-violet-700",  bgColor: "bg-violet-50",  borderColor: "border-violet-200" },
 ];
 
-const CONSUMERS = [
-  { name: "OrderCreatedConsumer",       event: "OrderCreated",       desc: "Sipariş kaydı + stok düşürme + e-posta" },
-  { name: "PaymentCompletedConsumer",   event: "PaymentCompleted",   desc: "Sipariş statüsü güncelleme" },
-  { name: "OrderStatusChangedConsumer", event: "OrderStatusChanged", desc: "Müşteri bildirim e-postası" },
-  { name: "OrderProcessingSaga",        event: "Saga State Machine", desc: "Sipariş → Ödeme → Kargo → Teslim akışı" },
+const CONSUMERS_STATIC = [
+  { name: "OrderCreatedConsumer",       event: "OrderCreated",       descKey: "auto.consumerDesc.orderCreated",       descFallback: "Sipariş kaydı + stok düşürme + e-posta" },
+  { name: "PaymentCompletedConsumer",   event: "PaymentCompleted",   descKey: "auto.consumerDesc.paymentCompleted",   descFallback: "Sipariş statüsü güncelleme" },
+  { name: "OrderStatusChangedConsumer", event: "OrderStatusChanged", descKey: "auto.consumerDesc.orderStatusChanged", descFallback: "Müşteri bildirim e-postası" },
+  { name: "OrderProcessingSaga",        event: "Saga State Machine", descKey: "auto.consumerDesc.orderProcessingSaga",descFallback: "Sipariş → Ödeme → Kargo → Teslim akışı" },
 ];
 
 const SAGA_BADGE: Record<string, string> = {
@@ -113,13 +113,6 @@ const SAGA_BAR: Record<string, string> = {
   Shipped:           "bg-violet-400",
   Completed:         "bg-emerald-400",
   Cancelled:         "bg-red-400",
-};
-const SAGA_LABEL: Record<string, string> = {
-  WaitingForPayment: "Ödeme Bekleniyor",
-  Processing:        "İşleniyor",
-  Shipped:           "Kargoya Verildi",
-  Completed:         "Tamamlandı",
-  Cancelled:         "İptal Edildi",
 };
 
 // ── Helper components ──────────────────────────────────────────────────────
@@ -181,6 +174,18 @@ function FlowNode({ icon: Icon, label, sub, color }: {
 
 export default function KuyrukPage() {
   const { t } = useI18n();
+
+  const SAGA_LABEL: Record<string, string> = {
+    WaitingForPayment: t("auto.saga.waitingForPayment", "Ödeme Bekleniyor"),
+    Processing:        t("auto.saga.processing", "İşleniyor"),
+    Shipped:           t("auto.saga.shipped", "Kargoya Verildi"),
+    Completed:         t("auto.saga.completed", "Tamamlandı"),
+    Cancelled:         t("auto.saga.cancelled", "İptal Edildi"),
+  };
+
+  const EVENT_TYPES = EVENT_TYPES_STATIC.map(e => ({ ...e, desc: t(e.descKey, e.descFallback) }));
+  const CONSUMERS   = CONSUMERS_STATIC.map(c => ({ ...c, desc: t(c.descKey, c.descFallback) }));
+
   const [data, setData]             = useState<QueueData | null>(null);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -231,7 +236,16 @@ export default function KuyrukPage() {
     if (countdownRef.current) clearInterval(countdownRef.current);
   }
 
-  useEffect(() => { load(); startAuto(); return stopAuto; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void load();
+      startAuto();
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      stopAuto();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleRefresh() { stopAuto(); load(true).then(() => startAuto()); }
 
@@ -240,10 +254,10 @@ export default function KuyrukPage() {
     setActionResult(prev => { const n = { ...prev }; delete n[key]; return n; });
     try {
       const res = await fn();
-      setActionResult(prev => ({ ...prev, [key]: { ok: true, message: res?.message ?? "Başarılı" } }));
+      setActionResult(prev => ({ ...prev, [key]: { ok: true, message: res?.message ?? t("status.success", "Başarılı") } }));
       load(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Hata oluştu";
+      const msg = err instanceof Error ? err.message : t("msg.error", "Bir hata oluştu");
       setActionResult(prev => ({ ...prev, [key]: { ok: false, message: msg } }));
     } finally {
       setActionLoading(prev => ({ ...prev, [key]: false }));
@@ -278,12 +292,12 @@ export default function KuyrukPage() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./kuyruklar", "Kuyruk İzleme")}</h1>
-              <p className="text-teal-100 text-xs mt-0.5">Outbox mesajları, saga durumları ve event consumer&apos;ların anlık izlenmesi</p>
+              <p className="text-teal-100 text-xs mt-0.5">{t("auto.kuyrukSubtitle", "Outbox mesajları, saga durumları ve event consumer'ların anlık izlenmesi")}</p>
               {stats && (
                 <div className="flex items-center gap-3 mt-1.5 text-xs">
-                  <span className="text-emerald-200 font-semibold">{stats.processed.toLocaleString("tr-TR")} işlendi</span>
-                  {stats.pending > 0 && <span className="text-amber-200 font-semibold">{stats.pending} bekliyor</span>}
-                  {stats.failed  > 0 && <span className="text-red-200 font-semibold">{stats.failed} başarısız</span>}
+                  <span className="text-emerald-200 font-semibold">{stats.processed.toLocaleString("tr-TR")} {t("auto.islendi", "işlendi")}</span>
+                  {stats.pending > 0 && <span className="text-amber-200 font-semibold">{stats.pending} {t("auto.bekliyor", "bekliyor")}</span>}
+                  {stats.failed  > 0 && <span className="text-red-200 font-semibold">{stats.failed} {t("status.failed", "başarısız")}</span>}
                 </div>
               )}
             </div>
@@ -296,7 +310,7 @@ export default function KuyrukPage() {
             </div>
             <button onClick={handleRefresh} disabled={refreshing}
               className="flex items-center gap-2 bg-white text-teal-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-teal-50 transition shadow disabled:opacity-50">
-              <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Yenile
+              <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> {t("action.refresh", "Yenile")}
             </button>
           </div>
         </div>
@@ -307,9 +321,9 @@ export default function KuyrukPage() {
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
           <AlertOctagon size={20} className="text-red-500 shrink-0" />
           <div>
-            <p className="text-sm font-bold text-red-700">Başarısız mesajlar var</p>
+            <p className="text-sm font-bold text-red-700">{t("auto.basarisizMesajlarVar", "Başarısız mesajlar var")}</p>
             <p className="text-xs text-red-500 mt-0.5">
-              {stats?.failed} mesaj 5+ kez denendi ve işlenemedi. Aşağıdaki listeden inceleyip yeniden kuyruğa alabilirsiniz.
+              {stats?.failed} {t("auto.basarisizMesajAciklama", "mesaj 5+ kez denendi ve işlenemedi. Aşağıdaki listeden inceleyip yeniden kuyruğa alabilirsiniz.")}
             </p>
           </div>
         </div>
@@ -317,7 +331,7 @@ export default function KuyrukPage() {
       {hasPending && !hasFailed && (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
           <AlertTriangle size={20} className="text-amber-500 shrink-0" />
-          <p className="text-sm font-semibold text-amber-700">Yüksek bekleyen mesaj sayısı: {stats?.pending}. İşlem hızı düşük olabilir.</p>
+          <p className="text-sm font-semibold text-amber-700">{t("auto.yuksekBekleyenMesaj", "Yüksek bekleyen mesaj sayısı")}: {stats?.pending}. {t("auto.islemHiziDusuk", "İşlem hızı düşük olabilir.")}</p>
         </div>
       )}
 
@@ -333,23 +347,23 @@ export default function KuyrukPage() {
       ) : stats ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Bekleyen</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t("col.pending", "Bekleyen")}</p>
             <p className={`text-3xl font-extrabold ${stats.pending > 50 ? "text-amber-600" : "text-slate-900"}`}>
               {stats.pending.toLocaleString("tr-TR")}
             </p>
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><Clock size={11} /> İşlenmesini bekleyen</p>
+            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><Clock size={11} /> {t("auto.islenmesiBekleyen", "İşlenmesini bekleyen")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">İşlenen</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t("col.processed", "İşlenen")}</p>
             <p className="text-3xl font-extrabold text-emerald-600">{stats.processed.toLocaleString("tr-TR")}</p>
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><CheckCircle2 size={11} /> Başarıyla tamamlanan</p>
+            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><CheckCircle2 size={11} /> {t("auto.basariylaBasarilan", "Başarıyla tamamlanan")}</p>
           </div>
           <div className={`bg-white rounded-2xl border shadow-sm p-5 ${stats.failed > 0 ? "border-red-200" : "border-slate-200"}`}>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Başarısız</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t("col.failed", "Başarısız")}</p>
             <p className={`text-3xl font-extrabold ${stats.failed > 0 ? "text-red-600" : "text-slate-900"}`}>
               {stats.failed.toLocaleString("tr-TR")}
             </p>
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><XCircle size={11} /> DLQ&apos;ya taşınan</p>
+            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1"><XCircle size={11} /> {t("auto.dlqTasınan", "DLQ'ya taşınan")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Throughput</p>
@@ -367,7 +381,7 @@ export default function KuyrukPage() {
           {successRate && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-slate-600">Genel Başarı Oranı</p>
+                <p className="text-xs font-semibold text-slate-600">{t("auto.genelBasariOrani", "Genel Başarı Oranı")}</p>
                 <span className={`text-sm font-bold ${parseFloat(successRate) >= 95 ? "text-emerald-600" : parseFloat(successRate) >= 80 ? "text-amber-600" : "text-red-600"}`}>
                   %{successRate}
                 </span>
@@ -377,26 +391,26 @@ export default function KuyrukPage() {
                   style={{ width: `${successRate}%` }} />
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div><p className="text-slate-400">Toplam</p><p className="font-bold text-slate-700">{stats.total.toLocaleString("tr-TR")}</p></div>
-                <div><p className="text-slate-400">İşlendi</p><p className="font-bold text-emerald-600">{stats.processed.toLocaleString("tr-TR")}</p></div>
-                <div><p className="text-slate-400">Başarısız</p><p className={`font-bold ${stats.failed > 0 ? "text-red-600" : "text-slate-400"}`}>{stats.failed.toLocaleString("tr-TR")}</p></div>
+                <div><p className="text-slate-400">{t("auto.toplam", "Toplam")}</p><p className="font-bold text-slate-700">{stats.total.toLocaleString("tr-TR")}</p></div>
+                <div><p className="text-slate-400">{t("col.processed", "İşlendi")}</p><p className="font-bold text-emerald-600">{stats.processed.toLocaleString("tr-TR")}</p></div>
+                <div><p className="text-slate-400">{t("col.failed", "Başarısız")}</p><p className={`font-bold ${stats.failed > 0 ? "text-red-600" : "text-slate-400"}`}>{stats.failed.toLocaleString("tr-TR")}</p></div>
               </div>
             </div>
           )}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-semibold text-slate-600 mb-3">Kuyruk Tarihçesi (Son {history.length} ölçüm)</p>
+            <p className="text-xs font-semibold text-slate-600 mb-3">{t("auto.kuyrukTarihcesi", "Kuyruk Tarihçesi")} ({t("auto.son", "Son")} {history.length} {t("auto.olcum", "ölçüm")})</p>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-400 w-16 shrink-0">İşlenen</span>
+                <span className="text-[10px] text-slate-400 w-16 shrink-0">{t("col.processed", "İşlenen")}</span>
                 <Sparkline points={processedHist} color="#10b981" />
                 <span className="text-xs text-emerald-600 font-semibold tabular-nums">{stats.processed}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-400 w-16 shrink-0">Bekleyen</span>
+                <span className="text-[10px] text-slate-400 w-16 shrink-0">{t("col.pending", "Bekleyen")}</span>
                 <Sparkline points={pendingHist} color={stats.pending > 50 ? "#f59e0b" : "#94a3b8"} />
                 <span className={`text-xs font-semibold tabular-nums ${stats.pending > 50 ? "text-amber-600" : "text-slate-400"}`}>{stats.pending}</span>
               </div>
-              {history.length < 3 && <p className="text-[10px] text-slate-300 italic">Grafik için en az 3 ölçüm gerekiyor...</p>}
+              {history.length < 3 && <p className="text-[10px] text-slate-300 italic">{t("auto.grafikIcinOlcum", "Grafik için en az 3 ölçüm gerekiyor...")}</p>}
             </div>
           </div>
         </div>
@@ -407,7 +421,7 @@ export default function KuyrukPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <BarChart2 size={16} className="text-teal-600" />
-            <h2 className="text-sm font-semibold text-slate-700">Event Tipi Dağılımı</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.eventTipiDagilimi", "Event Tipi Dağılımı")}</h2>
             <span className="ml-auto text-xs text-slate-400 flex items-center gap-1">
               {lastRefresh && <><Clock size={11} /> {lastRefresh.toLocaleTimeString("tr-TR")}</>}
             </span>
@@ -415,39 +429,39 @@ export default function KuyrukPage() {
           <table className="w-full text-xs">
             <thead className="bg-slate-50">
               <tr>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Event Tipi</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500">Toplam</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500">İşlenen</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500">Bekleyen</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500">Başarısız</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500">Başarı</th>
-                <th className="text-right px-5 py-3 font-semibold text-slate-500 hidden md:table-cell">Son Aktivite</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t("auto.eventTipi", "Event Tipi")}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-500">{t("auto.toplam", "Toplam")}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-500">{t("col.processed", "İşlenen")}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-500">{t("col.pending", "Bekleyen")}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-500">{t("col.failed", "Başarısız")}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-500">{t("auto.basari", "Başarı")}</th>
+                <th className="text-right px-5 py-3 font-semibold text-slate-500 hidden md:table-cell">{t("auto.sonAktivite", "Son Aktivite")}</th>
               </tr>
             </thead>
             <tbody>
-              {data.byType.map(t => (
-                <tr key={t.shortName} className="border-t border-slate-100 hover:bg-slate-50 transition">
+              {data.byType.map(row => (
+                <tr key={row.shortName} className="border-t border-slate-100 hover:bg-slate-50 transition">
                   <td className="px-5 py-3">
-                    <span className="font-mono font-bold text-slate-800">{t.shortName}</span>
+                    <span className="font-mono font-bold text-slate-800">{row.shortName}</span>
                     <div className="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden w-28">
                       <div className="h-full rounded-full bg-emerald-400 transition-all duration-700"
-                        style={{ width: `${t.total > 0 ? (t.processed / t.total) * 100 : 0}%` }} />
+                        style={{ width: `${row.total > 0 ? (row.processed / row.total) * 100 : 0}%` }} />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500 font-medium tabular-nums">{t.total.toLocaleString("tr-TR")}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-emerald-600 tabular-nums">{t.processed.toLocaleString("tr-TR")}</td>
+                  <td className="px-4 py-3 text-right text-slate-500 font-medium tabular-nums">{row.total.toLocaleString("tr-TR")}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-emerald-600 tabular-nums">{row.processed.toLocaleString("tr-TR")}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    <span className={`font-semibold ${t.pending > 0 ? "text-amber-600" : "text-slate-400"}`}>{t.pending.toLocaleString("tr-TR")}</span>
+                    <span className={`font-semibold ${row.pending > 0 ? "text-amber-600" : "text-slate-400"}`}>{row.pending.toLocaleString("tr-TR")}</span>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    <span className={`font-semibold ${t.failed > 0 ? "text-red-600" : "text-slate-400"}`}>{t.failed.toLocaleString("tr-TR")}</span>
+                    <span className={`font-semibold ${row.failed > 0 ? "text-red-600" : "text-slate-400"}`}>{row.failed.toLocaleString("tr-TR")}</span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className={`font-bold ${t.successRate >= 95 ? "text-emerald-600" : t.successRate >= 80 ? "text-amber-600" : t.total === 0 ? "text-slate-400" : "text-red-600"}`}>
-                      {t.total > 0 ? `%${t.successRate}` : "—"}
+                    <span className={`font-bold ${row.successRate >= 95 ? "text-emerald-600" : row.successRate >= 80 ? "text-amber-600" : row.total === 0 ? "text-slate-400" : "text-red-600"}`}>
+                      {row.total > 0 ? `%${row.successRate}` : "—"}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-right text-[11px] text-slate-400 hidden md:table-cell">{fmtDate(t.lastActivity)}</td>
+                  <td className="px-5 py-3 text-right text-[11px] text-slate-400 hidden md:table-cell">{fmtDate(row.lastActivity)}</td>
                 </tr>
               ))}
             </tbody>
@@ -460,8 +474,8 @@ export default function KuyrukPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <GitBranch size={16} className="text-violet-500" />
-            <h2 className="text-sm font-semibold text-slate-700">Sipariş Saga Durumları</h2>
-            <span className="ml-auto text-xs text-slate-400">{data.totalSagas.toLocaleString("tr-TR")} toplam saga</span>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.siparisSagaDurumlari", "Sipariş Saga Durumları")}</h2>
+            <span className="ml-auto text-xs text-slate-400">{data.totalSagas.toLocaleString("tr-TR")} {t("auto.toplamSaga", "toplam saga")}</span>
           </div>
           <div className="px-5 py-4 space-y-3">
             {data.sagaStates.map(s => (
@@ -486,9 +500,9 @@ export default function KuyrukPage() {
         <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${hasFailed ? "border-red-200" : "border-slate-200"}`}>
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 flex-wrap">
             <AlertOctagon size={16} className={hasFailed ? "text-red-500" : "text-slate-300"} />
-            <h2 className="text-sm font-semibold text-slate-700">Başarısız Mesajlar</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.basarisizMesajlar", "Başarısız Mesajlar")}</h2>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${hasFailed ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-400"}`}>
-              {data.recentFailed.length} gösteriliyor (max 20)
+              {data.recentFailed.length} {t("auto.gosteriliyor", "gösteriliyor")} (max 20)
             </span>
             <div className="ml-auto flex items-center gap-2 flex-wrap">
               {["retry-all","delete-all"].map(k => actionResult[k] && (
@@ -503,14 +517,14 @@ export default function KuyrukPage() {
                     disabled={actionLoading["retry-all"]}
                     className="flex items-center gap-1.5 text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition disabled:opacity-50">
                     {actionLoading["retry-all"] ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
-                    Tümünü Yeniden Dene
+                    {t("auto.tumunuYenidenDene", "Tümünü Yeniden Dene")}
                   </button>
                   <button
                     onClick={() => runAction("delete-all", () => api.delete<{ message: string }>("/api/admin/queues/failed"))}
                     disabled={actionLoading["delete-all"]}
                     className="flex items-center gap-1.5 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition disabled:opacity-50">
                     {actionLoading["delete-all"] ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                    Tümünü Sil
+                    {t("action.delete", "Sil")} {t("auto.tumunu", "Tümünü")}
                   </button>
                 </>
               )}
@@ -519,17 +533,17 @@ export default function KuyrukPage() {
           {data.recentFailed.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 size={24} className="text-emerald-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-400">Başarısız mesaj yok.</p>
+              <p className="text-sm text-slate-400">{t("auto.basarisizMesajYok", "Başarısız mesaj yok.")}</p>
             </div>
           ) : (
             <table className="w-full text-xs">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="text-left px-5 py-3 font-semibold text-slate-500">Event Tipi</th>
-                  <th className="text-center px-4 py-3 font-semibold text-slate-500">Deneme</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-500 hidden md:table-cell">Hata</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-500 hidden md:table-cell">Tarih</th>
-                  <th className="text-right px-5 py-3 font-semibold text-slate-500">İşlem</th>
+                  <th className="text-left px-5 py-3 font-semibold text-slate-500">{t("auto.eventTipi", "Event Tipi")}</th>
+                  <th className="text-center px-4 py-3 font-semibold text-slate-500">{t("auto.deneme", "Deneme")}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-500 hidden md:table-cell">{t("col.error", "Hata")}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-500 hidden md:table-cell">{t("col.date", "Tarih")}</th>
+                  <th className="text-right px-5 py-3 font-semibold text-slate-500">{t("col.action", "Aksiyon")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -562,20 +576,20 @@ export default function KuyrukPage() {
                           )}
                           {actionResult[dk] && (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${actionResult[dk].ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                              {actionResult[dk].ok ? "Silindi" : "✗"}
+                              {actionResult[dk].ok ? t("msg.deleted", "Başarıyla silindi").split(" ")[0] : "✗"}
                             </span>
                           )}
                           <button
                             onClick={() => runAction(rk, () => api.post<{ message: string }>(`/api/admin/queues/messages/${m.Id}/retry`))}
                             disabled={actionLoading[rk] || actionLoading[dk]}
-                            title="Yeniden dene"
+                            title={t("action.retry", "Tekrar Dene")}
                             className="p-1.5 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition disabled:opacity-50">
                             {actionLoading[rk] ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
                           </button>
                           <button
                             onClick={() => runAction(dk, () => api.delete<{ message: string }>(`/api/admin/queues/messages/${m.Id}`))}
                             disabled={actionLoading[rk] || actionLoading[dk]}
-                            title="Sil"
+                            title={t("action.delete", "Sil")}
                             className="p-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
                             {actionLoading[dk] ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                           </button>
@@ -595,9 +609,9 @@ export default function KuyrukPage() {
         <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            <h2 className="text-sm font-semibold text-slate-700">Bekleyen Mesajlar</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.bekleyenMesajlar", "Bekleyen Mesajlar")}</h2>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 ml-1">
-              {data.recentPending.length} önizleme · en eski önce
+              {data.recentPending.length} {t("auto.onizleme", "önizleme")} · {t("auto.enEskiOnce", "en eski önce")}
             </span>
           </div>
           <div className="divide-y divide-slate-100">
@@ -606,7 +620,7 @@ export default function KuyrukPage() {
                 <Clock size={11} className="text-amber-400 shrink-0" />
                 <span className="font-mono text-xs font-bold text-slate-700 w-36 shrink-0">{m.ShortType}</span>
                 <span className="text-[10px] text-slate-400 font-mono">{m.Id.substring(0,8)}…</span>
-                <span className="ml-auto text-[10px] text-slate-400">{m.RetryCount > 0 ? `${m.RetryCount} deneme` : "Yeni"}</span>
+                <span className="ml-auto text-[10px] text-slate-400">{m.RetryCount > 0 ? `${m.RetryCount} ${t("auto.deneme", "deneme")}` : t("auto.yeni", "Yeni")}</span>
                 <span className="text-[10px] text-slate-400">{fmtDate(m.CreatedAt)}</span>
               </div>
             ))}
@@ -619,20 +633,20 @@ export default function KuyrukPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <Ban size={16} className="text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-700">İptal Edilenler</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.iptalEdilenler", "İptal Edilenler")}</h2>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 ml-1">
-              {data.cancelledCount.toLocaleString("tr-TR")} toplam · son 20
+              {data.cancelledCount.toLocaleString("tr-TR")} {t("auto.toplam", "toplam")} · {t("auto.son20", "son 20")}
             </span>
           </div>
           {data.cancelledJobs.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 size={24} className="text-slate-200 mx-auto mb-2" />
-              <p className="text-sm text-slate-400">İptal edilen işlem yok.</p>
+              <p className="text-sm text-slate-400">{t("auto.iptalEdilenIslemYok", "İptal edilen işlem yok.")}</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {data.cancelledJobs.map(j => {
-                const targetLabel: Record<string, string> = { Product: "Ürünler", Category: "Kategoriler", Brand: "Markalar", Stock: "Stok" };
+                const targetLabel: Record<string, string> = { Product: t("auto.target.product", "Ürünler"), Category: t("auto.target.category", "Kategoriler"), Brand: t("auto.target.brand", "Markalar"), Stock: t("auto.target.stock", "Stok") };
                 const byUser = j.errorMessage === "Kullanıcı tarafından iptal edildi.";
                 const byDelete = j.errorMessage === "Kaynak silindi.";
                 const progress = j.totalRows > 0 ? Math.round((j.processedRows / j.totalRows) * 100) : 0;
@@ -650,12 +664,12 @@ export default function KuyrukPage() {
                           byDelete ? "bg-red-50 text-red-500 border border-red-200" :
                                      "bg-slate-50 text-slate-400 border border-slate-200"
                         }`}>
-                          {byUser ? "Kullanıcı iptali" : byDelete ? "Kaynak silindi" : "İptal"}
+                          {byUser ? t("auto.kullaniciIptali", "Kullanıcı iptali") : byDelete ? t("auto.kaynakSilindi", "Kaynak silindi") : t("status.cancelled", "İptal Edildi")}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-[11px] text-slate-400">
-                      <span className="tabular-nums">{j.processedRows.toLocaleString("tr-TR")} / {j.totalRows.toLocaleString("tr-TR")} satır</span>
+                      <span className="tabular-nums">{j.processedRows.toLocaleString("tr-TR")} / {j.totalRows.toLocaleString("tr-TR")} {t("auto.satir", "satır")}</span>
                       <span className="font-semibold text-slate-500">%{progress}</span>
                       <span>{fmtDate(j.completedAt)}</span>
                     </div>
@@ -671,27 +685,27 @@ export default function KuyrukPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
           <Layers size={16} className="text-teal-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Mesaj Akışı</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("auto.mesajAkisi", "Mesaj Akışı")}</h2>
         </div>
         <div className="px-5 py-5">
           <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-2">
-            <FlowNode icon={Zap}          label="Event Üretilir" sub="Domain event"        color="slate"   />
+            <FlowNode icon={Zap}          label={t("auto.flow.eventUretilir", "Event Üretilir")} sub="Domain event"        color="slate"   />
             <ArrowRight size={14} className="text-slate-300 shrink-0" />
-            <FlowNode icon={Database}     label="Outbox DB"     sub="Önce DB'ye yaz"      color="teal"    />
+            <FlowNode icon={Database}     label="Outbox DB"     sub={t("auto.flow.onceDbYaz", "Önce DB'ye yaz")}      color="teal"    />
             <ArrowRight size={14} className="text-slate-300 shrink-0" />
-            <FlowNode icon={Server}       label="MassTransit"   sub="RabbitMQ'ya publish" color="violet"  />
+            <FlowNode icon={Server}       label="MassTransit"   sub={t("auto.flow.rabbitmqPublish", "RabbitMQ'ya publish")} color="violet"  />
             <ArrowRight size={14} className="text-slate-300 shrink-0" />
-            <FlowNode icon={Cpu}          label="Consumer"      sub="Handler çalışır"     color="emerald" />
+            <FlowNode icon={Cpu}          label="Consumer"      sub={t("auto.flow.handlerCalisir", "Handler çalışır")}     color="emerald" />
             <ArrowRight size={14} className="text-slate-300 shrink-0" />
-            <FlowNode icon={CheckCircle2} label="Tamamlandı"    sub="Processed=true"      color="emerald" />
+            <FlowNode icon={CheckCircle2} label={t("status.completed", "Tamamlandı")}    sub="Processed=true"      color="emerald" />
           </div>
           <div className="flex items-center gap-1.5 mt-3 pl-[84px]">
-            <span className="text-xs text-slate-300 flex items-center gap-1"><ChevronRight size={11} />5+ hata</span>
+            <span className="text-xs text-slate-300 flex items-center gap-1"><ChevronRight size={11} />5+ {t("auto.hata", "hata")}</span>
             <ArrowRight size={12} className="text-red-300 ml-1" />
-            <FlowNode icon={AlertOctagon} label="DLQ" sub="Manuel inceleme" color="red" />
+            <FlowNode icon={AlertOctagon} label="DLQ" sub={t("auto.flow.manuelInceleme", "Manuel inceleme")} color="red" />
           </div>
           <p className="mt-3 text-[11px] text-slate-400">
-            Outbox pattern garantisi: event önce veritabanına yazılır; broker geçici olarak kapansa bile yeniden publish edilir.
+            {t("auto.outboxGaranti", "Outbox pattern garantisi: event önce veritabanına yazılır; broker geçici olarak kapansa bile yeniden publish edilir.")}
           </p>
         </div>
       </div>
@@ -700,13 +714,13 @@ export default function KuyrukPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
           <Zap size={16} className="text-violet-500" />
-          <h2 className="text-sm font-semibold text-slate-700">Tanımlı Event Tipleri</h2>
-          <span className="ml-auto text-xs text-slate-400">{EVENT_TYPES.length} event tipi</span>
+          <h2 className="text-sm font-semibold text-slate-700">{t("auto.tanimliEventTipleri", "Tanımlı Event Tipleri")}</h2>
+          <span className="ml-auto text-xs text-slate-400">{EVENT_TYPES.length} {t("auto.eventTipi", "event tipi")}</span>
         </div>
         <div className="divide-y divide-slate-100">
           {EVENT_TYPES.map(evt => {
             const Icon = evt.icon;
-            const live = data?.byType.find(t => t.shortName === evt.name);
+            const live = data?.byType.find(row => row.shortName === evt.name);
             return (
               <div key={evt.name} className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 transition">
                 <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${evt.bgColor} ${evt.borderColor}`}>
@@ -719,7 +733,7 @@ export default function KuyrukPage() {
                       {evt.queue}
                     </span>
                     {live && live.total > 0 && (
-                      <span className="text-[10px] text-slate-400">{live.total} mesaj · %{live.successRate} başarı</span>
+                      <span className="text-[10px] text-slate-400">{live.total} {t("auto.mesaj", "mesaj")} · %{live.successRate} {t("auto.basari", "başarı")}</span>
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{evt.desc}</p>
@@ -734,7 +748,7 @@ export default function KuyrukPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
           <Cpu size={16} className="text-emerald-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Tanımlı Consumer&apos;lar</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("auto.tanimliConsumerlar", "Tanımlı Consumer'lar")}</h2>
           <span className="ml-auto text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
             {CONSUMERS.length} consumer
           </span>
@@ -744,7 +758,7 @@ export default function KuyrukPage() {
             <tr>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">Consumer</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">Event / Tip</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 hidden md:table-cell">Görev</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 hidden md:table-cell">{t("auto.gorev", "Görev")}</th>
             </tr>
           </thead>
           <tbody>
@@ -775,15 +789,15 @@ export default function KuyrukPage() {
             <AlertOctagon size={16} className={hasFailed ? "text-red-500" : "text-slate-300"} />
             <h3 className="text-sm font-semibold text-slate-700">Dead Letter Queue</h3>
             <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${hasFailed ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>
-              {stats?.failed ?? 0} mesaj
+              {stats?.failed ?? 0} {t("auto.mesaj", "mesaj")}
             </span>
           </div>
           <div className="space-y-2">
             {[
-              ["Max Deneme",      `${data?.outboxProcessor.maxRetries ?? 5} kez`],
-              ["Batch Boyutu",    `${data?.outboxProcessor.batchSize ?? 20} mesaj`],
-              ["Kontrol Aralığı", `${data?.outboxProcessor.intervalSecs ?? 10}s`],
-              ["Yeniden Gönder",  "Manuel / Admin"],
+              [t("auto.dlq.maxDeneme", "Max Deneme"),      `${data?.outboxProcessor.maxRetries ?? 5} ${t("auto.kez", "kez")}`],
+              [t("auto.dlq.batchBoyutu", "Batch Boyutu"),  `${data?.outboxProcessor.batchSize ?? 20} ${t("auto.mesaj", "mesaj")}`],
+              [t("auto.dlq.kontrolAraligi", "Kontrol Aralığı"), `${data?.outboxProcessor.intervalSecs ?? 10}s`],
+              [t("auto.dlq.yenidenGonder", "Yeniden Gönder"), "Manuel / Admin"],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
                 <span className="text-xs text-slate-400">{k}</span>
@@ -793,7 +807,7 @@ export default function KuyrukPage() {
           </div>
           {hasFailed && (
             <div className="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-              <strong>{stats?.failed}</strong> mesaj DLQ&apos;da. Yukarıdaki listeden inceleyip yeniden kuyruğa alabilirsiniz.
+              <strong>{stats?.failed}</strong> {t("auto.dlqUyari", "mesaj DLQ'da. Yukarıdaki listeden inceleyip yeniden kuyruğa alabilirsiniz.")}
             </div>
           )}
         </div>
@@ -801,17 +815,17 @@ export default function KuyrukPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <Server size={16} className="text-teal-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Mesaj Broker</h3>
+            <h3 className="text-sm font-semibold text-slate-700">{t("auto.mesajBroker", "Mesaj Broker")}</h3>
             {data?.broker && (
               <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${data.broker.isConfigured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                {data.broker.isConfigured ? "Yapılandırıldı" : "Varsayılan"}
+                {data.broker.isConfigured ? t("auto.yapilandirildi", "Yapılandırıldı") : t("auto.varsayilan", "Varsayılan")}
               </span>
             )}
           </div>
           {data?.broker ? (
             <div className="space-y-2">
               {[
-                [<Zap key="z" size={11} />,        "Sağlayıcı",    data.broker.provider],
+                [<Zap key="z" size={11} />,        t("auto.broker.saglayici", "Sağlayıcı"),    data.broker.provider],
                 [<Server key="s" size={11} />,     "Host",         data.broker.host],
                 [<Hash key="h" size={11} />,       "Port",         data.broker.port],
                 [<GitBranch key="g" size={11} />,  "Virtual Host", data.broker.virtualHost],
@@ -822,20 +836,20 @@ export default function KuyrukPage() {
                 </div>
               ))}
             </div>
-          ) : <p className="text-xs text-slate-400">Yükleniyor...</p>}
+          ) : <p className="text-xs text-slate-400">{t("action.loading", "Yükleniyor...")}</p>}
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <Database size={16} className="text-violet-500" />
-            <h3 className="text-sm font-semibold text-slate-700">Outbox Tablosu</h3>
+            <h3 className="text-sm font-semibold text-slate-700">{t("auto.outboxTablosu", "Outbox Tablosu")}</h3>
           </div>
           <div className="space-y-2">
             {[
-              [<Package key="p" size={11} />,          "Tablo",        "OutboxMessages"],
+              [<Package key="p" size={11} />,          t("auto.outbox.tablo", "Tablo"),         "OutboxMessages"],
               [<Info key="i" size={11} />,              "Pattern",      "Transactional Outbox"],
-              [<ArrowRightCircle key="a" size={11} />,  "Max Deneme",   `${data?.outboxProcessor.maxRetries ?? 5} kez`],
-              [<Zap key="z" size={11} />,               "Event Tipleri", `${EVENT_TYPES.length} tip tanımlı`],
+              [<ArrowRightCircle key="a" size={11} />,  t("auto.dlq.maxDeneme", "Max Deneme"),  `${data?.outboxProcessor.maxRetries ?? 5} ${t("auto.kez", "kez")}`],
+              [<Zap key="z" size={11} />,               t("auto.eventTipleri", "Event Tipleri"), `${EVENT_TYPES.length} ${t("auto.tipTanimli", "tip tanımlı")}`],
             ].map(([icon, label, val]) => (
               <div key={String(label)} className="flex justify-between py-1.5 border-b border-slate-50 last:border-0">
                 <span className="text-xs text-slate-400 flex items-center gap-1.5">{icon}{label}</span>
@@ -848,7 +862,7 @@ export default function KuyrukPage() {
 
       <p className="text-xs text-slate-400 text-center flex items-center justify-center gap-1.5">
         <Radio size={11} className="text-teal-400" />
-        Her {REFRESH_INTERVAL}s otomatik güncelleme · Outbox processor her {data?.outboxProcessor.intervalSecs ?? 10}s&apos;de kontrol eder
+        {t("auto.otomatikGuncelleme", "Her")} {REFRESH_INTERVAL}s {t("auto.otomatikGuncellemeDevam", "otomatik güncelleme")} · Outbox processor {t("auto.her", "her")} {data?.outboxProcessor.intervalSecs ?? 10}s&apos;{t("auto.deKontrolEder", "de kontrol eder")}
       </p>
 
     </div>

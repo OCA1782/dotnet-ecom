@@ -18,12 +18,19 @@ public class JwtService(IConfiguration configuration, LicenseJwtKey licenseKey) 
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new("userId", user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.GivenName, user.Name),
             new(ClaimTypes.Surname, user.Surname)
         };
 
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(roles.Select(role => new Claim("role", role)));
+
+        if (roles.Any(role => role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase)))
+        {
+            claims.Add(new Claim("isSuperAdmin", "true"));
+        }
 
         var expireMinutes = int.Parse(configuration["Jwt:ExpireMinutes"] ?? "60");
         var token = new JwtSecurityToken(

@@ -75,6 +75,11 @@ const PAGE_SIZES = [20, 50, 100];
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
+
 export default function UsersPage() {
   const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -110,11 +115,6 @@ export default function UsersPage() {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
     setPage(1);
-  }
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
   }
 
   const isSuperAdmin = (() => {
@@ -163,11 +163,14 @@ export default function UsersPage() {
     finally { setLoading(false); }
   }, [page, pageSize, search, sortField, sortDir]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchUsers(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchUsers]);
 
   async function handleCreate() {
     if (!form.name || !form.surname || !form.email || !form.password) {
-      setFormError("Tüm alanlar zorunludur."); return;
+      setFormError(t("form.allFieldsRequired", "Tüm alanlar zorunludur.")); return;
     }
     setSaving(true); setFormError("");
     try {
@@ -180,7 +183,7 @@ export default function UsersPage() {
         phone: form.phone || null,
         avatarUrl: form.avatarUrl || null,
       });
-      setMsg({ text: "Kullanıcı oluşturuldu.", ok: true });
+      setMsg({ text: t("msg.userCreated", "Kullanıcı oluşturuldu."), ok: true });
       setShowModal(false); setForm(EMPTY_USER);
       await fetchUsers();
     } catch (e: unknown) { setFormError(e instanceof Error ? e.message : "Hata"); }
@@ -194,8 +197,8 @@ export default function UsersPage() {
   }
 
   async function handleEdit() {
-    if (!editForm.name || !editForm.surname) { setEditError("Ad ve soyad zorunludur."); return; }
-    if (!editForm.email) { setEditError("E-posta zorunludur."); return; }
+    if (!editForm.name || !editForm.surname) { setEditError(t("form.nameRequired", "Ad ve soyad zorunludur.")); return; }
+    if (!editForm.email) { setEditError(t("form.emailRequired", "E-posta zorunludur.")); return; }
     setEditSaving(true); setEditError("");
     try {
       await api.put(`/api/admin/users/${editForm.id}`, {
@@ -211,7 +214,7 @@ export default function UsersPage() {
       window.dispatchEvent(new CustomEvent("ecom:avatar-changed", {
         detail: { userId: editForm.id, avatarUrl: editForm.profileImageUrl || undefined },
       }));
-      setMsg({ text: "Kullanıcı güncellendi.", ok: true });
+      setMsg({ text: t("msg.userUpdated", "Kullanıcı güncellendi."), ok: true });
       setEditModal(false);
       await fetchUsers();
     } catch (e: unknown) { setEditError(e instanceof Error ? e.message : "Hata"); }
@@ -222,7 +225,7 @@ export default function UsersPage() {
     const endpoint = u.isActive ? "deactivate" : "activate";
     try {
       await api.patch(`/api/admin/users/${u.id}/${endpoint}`, {});
-      setMsg({ text: `Kullanıcı ${u.isActive ? "pasife alındı" : "aktive edildi"}.`, ok: true });
+      setMsg({ text: u.isActive ? t("msg.userDeactivated", "Kullanıcı pasife alındı.") : t("msg.userActivated", "Kullanıcı aktive edildi."), ok: true });
       await fetchUsers();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
@@ -234,7 +237,7 @@ export default function UsersPage() {
     setDeleting(true);
     try {
       await api.delete(`/api/admin/users/${deleteTarget.id}`);
-      setMsg({ text: "Kullanıcı silindi.", ok: true });
+      setMsg({ text: t("msg.userDeleted", "Kullanıcı silindi."), ok: true });
       setDeleteTarget(null);
       await fetchUsers();
     } catch (e: unknown) {
@@ -250,11 +253,11 @@ export default function UsersPage() {
   }
 
   async function handleUpdateRoles() {
-    if (!rolesTarget || selectedRoles.length === 0) { setRolesError("En az bir rol seçin."); return; }
+    if (!rolesTarget || selectedRoles.length === 0) { setRolesError(t("form.atLeastOneRole", "En az bir rol seçin.")); return; }
     setRolesSaving(true); setRolesError("");
     try {
       await api.put(`/api/admin/users/${rolesTarget.id}/roles`, { roles: selectedRoles });
-      setMsg({ text: "Roller güncellendi.", ok: true });
+      setMsg({ text: t("msg.rolesUpdated", "Roller güncellendi."), ok: true });
       setRolesTarget(null);
       await fetchUsers();
     } catch (e: unknown) { setRolesError(e instanceof Error ? e.message : "Hata"); }
@@ -266,7 +269,7 @@ export default function UsersPage() {
       users.map(u => ({
         "Ad": u.name, "Soyad": u.surname, "E-posta": u.email,
         "Cep Telefonu": u.phoneNumber ?? "",
-        "Roller": u.roles?.join(", ") ?? "", "Durum": u.isActive ? "Aktif" : "Pasif",
+        "Roller": u.roles?.join(", ") ?? "", "Durum": u.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif"),
         "Kayıt Tarihi": formatDate(u.createdDate),
       })),
       "kullanicilar", "Kullanıcılar"
@@ -291,7 +294,7 @@ export default function UsersPage() {
       }
       setImportResult(`${ok} kayıt eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
       await fetchUsers();
-    } catch { setImportResult("Dosya okunamadı."); }
+    } catch { setImportResult(t("msg.fileReadFailed", "Dosya okunamadı.")); }
     finally { setImporting(false); e.target.value = ""; }
   }
 
@@ -304,18 +307,18 @@ export default function UsersPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ad", "Soyad", "E-posta", "Şifre", "Rol"], "kullanicilar")}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">{t("action.downloadTemplate", "Şablon İndir")}</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel'e Aktar
+            <Download size={14} /> {t("action.exportExcel", "Excel'e Aktar")}
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
-            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <Upload size={14} /> {importing ? t("action.importing", "Aktarılıyor...") : t("action.importFile", "İçe Aktar")}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
           <button onClick={() => { setForm(EMPTY_USER); setFormError(""); setShowModal(true); }}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-            <Plus size={15} /> Yeni Kullanıcı
+            <Plus size={15} /> {t("ui.newUser", "Yeni Kullanıcı")}
           </button>
         </div>
       </div>
@@ -336,16 +339,16 @@ export default function UsersPage() {
           <div className="relative">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-              placeholder="Ad, soyad veya e-posta..."
+              placeholder={t("ui.searchUsers", "Ad, soyad veya e-posta...")}
               className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-64 text-slate-900 bg-white" />
           </div>
-          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+          <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
           {search && <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>}
+            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>}
         </form>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
         </select>
       </div>
 
@@ -354,22 +357,22 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kullanıcı</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">E-posta</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Cep Telefonu</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Roller</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kayıt Tarihi <SortIcon field="createdDate" /></button></th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.user", "Kullanıcı")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.email", "E-posta")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.phone", "Cep Telefonu")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.roles", "Roller")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.registeredAt", "Kayıt Tarihi")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.createdBy", "Oluşturan")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">Kullanıcı bulunamadı</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
                   <td className="px-5 py-3.5">
@@ -417,7 +420,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${u.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                      {u.isActive ? "Aktif" : "Pasif"}
+                      {u.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{formatDate(u.createdDate)}</td>
@@ -429,23 +432,23 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
-                      <button onClick={() => openHistory(u)} title="Geçmiş"
+                      <button onClick={() => openHistory(u)} title={t("tab.history", "Geçmiş")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <History size={16} />
                       </button>
-                      <button onClick={() => openRoles(u)} title="Rolleri Düzenle"
+                      <button onClick={() => openRoles(u)} title={t("ui.roleManagement", "Rolleri Düzenle")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-violet-50 text-violet-600 hover:bg-violet-500 hover:text-white shadow-sm hover:shadow-violet-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <ShieldCheck size={16} />
                       </button>
-                      <button onClick={() => openEdit(u)} title="Düzenle"
+                      <button onClick={() => openEdit(u)} title={t("action.edit", "Düzenle")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleToggleActive(u)} title={u.isActive ? "Pasife Çek" : "Aktive Et"}
+                      <button onClick={() => handleToggleActive(u)} title={u.isActive ? t("action.deactivate", "Deaktive Et") : t("action.activate", "Aktifleştir")}
                         className={`w-9 h-9 flex items-center justify-center rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${u.isActive ? "bg-green-50 text-green-600 hover:bg-green-500 hover:text-white hover:shadow-green-200 hover:shadow-md" : "bg-slate-100 text-slate-500 hover:bg-emerald-500 hover:text-white hover:shadow-emerald-200 hover:shadow-md"}`}>
                         {u.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                       </button>
-                      <button onClick={() => setDeleteTarget(u)} title="Sil"
+                      <button onClick={() => setDeleteTarget(u)} title={t("action.delete", "Sil")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Trash2 size={16} />
                       </button>
@@ -460,9 +463,9 @@ export default function UsersPage() {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">← Önceki</button>}
+          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.prev", "← Önceki")}</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">Sonraki →</button>}
+          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 text-slate-700">{t("table.next", "Sonraki →")}</button>}
         </div>
       )}
 
@@ -473,7 +476,7 @@ export default function UsersPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <div>
                 <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                  <History size={16} className="text-amber-500" /> Kullanıcı Geçmişi
+                  <History size={16} className="text-amber-500" /> {t("ui.userHistory", "Kullanıcı Geçmişi")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">{historyTarget.name} {historyTarget.surname} — {historyTarget.email}</p>
               </div>
@@ -481,14 +484,14 @@ export default function UsersPage() {
             </div>
             <div className="overflow-y-auto flex-1">
               {historyLoading ? (
-                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
               ) : historyLogs.length === 0 ? (
                 <p className="p-8 text-center text-slate-400">Bu kullanıcıya ait hareket kaydı bulunamadı.</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                     <tr>
-                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                      {["Tarih", "İşlemi Yapan", "Aksiyon", t("action.details", "Detay")].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                       ))}
                     </tr>
@@ -521,7 +524,7 @@ export default function UsersPage() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
-              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.close", "Kapat")}</button>
             </div>
           </div>
         </div>
@@ -532,7 +535,7 @@ export default function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-lg"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-              <h2 className="font-bold text-slate-800">Yeni Kullanıcı</h2>
+              <h2 className="font-bold text-slate-800">{t("ui.newUser", "Yeni Kullanıcı")}</h2>
               <div className="flex items-center gap-2">
                 <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
                 <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
@@ -549,44 +552,44 @@ export default function UsersPage() {
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.name", "Ad")} *</label>
                     <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.surname", "Soyad")} *</label>
                     <input className={INPUT} value={form.surname} onChange={e => setForm(f => ({ ...f, surname: e.target.value }))} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.email", "E-posta")} *</label>
                   <input type="email" className={INPUT} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Şifre *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.password", "Şifre")} *</label>
                     <input type="password" className={INPUT} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.phone", "Cep Telefonu")}</label>
                     <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.roles", "Roller")} *</label>
                   <select className={INPUT} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                    <optgroup label="── Yönetici Rolleri">
+                    <optgroup label={t("ui.adminRoles", "── Yönetici Rolleri")}>
                       {ADMIN_ROLES.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                     </optgroup>
-                    <optgroup label="── Müşteri">
+                    <optgroup label={t("ui.customerRole", "── Müşteri")}>
                       <option value="Customer">Müşteri</option>
                     </optgroup>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                  <button onClick={() => setShowModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                  <button onClick={() => setShowModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                   <button onClick={handleCreate} disabled={saving}
                     className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                    {saving ? "Kaydediliyor..." : "Oluştur"}
+                    {saving ? t("action.saving", "Kaydediliyor...") : t("action.create", "Oluştur")}
                   </button>
                 </div>
               </div>
@@ -608,16 +611,16 @@ export default function UsersPage() {
                   <Trash2 size={18} className="text-red-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-800">Kullanıcıyı Sil</p>
+                  <p className="font-bold text-slate-800">{t("ui.deleteUser", "Kullanıcıyı Sil")}</p>
                   <p className="text-sm text-slate-500">{deleteTarget.name} {deleteTarget.surname}</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-600">Bu işlem geri alınamaz. Kullanıcıya ait tüm veriler silinecek.</p>
+              <p className="text-sm text-slate-600">{t("ui.deleteUserConfirm", "Bu işlem geri alınamaz. Kullanıcıya ait tüm veriler silinecek.")}</p>
               <div className="flex justify-end gap-3 pt-1">
-                <button onClick={() => setDeleteTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={() => setDeleteTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleDelete} disabled={deleting}
                   className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
-                  {deleting ? "Siliniyor..." : "Evet, Sil"}
+                  {deleting ? t("action.deleting", "Siliniyor...") : `${t("action.yes", "Evet")}, ${t("action.delete", "Sil")}`}
                 </button>
               </div>
             </div>
@@ -631,14 +634,14 @@ export default function UsersPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div>
-                <h2 className="font-bold text-slate-800 flex items-center gap-2"><ShieldCheck size={16} className="text-violet-500" /> Rol Yönetimi</h2>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2"><ShieldCheck size={16} className="text-violet-500" /> {t("ui.roleManagement", "Rol Yönetimi")}</h2>
                 <p className="text-xs text-slate-500 mt-0.5">{rolesTarget.name} {rolesTarget.surname}</p>
               </div>
               <button onClick={() => setRolesTarget(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
             </div>
             <div className="px-6 py-5 space-y-3">
               {rolesError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{rolesError}</p>}
-              <p className="text-xs text-slate-500">Kullanıcının sahip olacağı rolleri seçin. En az bir rol zorunludur.</p>
+              <p className="text-xs text-slate-500">{t("ui.rolesHint", "Kullanıcının sahip olacağı rolleri seçin. En az bir rol zorunludur.")}</p>
               <div className="space-y-2">
                 {ALL_ROLE_DEFS.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(roleDef => (
                   <label key={roleDef.key} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
@@ -656,10 +659,10 @@ export default function UsersPage() {
                 ))}
               </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => setRolesTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={() => setRolesTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleUpdateRoles} disabled={rolesSaving}
                   className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
-                  {rolesSaving ? "Kaydediliyor..." : "Rolleri Kaydet"}
+                  {rolesSaving ? t("action.saving", "Kaydediliyor...") : `${t("label.roles", "Roller")}i ${t("action.save", "Kaydet")}`}
                 </button>
               </div>
             </div>
@@ -672,7 +675,7 @@ export default function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[90vh] transition-all duration-200 ${showPreview ? "max-w-3xl" : "max-w-md"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-              <h2 className="font-bold text-slate-800">Kullanıcıyı Düzenle</h2>
+              <h2 className="font-bold text-slate-800">{t("ui.editUser", "Kullanıcıyı Düzenle")}</h2>
               <div className="flex items-center gap-2">
                 <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
                 <button onClick={() => setEditModal(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
@@ -689,38 +692,38 @@ export default function UsersPage() {
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.name", "Ad")} *</label>
                     <input className={INPUT} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Soyad *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.surname", "Soyad")} *</label>
                     <input className={INPUT} value={editForm.surname} onChange={e => setEditForm(f => ({ ...f, surname: e.target.value }))} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">E-posta *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.email", "E-posta")} *</label>
                   <input type="email" className={INPUT} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cep Telefonu</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.phone", "Cep Telefonu")}</label>
                   <input type="tel" className={INPUT} placeholder="05XXXXXXXXX" value={editForm.phoneNumber} onChange={e => setEditForm(f => ({ ...f, phoneNumber: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.roles", "Roller")} *</label>
                   <select className={INPUT} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-                    <optgroup label="── Yönetici Rolleri">
+                    <optgroup label={t("ui.adminRoles", "── Yönetici Rolleri")}>
                       {ADMIN_ROLES.filter(r => isSuperAdmin || r.key !== "SuperAdmin").map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                     </optgroup>
-                    <optgroup label="── Müşteri">
+                    <optgroup label={t("ui.customerRole", "── Müşteri")}>
                       <option value="Customer">Müşteri</option>
                     </optgroup>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                  <button onClick={() => setEditModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                  <button onClick={() => setEditModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                   <button onClick={handleEdit} disabled={editSaving}
                     className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                    {editSaving ? "Kaydediliyor..." : "Güncelle"}
+                    {editSaving ? t("action.saving", "Kaydediliyor...") : t("action.update", "Güncelle")}
                   </button>
                 </div>
               </div>

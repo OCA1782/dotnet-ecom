@@ -103,7 +103,10 @@ export default function DogrulamaPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const run = async () => {
     setRunning(true);
@@ -136,7 +139,7 @@ export default function DogrulamaPage() {
           <div>
             <h1 className="text-xl font-semibold">{t("page./dogrulama", "TODO Doğrulama")}</h1>
             <p className="text-sm text-gray-500">
-              Tamamlanan özelliklerin gerçekten implemente edildiğini doğrular
+              {t("dogrulama.subtitle", "Tamamlanan özelliklerin gerçekten implemente edildiğini doğrular")}
             </p>
           </div>
         </div>
@@ -146,24 +149,24 @@ export default function DogrulamaPage() {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {running ? "Çalışıyor..." : "Manuel Çalıştır"}
+          {running ? t("dogrulama.running", "Çalışıyor...") : t("dogrulama.manualRun", "Manuel Çalıştır")}
         </button>
       </div>
 
       {/* Kullanım Kılavuzu */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 space-y-1">
         <p className="font-semibold flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4" /> Bu Ekran Ne İşe Yarar?
+          <ShieldCheck className="w-4 h-4" /> {t("dogrulama.guideTitle", "Bu Ekran Ne İşe Yarar?")}
         </p>
         <p className="text-blue-700">
-          Bu sayfa, projede &quot;tamamlandı&quot; olarak işaretlenen özelliklerin gerçekten kodda var olup olmadığını otomatik olarak denetler.
-          Kontroller 3 kategoride yürütülür: <strong>API</strong> (endpoint erişilebilirliği),{" "}
-          <strong>Kod</strong> (kaynak dosyalarda kritik pattern varlığı), <strong>DB</strong> (tablo erişilebilirliği).
+          {t("dogrulama.guideBody1", "Bu sayfa, projede \"tamamlandı\" olarak işaretlenen özelliklerin gerçekten kodda var olup olmadığını otomatik olarak denetler.")}
+          {" "}{t("dogrulama.guideBody1b", "Kontroller 3 kategoride yürütülür:")}{" "}<strong>API</strong> {t("dogrulama.guideBody1c", "(endpoint erişilebilirliği)")},{" "}
+          <strong>{t("dogrulama.guideBody1d", "Kod")}</strong> {t("dogrulama.guideBody1e", "(kaynak dosyalarda kritik pattern varlığı)")}, <strong>DB</strong> {t("dogrulama.guideBody1f", "(tablo erişilebilirliği)")}.
         </p>
         <p className="text-blue-700">
-          Her kontrol satırında <Monitor className="inline w-3 h-3" />{" "}
-          <strong>İlgili Ekranlar</strong> bilgisi gösterilir — o kontrolün hangi admin veya müşteri sayfasıyla ilişkili olduğunu belirtir.
-          Kontroller her 12 saatte bir otomatik çalışır; <em>Manuel Çalıştır</em> ile anlık tetiklenebilir.
+          {t("dogrulama.guideBody2a", "Her kontrol satırında")}{" "}<Monitor className="inline w-3 h-3" />{" "}
+          <strong>{t("dogrulama.relatedScreens", "İlgili Ekranlar")}</strong> {t("dogrulama.guideBody2b", "bilgisi gösterilir — o kontrolün hangi admin veya müşteri sayfasıyla ilişkili olduğunu belirtir.")}
+          {" "}{t("dogrulama.guideBody2c", "Kontroller her 12 saatte bir otomatik çalışır;")}{" "}<em>{t("dogrulama.manualRun", "Manuel Çalıştır")}</em> {t("dogrulama.guideBody2d", "ile anlık tetiklenebilir.")}
         </p>
       </div>
 
@@ -186,15 +189,15 @@ export default function DogrulamaPage() {
           <div className="bg-white border rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-800">{result.total}</div>
-              <div className="text-xs text-gray-500 mt-1">Toplam</div>
+              <div className="text-xs text-gray-500 mt-1">{t("dogrulama.total", "Toplam")}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{result.passed}</div>
-              <div className="text-xs text-gray-500 mt-1">Başarılı</div>
+              <div className="text-xs text-gray-500 mt-1">{t("status.success", "Başarılı")}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-500">{result.failed}</div>
-              <div className="text-xs text-gray-500 mt-1">Başarısız</div>
+              <div className="text-xs text-gray-500 mt-1">{t("col.failed", "Başarısız")}</div>
             </div>
             <div className="text-center">
               <div
@@ -208,7 +211,7 @@ export default function DogrulamaPage() {
               >
                 %{result.passRate}
               </div>
-              <div className="text-xs text-gray-500 mt-1">Başarı Oranı</div>
+              <div className="text-xs text-gray-500 mt-1">{t("dogrulama.passRate", "Başarı Oranı")}</div>
             </div>
           </div>
 
@@ -216,7 +219,7 @@ export default function DogrulamaPage() {
           {result.checkedAt && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Clock className="w-4 h-4" />
-              Son kontrol: {new Date(result.checkedAt).toLocaleString("tr-TR")}
+              {t("dogrulama.lastCheck", "Son kontrol:")} {new Date(result.checkedAt).toLocaleString("tr-TR")}
             </div>
           )}
 

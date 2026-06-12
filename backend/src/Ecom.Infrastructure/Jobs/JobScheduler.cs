@@ -3,6 +3,7 @@ using System.Text;
 using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
 using Ecom.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class JobScheduler(
     IServiceScopeFactory scopeFactory,
     IServiceStateManager stateManager,
     IJobStreamHub hub,
+    IConfiguration config,
     ILogger<JobScheduler> logger) : BackgroundService
 {
     private readonly IJobRunner[] _jobs = jobs.ToArray();
@@ -30,21 +32,27 @@ public class JobScheduler(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            foreach (var job in _jobs)
-            {
-                if (stateManager.IsPaused(job.Name)) continue;
-                if (_running.GetValueOrDefault(job.Name)) continue;
+            var siteSettings = await LoadSiteSettingsAsync(stoppingToken);
+			foreach (var job in _jobs)
+			{
+				if (stateManager.IsPaused(job.Name)) continue;
+				if (_running.GetValueOrDefault(job.Name)) continue;
 
-                var lastRun = _lastRuns.GetValueOrDefault(job.Name, DateTime.MinValue);
-                var elapsed = (DateTime.UtcNow - lastRun).TotalMinutes;
-                var isManual = stateManager.ShouldTrigger(job.Name);
-                var effectiveInterval = stateManager.GetEffectiveInterval(job.Name, job.IntervalMinutes);
-                var shouldRun = isManual || elapsed >= effectiveInterval;
+				var now = DateTime.UtcNow;
+				var lastRun = _lastRuns.GetValueOrDefault(job.Name, DateTime.MinValue);
+				var elapsed = (now - lastRun).TotalMinutes;
 
-                if (shouldRun)
-                    _ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
-            }
+				var isManual = stateManager.ShouldTrigger(job.Name);
+				var effectiveInterval = stateManager.GetEffectiveInterval(job.Name, job.IntervalMinutes);
 
+				var shouldRun =
+					isManual ||
+					(ShouldAutoRun(job.Name, now, siteSettings) && elapsed >= effectiveInterval);
+
+				if (shouldRun)
+					_ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
+			}
+			
             // Wait up to 30s, but wake immediately on a manual trigger signal
             var signal = _triggerSignal.Task;
             await Task.WhenAny(signal, Task.Delay(30_000, stoppingToken));
@@ -141,4 +149,72 @@ public class JobScheduler(
             }
         }
     }
+	
+	private bool ShouldAutoRun(string jobName, DateTime utcNow, IReadOnlyDictionary<string, string> siteSettings)
+	{
+		if (!jobName.Contains("I18n", StringComparison.OrdinalIgnoreCase))
+			return true;
+
+		var settingsPrefix = jobName.StartsWith("CustomerI18n", StringComparison.OrdinalIgnoreCase)
+			? "CustomerI18nJob"
+			: "I18nJob";
+
+		if (!ResolveBoolSetting(siteSettings, $"{settingsPrefix}:EnableAutoRun", false))
+			return false;
+
+		if (!jobName.EndsWith("DictionaryBuilderJob", StringComparison.OrdinalIgnoreCase))
+			return true;
+
+		var timeZoneId = ResolveSetting(siteSettings, $"{settingsPrefix}:ScheduleTimeZone") ?? "Turkey Standard Time";
+		var timeZone = ResolveTimeZone(timeZoneId);
+		var localNow = TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZone);
+
+		var currentTime = localNow.TimeOfDay;
+
+		var start = ParseTime(ResolveSetting(siteSettings, $"{settingsPrefix}:DictionaryBuilderWindowStart"), new TimeSpan(1, 0, 0));
+		var end = ParseTime(ResolveSetting(siteSettings, $"{settingsPrefix}:DictionaryBuilderWindowEnd"), new TimeSpan(7, 0, 0));
+
+		return currentTime >= start && currentTime <= end;
+	}
+
+    private async Task<Dictionary<string, string>> LoadSiteSettingsAsync(CancellationToken ct)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        return await db.SiteSettings.ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+    }
+
+    private string? ResolveSetting(IReadOnlyDictionary<string, string> siteSettings, string key) =>
+        siteSettings.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : config[key];
+
+    private bool ResolveBoolSetting(IReadOnlyDictionary<string, string> siteSettings, string key, bool fallback)
+    {
+        if (siteSettings.TryGetValue(key, out var value) && bool.TryParse(value, out var parsed))
+            return parsed;
+        if (bool.TryParse(config[key], out var configParsed))
+            return configParsed;
+        if (bool.TryParse(Environment.GetEnvironmentVariable(key), out var envParsed))
+            return envParsed;
+        return fallback;
+    }
+
+	private static TimeZoneInfo ResolveTimeZone(string timeZoneId)
+	{
+		foreach (var candidate in new[] { timeZoneId, "Turkey Standard Time", "Europe/Istanbul", "UTC" })
+		{
+			try
+			{
+				return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+			}
+			catch (TimeZoneNotFoundException) { }
+			catch (InvalidTimeZoneException) { }
+		}
+
+		return TimeZoneInfo.Utc;
+	}
+
+	private static TimeSpan ParseTime(string? value, TimeSpan fallback) =>
+		TimeSpan.TryParse(value, out var parsed) ? parsed : fallback;
 }

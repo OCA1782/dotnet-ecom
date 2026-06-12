@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useCart } from "@/hooks/useCart";
 import type { ProductVariant } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface Props {
   productId: string;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function AddToCartButton({ productId, variants, availableStock }: Props) {
+  const { t } = useI18n();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
     variants.length === 1 ? variants[0].id : undefined
@@ -33,7 +35,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
       await addToCart(productId, quantity, selectedVariantId);
       setMessage({ text: "Sepete eklendi!", type: "success" });
     } catch (err: unknown) {
-      setMessage({ text: err instanceof Error ? err.message : "Hata oluştu", type: "error" });
+      setMessage({ text: err instanceof Error ? err.message : t("product.add_error"), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,6 @@ export default function AddToCartButton({ productId, variants, availableStock }:
 
   return (
     <div className="space-y-4">
-      {/* Variant selection */}
       {variants.length > 1 && (
         <div>
           <p className="text-sm font-medium text-slate-700 mb-2">Seçenek</p>
@@ -66,7 +67,6 @@ export default function AddToCartButton({ productId, variants, availableStock }:
         </div>
       )}
 
-      {/* Quantity */}
       <div className="flex items-center gap-3">
         <p className="text-sm font-medium text-slate-700">Adet</p>
         <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
@@ -89,13 +89,12 @@ export default function AddToCartButton({ productId, variants, availableStock }:
         )}
       </div>
 
-      {/* Add button */}
       <button
         onClick={handleAdd}
         disabled={!canAdd || loading}
         className="w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 bg-teal-600 text-white hover:bg-teal-700"
       >
-        {loading ? "Ekleniyor..." : !canAdd ? (effectiveStock === 0 ? "Stokta Yok" : "Seçenek Seçin") : "Sepete Ekle"}
+        {loading ? "Ekleniyor..." : !canAdd ? (effectiveStock === 0 ? t("product.out_of_stock_short") : "Seçenek Seçin") : t("product.add_to_cart")}
       </button>
 
       {message && (

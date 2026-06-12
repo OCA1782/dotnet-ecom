@@ -75,6 +75,11 @@ const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
+
 function toISOLocal(dt: string) {
   if (!dt) return undefined;
   return new Date(dt).toISOString();
@@ -111,11 +116,6 @@ export default function KuponlarPage() {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
     setPage(1);
-  }
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
   }
 
   // --- Global usages tab ---
@@ -165,8 +165,15 @@ export default function KuponlarPage() {
     finally { setHistoryLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (activeTab === "hareketler") loadAllUsages(); }, [activeTab, loadAllUsages]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
+  useEffect(() => {
+    if (activeTab !== "hareketler") return;
+    const id = window.setTimeout(() => { void loadAllUsages(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [activeTab, loadAllUsages]);
 
   function openCreate() {
     setEditId(null);
@@ -222,7 +229,7 @@ export default function KuponlarPage() {
       setShowForm(false);
       load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Bir hata oluştu.");
+      setError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setSaving(false);
     }
@@ -254,16 +261,16 @@ export default function KuponlarPage() {
               coupons.map(c => ({
                 "Kod": c.code, "Tip": COUPON_TYPE_LABEL[c.type], "Değer": c.value,
                 "Min Tutar": c.minOrderAmount, "Kullanım": c.usageCount,
-                "Durum": c.isActive ? "Aktif" : "Pasif",
+                "Durum": c.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif"),
               })),
               "kuponlar", "Kuponlar"
             )}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
           >
-            <Download size={14} /> Excel&apos;e Aktar
+            <Download size={14} /> {t("action.exportExcel", "Excel'e Aktar")}
           </button>
           <button onClick={openCreate} className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-            <Plus size={16} /> Yeni Kupon
+            <Plus size={16} /> {t("ui.newCoupon", "Yeni Kupon")}
           </button>
         </div>
       </div>
@@ -277,7 +284,7 @@ export default function KuponlarPage() {
                 ? "bg-white border border-b-white border-slate-200 -mb-px text-teal-700"
                 : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
             }`}>
-            {tab === "kuponlar" ? <span className="flex items-center gap-2"><Tag size={14} />Kuponlar</span>
+            {tab === "kuponlar" ? <span className="flex items-center gap-2"><Tag size={14} />{t("tab.coupons", "Kuponlar")}</span>
               : <span className="flex items-center gap-2"><ShoppingCart size={14} />Tüm Hareketler</span>}
           </button>
         ))}
@@ -293,14 +300,14 @@ export default function KuponlarPage() {
                 <input
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
-                  placeholder="Kod veya açıklama..."
+                  placeholder={t("ui.searchCoupons", "Kod veya açıklama...")}
                   className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white"
                 />
               </div>
-              <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+              <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
               {(search || searchInput) && (
                 <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-                  className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+                  className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
               )}
             </form>
             <select
@@ -308,7 +315,7 @@ export default function KuponlarPage() {
               onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
               className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
             >
-              <option value="">Tüm Türler</option>
+              <option value="">{t("filter.allTypes", "Tüm Türler")}</option>
               <option value="1">Sabit Tutar</option>
               <option value="2">Yüzde</option>
               <option value="3">Ücretsiz Kargo</option>
@@ -319,33 +326,33 @@ export default function KuponlarPage() {
             </label>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
               className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-              {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+              {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
             </select>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             {loading ? (
-              <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+              <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kod</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Tür</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Değer</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Min. Sipariş</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kullanım</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Bitiş</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
-                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.code", "Kod")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.type", "Tür")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.discount", "İndirim")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.minOrder", "Min. Sipariş")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.usageCount", "Kullanım")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.endDate", "Bitiş")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
+                    <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.createdBy", "Oluşturan")}</th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {coupons.length === 0 ? (
-                    <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Kupon bulunamadı</td></tr>
+                    <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
                   ) : coupons.map(c => (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-5 py-3 font-mono font-semibold text-slate-800 text-xs">{c.code}</td>
@@ -364,7 +371,7 @@ export default function KuponlarPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                           c.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
                         }`}>
-                          {c.isActive ? "Aktif" : "Pasif"}
+                          {c.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
@@ -376,15 +383,15 @@ export default function KuponlarPage() {
                       <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={c.createdByAdminEmail}>{c.createdByAdminEmail ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1.5">
-                          <button onClick={() => openHistory(c)} title="Geçmiş"
+                          <button onClick={() => openHistory(c)} title={t("tab.history", "Geçmiş")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                             <History size={16} />
                           </button>
-                          <button onClick={() => openEdit(c)} title="Düzenle"
+                          <button onClick={() => openEdit(c)} title={t("action.edit", "Düzenle")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                             <Pencil size={16} />
                           </button>
-                          <button onClick={() => setConfirmDelete(c.id)} title="Sil"
+                          <button onClick={() => setConfirmDelete(c.id)} title={t("action.delete", "Sil")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                             <Trash2 size={16} />
                           </button>
@@ -399,9 +406,9 @@ export default function KuponlarPage() {
 
           {totalPages > 1 && (
             <div className="flex justify-center gap-2">
-              {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>}
+              {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.prev", "← Önceki")}</button>}
               <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-              {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
+              {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.next", "Sonraki →")}</button>}
             </div>
           )}
         </>
@@ -412,7 +419,7 @@ export default function KuponlarPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-500">{usagesTotalCount} toplam kupon kullanımı</p>
-            <button onClick={loadAllUsages} className="text-xs text-teal-600 hover:underline">Yenile</button>
+            <button onClick={loadAllUsages} className="text-xs text-teal-600 hover:underline">{t("action.refresh", "Yenile")}</button>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             {usagesLoading ? (
@@ -430,7 +437,7 @@ export default function KuponlarPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        {["Kupon Kodu", "Sipariş No", "Kullanıcı", "Sipariş Tutarı", "İndirim", "Tarih"].map(h => (
+                        {["Kupon Kodu", "Sipariş No", t("col.user", "Kullanıcı"), "Sipariş Tutarı", t("col.discount", "İndirim"), "Tarih"].map(h => (
                           <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
@@ -457,13 +464,13 @@ export default function KuponlarPage() {
                 </div>
                 {usagesTotalPages > 1 && (
                   <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
-                    <span className="text-xs text-slate-400">{usagesTotalCount} kayıt</span>
+                    <span className="text-xs text-slate-400">{usagesTotalCount} {t("table.perPage", "kayıt")}</span>
                     <div className="flex gap-2">
                       <button disabled={usagesPage === 1} onClick={() => setUsagesPage(p => p - 1)}
-                        className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">← Önceki</button>
+                        className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">{t("table.prev", "← Önceki")}</button>
                       <span className="px-3 py-1.5 text-xs text-slate-500">{usagesPage} / {usagesTotalPages}</span>
                       <button disabled={usagesPage >= usagesTotalPages} onClick={() => setUsagesPage(p => p + 1)}
-                        className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">Sonraki →</button>
+                        className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">{t("table.next", "Sonraki →")}</button>
                     </div>
                   </div>
                 )}
@@ -483,7 +490,7 @@ export default function KuponlarPage() {
                   <History size={17} className="text-amber-600" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-800 text-sm">Kupon Geçmişi</h2>
+                  <h2 className="font-bold text-slate-800 text-sm">{t("ui.userHistory", "Kupon Geçmişi")}</h2>
                   <p className="text-xs text-slate-500 font-mono">{historyTarget.code}</p>
                 </div>
               </div>
@@ -500,7 +507,7 @@ export default function KuponlarPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                     <tr>
-                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                      {["Tarih", "İşlemi Yapan", "Aksiyon", t("action.details", "Detay")].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                       ))}
                     </tr>
@@ -533,7 +540,7 @@ export default function KuponlarPage() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
-              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.close", "Kapat")}</button>
             </div>
           </div>
         </div>
@@ -541,9 +548,9 @@ export default function KuponlarPage() {
 
       {confirmDelete && (
         <ConfirmModal
-          title="Kuponu Sil"
+          title={t("ui.deleteCoupon", "Kuponu Sil")}
           message="Bu kuponu kalıcı olarak silmek istediğinizden emin misiniz?"
-          confirmLabel="Sil"
+          confirmLabel={t("action.delete", "Sil")}
           danger
           onConfirm={() => { handleDelete(confirmDelete); setConfirmDelete(null); }}
           onCancel={() => setConfirmDelete(null)}
@@ -554,7 +561,7 @@ export default function KuponlarPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-4xl" : "max-w-2xl"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-              <h2 className="font-bold text-slate-800">{editId ? "Kuponu Düzenle" : "Yeni Kupon"}</h2>
+              <h2 className="font-bold text-slate-800">{editId ? t("ui.editCoupon", "Kuponu Düzenle") : t("ui.newCoupon", "Yeni Kupon")}</h2>
               <div className="flex items-center gap-2">
                 <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
                 <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
@@ -599,7 +606,7 @@ export default function KuponlarPage() {
               {form.type !== 3 && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    İndirim Değeri {form.type === 2 ? "(%)" : "(₺)"} *
+                    {t("label.discount", "İndirim")} {form.type === 2 ? "(%)" : "(₺)"} *
                   </label>
                   <input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
                     className={INPUT} min="0" max={form.type === 2 ? 100 : undefined}
@@ -628,24 +635,24 @@ export default function KuponlarPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Başlangıç Tarihi</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("col.startDate", "Başlangıç")} Tarihi</label>
                   <input type="datetime-local" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className={INPUT} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Bitiş Tarihi</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("col.endDate", "Bitiş")} Tarihi</label>
                   <input type="datetime-local" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className={INPUT} />
                 </div>
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="rounded" />
-                <span className="text-sm text-slate-700">Aktif</span>
+                <span className="text-sm text-slate-700">{t("status.active", "Aktif")}</span>
               </label>
 
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => setShowForm(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={() => setShowForm(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                  {saving ? "Kaydediliyor..." : editId ? "Güncelle" : "Oluştur"}
+                  {saving ? t("action.saving", "Kaydediliyor...") : editId ? t("action.update", "Güncelle") : t("action.create", "Oluştur")}
                 </button>
               </div>
             </div>

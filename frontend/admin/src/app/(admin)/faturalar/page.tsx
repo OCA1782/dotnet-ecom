@@ -73,6 +73,11 @@ type SortField = "total" | "createdDate" | "dataSource";
 type SortDir = "asc" | "desc";
 function buildSortKey(f: SortField, d: SortDir) { return `${f}-${d}`; }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: SortDir }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-40" />;
+  return sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(n);
 }
@@ -108,11 +113,6 @@ export default function FaturalarPage() {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
   }
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-40" />;
-    return sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
-  }
-
   const [createModal, setCreateModal] = useState(false);
   const [createOrderNumber, setCreateOrderNumber] = useState("");
   const [createDocType, setCreateDocType] = useState(1);
@@ -139,7 +139,10 @@ export default function FaturalarPage() {
     finally { setLoading(false); }
   }, [page, search, statusFilter, docTypeFilter, sortField, sortDir]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   async function openDetail(id: string) {
     setLoadingDetail(true);
@@ -151,7 +154,7 @@ export default function FaturalarPage() {
   }
 
   async function handleCreate() {
-    if (!createOrderNumber.trim()) { setCreateError("Sipariş numarası zorunludur."); return; }
+    if (!createOrderNumber.trim()) { setCreateError(t("ui.orderNumberRequired", "Sipariş numarası zorunludur.")); return; }
     setCreating(true);
     setCreateError("");
     try {
@@ -162,7 +165,7 @@ export default function FaturalarPage() {
       setCreateNotes("");
       await load();
     } catch (e: unknown) {
-      setCreateError(e instanceof Error ? e.message : "Fatura oluşturulamadı.");
+      setCreateError(e instanceof Error ? e.message : t("ui.invoiceCreateFailed", "Fatura oluşturulamadı."));
     } finally {
       setCreating(false);
     }
@@ -176,7 +179,7 @@ export default function FaturalarPage() {
         await openDetail(id);
       }
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Güncelleme başarısız.");
+      alert(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     }
   }
 
@@ -192,21 +195,21 @@ export default function FaturalarPage() {
             <FileText className="w-6 h-6 text-teal-600" /> {t("page./faturalar", "Fatura Yönetimi")}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            e-Arşiv / e-Fatura / e-İrsaliye belgelerini yönetin.
-            <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">Test Modu</span>
+            {t("ui.faturalarSubtitle", "e-Arşiv / e-Fatura / e-İrsaliye belgelerini yönetin.")}
+            <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">{t("ui.testMode", "Test Modu")}</span>
           </p>
         </div>
         <div className="flex gap-2">
           <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
-            <RefreshCw size={14} /> Yenile
+            <RefreshCw size={14} /> {t("action.refresh", "Yenile")}
           </button>
           <button onClick={handleSeedInvoices} disabled={seeding}
             className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
-            <Database size={14} /> {seeding ? "Oluşturuluyor..." : "Test Verisi"}
+            <Database size={14} /> {seeding ? t("ui.creating", "Oluşturuluyor...") : t("ui.testData", "Test Verisi")}
           </button>
           <button onClick={() => { setCreateModal(true); setCreateError(""); }}
             className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition">
-            <Plus size={16} /> Fatura Oluştur
+            <Plus size={16} /> {t("ui.createInvoice", "Fatura Oluştur")}
           </button>
         </div>
       </div>
@@ -215,9 +218,8 @@ export default function FaturalarPage() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-700 flex items-start gap-2">
         <AlertCircle size={16} className="shrink-0 mt-0.5" />
         <div>
-          <strong>Test Ortamı:</strong> e-Arşiv/e-Fatura/e-İrsaliye işlemleri simüle edilmektedir.
-          Gerçek entegrasyon için <code className="bg-amber-100 px-1 rounded">IInvoiceService</code> arayüzünü uygulayan
-          bir servis (ör. Logo, Mikro, EFinans) DI container&apos;a kayıt edilmelidir.
+          <strong>{t("ui.testEnvironment", "Test Ortamı")}:</strong> {t("ui.testEnvironmentDesc", "e-Arşiv/e-Fatura/e-İrsaliye işlemleri simüle edilmektedir.")}
+          {t("ui.testEnvironmentDesc2", " Gerçek entegrasyon için")} <code className="bg-amber-100 px-1 rounded">IInvoiceService</code> {t("ui.testEnvironmentDesc3", "arayüzünü uygulayan bir servis (ör. Logo, Mikro, EFinans) DI container’a kayıt edilmelidir.")}
         </div>
       </div>
 
@@ -226,13 +228,13 @@ export default function FaturalarPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Fatura no, sipariş no, e-posta..."
+            placeholder={t("ui.faturalarSearchPlaceholder", "Fatura no, sipariş no, e-posta...")}
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
         </div>
         <div className="relative">
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value === "" ? "" : +e.target.value); setPage(1); }}
             className="pl-3 pr-8 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white appearance-none">
-            <option value="">Tüm Durumlar</option>
+            <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
             {Object.entries(STATUS_MAP).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <ChevronDown size={13} className="absolute right-2 top-3 text-slate-400 pointer-events-none" />
@@ -240,7 +242,7 @@ export default function FaturalarPage() {
         <div className="relative">
           <select value={docTypeFilter} onChange={e => { setDocTypeFilter(e.target.value === "" ? "" : +e.target.value); setPage(1); }}
             className="pl-3 pr-8 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white appearance-none">
-            <option value="">Tüm Türler</option>
+            <option value="">{t("filter.allTypes", "Tüm Türler")}</option>
             {Object.entries(DOC_TYPE).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <ChevronDown size={13} className="absolute right-2 top-3 text-slate-400 pointer-events-none" />
@@ -250,11 +252,11 @@ export default function FaturalarPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-slate-400 text-sm">Yükleniyor...</div>
+          <div className="p-12 text-center text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
         ) : !data || data.items.length === 0 ? (
           <div className="p-12 text-center">
             <FileText size={32} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-500">Henüz fatura bulunmuyor.</p>
+            <p className="text-slate-500">{t("ui.noInvoices", "Henüz fatura bulunmuyor.")}</p>
           </div>
         ) : (
           <>
@@ -262,24 +264,24 @@ export default function FaturalarPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fatura No</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sipariş</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Müşteri</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tür</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.invoiceNo", "Fatura No")}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.orderNumber", "Sipariş")}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.customer", "Müşteri")}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.type", "Tür")}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.status", "Durum")}</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <button onClick={() => handleSort("total")} className="flex items-center gap-1 ml-auto hover:text-teal-600 transition">
-                        Tutar <SortIcon field="total" />
+                        {t("col.amount", "Tutar")} <SortIcon field="total" sortField={sortField} sortDir={sortDir} />
                       </button>
                     </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <button onClick={() => handleSort("createdDate")} className="flex items-center gap-1 hover:text-teal-600 transition">
-                        Tarih <SortIcon field="createdDate" />
+                        {t("col.date", "Tarih")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} />
                       </button>
                     </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <button onClick={() => handleSort("dataSource")} className="flex items-center gap-1 hover:text-teal-600 transition">
-                        Kaynak <SortIcon field="dataSource" />
+                        {t("ui.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} />
                       </button>
                     </th>
                     <th className="px-4 py-3" />
@@ -322,16 +324,16 @@ export default function FaturalarPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
-                <span className="text-xs text-slate-400">{data.total} fatura</span>
+                <span className="text-xs text-slate-400">{data.total} {t("ui.invoiceCount", "fatura")}</span>
                 <div className="flex gap-2">
                   <button disabled={page === 1} onClick={() => setPage(p => p-1)}
                     className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">
-                    ← Önceki
+                    {t("table.prev", "← Önceki")}
                   </button>
                   <span className="px-3 py-1.5 text-xs text-slate-500">{page} / {totalPages}</span>
                   <button disabled={page >= totalPages} onClick={() => setPage(p => p+1)}
                     className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition">
-                    Sonraki →
+                    {t("table.next", "Sonraki →")}
                   </button>
                 </div>
               </div>
@@ -346,7 +348,7 @@ export default function FaturalarPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                <FileText size={18} className="text-teal-600" /> Fatura Oluştur
+                <FileText size={18} className="text-teal-600" /> {t("ui.createInvoice", "Fatura Oluştur")}
               </h2>
               <button onClick={() => setCreateModal(false)} className="text-slate-400 hover:text-slate-700 text-xl">×</button>
             </div>
@@ -355,33 +357,33 @@ export default function FaturalarPage() {
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{createError}</div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Sipariş Numarası <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t("ui.orderNumber", "Sipariş Numarası")} <span className="text-red-500">*</span></label>
                 <input value={createOrderNumber} onChange={e => setCreateOrderNumber(e.target.value)} className={inp} placeholder="SIP-20260601-000001" />
-                <p className="text-xs text-slate-400 mt-1">Sipariş listesindeki numarayı girin.</p>
+                <p className="text-xs text-slate-400 mt-1">{t("ui.orderNumberHint", "Sipariş listesindeki numarayı girin.")}</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Belge Türü</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t("ui.docType", "Belge Türü")}</label>
                 <div className="relative">
                   <select value={createDocType} onChange={e => setCreateDocType(+e.target.value)}
                     className={inp + " appearance-none"}>
-                    <option value={1}>e-Arşiv Fatura</option>
-                    <option value={2}>e-Fatura</option>
-                    <option value={3}>e-İrsaliye</option>
+                    <option value={1}>{t("ui.eArchive", "e-Arşiv Fatura")}</option>
+                    <option value={2}>{t("ui.eInvoice", "e-Fatura")}</option>
+                    <option value={3}>{t("ui.eDispatch", "e-İrsaliye")}</option>
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Not (opsiyonel)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t("ui.noteOptional", "Not (opsiyonel)")}</label>
                 <textarea rows={2} value={createNotes} onChange={e => setCreateNotes(e.target.value)} className={inp + " resize-none"} />
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
-                Test ortamında fatura mock servis ile oluşturulur ve otomatik &quot;Gönderildi&quot; durumuna geçer.
+                {t("ui.testInvoiceNote", "Test ortamında fatura mock servis ile oluşturulur ve otomatik \"Gönderildi\" durumuna geçer.")}
               </div>
               <div className="flex justify-end gap-3">
-                <button onClick={() => setCreateModal(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">İptal</button>
+                <button onClick={() => setCreateModal(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">{t("action.cancel", "İptal")}</button>
                 <button onClick={handleCreate} disabled={creating} className="flex items-center gap-2 px-5 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-60">
-                  <Send size={14} /> {creating ? "Oluşturuluyor..." : "Oluştur"}
+                  <Send size={14} /> {creating ? t("ui.creating", "Oluşturuluyor...") : t("action.create", "Oluştur")}
                 </button>
               </div>
             </div>
@@ -396,23 +398,23 @@ export default function FaturalarPage() {
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <FileText size={18} className="text-teal-600" />
-                {detailModal?.invoiceNumber ?? "Yükleniyor..."}
+                {detailModal?.invoiceNumber ?? t("action.loading", "Yükleniyor...")}
               </h2>
               <button onClick={() => setDetailModal(null)} className="text-slate-400 hover:text-slate-700 text-xl">×</button>
             </div>
             {loadingDetail ? (
-              <div className="p-12 text-center text-slate-400 text-sm">Yükleniyor...</div>
+              <div className="p-12 text-center text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
             ) : detailModal && (
               <div className="p-6 space-y-5">
                 {/* Meta */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {[
-                    { label: "Sipariş", value: detailModal.orderNumber },
-                    { label: "Müşteri", value: detailModal.customerEmail ?? "—" },
-                    { label: "Tür", value: DOC_TYPE[detailModal.docType]?.label },
-                    { label: "Durum", value: STATUS_MAP[detailModal.status]?.label },
-                    { label: "Oluşturulma", value: fmtDate(detailModal.createdDate) },
-                    { label: "Gönderilme", value: detailModal.sentDate ? fmtDate(detailModal.sentDate) : "—" },
+                    { label: t("ui.order", "Sipariş"), value: detailModal.orderNumber },
+                    { label: t("col.customer", "Müşteri"), value: detailModal.customerEmail ?? "—" },
+                    { label: t("col.type", "Tür"), value: DOC_TYPE[detailModal.docType]?.label },
+                    { label: t("col.status", "Durum"), value: STATUS_MAP[detailModal.status]?.label },
+                    { label: t("ui.createdAt", "Oluşturulma"), value: fmtDate(detailModal.createdDate) },
+                    { label: t("ui.sentDate", "Gönderilme"), value: detailModal.sentDate ? fmtDate(detailModal.sentDate) : "—" },
                   ].map(m => (
                     <div key={m.label} className="bg-slate-50 rounded-xl p-3">
                       <p className="text-xs text-slate-400 mb-0.5">{m.label}</p>
@@ -424,7 +426,7 @@ export default function FaturalarPage() {
                 {/* Provider */}
                 {detailModal.providerInvoiceId && (
                   <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
-                    <p className="text-xs text-teal-600 font-semibold mb-1">Sağlayıcı Fatura ID</p>
+                    <p className="text-xs text-teal-600 font-semibold mb-1">{t("ui.providerInvoiceId", "Sağlayıcı Fatura ID")}</p>
                     <p className="font-mono text-sm text-teal-800">{detailModal.providerInvoiceId}</p>
                   </div>
                 )}
@@ -432,24 +434,24 @@ export default function FaturalarPage() {
                 {/* Error */}
                 {detailModal.errorMessage && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                    <p className="text-xs text-red-600 font-semibold mb-1">Hata Mesajı</p>
+                    <p className="text-xs text-red-600 font-semibold mb-1">{t("ui.errorMessage", "Hata Mesajı")}</p>
                     <p className="text-sm text-red-700">{detailModal.errorMessage}</p>
                   </div>
                 )}
 
                 {/* Items */}
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Fatura Kalemleri</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("ui.invoiceItems", "Fatura Kalemleri")}</h3>
                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
-                          <th className="text-left px-3 py-2 font-semibold text-slate-500">Ürün</th>
-                          <th className="text-center px-3 py-2 font-semibold text-slate-500">Adet</th>
-                          <th className="text-right px-3 py-2 font-semibold text-slate-500">Birim Fiyat</th>
-                          <th className="text-right px-3 py-2 font-semibold text-slate-500">KDV %</th>
-                          <th className="text-right px-3 py-2 font-semibold text-slate-500">KDV</th>
-                          <th className="text-right px-3 py-2 font-semibold text-slate-500">Toplam</th>
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500">{t("ui.product", "Ürün")}</th>
+                          <th className="text-center px-3 py-2 font-semibold text-slate-500">{t("ui.quantity", "Adet")}</th>
+                          <th className="text-right px-3 py-2 font-semibold text-slate-500">{t("ui.unitPrice", "Birim Fiyat")}</th>
+                          <th className="text-right px-3 py-2 font-semibold text-slate-500">{t("ui.vatRate", "KDV %")}</th>
+                          <th className="text-right px-3 py-2 font-semibold text-slate-500">{t("ui.vat", "KDV")}</th>
+                          <th className="text-right px-3 py-2 font-semibold text-slate-500">{t("col.total", "Toplam")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -471,7 +473,7 @@ export default function FaturalarPage() {
                       <tfoot>
                         <tr className="bg-slate-50">
                           <td colSpan={4} className="px-3 py-2" />
-                          <td className="px-3 py-2 text-right text-xs font-semibold text-slate-500">KDV: {fmt(detailModal.taxAmount)}</td>
+                          <td className="px-3 py-2 text-right text-xs font-semibold text-slate-500">{t("ui.vat", "KDV")}: {fmt(detailModal.taxAmount)}</td>
                           <td className="px-3 py-2 text-right text-sm font-bold text-slate-900">{fmt(detailModal.totalAmount)}</td>
                         </tr>
                       </tfoot>
@@ -484,13 +486,13 @@ export default function FaturalarPage() {
                   {detailModal.status !== 3 && detailModal.status !== 4 && (
                     <button onClick={() => handleStatusUpdate(detailModal.id, 3)}
                       className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition">
-                      <CheckCircle size={13} /> Gönderildi İşaretle
+                      <CheckCircle size={13} /> {t("ui.markSent", "Gönderildi İşaretle")}
                     </button>
                   )}
                   {detailModal.status !== 4 && (
                     <button onClick={() => handleStatusUpdate(detailModal.id, 4)}
                       className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl text-xs font-semibold hover:bg-red-200 transition">
-                      <XCircle size={13} /> İptal Et
+                      <XCircle size={13} /> {t("ui.cancelInvoice", "İptal Et")}
                     </button>
                   )}
                 </div>

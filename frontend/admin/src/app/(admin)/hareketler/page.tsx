@@ -89,8 +89,10 @@ const ACTIVITY_TYPE_META: Record<string, { label: string; bg: string; text: stri
 };
 
 function CanlıAkis() {
+  const { t } = useI18n();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
 
   const fetch = useCallback(async () => {
@@ -103,13 +105,21 @@ function CanlıAkis() {
   }, []);
 
   useEffect(() => {
-    fetch();
+    const id = window.setTimeout(() => { void fetch(); }, 0);
     const timer = setInterval(fetch, 10_000);
-    return () => clearInterval(timer);
+    return () => {
+      window.clearTimeout(id);
+      clearInterval(timer);
+    };
   }, [fetch]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const relTime = (ts: string) => {
-    const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    const diff = Math.floor((now - new Date(ts).getTime()) / 1000);
     if (diff < 60) return `${diff}s önce`;
     if (diff < 3600) return `${Math.floor(diff / 60)}dk önce`;
     return new Date(ts).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
@@ -141,10 +151,10 @@ function CanlıAkis() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <span className="text-sm font-bold text-slate-800 flex-1">Canlı Sistem Aktivitesi</span>
+          <span className="text-sm font-bold text-slate-800 flex-1">{t("ui.liveActivity", "Canlı Sistem Aktivitesi")}</span>
           {lastUpdated && (
             <span className="flex items-center gap-1 text-[10px] text-slate-400">
-              <ClockIcon size={10} /> Son: {lastUpdated.toLocaleTimeString("tr-TR")} — 10s'de bir otomatik yenilenir
+              <ClockIcon size={10} /> {t("ui.lastUpdated", "Son")}: {lastUpdated.toLocaleTimeString("tr-TR")} — {t("ui.autoRefresh", "10s'de bir otomatik yenilenir")}
             </span>
           )}
           <button onClick={fetch}
@@ -155,7 +165,7 @@ function CanlıAkis() {
 
         {items.length === 0 ? (
           <div className="px-5 py-12 text-center text-xs text-slate-400">
-            {loading ? "Yükleniyor…" : "Henüz aktivite yok"}
+            {loading ? t("action.loading", "Yükleniyor...") : t("ui.noActivity", "Henüz aktivite yok")}
           </div>
         ) : (
           <div className="divide-y divide-slate-50">
@@ -230,7 +240,10 @@ export default function HareketlerPage() {
     } catch { setLogs([]); } finally { setLoading(false); }
   }, [page, pageSize, entityFilter, actionFilter, userSearch, startDate, endDate]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchLogs(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchLogs]);
 
   async function handleExport() {
     const qs = new URLSearchParams({ page: "1", pageSize: "5000" });
@@ -246,12 +259,12 @@ export default function HareketlerPage() {
     const data = await api.get<PaginatedList<AuditLog>>(`/api/admin/audit-logs?${qs}`);
     exportToExcel(
       data.items.map(l => ({
-        "Tarih": formatDate(l.createdDate),
-        "Kullanıcı": l.userEmail,
-        "İşlem": translateAction(l.action),
-        "Varlık": l.entityName,
-        "ID": l.entityId ?? "",
-        "IP": l.ipAddress ?? "",
+        [t("col.date", "Tarih")]: formatDate(l.createdDate),
+        [t("hareketler.colUser", "Kullanıcı")]: l.userEmail,
+        [t("ui.operation", "İşlem")]: translateAction(l.action),
+        [t("hareketler.colEntity", "Varlık")]: l.entityName,
+        [t("col.detail", "Detay")]: l.entityId ?? "",
+        [t("col.ip", "IP")]: l.ipAddress ?? "",
       })),
       "hareketler", "Hareketler"
     );
@@ -271,13 +284,13 @@ export default function HareketlerPage() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./hareketler", "Hareketler")}</h1>
-              <p className="text-indigo-200 text-xs mt-0.5">Kullanıcı işlem geçmişi ve canlı sistem aktivitesi</p>
+              <p className="text-indigo-200 text-xs mt-0.5">{t("ui.auditSubtitle", "Kullanıcı işlem geçmişi ve canlı sistem aktivitesi")}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="hidden md:flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
               <Users size={13} className="text-indigo-200" />
-              <span className="text-white text-xs font-semibold">{totalCount} audit kaydı</span>
+              <span className="text-white text-xs font-semibold">{totalCount} {t("ui.auditRecords", "audit kaydı")}</span>
             </div>
             <button onClick={handleExport}
               className="flex items-center gap-2 bg-white text-indigo-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-indigo-50 transition shadow">
@@ -290,16 +303,16 @@ export default function HareketlerPage() {
       {/* Tab bar */}
       <div className="flex gap-1.5">
         {[
-          { id: "audit" as HareketTab, label: "Audit Log", icon: Users },
-          { id: "canli" as HareketTab, label: "Canlı Akış", icon: Zap },
-        ].map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
+          { id: "audit" as HareketTab, label: t("tab.auditLog", "Audit Log"), icon: Users },
+          { id: "canli" as HareketTab, label: t("tab.liveStream", "Canlı Akış"), icon: Zap },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition ${
-              activeTab === t.id
+              activeTab === tab.id
                 ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
                 : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
             }`}>
-            <t.icon size={14} /> {t.label}
+            <tab.icon size={14} /> {tab.label}
           </button>
         ))}
       </div>
@@ -312,43 +325,43 @@ export default function HareketlerPage() {
               <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-indigo-800 flex items-center gap-1.5">
-                  Hareketler
-                  <span className="text-[10px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">Bu ekran</span>
+                  {t("page./hareketler", "Hareketler")}
+                  <span className="text-[10px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">{t("ui.thisScreen", "Bu ekran")}</span>
                 </p>
                 <p className="text-xs text-indigo-600 mt-1 leading-relaxed">
-                  Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri. <strong>Kim ne yaptı?</strong>
+                  {t("ui.auditDesc", "Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri.")} <strong>{t("ui.auditQuestion", "Kim ne yaptı?")}</strong>
                 </p>
-                <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar</p>
+                <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">{t("ui.auditSource", "Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar")}</p>
               </div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
               <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-red-800 flex items-center gap-1.5">
-                  Takip
+                  {t("ui.tracking", "Takip")}
                   <Link href="/takip" className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-red-200 transition inline-flex items-center gap-0.5">
-                    <LinkIcon size={8} /> Git
+                    <LinkIcon size={8} /> {t("ui.go", "Git")}
                   </Link>
                 </p>
                 <p className="text-xs text-red-600 mt-1 leading-relaxed">
-                  Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları. <strong>Sistem ne zaman, nerede hata verdi?</strong>
+                  {t("ui.trackingDesc", "Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları.")} <strong>{t("ui.trackingQuestion", "Sistem ne zaman, nerede hata verdi?")}</strong>
                 </p>
-                <p className="text-[10px] text-red-400 mt-1.5 font-medium">Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı</p>
+                <p className="text-[10px] text-red-400 mt-1.5 font-medium">{t("ui.trackingSource", "Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı")}</p>
               </div>
             </div>
             <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-start gap-3">
               <MapPin size={18} className="text-teal-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
-                  Ziyaretçiler
+                  {t("ui.visitors", "Ziyaretçiler")}
                   <Link href="/ziyaretciler" className="text-[10px] bg-teal-100 text-teal-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-teal-200 transition inline-flex items-center gap-0.5">
-                    <LinkIcon size={8} /> Git
+                    <LinkIcon size={8} /> {t("ui.go", "Git")}
                   </Link>
                 </p>
                 <p className="text-xs text-teal-600 mt-1 leading-relaxed">
-                  Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa. <strong>Kim nereden geldi?</strong>
+                  {t("ui.visitorsDesc", "Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa.")} <strong>{t("ui.visitorsQuestion", "Kim nereden geldi?")}</strong>
                 </p>
-                <p className="text-[10px] text-teal-400 mt-1.5 font-medium">Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar</p>
+                <p className="text-[10px] text-teal-400 mt-1.5 font-medium">{t("ui.visitorsSource", "Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar")}</p>
               </div>
             </div>
           </div>
@@ -359,44 +372,44 @@ export default function HareketlerPage() {
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                 <input value={userSearchInput} onChange={e => setUserSearchInput(e.target.value)}
-                  placeholder="E-posta ara..."
+                  placeholder={t("ui.emailSearch", "E-posta ara...")}
                   className="pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-44 text-slate-900 bg-white" />
               </div>
-              <button type="submit" className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+              <button type="submit" className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
             </form>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-500">Varlık:</label>
+              <label className="text-xs font-semibold text-slate-500">{t("ui.entity", "Varlık")}:</label>
               <select value={entityFilter} onChange={e => { setEntityFilter(e.target.value); setPage(1); }}
                 className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                <option value="">Tümü</option>
+                <option value="">{t("filter.all", "Tümü")}</option>
                 {ENTITY_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-500">İşlem:</label>
+              <label className="text-xs font-semibold text-slate-500">{t("ui.operation", "İşlem")}:</label>
               <select value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}
                 className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                <option value="">Tümü</option>
+                <option value="">{t("filter.all", "Tümü")}</option>
                 {ACTION_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-500">Başlangıç:</label>
+              <label className="text-xs font-semibold text-slate-500">{t("ui.startDate", "Başlangıç")}:</label>
               <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }}
                 className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-500">Bitiş:</label>
+              <label className="text-xs font-semibold text-slate-500">{t("ui.endDate", "Bitiş")}:</label>
               <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }}
                 className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
               className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-              {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+              {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
             </select>
             {hasFilter && (
               <button onClick={() => { setEntityFilter(""); setActionFilter(""); setUserSearch(""); setUserSearchInput(""); setStartDate(""); setEndDate(""); setPage(1); }}
-                className="text-xs text-slate-500 hover:text-slate-700 underline">Filtreleri Temizle</button>
+                className="text-xs text-slate-500 hover:text-slate-700 underline">{t("filter.clearFilters", "Filtreleri Temizle")}</button>
             )}
           </div>
 
@@ -405,16 +418,23 @@ export default function HareketlerPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["Tarih", "Kullanıcı", "İşlem", "Varlık", "Detay", "IP"].map(h => (
+                    {[
+                      t("col.date", "Tarih"),
+                      t("hareketler.colUser", "Kullanıcı"),
+                      t("ui.operation", "İşlem"),
+                      t("ui.entity", "Varlık"),
+                      t("col.detail", "Detay"),
+                      t("col.ip", "IP"),
+                    ].map(h => (
                       <th key={h} className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
                   ) : logs.length === 0 ? (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Kayıt bulunamadı</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
                   ) : logs.map(l => (
                     <tr key={l.id} className={`transition ${l.action === "LoginFailed" ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"}`}>
                       <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(l.createdDate)}</td>
@@ -442,9 +462,9 @@ export default function HareketlerPage() {
 
           {totalPages > 1 && (
             <div className="flex justify-center gap-2">
-              {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>}
+              {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.prev", "← Önceki")}</button>}
               <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-              {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
+              {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.next", "Sonraki →")}</button>}
             </div>
           )}
         </>

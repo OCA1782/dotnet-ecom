@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, ShoppingCart, AlertTriangle, MessageSquare, X } from "lucide-react";
 import { api } from "@/lib/api";
@@ -45,7 +45,7 @@ export default function NotificationsPanel() {
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get<NotificationsDto>("/api/admin/notifications");
@@ -55,13 +55,16 @@ export default function NotificationsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    const initialId = window.setTimeout(() => { void fetchNotifications(); }, 0);
     const id = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(id);
-  }, []);
+    return () => {
+      window.clearTimeout(initialId);
+      clearInterval(id);
+    };
+  }, [fetchNotifications]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

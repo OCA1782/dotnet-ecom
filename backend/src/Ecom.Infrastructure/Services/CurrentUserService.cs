@@ -9,23 +9,43 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
 {
     private ClaimsPrincipal? User => httpContextAccessor.HttpContext?.User;
 
+    private IEnumerable<string> GetClaimValues(params string[] claimTypes)
+    {
+        if (User is null) return Enumerable.Empty<string>();
+        return claimTypes
+            .SelectMany(type => User.FindAll(type).Select(c => c.Value))
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+    }
+
     public Guid? UserId
     {
         get
         {
-            var id = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return id is not null ? Guid.Parse(id) : null;
+            var id = GetClaimValues(
+                    ClaimTypes.NameIdentifier,
+                    "sub",
+                    "userId")
+                .FirstOrDefault();
+
+            return Guid.TryParse(id, out var parsed) ? parsed : null;
         }
     }
 
     public string? Email => User?.FindFirst(ClaimTypes.Email)?.Value;
 
     public IEnumerable<string> Roles =>
-        User?.FindAll(ClaimTypes.Role).Select(c => c.Value) ?? Enumerable.Empty<string>();
+        GetClaimValues(
+            ClaimTypes.Role,
+            "role",
+            "roles",
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
 
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 
-    public bool IsSuperAdmin => User?.IsInRole("SuperAdmin") ?? false;
+    public bool IsSuperAdmin =>
+        GetClaimValues("isSuperAdmin").Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase)) ||
+        Roles.Any(r => r.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase));
 
     public string? IpAddress
     {

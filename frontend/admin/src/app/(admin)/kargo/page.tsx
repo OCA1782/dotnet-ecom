@@ -93,7 +93,10 @@ export default function KargoPage() {
     }
   }, [page, statusFilter, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   function openEdit(s: Shipment) {
     setEditForm({
@@ -120,7 +123,7 @@ export default function KargoPage() {
       setEditTarget(null);
       await load();
     } catch (e: unknown) {
-      setEditError(e instanceof Error ? e.message : "Güncelleme başarısız.");
+      setEditError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
     } finally {
       setSaving(false);
     }
@@ -149,20 +152,20 @@ export default function KargoPage() {
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Truck className="w-6 h-6 text-teal-600" /> {t("page./kargo", "Kargo Takip")}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">Tüm sipariş sevkiyatlarını takip edin, durum güncelleyin.</p>
+          <p className="text-sm text-slate-500 mt-0.5">{t("ui.kargoSubtitle", "Tüm sipariş sevkiyatlarını takip edin, durum güncelleyin.")}</p>
         </div>
         <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Yenile
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t("action.refresh", "Yenile")}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Teslim Edildi", value: delivered, bg: "bg-emerald-50", icon: CheckCircle, color: "text-emerald-600" },
-          { label: "Yolda",         value: inTransit, bg: "bg-blue-50",    icon: Truck,        color: "text-blue-600" },
-          { label: "Hazırlık",      value: preparing, bg: "bg-amber-50",   icon: Package,      color: "text-amber-600" },
-          { label: "Teslim Başarısız", value: failed, bg: "bg-red-50",     icon: AlertCircle,  color: "text-red-600" },
+          { label: t("status.delivered", "Teslim Edildi"), value: delivered, bg: "bg-emerald-50", icon: CheckCircle, color: "text-emerald-600" },
+          { label: t("ui.inTransit", "Yolda"),             value: inTransit, bg: "bg-blue-50",    icon: Truck,        color: "text-blue-600" },
+          { label: t("ui.preparing", "Hazırlık"),          value: preparing, bg: "bg-amber-50",   icon: Package,      color: "text-amber-600" },
+          { label: t("ui.failedDelivery", "Teslim Başarısız"), value: failed, bg: "bg-red-50",    icon: AlertCircle,  color: "text-red-600" },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.bg}`}>
@@ -184,21 +187,21 @@ export default function KargoPage() {
             <input
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Takip no, sipariş no, müşteri, firma..."
+              placeholder={t("ui.kargoSearchPlaceholder", "Takip no, sipariş no, müşteri, firma...")}
               className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
           </div>
-          <button type="submit" className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 transition">Ara</button>
+          <button type="submit" className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
           {(search || statusFilter) && (
             <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setStatusFilter(""); setPage(1); }}
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-500 hover:bg-slate-50 transition flex items-center gap-1">
-              <X size={13} /> Temizle
+              <X size={13} /> {t("action.clear", "Temizle")}
             </button>
           )}
         </form>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-400">
-          <option value="">Tüm Durumlar</option>
+          <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
           {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
@@ -206,25 +209,25 @@ export default function KargoPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-slate-400 text-sm">Yükleniyor...</div>
+          <div className="p-12 text-center text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
         ) : items.length === 0 ? (
           <div className="p-12 text-center">
             <Truck size={32} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-500 font-medium">Kargo kaydı bulunamadı.</p>
+            <p className="text-slate-500 font-medium">{t("ui.kargoNotFound", "Kargo kaydı bulunamadı.")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sipariş</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Müşteri</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kargo Firması</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Takip No</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Durum</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tarihler</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ücret</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kaynak</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.orderNumber", "Sipariş")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.customer", "Müşteri")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.carrier", "Kargo Firması")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.shipment", "Kargo No")}</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.status", "Durum")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.date", "Tarihler")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("ui.shippingCost", "Ücret")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("ui.source", "Kaynak")}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -235,7 +238,7 @@ export default function KargoPage() {
                       <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{s.orderNumber}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-800 text-xs">{s.customerName ?? "Misafir"}</p>
+                      <p className="font-medium text-slate-800 text-xs">{s.customerName ?? t("ui.guest", "Misafir")}</p>
                       {s.customerEmail && <p className="text-[11px] text-slate-400 truncate max-w-[150px]">{s.customerEmail}</p>}
                     </td>
                     <td className="px-4 py-3">
@@ -266,12 +269,12 @@ export default function KargoPage() {
                       <div className="space-y-0.5">
                         {s.shippedDate && (
                           <p className="text-[11px] text-slate-500">
-                            <span className="text-slate-400">Gönderim:</span> {fmtDate(s.shippedDate)}
+                            <span className="text-slate-400">{t("ui.shippedDate", "Gönderim:")} </span>{fmtDate(s.shippedDate)}
                           </p>
                         )}
                         {s.deliveredDate && (
                           <p className="text-[11px] text-emerald-600">
-                            <span className="text-slate-400">Teslim:</span> {fmtDate(s.deliveredDate)}
+                            <span className="text-slate-400">{t("ui.deliveredDate", "Teslim:")} </span>{fmtDate(s.deliveredDate)}
                           </p>
                         )}
                         {!s.shippedDate && !s.deliveredDate && (
@@ -300,7 +303,7 @@ export default function KargoPage() {
         {data && data.totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
             <p className="text-xs text-slate-500">
-              Toplam <span className="font-semibold">{data.totalCount}</span> kayıt · Sayfa {data.page}/{data.totalPages}
+              {t("ui.totalRecords", "Toplam")} <span className="font-semibold">{data.totalCount}</span> {t("ui.records", "kayıt")} · {t("ui.page", "Sayfa")} {data.page}/{data.totalPages}
             </p>
             <div className="flex gap-1.5">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
@@ -322,7 +325,7 @@ export default function KargoPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                <Truck size={16} className="text-teal-600" /> Kargo Güncelle
+                <Truck size={16} className="text-teal-600" /> {t("ui.kargoUpdate", "Kargo Güncelle")}
               </h2>
               <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-slate-700">
                 <X size={18} />
@@ -330,35 +333,35 @@ export default function KargoPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-slate-50 rounded-xl px-4 py-2.5 text-sm text-slate-600">
-                Sipariş: <span className="font-mono font-semibold text-slate-800">{editTarget.orderNumber}</span>
+                {t("ui.order", "Sipariş")}: <span className="font-mono font-semibold text-slate-800">{editTarget.orderNumber}</span>
               </div>
               {editError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{editError}</div>
               )}
               <div>
-                <label className={lbl}>Kargo Firması</label>
+                <label className={lbl}>{t("col.carrier", "Kargo Firması")}</label>
                 <input value={editForm.cargoCompany} onChange={e => setEditForm(f => ({...f, cargoCompany: e.target.value}))} className={inp} />
               </div>
               <div>
-                <label className={lbl}>Takip Numarası</label>
+                <label className={lbl}>{t("ui.trackingNumber", "Takip Numarası")}</label>
                 <input value={editForm.trackingNumber} onChange={e => setEditForm(f => ({...f, trackingNumber: e.target.value}))} className={inp} />
               </div>
               <div>
-                <label className={lbl}>Takip URL</label>
+                <label className={lbl}>{t("col.trackingUrl", "Takip URL")}</label>
                 <input value={editForm.trackingUrl} onChange={e => setEditForm(f => ({...f, trackingUrl: e.target.value}))} className={inp} placeholder="https://..." />
               </div>
               <div>
-                <label className={lbl}>Durum</label>
+                <label className={lbl}>{t("label.status", "Durum")}</label>
                 <select value={editForm.status} onChange={e => setEditForm(f => ({...f, status: e.target.value}))} className={inp}>
                   {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <div className="flex justify-end gap-3 pt-1">
                 <button onClick={() => setEditTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
-                  İptal
+                  {t("action.cancel", "İptal")}
                 </button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-60">
-                  {saving ? "Kaydediliyor..." : "Güncelle"}
+                  {saving ? t("action.saving", "Kaydediliyor...") : t("action.update", "Güncelle")}
                 </button>
               </div>
             </div>

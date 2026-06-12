@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import type { PaginatedList } from "@/types";
 import { exportToExcel } from "@/lib/excel";
@@ -50,14 +51,6 @@ interface ReviewReplyDto {
   createdDate: string;
 }
 
-const REASON_LABELS: Record<string, string> = {
-  spam:           "Spam / Reklam",
-  inappropriate:  "Uygunsuz İçerik",
-  offensive:      "Hakaret / Saldırgan",
-  misinformation: "Yanlış Bilgi",
-  other:          "Diğer",
-};
-
 interface AuditLog {
   id: string;
   userEmail: string;
@@ -70,6 +63,11 @@ interface AuditLog {
 
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
+
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
 
 interface RejectState { id: string; note: string; notify: boolean }
 
@@ -96,6 +94,7 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export default function YorumlarPage() {
+  const { t } = useI18n();
   const [reviews, setReviews] = useState<AdminReviewDto[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -112,15 +111,18 @@ export default function YorumlarPage() {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const REASON_LABELS: Record<string, string> = {
+    spam:           t("reason.spam", "Spam / Reklam"),
+    inappropriate:  t("reason.inappropriate", "Uygunsuz İçerik"),
+    offensive:      t("reason.offensive", "Hakaret / Saldırgan"),
+    misinformation: t("reason.misinformation", "Yanlış Bilgi"),
+    other:          t("reason.other", "Diğer"),
+  };
+
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
     setPage(1);
-  }
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
   }
 
   // Şikayet modalı
@@ -170,15 +172,18 @@ export default function YorumlarPage() {
     }
   }, [page, pageSize, isApproved, hasReports, search, sortField, sortDir]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   async function handleApprove(id: string, approved: boolean) {
     try {
       await api.patch(`/api/admin/reviews/${id}/approve`, { approved });
-      setMsg({ text: approved ? "Yorum onaylandı." : "Yorum onayı kaldırıldı.", ok: approved });
+      setMsg({ text: approved ? t("msg.reviewApproved", "Yorum onaylandı.") : t("msg.reviewApprovalRemoved", "Yorum onayı kaldırıldı."), ok: approved });
       load();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Hata oluştu.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("msg.error", "Hata oluştu."), ok: false });
     }
   }
 
@@ -190,11 +195,11 @@ export default function YorumlarPage() {
         rejectionNote: rejectState.note || null,
         notifyUser: rejectState.notify,
       });
-      setMsg({ text: rejectState.notify ? "Yorum reddedildi ve kullanıcıya bildirildi." : "Yorum reddedildi.", ok: false });
+      setMsg({ text: rejectState.notify ? t("msg.reviewRejectedNotified", "Yorum reddedildi ve kullanıcıya bildirildi.") : t("msg.reviewRejected", "Yorum reddedildi."), ok: false });
       setRejectState(null);
       load();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("msg.operationFailed", "İşlem başarısız."), ok: false });
     }
   }
 
@@ -203,7 +208,7 @@ export default function YorumlarPage() {
       await api.delete(`/api/admin/reviews/${id}`);
       load();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Silinemedi.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("msg.deleteFailed", "Silinemedi."), ok: false });
     }
   }
 
@@ -260,9 +265,9 @@ export default function YorumlarPage() {
               <MessageSquare size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-white">Yorumlar</h1>
+              <h1 className="text-xl font-extrabold text-white">{t("tab.comments", "Yorumlar")}</h1>
               <p className="text-white/70 text-xs mt-0.5">
-                Müşteri yorumlarını onayla, reddet, yanıtları ve şikayetleri yönet
+                {t("ui.reviewsSubtitle", "Müşteri yorumlarını onayla, reddet, yanıtları ve şikayetleri yönet")}
               </p>
             </div>
           </div>
@@ -270,26 +275,32 @@ export default function YorumlarPage() {
             {reportedCount > 0 && (
               <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
                 <AlertTriangle size={13} className="text-white" />
-                <span className="text-white text-xs font-bold">{reportedCount} şikayet</span>
+                <span className="text-white text-xs font-bold">{reportedCount} {t("ui.complaint", "şikayet")}</span>
               </div>
             )}
             {pendingCount > 0 && (
               <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
-                <span className="text-white text-xs font-bold">{pendingCount} bekliyor</span>
+                <span className="text-white text-xs font-bold">{pendingCount} {t("status.pending", "Bekliyor").toLowerCase()}</span>
               </div>
             )}
             <button
               onClick={() => exportToExcel(
                 reviews.map(r => ({
-                  "Ürün": r.productName, "Kullanıcı": r.userName, "E-posta": r.userEmail,
-                  "Puan": r.rating, "Başlık": r.title ?? "", "Yorum": r.body,
-                  "Onaylı": r.isApproved ? "Evet" : "Hayır",
-                  "Red Notu": r.rejectionNote ?? "",
-                  "Onaylı Alış": r.isVerifiedPurchase ? "Evet" : "Hayır",
-                  "Beğeni": r.likeCount, "Beğenmeme": r.dislikeCount,
-                  "Yanıt": r.replyCount, "Şikayet": r.reportCount,
+                  [t("col.product", "Ürün")]: r.productName,
+                  [t("col.user", "Kullanıcı")]: r.userName,
+                  [t("col.email", "E-posta")]: r.userEmail,
+                  [t("col.rating", "Puan")]: r.rating,
+                  [t("col.title", "Başlık")]: r.title ?? "",
+                  [t("col.comment", "Yorum")]: r.body,
+                  [t("status.approved", "Onaylı")]: r.isApproved ? t("action.yes", "Evet") : t("action.no", "Hayır"),
+                  [t("ui.rejectionNote", "Red Notu")]: r.rejectionNote ?? "",
+                  [t("ui.verifiedPurchase", "Onaylı Alış")]: r.isVerifiedPurchase ? t("action.yes", "Evet") : t("action.no", "Hayır"),
+                  [t("ui.likes", "Beğeni")]: r.likeCount,
+                  [t("ui.dislikes", "Beğenmeme")]: r.dislikeCount,
+                  [t("ui.replies", "Yanıt")]: r.replyCount,
+                  [t("ui.complaints", "Şikayet")]: r.reportCount,
                 })),
-                "yorumlar", "Yorumlar"
+                "yorumlar", t("tab.comments", "Yorumlar")
               )}
               className="flex items-center gap-2 bg-white text-slate-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-slate-50 transition shadow"
             >
@@ -304,7 +315,7 @@ export default function YorumlarPage() {
           msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
         }`}>
           {msg.text}
-          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">Kapat</button>
+          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">{t("action.close", "Kapat")}</button>
         </div>
       )}
 
@@ -316,14 +327,14 @@ export default function YorumlarPage() {
             <input
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Ürün, yorum veya e-posta ara..."
+              placeholder={t("ui.reviewSearchPlaceholder", "Ürün, yorum veya e-posta ara...")}
               className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 w-64 text-slate-900 bg-white"
             />
           </div>
-          <button type="submit" className="px-4 py-2 bg-violet-600 text-white text-sm rounded-xl hover:bg-violet-700 transition">Ara</button>
+          <button type="submit" className="px-4 py-2 bg-violet-600 text-white text-sm rounded-xl hover:bg-violet-700 transition">{t("action.search", "Ara")}</button>
           {(search || searchInput) && (
             <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
           )}
         </form>
         <select
@@ -331,9 +342,9 @@ export default function YorumlarPage() {
           onChange={e => { setIsApproved(e.target.value as "" | "true" | "false"); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
         >
-          <option value="">Tüm Durumlar</option>
-          <option value="false">Onay Bekleyenler</option>
-          <option value="true">Onaylananlar</option>
+          <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
+          <option value="false">{t("ui.pendingApproval", "Onay Bekleyenler")}</option>
+          <option value="true">{t("ui.approved", "Onaylananlar")}</option>
         </select>
         <button
           onClick={() => { setHasReports(p => p === "true" ? "" : "true"); setPage(1); }}
@@ -343,35 +354,35 @@ export default function YorumlarPage() {
               : "bg-white text-slate-600 border-slate-300 hover:bg-amber-50 hover:border-amber-300"
           }`}
         >
-          <Flag size={13} /> Şikayetli
+          <Flag size={13} /> {t("ui.complained", "Şikayetli")}
         </button>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
-          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
         </select>
       </div>
 
       {/* Tablo */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
-          <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+          <p className="p-8 text-center text-slate-400">{t("table.loading", "Yükleniyor...")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Ürün / Kullanıcı</th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Puan</th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Yorum</th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Etkileşimler</th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.product", "Ürün")} / {t("col.user", "Kullanıcı")}</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.rating", "Puan")}</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.comment", "Yorum")}</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.interactions", "Etkileşimler")}</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.date", "Tarih")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {reviews.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">Yorum bulunamadı</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : reviews.map(r => (
                 <tr key={r.id} className={`align-top ${r.hasUnresolvedReports ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3 max-w-[180px]">
@@ -379,11 +390,11 @@ export default function YorumlarPage() {
                     <p className="text-slate-500 text-xs mt-0.5">{r.userName}</p>
                     <p className="text-slate-400 text-xs">{r.userEmail}</p>
                     {r.isVerifiedPurchase && (
-                      <span className="text-green-600 text-xs">✓ Doğrulanmış</span>
+                      <span className="text-green-600 text-xs">✓ {t("ui.verifiedPurchaseBadge", "Doğrulanmış")}</span>
                     )}
                     {r.hasUnresolvedReports && (
                       <span className="flex items-center gap-1 text-amber-600 text-xs mt-0.5 font-semibold">
-                        <AlertTriangle size={10} /> Şikayet var
+                        <AlertTriangle size={10} /> {t("ui.hasComplaint", "Şikayet var")}
                       </span>
                     )}
                   </td>
@@ -395,7 +406,7 @@ export default function YorumlarPage() {
                     <p className="text-slate-500 text-xs line-clamp-3">{r.body}</p>
                     {r.rejectionNote && (
                       <p className="mt-1 text-xs text-red-500 bg-red-50 rounded-lg px-2 py-1 line-clamp-2">
-                        Red notu: {r.rejectionNote}
+                        {t("ui.rejectionNoteLabel", "Red notu")}: {r.rejectionNote}
                       </p>
                     )}
                   </td>
@@ -410,11 +421,11 @@ export default function YorumlarPage() {
                           onClick={() => openReplies(r.id, r.productName)}
                           className="flex items-center gap-1 text-teal-600 font-semibold hover:underline transition"
                         >
-                          <MessageCircle size={11} className="text-teal-500" /> {r.replyCount} yanıt
+                          <MessageCircle size={11} className="text-teal-500" /> {r.replyCount} {t("ui.reply", "yanıt")}
                         </button>
                       ) : (
                         <span className="flex items-center gap-1">
-                          <MessageCircle size={11} className="text-teal-500" /> 0 yanıt
+                          <MessageCircle size={11} className="text-teal-500" /> 0 {t("ui.reply", "yanıt")}
                         </span>
                       )}
                       {r.reportCount > 0 && (
@@ -424,7 +435,7 @@ export default function YorumlarPage() {
                             r.hasUnresolvedReports ? "text-amber-600" : "text-slate-400"
                           }`}
                         >
-                          <Flag size={11} /> {r.reportCount} şikayet
+                          <Flag size={11} /> {r.reportCount} {t("ui.complaint", "şikayet")}
                         </button>
                       )}
                     </div>
@@ -434,11 +445,11 @@ export default function YorumlarPage() {
                   </td>
                   <td className="px-4 py-3">
                     {r.isApproved ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700">Onaylı</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700">{t("status.approved", "Onaylı")}</span>
                     ) : r.rejectionNote ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700">Reddedildi</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700">{t("status.rejected", "Reddedildi")}</span>
                     ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Bekliyor</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">{t("status.pending", "Bekliyor")}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -446,26 +457,26 @@ export default function YorumlarPage() {
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-1.5 items-center">
-                      <button onClick={() => openHistory(r)} title="Geçmiş"
+                      <button onClick={() => openHistory(r)} title={t("tab.history", "Geçmiş")}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm transition-all active:scale-95">
                         <History size={14} />
                       </button>
                       {!r.isApproved ? (
-                        <button onClick={() => handleApprove(r.id, true)} title="Onayla"
+                        <button onClick={() => handleApprove(r.id, true)} title={t("action.approve", "Onayla")}
                           className="w-8 h-8 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-500 hover:text-white shadow-sm transition-all active:scale-95">
                           <CheckCircle size={16} />
                         </button>
                       ) : (
-                        <button onClick={() => handleApprove(r.id, false)} title="Onayı Kaldır"
+                        <button onClick={() => handleApprove(r.id, false)} title={t("ui.removeApproval", "Onayı Kaldır")}
                           className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm transition-all active:scale-95">
                           <XCircle size={16} />
                         </button>
                       )}
-                      <button onClick={() => setRejectState({ id: r.id, note: "", notify: true })} title="Reddet + Bildir"
+                      <button onClick={() => setRejectState({ id: r.id, note: "", notify: true })} title={t("ui.rejectAndNotify", "Reddet + Bildir")}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm transition-all active:scale-95">
                         <Bell size={14} />
                       </button>
-                      <button onClick={() => setConfirmDelete(r.id)} title="Sil"
+                      <button onClick={() => setConfirmDelete(r.id)} title={t("action.delete", "Sil")}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-500 hover:text-white shadow-sm transition-all active:scale-95">
                         <Trash2 size={14} />
                       </button>
@@ -480,9 +491,9 @@ export default function YorumlarPage() {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>}
+          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.prev", "← Önceki")}</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
+          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.next", "Sonraki →")}</button>}
         </div>
       )}
 
@@ -493,7 +504,7 @@ export default function YorumlarPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <div>
                 <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                  <History size={16} className="text-amber-500" /> Yorum Geçmişi
+                  <History size={16} className="text-amber-500" /> {t("ui.reviewHistory", "Yorum Geçmişi")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{historyTarget.productName} — {historyTarget.userName}</p>
               </div>
@@ -501,14 +512,14 @@ export default function YorumlarPage() {
             </div>
             <div className="overflow-y-auto flex-1">
               {historyLoading ? (
-                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                <p className="p-8 text-center text-slate-400">{t("table.loading", "Yükleniyor...")}</p>
               ) : historyLogs.length === 0 ? (
-                <p className="p-8 text-center text-slate-400">Bu yoruma ait hareket kaydı bulunamadı.</p>
+                <p className="p-8 text-center text-slate-400">{t("ui.noHistoryFound", "Bu yoruma ait hareket kaydı bulunamadı.")}</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                     <tr>
-                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                      {[t("col.date", "Tarih"), t("ui.performedBy", "İşlemi Yapan"), t("col.action", "Aksiyon"), t("action.details", "Detaylar")].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                       ))}
                     </tr>
@@ -541,7 +552,7 @@ export default function YorumlarPage() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
-              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.close", "Kapat")}</button>
             </div>
           </div>
         </div>
@@ -557,7 +568,7 @@ export default function YorumlarPage() {
                   <Flag size={16} className="text-amber-600" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-slate-800">Şikayetler</h2>
+                  <h2 className="text-sm font-bold text-slate-800">{t("ui.complaints", "Şikayetler")}</h2>
                   <p className="text-xs text-slate-400 line-clamp-1">{reportsModal.productName}</p>
                 </div>
               </div>
@@ -568,9 +579,9 @@ export default function YorumlarPage() {
             </div>
 
             {reportsLoading ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Yükleniyor...</p>
+              <p className="text-sm text-slate-400 py-4 text-center">{t("table.loading", "Yükleniyor...")}</p>
             ) : reports.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Şikayet bulunamadı.</p>
+              <p className="text-sm text-slate-400 py-4 text-center">{t("ui.noComplaintsFound", "Şikayet bulunamadı.")}</p>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {reports.map(rep => (
@@ -582,7 +593,7 @@ export default function YorumlarPage() {
                         <span className="text-xs font-semibold text-slate-700">{rep.userName}</span>
                         <span className="text-[10px] text-slate-400">{new Date(rep.createdDate).toLocaleDateString("tr-TR")}</span>
                         {rep.isResolved && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 font-semibold">Çözüldü</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 font-semibold">{t("ui.resolved", "Çözüldü")}</span>
                         )}
                       </div>
                       <p className="text-xs text-slate-600 mt-0.5">
@@ -594,7 +605,7 @@ export default function YorumlarPage() {
                         onClick={() => resolveReport(reportsModal.reviewId, rep.id)}
                         className="shrink-0 text-xs text-teal-600 hover:text-teal-800 font-semibold px-2 py-1 rounded-lg hover:bg-teal-50 transition"
                       >
-                        Çöz
+                        {t("ui.resolve", "Çöz")}
                       </button>
                     )}
                   </div>
@@ -604,7 +615,7 @@ export default function YorumlarPage() {
 
             <button onClick={() => setReportsModal(null)}
               className="w-full border border-slate-300 text-slate-600 text-sm font-medium py-2.5 rounded-xl hover:bg-slate-50 transition">
-              Kapat
+              {t("action.close", "Kapat")}
             </button>
           </div>
         </div>
@@ -620,7 +631,7 @@ export default function YorumlarPage() {
                   <MessageCircle size={16} className="text-teal-600" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-slate-800">Yanıtlar</h2>
+                  <h2 className="text-sm font-bold text-slate-800">{t("ui.replies", "Yanıtlar")}</h2>
                   <p className="text-xs text-slate-400 line-clamp-1">{repliesModal.productName}</p>
                 </div>
               </div>
@@ -631,9 +642,9 @@ export default function YorumlarPage() {
             </div>
 
             {repliesLoading ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Yükleniyor...</p>
+              <p className="text-sm text-slate-400 py-4 text-center">{t("table.loading", "Yükleniyor...")}</p>
             ) : replies.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Yanıt bulunamadı.</p>
+              <p className="text-sm text-slate-400 py-4 text-center">{t("ui.noRepliesFound", "Yanıt bulunamadı.")}</p>
             ) : (
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {replies.map(rep => (
@@ -655,7 +666,7 @@ export default function YorumlarPage() {
 
             <button onClick={() => setRepliesModal(null)}
               className="w-full border border-slate-300 text-slate-600 text-sm font-medium py-2.5 rounded-xl hover:bg-slate-50 transition">
-              Kapat
+              {t("action.close", "Kapat")}
             </button>
           </div>
         </div>
@@ -670,17 +681,17 @@ export default function YorumlarPage() {
                 <Bell size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900">Yorumu Reddet</h2>
-                <p className="text-xs text-slate-500">İsteğe bağlı not ekleyebilir ve kullanıcıya bildirim gönderebilirsiniz.</p>
+                <h2 className="font-bold text-slate-900">{t("ui.rejectReview", "Yorumu Reddet")}</h2>
+                <p className="text-xs text-slate-500">{t("ui.rejectReviewSubtitle", "İsteğe bağlı not ekleyebilir ve kullanıcıya bildirim gönderebilirsiniz.")}</p>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Red Notu (isteğe bağlı)</label>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">{t("ui.rejectionNoteOptional", "Red Notu (isteğe bağlı)")}</label>
                 <RichTextEditor
                   value={rejectState.note}
                   onChange={v => setRejectState(s => s ? { ...s, note: v } : s)}
-                  placeholder="Yorum neden reddedildi? (kullanıcıya gösterilecek)"
+                  placeholder={t("ui.rejectionNotePlaceholder", "Yorum neden reddedildi? (kullanıcıya gösterilecek)")}
                 />
               </div>
               <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -690,17 +701,17 @@ export default function YorumlarPage() {
                   onChange={e => setRejectState(s => s ? { ...s, notify: e.target.checked } : s)}
                   className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-400"
                 />
-                <span className="text-sm text-slate-700">Kullanıcıya e-posta ile bildir</span>
+                <span className="text-sm text-slate-700">{t("ui.notifyByEmail", "Kullanıcıya e-posta ile bildir")}</span>
               </label>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
               <button onClick={handleReject}
                 className="flex-1 bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
-                Reddet
+                {t("action.reject", "Reddet")}
               </button>
               <button onClick={() => setRejectState(null)}
                 className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
             </div>
           </div>
@@ -709,9 +720,9 @@ export default function YorumlarPage() {
 
       {confirmDelete && (
         <ConfirmModal
-          title="Yorumu Sil"
-          message="Bu yorumu kalıcı olarak silmek istediğinizden emin misiniz?"
-          confirmLabel="Sil"
+          title={t("ui.deleteReview", "Yorumu Sil")}
+          message={t("ui.deleteReviewConfirm", "Bu yorumu kalıcı olarak silmek istediğinizden emin misiniz?")}
+          confirmLabel={t("action.delete", "Sil")}
           danger
           onConfirm={() => { handleDelete(confirmDelete); setConfirmDelete(null); }}
           onCancel={() => setConfirmDelete(null)}

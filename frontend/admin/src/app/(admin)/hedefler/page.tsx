@@ -7,7 +7,13 @@ import { formatPrice } from "@/lib/utils";
 import type { SalesGoal } from "@/types";
 import { Target, TrendingUp, ShoppingCart, Check, Pencil, X } from "lucide-react";
 
-const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const MONTH_KEYS = [
+  "hedefler.month.jan", "hedefler.month.feb", "hedefler.month.mar",
+  "hedefler.month.apr", "hedefler.month.may", "hedefler.month.jun",
+  "hedefler.month.jul", "hedefler.month.aug", "hedefler.month.sep",
+  "hedefler.month.oct", "hedefler.month.nov", "hedefler.month.dec",
+];
+const MONTH_FALLBACKS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
 interface MonthActual {
   month: string;
@@ -21,6 +27,7 @@ interface DashboardStats {
 
 export default function HedeflerPage() {
   const { t } = useI18n();
+  const MONTHS = MONTH_KEYS.map((key, i) => t(key, MONTH_FALLBACKS[i]));
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [monthFilter, setMonthFilter] = useState(0);
@@ -46,7 +53,10 @@ export default function HedeflerPage() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function getGoal(month: number): SalesGoal | undefined {
     return goals.find(g => g.month === month);
@@ -71,11 +81,11 @@ export default function HedeflerPage() {
         targetRevenue: parseFloat(editRevenue) || 0,
         targetOrderCount: parseInt(editOrderCount) || 0,
       });
-      setMsg({ text: `${MONTHS[month - 1]} hedefi kaydedildi.`, ok: true });
+      setMsg({ text: `${MONTHS[month - 1]} ${t("hedefler.goalSaved", "hedefi kaydedildi.")}`, ok: true });
       setEditingMonth(null);
       await load();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Hata oluştu.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"), ok: false });
     } finally { setSaving(false); }
   }
 
@@ -90,12 +100,12 @@ export default function HedeflerPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("nav./hedefler", "Hedefler")}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Aylık satış miktarı ve gelir hedeflerini belirleyin</p>
+          <p className="text-sm text-slate-500 mt-0.5">{t("hedefler.subtitle", "Aylık satış miktarı ve gelir hedeflerini belirleyin")}</p>
         </div>
         <div className="flex items-center gap-3">
           <select value={monthFilter} onChange={e => setMonthFilter(Number(e.target.value))}
             className="border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-            <option value={0}>Tüm Aylar</option>
+            <option value={0}>{t("hedefler.allMonths", "Tüm Aylar")}</option>
             {MONTHS.map((m, i) => (
               <option key={i + 1} value={i + 1}>{m}</option>
             ))}
@@ -126,7 +136,7 @@ export default function HedeflerPage() {
                 <TrendingUp size={15} className="text-white" />
               </div>
               <div>
-                <p className="text-xs text-slate-400">Yıllık Gelir Hedefi</p>
+                <p className="text-xs text-slate-400">{t("hedefler.yearlyRevenueGoal", "Yıllık Gelir Hedefi")}</p>
                 <p className="text-sm font-bold text-slate-800">{formatPrice(totalTargetRevenue)}</p>
               </div>
             </div>
@@ -135,7 +145,7 @@ export default function HedeflerPage() {
                 style={{ width: `${Math.min((totalActualRevenue / totalTargetRevenue) * 100, 100)}%` }} />
             </div>
             <div className="flex justify-between mt-2 text-xs text-slate-400">
-              <span>{formatPrice(totalActualRevenue)} gerçekleşen</span>
+              <span>{formatPrice(totalActualRevenue)} {t("hedefler.actual", "gerçekleşen")}</span>
               <span>{Math.round((totalActualRevenue / totalTargetRevenue) * 100)}%</span>
             </div>
           </div>
@@ -145,8 +155,8 @@ export default function HedeflerPage() {
                 <ShoppingCart size={15} className="text-white" />
               </div>
               <div>
-                <p className="text-xs text-slate-400">Yıllık Sipariş Hedefi</p>
-                <p className="text-sm font-bold text-slate-800">{totalTargetOrders.toLocaleString("tr-TR")} sipariş</p>
+                <p className="text-xs text-slate-400">{t("hedefler.yearlyOrderGoal", "Yıllık Sipariş Hedefi")}</p>
+                <p className="text-sm font-bold text-slate-800">{totalTargetOrders.toLocaleString("tr-TR")} {t("hedefler.orders", "sipariş")}</p>
               </div>
             </div>
             <div className="relative h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -154,7 +164,7 @@ export default function HedeflerPage() {
                 style={{ width: `${Math.min((totalActualOrders / totalTargetOrders) * 100, 100)}%` }} />
             </div>
             <div className="flex justify-between mt-2 text-xs text-slate-400">
-              <span>{totalActualOrders.toLocaleString("tr-TR")} gerçekleşen</span>
+              <span>{totalActualOrders.toLocaleString("tr-TR")} {t("hedefler.actual", "gerçekleşen")}</span>
               <span>{Math.round((totalActualOrders / totalTargetOrders) * 100)}%</span>
             </div>
           </div>
@@ -162,7 +172,7 @@ export default function HedeflerPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Yükleniyor...</div>
+        <div className="text-center py-12 text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {MONTHS.filter((_, idx) => monthFilter === 0 || idx + 1 === monthFilter).map((monthName, idx) => {
@@ -170,7 +180,6 @@ export default function HedeflerPage() {
             const goal = getGoal(month);
             const actual = getActual(month);
             const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-            const isPast = year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1);
             const isEditing = editingMonth === month;
 
             const revPct = goal && actual ? Math.min((actual.revenue / goal.targetRevenue) * 100, 100) : 0;
@@ -181,7 +190,7 @@ export default function HedeflerPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     {isCurrentMonth && (
-                      <span className="text-xs bg-teal-100 text-teal-700 font-semibold px-2 py-0.5 rounded-full">Bu Ay</span>
+                      <span className="text-xs bg-teal-100 text-teal-700 font-semibold px-2 py-0.5 rounded-full">{t("hedefler.thisMonth", "Bu Ay")}</span>
                     )}
                     <h3 className="font-bold text-slate-800 text-sm">{monthName}</h3>
                   </div>
@@ -196,13 +205,13 @@ export default function HedeflerPage() {
                 {isEditing ? (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Gelir Hedefi (₺)</label>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">{t("hedefler.revenueGoalLabel", "Gelir Hedefi (₺)")}</label>
                       <input type="number" value={editRevenue} onChange={e => setEditRevenue(e.target.value)}
                         className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
                         placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Sipariş Hedefi</label>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">{t("hedefler.orderGoalLabel", "Sipariş Hedefi")}</label>
                       <input type="number" value={editOrderCount} onChange={e => setEditOrderCount(e.target.value)}
                         className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
                         placeholder="0" />
@@ -210,11 +219,11 @@ export default function HedeflerPage() {
                     <div className="flex gap-2 pt-1">
                       <button onClick={() => handleSave(month)} disabled={saving}
                         className="flex-1 flex items-center justify-center gap-1.5 bg-teal-600 text-white text-xs font-semibold py-2 rounded-xl hover:bg-teal-700 disabled:opacity-50 transition">
-                        <Check size={13} /> Kaydet
+                        <Check size={13} /> {t("action.save", "Kaydet")}
                       </button>
                       <button onClick={() => setEditingMonth(null)}
                         className="px-3 py-2 border border-slate-300 text-slate-500 text-xs rounded-xl hover:bg-slate-50 transition">
-                        İptal
+                        {t("action.cancel", "Vazgeç")}
                       </button>
                     </div>
                   </div>
@@ -222,7 +231,7 @@ export default function HedeflerPage() {
                   <div className="space-y-3">
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-400 flex items-center gap-1"><TrendingUp size={11} /> Gelir</span>
+                        <span className="text-slate-400 flex items-center gap-1"><TrendingUp size={11} /> {t("hedefler.revenue", "Gelir")}</span>
                         <span className="font-semibold text-slate-700">{formatPrice(goal.targetRevenue)}</span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -233,23 +242,23 @@ export default function HedeflerPage() {
                     </div>
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-400 flex items-center gap-1"><ShoppingCart size={11} /> Sipariş</span>
+                        <span className="text-slate-400 flex items-center gap-1"><ShoppingCart size={11} /> {t("hedefler.order", "Sipariş")}</span>
                         <span className="font-semibold text-slate-700">{goal.targetOrderCount}</span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${ordPct}%`, background: ordPct >= 100 ? "#34d399" : ordPct >= 75 ? "#6366f1" : ordPct >= 50 ? "#fbbf24" : "#f87171" }} />
                       </div>
-                      {actual && <p className="text-xs text-slate-400 mt-0.5">{actual.orderCount} sipariş · {ordPct.toFixed(0)}%</p>}
+                      {actual && <p className="text-xs text-slate-400 mt-0.5">{actual.orderCount} {t("hedefler.orders", "sipariş")} · {ordPct.toFixed(0)}%</p>}
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-4 text-center">
                     <Target size={22} className="text-slate-200 mb-2" />
-                    <p className="text-xs text-slate-400">Hedef belirlenmedi</p>
+                    <p className="text-xs text-slate-400">{t("hedefler.noGoal", "Hedef belirlenmedi")}</p>
                     <button onClick={() => startEdit(month)}
                       className="mt-2 text-xs text-teal-600 hover:text-teal-800 font-medium transition">
-                      + Hedef Ekle
+                      + {t("hedefler.addGoal", "Hedef Ekle")}
                     </button>
                   </div>
                 )}

@@ -1,16 +1,14 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import {
   BookOpen, ShoppingCart, CreditCard, Truck, RotateCcw,
   Server, Database, Layers, ArrowRight, Users, Package,
   Shield, Mail, Activity, GitBranch, Box, Zap,
   ChevronDown, ChevronRight, MessageSquare, Lock, RefreshCw,
-  MapPin, FlaskConical, Settings, Calendar, Tag, Cpu,
-  BarChart3, Palette, KeyRound, Bell, Globe, Code2,
-  Warehouse, LayoutDashboard, FileText, AlertCircle, Clock,
-  Image as ImageIcon, Eye, Search, Megaphone, GripVertical,
+  Settings, Cpu, Palette, KeyRound, Globe, Code2,
+  FileText, Clock, Eye, Search, Megaphone, GripVertical,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -248,7 +246,7 @@ function SureclerTab() {
       );
       case "kargo-iade": return (
         <DocSection title="Kargo & İade Akışı" icon={Truck} drag={dp}>
-        <p className="text-xs text-slate-500 mb-3">Kargo takip ve iade süreçleri. Kargo firmaları ShippingCarrier entity'sinde tanımlanır.</p>
+        <p className="text-xs text-slate-500 mb-3">Kargo takip ve iade süreçleri. Kargo firmaları ShippingCarrier entity&apos;sinde tanımlanır.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Kargo Süreci</p>
@@ -484,7 +482,7 @@ function SureclerTab() {
 
           {/* Token'ı görüntüleme */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">2 — Token'ı Görüntüle ve Kopyala</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">2 — Token&apos;ı Görüntüle ve Kopyala</p>
             <FlowRow>
               <FlowStep icon={Settings} label="Yönetim" color="teal" sub="Sol menü altında" />
               <Arrow />
@@ -505,7 +503,7 @@ function SureclerTab() {
 
           {/* Token'ı yapılandırma */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">3 — Token'ı Yapılandır</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">3 — Token&apos;ı Yapılandır</p>
             <div className="space-y-2">
               {[
                 {
@@ -1052,7 +1050,7 @@ function TeknikTab() {
       case "lisans-mekanizma": return (
         <DocSection title="Lisans Token — Sistem Mekanizması" icon={Shield} defaultOpen={false} drag={dp}>
         <p className="text-xs text-slate-500 mb-4">
-          Token'ın format, doğrulama akışı ve sistem üzerindeki etkileri. Bu mekanizma uygulama başlatılırken <strong>otomatik devreye girer</strong> ve her HTTP isteğinde çalışır. Admin panelindeki &quot;görüntüle&quot; özelliği yalnızca token'ı ekranda göstermek içindir; mekanizmadan bağımsızdır.
+          Token&apos;ın format, doğrulama akışı ve sistem üzerindeki etkileri. Bu mekanizma uygulama başlatılırken <strong>otomatik devreye girer</strong> ve her HTTP isteğinde çalışır. Admin panelindeki &quot;görüntüle&quot; özelliği yalnızca token&apos;ı ekranda göstermek içindir; mekanizmadan bağımsızdır.
         </p>
         <div className="space-y-5">
 
@@ -1214,7 +1212,7 @@ function TeknikTab() {
             </FlowRow>
             <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 space-y-1.5">
               <p><strong>SuperAdmin:</strong> GET /api/admin/dev-key → <code className="bg-amber-100 px-1 rounded font-mono">fullKey</code> alanı doğrudan döner, şifre gerekmez.</p>
-              <p><strong>Regular Admin:</strong> POST /api/admin/dev-key/reveal → <code className="bg-amber-100 px-1 rounded font-mono">DevRevealPassword</code> şifresini girer. Hash <code className="bg-amber-100 px-1 rounded font-mono">SiteSettings</code> tablosunda <code className="bg-amber-100 px-1 rounded font-mono">RevealPasswordHash</code> key'i altında saklanır.</p>
+              <p><strong>Regular Admin:</strong> POST /api/admin/dev-key/reveal → <code className="bg-amber-100 px-1 rounded font-mono">DevRevealPassword</code> şifresini girer. Hash <code className="bg-amber-100 px-1 rounded font-mono">SiteSettings</code> tablosunda <code className="bg-amber-100 px-1 rounded font-mono">RevealPasswordHash</code> key&apos;i altında saklanır.</p>
               <p>Bu mekanizma <strong>platform lisansı</strong> içindir. Admin kullanıcılara <em>atanan</em> lisanslar için ayrı ViewPasswordHash (per-assignment) kullanılır — bkz. Lisans Atama bölümü.</p>
             </div>
           </div>
@@ -1440,6 +1438,7 @@ function renderMarkdown(md: string): React.ReactNode {
 const DOCS_REFRESH_SEC = 30;
 
 function DocsNotlarTab() {
+  const { t } = useI18n();
   const [files, setFiles] = useState<DocsFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
@@ -1472,10 +1471,31 @@ function DocsNotlarTab() {
     } catch { setContent(null); } finally { setContentLoading(false); }
   }, []);
 
+  const preferredFile = useMemo(() => {
+    const preferredNames = [
+      "calisma-notlari.md",
+      "I18N_JOB_WORK_LOG.md",
+      "WORK_LOG.md",
+      "TODO_DONE.md",
+      "TODO_PENDING.md",
+      "degisiklik-gunlugu.md",
+      "CHANGELOG.md",
+    ];
+    const lower = new Map(files.map(f => [f.name.toLowerCase(), f.name]));
+    for (const name of preferredNames) {
+      const hit = lower.get(name.toLowerCase());
+      if (hit) return hit;
+    }
+    return files[0]?.name ?? null;
+  }, [files]);
+
   useEffect(() => {
-    fetchFiles();
-    const t = setInterval(() => fetchFiles(), DOCS_REFRESH_SEC * 1000);
-    return () => clearInterval(t);
+    const loadTimer = window.setTimeout(() => { void fetchFiles(); }, 0);
+    const refreshTimer = window.setInterval(() => { void fetchFiles(); }, DOCS_REFRESH_SEC * 1000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearInterval(refreshTimer);
+    };
   }, [fetchFiles]);
 
   // Countdown ticker
@@ -1485,13 +1505,32 @@ function DocsNotlarTab() {
   }, []);
 
   useEffect(() => {
+    if (!selected && preferredFile) {
+      setSelected(preferredFile);
+      return;
+    }
+    if (selected && files.length > 0 && !files.some(f => f.name === selected) && preferredFile) {
+      setSelected(preferredFile);
+    }
+  }, [files, preferredFile, selected]);
+
+  useEffect(() => {
     if (!selected) return;
-    fetchContent(selected);
-    const t = setInterval(() => fetchContent(selected), 30_000);
-    return () => clearInterval(t);
+    const loadTimer = window.setTimeout(() => { void fetchContent(selected); }, 0);
+    const refreshTimer = window.setInterval(() => { void fetchContent(selected); }, 30_000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearInterval(refreshTimer);
+    };
   }, [selected, fetchContent]);
 
-  const isRecent = (iso: string) => Date.now() - new Date(iso).getTime() < 86_400_000;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const isRecent = (iso: string) => now - new Date(iso).getTime() < 86_400_000;
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -1500,8 +1539,8 @@ function DocsNotlarTab() {
       <div className="w-60 shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FileText size={14} className="text-teal-600" />
-          <span className="text-xs font-bold text-slate-700">DOCS Dosyaları</span>
-          <span className="text-[10px] text-slate-400">{files.length} dosya</span>
+          <span className="text-xs font-bold text-slate-700">{t("docs.filesTitle", "DOCS Dosyaları")}</span>
+          <span className="text-[10px] text-slate-400">{files.length} {t("docs.fileCount", "dosya")}</span>
           {source && (
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
               source.includes("github") ? "bg-violet-100 text-violet-600" : "bg-slate-100 text-slate-500"
@@ -1512,7 +1551,7 @@ function DocsNotlarTab() {
           <span className="ml-auto text-[10px] text-slate-300">{countdown}s</span>
           <button
             onClick={() => fetchFiles(true)}
-            title="Yenile"
+            title={t("action.refresh", "Yenile")}
             className={`p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-teal-600 transition ${filesRefreshing ? "animate-spin" : ""}`}
           >
             <RefreshCw size={12} />
@@ -1520,9 +1559,9 @@ function DocsNotlarTab() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {filesLoading ? (
-            <div className="p-4 text-center text-xs text-slate-400">Yükleniyor…</div>
+            <div className="p-4 text-center text-xs text-slate-400">{t("action.loading", "Yükleniyor…")}</div>
           ) : files.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400">DOCS klasörü bulunamadı</div>
+            <div className="p-4 text-center text-xs text-slate-400">{t("docs.noFolder", "DOCS klasörü bulunamadı")}</div>
           ) : files.map(f => (
             <button key={f.name} onClick={() => setSelected(f.name)}
               className={`w-full text-left px-4 py-2.5 border-b border-slate-50 transition flex items-center gap-2 ${
@@ -1542,7 +1581,7 @@ function DocsNotlarTab() {
         {!selected ? (
           <div className="flex-1 flex items-center justify-center flex-col gap-2 text-slate-400">
             <FileText size={36} className="text-slate-200" />
-            <span className="text-sm">Görüntülemek için bir dosya seçin</span>
+            <span className="text-sm">{t("docs.selectFile", "Görüntülemek için bir dosya seçin")}</span>
           </div>
         ) : (
           <>
@@ -1557,11 +1596,11 @@ function DocsNotlarTab() {
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {contentLoading && !content ? (
-                <div className="text-center text-sm text-slate-400 py-8">Yükleniyor…</div>
+                <div className="text-center text-sm text-slate-400 py-8">{t("action.loading", "Yükleniyor…")}</div>
               ) : content ? (
                 renderMarkdown(content)
               ) : (
-                <div className="text-center text-sm text-slate-400 py-8">Dosya yüklenemedi</div>
+                <div className="text-center text-sm text-slate-400 py-8">{t("docs.fileLoadFailed", "Dosya yüklenemedi")}</div>
               )}
             </div>
           </>
@@ -1574,6 +1613,7 @@ function DocsNotlarTab() {
 /* ─── Changelog Markdown Tab ─────────────────────────────────────────── */
 
 function ChangelogMarkdownTab() {
+  const { t } = useI18n();
   const [content, setContent] = useState<string | null>(null);
   const [lastModified, setLastModified] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1590,7 +1630,10 @@ function ChangelogMarkdownTab() {
     } catch { setError(true); } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void fetch(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetch]);
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -1599,7 +1642,7 @@ function ChangelogMarkdownTab() {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-3">
         <Clock size={14} className="text-teal-600" />
-        <span className="text-sm font-semibold text-slate-700">Değişiklik Günlüğü</span>
+        <span className="text-sm font-semibold text-slate-700">{t("auto.degisiklikGunlugu", "Değişiklik Günlüğü")}</span>
         {lastModified && <span className="text-[10px] text-slate-400">{fmtDate(lastModified)}</span>}
         <span className="text-[10px] bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full font-medium ml-1">
           dotnet-ecom-docs/CHANGELOG.md
@@ -1610,11 +1653,11 @@ function ChangelogMarkdownTab() {
       </div>
       <div className="px-5 py-4 max-h-[calc(100vh-380px)] overflow-y-auto">
         {loading && !content ? (
-          <div className="text-center text-sm text-slate-400 py-8">Yükleniyor…</div>
+          <div className="text-center text-sm text-slate-400 py-8">{t("action.loading", "Yükleniyor…")}</div>
         ) : error ? (
           <div className="text-center text-sm text-slate-400 py-8">
-            <p>CHANGELOG.md yüklenemedi.</p>
-            <p className="text-xs mt-1 text-slate-300">GitHub token yapılandırılmamış veya dotnet-ecom-docs repo erişilemiyor olabilir.</p>
+            <p>{t("docs.changelogLoadFailed", "CHANGELOG.md yüklenemedi.")}</p>
+            <p className="text-xs mt-1 text-slate-300">{t("docs.changelogLoadHint", "GitHub token yapılandırılmamış veya dotnet-ecom-docs repo erişilemiyor olabilir.")}</p>
           </div>
         ) : content ? renderMarkdown(content) : null}
       </div>
@@ -1626,10 +1669,12 @@ function ChangelogMarkdownTab() {
 
 
 function YeniliklerTab() {
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState<"git" | "notlar" | "degisiklikler">("git");
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [catFilter, setCatFilter] = useState<string>("all");
   const [expandedHashes, setExpandedHashes] = useState<Set<string>>(new Set());
   const [limit, setLimit] = useState(40);
@@ -1644,22 +1689,28 @@ function YeniliklerTab() {
   }, [limit]);
 
   useEffect(() => {
-    fetchLog();
-    const t = setInterval(fetchLog, 30_000);
-    return () => clearInterval(t);
+    const loadTimer = window.setTimeout(() => { void fetchLog(); }, 0);
+    const refreshTimer = window.setInterval(() => { void fetchLog(); }, 30_000);
+    const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearInterval(refreshTimer);
+      window.clearInterval(clockTimer);
+    };
   }, [fetchLog]);
 
   function toggleExpand(hash: string) {
     setExpandedHashes(prev => {
       const next = new Set(prev);
-      next.has(hash) ? next.delete(hash) : next.add(hash);
+      if (next.has(hash)) next.delete(hash);
+      else next.add(hash);
       return next;
     });
   }
 
   const relDate = (iso: string) => {
     const d = new Date(iso);
-    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+    const diff = Math.floor((now - d.getTime()) / 1000);
     if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} sa önce`;
     if (diff < 604800) return `${Math.floor(diff / 86400)} gün önce`;
@@ -1697,9 +1748,9 @@ function YeniliklerTab() {
       {/* Sub-tabs */}
       <div className="flex gap-1.5">
         {[
-          { id: "git", label: "Git Geçmişi", icon: GitBranch },
-          { id: "degisiklikler", label: "Değişiklik Günlüğü", icon: Clock },
-          { id: "notlar", label: "Çalışma Notları", icon: FileText },
+          { id: "git", label: t("docs.tab.gitHistory", "Git Geçmişi"), icon: GitBranch },
+          { id: "degisiklikler", label: t("auto.degisiklikGunlugu", "Değişiklik Günlüğü"), icon: Clock },
+          { id: "notlar", label: t("docs.tab.workNotes", "Çalışma Notları"), icon: FileText },
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id as "git" | "notlar" | "degisiklikler")}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border transition ${
@@ -1719,14 +1770,14 @@ function YeniliklerTab() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <GitBranch size={16} className="text-teal-600" />
-            <span className="text-sm font-bold text-slate-700">Git Geliştirme Geçmişi</span>
+            <span className="text-sm font-bold text-slate-700">{t("docs.gitHistoryTitle", "Git Geliştirme Geçmişi")}</span>
             <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">
-              {filtered.length} commit
+              {filtered.length} {t("docs.commitCount", "commit")}
             </span>
           </div>
           {lastUpdated && (
             <span className="text-[10px] text-slate-400 flex items-center gap-1">
-              <Clock size={10} /> {lastUpdated.toLocaleTimeString("tr-TR")} — 30s'de bir yenilenir
+              <Clock size={10} /> {lastUpdated.toLocaleTimeString("tr-TR")} — {t("docs.refreshHint", "30s'de bir yenilenir")}
             </span>
           )}
           <div className="ml-auto flex gap-1.5 items-center">
@@ -1876,25 +1927,25 @@ export default function DokumanPage() {
             <BookOpen className="w-6 h-6 text-teal-600" />
             {t("nav./dokuman", "Dokümanlar")}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">İş süreçleri ve teknik mimari dokümantasyonu</p>
+          <p className="text-sm text-slate-500 mt-0.5">{t("docs.subtitle", "İş süreçleri ve teknik mimari dokümantasyonu")}</p>
         </div>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1.5 flex-wrap">
         {[
-          { id: "surecler" as DocTab, label: "İş Süreçleri", icon: ShoppingCart },
-          { id: "teknik" as DocTab, label: "Teknik Analiz", icon: Server },
-          { id: "yenilikler" as DocTab, label: "Son Güncellemeler", icon: Zap },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+          { id: "surecler" as DocTab, label: t("docs.tab.surecler", "İş Süreçleri"), icon: ShoppingCart },
+          { id: "teknik" as DocTab, label: t("docs.tab.teknik", "Teknik Analiz"), icon: Server },
+          { id: "yenilikler" as DocTab, label: t("docs.tab.yenilikler", "Son Güncellemeler"), icon: Zap },
+        ].map(tabItem => (
+          <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition ${
-              tab === t.id
+              tab === tabItem.id
                 ? "bg-teal-600 text-white border-teal-600 shadow-sm"
                 : "bg-white text-slate-600 border-slate-200 hover:border-teal-300"
             }`}>
-            <t.icon size={15} />
-            {t.label}
+            <tabItem.icon size={15} />
+            {tabItem.label}
           </button>
         ))}
       </div>

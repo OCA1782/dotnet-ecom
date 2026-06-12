@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth, type PendingRegistration } from "@/hooks/useAuth";
 import { CheckCircle, Mail, MessageCircle, Loader2 } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
 const CODE_INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2.5 text-center text-2xl font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 export default function RegisterPage() {
+  const { t } = useI18n();
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pending, setPending] = useState<PendingRegistration | null>(null);
 
@@ -46,7 +48,7 @@ export default function RegisterPage() {
       setPending(data);
       setStep("verify");
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Kayıt başarısız");
+      setFormError(err instanceof Error ? err.message : t("auth.register"));
     } finally {
       setFormLoading(false);
     }
@@ -60,7 +62,6 @@ export default function RegisterPage() {
     try {
       const result = await verifyEmail(pending.userId, emailCode);
       setEmailConfirmed(result.emailConfirmed);
-      // token is stored in auth state by verifyEmail hook — don't redirect yet, show Telegram option
     } catch (err: unknown) {
       setEmailError(err instanceof Error ? err.message : "Kod geçersiz");
     } finally {
@@ -76,9 +77,7 @@ export default function RegisterPage() {
     try {
       const result = await verifyTelegram(pending.userId, telegramCode);
       setTelegramConfirmed(result.phoneConfirmed);
-      if (result.token) {
-        router.push("/");
-      }
+      if (result.token) router.push("/");
     } catch (err: unknown) {
       setTelegramError(err instanceof Error ? err.message : "Kod geçersiz");
     } finally {
@@ -90,7 +89,7 @@ export default function RegisterPage() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">Kayıt Ol</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("nav.register")}</h1>
           <form onSubmit={handleRegister} className="space-y-4">
             {formError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
@@ -129,13 +128,13 @@ export default function RegisterPage() {
               className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {formLoading && <Loader2 size={16} className="animate-spin" />}
-              {formLoading ? "Kayıt yapılıyor..." : "Kayıt Ol"}
+              {formLoading ? "Kayıt yapılıyor..." : t("nav.register")}
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-slate-600">
             Zaten hesabın var mı?{" "}
             <Link href="/giris" className="text-teal-600 font-medium hover:underline">
-              Giriş Yap
+              {t("nav.login")}
             </Link>
           </p>
         </div>

@@ -196,9 +196,12 @@ export default function AnalizPage() {
   }, [days]);
 
   useEffect(() => {
-    loadData();
-    const timer = setInterval(() => loadData(), REFRESH_INTERVAL);
-    return () => clearInterval(timer);
+    const id = window.setTimeout(() => { void loadData(); }, 0);
+    const timer = setInterval(() => { void loadData(); }, REFRESH_INTERVAL);
+    return () => {
+      window.clearTimeout(id);
+      clearInterval(timer);
+    };
   }, [loadData]);
 
   const allVisits = visitorStats?.dailyVisits ?? [];
@@ -251,7 +254,7 @@ export default function AnalizPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-            Yenile
+            {t("action.refresh", "Yenile")}
           </button>
           <div className="flex gap-1.5">
             {PERIOD_OPTIONS.map(o => (
@@ -288,7 +291,7 @@ export default function AnalizPage() {
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Dönüşüm</p>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">{t("col.conversion", "Dönüşüm")}</p>
             <p className="text-xl font-extrabold text-teal-700">{conversionRate.toFixed(2)}%</p>
             <p className="text-[11px] text-slate-400">Ziyaret → Sipariş</p>
           </div>
@@ -316,7 +319,7 @@ export default function AnalizPage() {
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">Toplam Gelir</p>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">{t("col.revenue", "Gelir")}</p>
             <p className="text-lg font-extrabold text-amber-700">{formatCurrency(totalRevenue)}</p>
             <p className="text-[11px] text-slate-400">{totalOrders} sipariş</p>
           </div>
@@ -407,7 +410,7 @@ export default function AnalizPage() {
             Ülke / Bölge Dağılımı
           </h2>
           {loadingV ? <SkeletonRows /> : !visitorStats?.countryBreakdown.length ? (
-            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
+            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {visitorStats.countryBreakdown.map((c, i) => {
@@ -440,7 +443,7 @@ export default function AnalizPage() {
             En Çok Ziyaret Edilen Sayfalar
           </h2>
           {loadingV ? <SkeletonRows /> : !visitorStats?.topPages.length ? (
-            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
+            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {visitorStats.topPages.map((p, i) => {
@@ -478,7 +481,7 @@ export default function AnalizPage() {
           )}
         </div>
         {loadingP ? <SkeletonRows n={6} /> : !productSales.length ? (
-          <div className="h-32 flex items-center justify-center text-slate-300 text-sm">Veri bulunamadı</div>
+          <div className="h-32 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
         ) : (
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {productSales.map((p, i) => {

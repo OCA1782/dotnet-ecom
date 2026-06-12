@@ -10,6 +10,7 @@ import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import ProductPreview from "@/components/previews/ProductPreview";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface Category { id: string; name: string; slug: string; parentCategoryId?: string; subCategories?: Category[]; }
 
@@ -129,7 +130,15 @@ const PAGE_SIZES = [10, 25, 50] as const;
 
 function buildSortKey(field: SortField, dir: SortDir) { return `${field}-${dir}`; }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: SortDir }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc"
+    ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" />
+    : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
+
 export default function AdminProductsPage() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -207,7 +216,13 @@ export default function AdminProductsPage() {
     finally { setLoading(false); }
   }, [page, pageSize, search, showInactive, filterCategoryId, filterBrandId, sortField, sortDir]);
 
-  useEffect(() => { fetchProducts(); setSelected(new Set()); }, [fetchProducts]);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void fetchProducts();
+      setSelected(new Set());
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchProducts]);
 
   useEffect(() => {
     api.get<Category[]>("/api/categories?onlyActive=false").then(data => setCategories(flattenCategories(data))).catch(() => {});
@@ -265,13 +280,13 @@ export default function AdminProductsPage() {
       const body: Record<string, unknown> = { productIds: [...selected], action };
       if (pricePercent !== undefined) body.priceAdjustPercent = pricePercent;
       const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
-      const verb = action === "delete" ? "silindi" : "güncellendi";
-      const msg = `${r.affected} ürün ${verb}${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`;
+      const verb = action === "delete" ? t("auto.silindi", "silindi") : t("auto.guncellendi", "güncellendi");
+      const msg = `${r.affected} ${t("auto.urun", "ürün")} ${verb}${r.errors.length ? ` (${r.errors.length} ${t("auto.atlandı", "atlandı")})` : ""}`;
       setMsg({ text: msg, ok: true });
       setSelected(new Set());
       await fetchProducts();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("auto.islemBasarisiz", "İşlem başarısız"), ok: false });
     } finally {
       setBulkLoading(false);
     }
@@ -282,13 +297,6 @@ export default function AdminProductsPage() {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
     setPage(1);
-  }
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc"
-      ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" />
-      : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
   }
 
   function handleExport() {
@@ -333,9 +341,9 @@ export default function AdminProductsPage() {
           ok++;
         } catch { fail++; }
       }
-      setImportResult(`${ok} ürün eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
+      setImportResult(`${ok} ${t("auto.urunEklendi", "ürün eklendi")}${fail > 0 ? `, ${fail} ${t("auto.hatali", "hatalı")}` : ""}.`);
       await fetchProducts();
-    } catch { setImportResult("Dosya okunamadı."); }
+    } catch { setImportResult(t("auto.dosyaOkunamadi", "Dosya okunamadı.")); }
     finally { setImporting(false); e.target.value = ""; }
   }
 
@@ -383,8 +391,8 @@ export default function AdminProductsPage() {
   }
 
   async function handleSave() {
-    if (!form.name || !form.sku || !form.price) { setFormError("Ad, SKU ve Fiyat zorunludur."); return; }
-    if (modal === "create" && !form.categoryId) { setFormError("Kategori seçiniz."); return; }
+    if (!form.name || !form.sku || !form.price) { setFormError(t("auto.adSkuFiyatZorunlu", "Ad, SKU ve Fiyat zorunludur.")); return; }
+    if (modal === "create" && !form.categoryId) { setFormError(t("auto.kategoriSeciniz", "Kategori seçiniz.")); return; }
     setSaving(true); setFormError("");
     try {
       if (modal === "create") {
@@ -421,7 +429,7 @@ export default function AdminProductsPage() {
             } catch { /* resim eklenemedi ama ürün oluşturuldu */ }
           }
         }
-        setMsg({ text: "Ürün oluşturuldu.", ok: true });
+        setMsg({ text: t("auto.urunOlusturuldu", "Ürün oluşturuldu."), ok: true });
       } else {
         await api.put(`/api/products/${form.id}`, {
           id: form.id,
@@ -442,12 +450,12 @@ export default function AdminProductsPage() {
           metaTitle: null,
           metaDescription: null,
         });
-        setMsg({ text: "Ürün güncellendi.", ok: true });
+        setMsg({ text: t("auto.urunGuncellendi", "Ürün güncellendi."), ok: true });
       }
       setModal(null);
       await fetchProducts();
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Hata oluştu.");
+      setFormError(err instanceof Error ? err.message : t("auto.hataOlustu", "Hata oluştu."));
     } finally { setSaving(false); }
   }
 
@@ -468,7 +476,7 @@ export default function AdminProductsPage() {
       setProductImages(refreshed.images ?? []);
       await fetchProducts();
     } catch (e: unknown) {
-      setFormError(e instanceof Error ? e.message : "Fotoğraf eklenemedi.");
+      setFormError(e instanceof Error ? e.message : t("auto.fotografEklenemedi", "Fotoğraf eklenemedi."));
     } finally { setImageLoading(false); }
   }
 
@@ -479,7 +487,7 @@ export default function AdminProductsPage() {
       setProductImages(imgs => imgs.filter(i => i.id !== imageId));
       await fetchProducts();
     } catch (e: unknown) {
-      setFormError(e instanceof Error ? e.message : "Fotoğraf silinemedi.");
+      setFormError(e instanceof Error ? e.message : t("auto.fotografSilinemedi", "Fotoğraf silinemedi."));
     }
   }
 
@@ -490,7 +498,7 @@ export default function AdminProductsPage() {
       setProductImages(imgs => imgs.map(i => ({ ...i, isMain: i.id === imageId })));
       await fetchProducts();
     } catch (e: unknown) {
-      setFormError(e instanceof Error ? e.message : "Ana fotoğraf ayarlanamadı.");
+      setFormError(e instanceof Error ? e.message : t("auto.anaFotografAyarlanamadi", "Ana fotoğraf ayarlanamadı."));
     }
   }
 
@@ -499,11 +507,11 @@ export default function AdminProductsPage() {
     setDeleting(true);
     try {
       await api.delete(`/api/products/${deleteTarget.id}`);
-      setMsg({ text: `"${deleteTarget.name}" silindi.`, ok: true });
+      setMsg({ text: `"${deleteTarget.name}" ${t("auto.silindi", "silindi")}.`, ok: true });
       setDeleteTarget(null);
       await fetchProducts();
     } catch (err: unknown) {
-      setMsg({ text: err instanceof Error ? err.message : "Silinemedi.", ok: false });
+      setMsg({ text: err instanceof Error ? err.message : t("auto.silinemedi", "Silinemedi."), ok: false });
       setDeleteTarget(null);
     } finally { setDeleting(false); }
   }
@@ -517,28 +525,28 @@ export default function AdminProductsPage() {
       const data = await api.get<ProductHistoryEntry[]>(`/api/products/${p.id}/history`);
       setHistory(data ?? []);
     } catch (e: unknown) {
-      setHistoryError(e instanceof Error ? e.message : "Geçmiş yüklenemedi.");
+      setHistoryError(e instanceof Error ? e.message : t("auto.gecmisYuklenemedi", "Geçmiş yüklenemedi."));
     } finally { setHistoryLoading(false); }
   }
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Ürünler</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("auto.urunler", "Ürünler")}</h1>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ad", "SKU", "Fiyat", "İndirimli Fiyat", "Kategori", "Marka", "Stok"], "urunler")}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">{t("action.downloadTemplate", "Şablon İndir")}</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel'e Aktar
+            <Download size={14} /> {t("action.exportExcel", "Excel'e Aktar")}
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
-            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <Upload size={14} /> {importing ? t("action.importing", "Aktarılıyor...") : t("action.importFile", "İçe Aktar")}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
           <button onClick={openCreate}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-            <Plus size={16} /> Yeni Ürün
+            <Plus size={16} /> {t("ui.newProduct", "Yeni Ürün")}
           </button>
         </div>
       </div>
@@ -565,7 +573,7 @@ export default function AdminProductsPage() {
               <input
                 value={searchInput}
                 onChange={e => handleSearchChange(e.target.value)}
-                placeholder="Ürün adı, SKU veya marka..."
+                placeholder={t("filter.search", "Ara...")}
                 className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-full text-slate-900 bg-white"
               />
               {searchInput && (
@@ -575,7 +583,7 @@ export default function AdminProductsPage() {
                 </button>
               )}
             </div>
-            <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+            <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
           </form>
 
           {/* Category filter */}
@@ -584,7 +592,7 @@ export default function AdminProductsPage() {
             onChange={e => { setFilterCategoryId(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[150px]"
           >
-            <option value="">Tüm Kategoriler</option>
+            <option value="">{t("filter.allCategories", "Tüm Kategoriler")}</option>
             {categories.filter(c => !c.parentCategoryId).map(parent => {
               const subs = categories.filter(c => c.parentCategoryId === parent.id);
               return subs.length > 0 ? (
@@ -604,13 +612,13 @@ export default function AdminProductsPage() {
             onChange={e => { setFilterBrandId(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[130px]"
           >
-            <option value="">Tüm Markalar</option>
+            <option value="">{t("filter.allBrands", "Tüm Markalar")}</option>
             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
 
           {/* Page size */}
           <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-xs text-slate-500 whitespace-nowrap">Sayfa başı:</span>
+            <span className="text-xs text-slate-500 whitespace-nowrap">{t("auto.sayfaBasi", "Sayfa başı:")} </span>
             {PAGE_SIZES.map(n => (
               <button key={n} onClick={() => { setPageSize(n); setPage(1); }}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${pageSize === n ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
@@ -624,13 +632,13 @@ export default function AdminProductsPage() {
         <div className="flex flex-wrap gap-2 items-center">
           <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-100 transition">
             <input type="checkbox" checked={showInactive} onChange={e => { setShowInactive(e.target.checked); setPage(1); }} className="rounded" />
-            Pasif ürünleri dahil et
+            {t("auto.pasifUrunleriDahilEt", "Pasif ürünleri dahil et")}
           </label>
 
           {sortField && (
             <span className="flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-700 rounded-lg px-2.5 py-1.5">
               <Filter size={10} />
-              Sıralama: {sortField === "name" ? "İsim" : sortField === "price" ? "Fiyat" : sortField === "createdDate" ? "Tarih" : sortField === "dataSource" ? "Kaynak" : "Stok"} {sortDir === "asc" ? "↑" : "↓"}
+              {t("auto.siralama", "Sıralama")}: {sortField === "name" ? t("col.name", "Ad") : sortField === "price" ? t("col.price", "Fiyat") : sortField === "createdDate" ? t("col.date", "Tarih") : sortField === "dataSource" ? t("auto.kaynak", "Kaynak") : t("col.stock", "Stok")} {sortDir === "asc" ? "↑" : "↓"}
               <button onClick={() => { setSortField(null); setPage(1); }} className="ml-1 hover:text-red-500"><X size={11} /></button>
             </span>
           )}
@@ -638,12 +646,12 @@ export default function AdminProductsPage() {
           {(activeFilterCount > 0 || sortField) && (
             <button onClick={clearAllFilters}
               className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1.5 hover:bg-red-50 transition">
-              Tüm Filtreleri Temizle
+              {t("filter.clearFilters", "Filtreleri Temizle")}
             </button>
           )}
 
           <span className="ml-auto text-xs text-slate-400">
-            {loading ? "Yükleniyor..." : `${totalCount} ürün`}
+            {loading ? t("table.loading", "Yükleniyor...") : `${totalCount} ${t("auto.urun", "ürün")}`}
           </span>
         </div>
       </div>
@@ -652,7 +660,7 @@ export default function AdminProductsPage() {
       {selected.size > 0 && (
         <div className="bg-teal-700 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
           <span className="text-sm font-semibold shrink-0">
-            {selected.size} ürün seçili
+            {selected.size} {t("auto.urunSecili", "ürün seçili")}
           </span>
           <div className="flex items-center gap-2 flex-wrap ml-auto">
             <button
@@ -661,28 +669,28 @@ export default function AdminProductsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
             >
               {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleRight size={14} />}
-              Etkinleştir
+              {t("action.activate", "Aktifleştir")}
             </button>
             <button
               onClick={() => handleBulkAction("deactivate")}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
             >
-              <ToggleLeft size={14} /> Devre Dışı
+              <ToggleLeft size={14} /> {t("action.deactivate", "Deaktive Et")}
             </button>
             <button
               onClick={() => setPriceAdjustModal(true)}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
             >
-              <Percent size={12} /> Fiyat Ayarla
+              <Percent size={12} /> {t("ui.priceAdjust", "Fiyat Ayarla")}
             </button>
             <button
               onClick={() => setBulkDeleteModal(true)}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50"
             >
-              <Trash2 size={12} /> Sil
+              <Trash2 size={12} /> {t("action.delete", "Sil")}
             </button>
             <button
               onClick={() => setSelected(new Set())}
@@ -708,35 +716,35 @@ export default function AdminProductsPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">
                   <button onClick={() => handleSort("name")}
                     className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">
-                    Ürün <SortIcon field="name" />
+                    {t("auto.urun", "Ürün")} <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">SKU</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Kategori / Marka</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">{t("col.category", "Kategori")} / {t("col.brand", "Marka")}</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">
                   <button onClick={() => handleSort("price")}
                     className="flex items-center gap-0.5 ml-auto hover:text-teal-600 transition select-none">
-                    Fiyat <SortIcon field="price" />
+                    {t("col.price", "Fiyat")} <SortIcon field="price" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">
                   <button onClick={() => handleSort("stock")}
                     className="flex items-center gap-0.5 ml-auto hover:text-teal-600 transition select-none">
-                    Stok <SortIcon field="stock" />
+                    {t("col.stock", "Stok")} <SortIcon field="stock" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Durum</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Tarih <SortIcon field="createdDate" /></button></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Oluşturan</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">{t("col.status", "Durum")}</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("ui.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.date", "Tarih")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">{t("ui.createdBy", "Oluşturan")}</th>
                 <th className="px-5 py-3 text-xs font-medium text-slate-500 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Yükleniyor...</td></tr>
+                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">Ürün bulunamadı</td></tr>
+                <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">{t("table.noResults", "Sonuç bulunamadı")}</td></tr>
               ) : products.map((p) => (
                 <tr key={p.id} className={`hover:bg-slate-50 transition ${!p.isActive ? "opacity-60" : ""} ${selected.has(p.id) ? "bg-teal-50/50" : ""}`}>
                   <td className="px-4 py-3 w-10">
@@ -771,10 +779,10 @@ export default function AdminProductsPage() {
                   <td className="px-5 py-3">
                     <div className="flex flex-col gap-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                        {p.isActive ? "Aktif" : "Pasif"}
+                        {p.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                       </span>
                       {p.isFeatured && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Öne Çıkan</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">{t("status.featured", "Öne Çıkan")}</span>
                       )}
                     </div>
                   </td>
@@ -790,17 +798,17 @@ export default function AdminProductsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => openEdit(p)}
-                        title="Düzenle"
+                        title={t("action.edit", "Düzenle")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
                       </button>
                       <button onClick={() => openHistory({ id: p.id, name: p.name })}
-                        title="Geçmiş"
+                        title={t("auto.gecmis", "Geçmiş")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-500 hover:text-white shadow-sm hover:shadow-slate-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Clock size={18} />
                       </button>
                       <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
-                        title="Sil"
+                        title={t("action.delete", "Sil")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Trash2 size={18} />
                       </button>
@@ -818,10 +826,10 @@ export default function AdminProductsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           {/* Info */}
           <span className="text-xs text-slate-500 shrink-0">
-            {totalCount === 0 ? "Kayıt yok" : (() => {
+            {totalCount === 0 ? t("table.noData", "Kayıt bulunamadı") : (() => {
               const from = (page - 1) * pageSize + 1;
               const to   = Math.min(page * pageSize, totalCount);
-              return `${from}–${to} / ${totalCount} ürün`;
+              return `${from}–${to} / ${totalCount} ${t("auto.urun", "ürün")}`;
             })()}
           </span>
 
@@ -887,7 +895,7 @@ export default function AdminProductsPage() {
               const val = Number((e.currentTarget.elements.namedItem("gotoPage") as HTMLInputElement).value);
               if (val >= 1 && val <= totalPages) { setPage(val); (e.currentTarget.elements.namedItem("gotoPage") as HTMLInputElement).value = ""; }
             }} className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-400">Git:</span>
+              <span className="text-xs text-slate-400">{t("auto.git", "Git:")} </span>
               <input name="gotoPage" type="number" min={1} max={totalPages}
                 className="w-16 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-center" />
               <button type="submit" className="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition">→</button>
@@ -904,17 +912,17 @@ export default function AdminProductsPage() {
                 <Percent size={20} className="text-teal-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-800">Toplu Fiyat Ayarla</h2>
-                <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+                <h2 className="font-bold text-slate-800">{t("auto.topluFiyatAyarla", "Toplu Fiyat Ayarla")}</h2>
+                <p className="text-xs text-slate-500">{selected.size} {t("auto.urunSecili", "ürün seçili")}</p>
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Değişim Oranı (%)</label>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">{t("auto.degisimOrani", "Değişim Oranı")} (%)</label>
               <div className="relative">
                 <input
                   type="number"
                   step="0.1"
-                  placeholder="Örn: 10 (artış) veya -5 (indirim)"
+                  placeholder={t("auto.ornFiyatAyar", "Örn: 10 (artış) veya -5 (indirim)")}
                   value={priceAdjustPercent}
                   onChange={e => setPriceAdjustPercent(e.target.value)}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 pr-8"
@@ -923,7 +931,7 @@ export default function AdminProductsPage() {
                 <span className="absolute right-3 top-2.5 text-slate-400 text-sm">%</span>
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                Pozitif = fiyat artışı, negatif = fiyat indirimi. İndirimli fiyatlar da orantılı güncellenir.
+                {t("auto.pozitifFiyatArtisi", "Pozitif = fiyat artışı, negatif = fiyat indirimi. İndirimli fiyatlar da orantılı güncellenir.")}
               </p>
             </div>
             <div className="flex justify-end gap-3 pt-1">
@@ -931,7 +939,7 @@ export default function AdminProductsPage() {
                 onClick={() => { setPriceAdjustModal(false); setPriceAdjustPercent(""); }}
                 className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition"
               >
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button
                 onClick={async () => {
@@ -944,7 +952,7 @@ export default function AdminProductsPage() {
                 disabled={!priceAdjustPercent || isNaN(parseFloat(priceAdjustPercent)) || parseFloat(priceAdjustPercent) === 0}
                 className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50"
               >
-                Uygula
+                {t("action.apply", "Uygula")}
               </button>
             </div>
           </div>
@@ -959,26 +967,26 @@ export default function AdminProductsPage() {
                 <Trash2 size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-800">Toplu Silme</h2>
-                <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+                <h2 className="font-bold text-slate-800">{t("auto.topluIslem", "Toplu İşlem")}</h2>
+                <p className="text-xs text-slate-500">{selected.size} {t("auto.urunSecili", "ürün seçili")}</p>
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              Seçili <span className="font-semibold text-slate-900">{selected.size} ürünü</span> silmek istediğinizden emin misiniz?
+              {t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")} (<span className="font-semibold text-slate-900">{selected.size} {t("auto.urun", "Ürün")}</span>)
             </p>
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              Aktif siparişi bulunan ürünler atlanacaktır. Bu işlem geri alınamaz.
+              {t("auto.aktifSiparisliAtlanir", "Aktif siparişi bulunan ürünler atlanacaktır.")} {t("msg.irreversible", "Bu işlem geri alınamaz.")}
             </p>
             <div className="flex justify-end gap-3 pt-1">
               <button onClick={() => setBulkDeleteModal(false)} disabled={bulkLoading}
                 className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button
                 onClick={async () => { setBulkDeleteModal(false); await handleBulkAction("delete"); }}
                 disabled={bulkLoading}
                 className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
-                {bulkLoading ? "Siliniyor..." : "Sil"}
+                {bulkLoading ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
               </button>
             </div>
           </div>
@@ -993,24 +1001,24 @@ export default function AdminProductsPage() {
                 <Trash2 size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-800">Ürünü Sil</h2>
-                <p className="text-xs text-slate-500">Bu işlem geri alınamaz.</p>
+                <h2 className="font-bold text-slate-800">{t("ui.deleteProduct", "Ürünü Sil")}</h2>
+                <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">&quot;{deleteTarget.name}&quot;</span> ürününü silmek istediğinizden emin misiniz?
+              <span className="font-semibold text-slate-900">&quot;{deleteTarget.name}&quot;</span> {t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")}
             </p>
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              Aktif siparişi bulunan ürünler silinemez. Siparişler tamamlanana kadar ürün pasif yapılabilir.
+              {t("auto.aktifSiparisliSilinemez", "Aktif siparişi bulunan ürünler silinemez. Siparişler tamamlanana kadar ürün pasif yapılabilir.")}
             </p>
             <div className="flex justify-end gap-3 pt-1">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting}
                 className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button onClick={handleDelete} disabled={deleting}
                 className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
-                {deleting ? "Siliniyor..." : "Sil"}
+                {deleting ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
               </button>
             </div>
           </div>
@@ -1022,18 +1030,18 @@ export default function AdminProductsPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <div>
-                <h2 className="font-bold text-slate-800">Ürün Geçmişi</h2>
+                <h2 className="font-bold text-slate-800">{t("ui.productHistory", "Ürün Geçmişi")}</h2>
                 <p className="text-xs text-slate-500">{historyTarget.name}</p>
               </div>
               <button onClick={() => setHistoryTarget(null)} className="text-slate-400 hover:text-slate-700 transition"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 px-6 py-4">
               {historyLoading ? (
-                <p className="text-sm text-slate-400 text-center py-8">Yükleniyor...</p>
+                <p className="text-sm text-slate-400 text-center py-8">{t("action.loading", "Yükleniyor...")}</p>
               ) : historyError ? (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{historyError}</p>
               ) : history.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">Henüz kayıt bulunamadı.</p>
+                <p className="text-sm text-slate-400 text-center py-8">{t("table.noData", "Kayıt bulunamadı")}</p>
               ) : (
                 <ol className="relative border-l border-slate-200 space-y-6 ml-2">
                   {history.map((entry, i) => (
@@ -1052,7 +1060,7 @@ export default function AdminProductsPage() {
                               {entry.newValue && <span className="text-green-600">{entry.newValue}</span>}
                             </p>
                           )}
-                          <p className="text-xs text-slate-400">{entry.userEmail ?? "Sistem"}</p>
+                          <p className="text-xs text-slate-400">{entry.userEmail ?? t("auto.sistem", "Sistem")}</p>
                         </div>
                         <p className="text-xs text-slate-400 whitespace-nowrap shrink-0">
                           {new Date(entry.occurredAt).toLocaleString("tr-TR")}
@@ -1070,7 +1078,7 @@ export default function AdminProductsPage() {
       {/* Create / Edit Modal */}
       {modal && (
         <Modal
-          title={modal === "create" ? "Yeni Ürün" : "Ürünü Düzenle"}
+          title={modal === "create" ? t("ui.newProduct", "Yeni Ürün") : t("ui.editProduct", "Ürünü Düzenle")}
           onClose={() => setModal(null)}
           showPreview={showPreview}
           onTogglePreview={() => setShowPreview(p => !p)}
@@ -1087,11 +1095,11 @@ export default function AdminProductsPage() {
             {formError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>}
 
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Ürün Adı *">
+              <Field label={`${t("label.name", "Ad")} *`}>
                 <input className={INPUT} value={form.name}
                   onChange={e => { setField("name", e.target.value); if (!form.slug || modal === "create") setField("slug", slugify(e.target.value)); }} />
               </Field>
-              <Field label={<>Slug * <span title="Slug, ürünün URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-spor-ayakkabisi' → /urun/erkek-spor-ayakkabisi. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span></>}>
+              <Field label={<>Slug * <span title={t("auto.slugAciklama", "Slug, ürünün URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-spor-ayakkabisi' → /urun/erkek-spor-ayakkabisi. Türkçe karakter ve boşluk içermez.")}><Info size={12} className="text-slate-400 cursor-help" /></span></>}>
                 <input className={INPUT} value={form.slug} onChange={e => setField("slug", slugify(e.target.value))} />
               </Field>
             </div>
@@ -1100,24 +1108,24 @@ export default function AdminProductsPage() {
               <Field label="SKU *">
                 <input className={INPUT} value={form.sku} onChange={e => setField("sku", e.target.value)} />
               </Field>
-              <Field label="KDV Oranı (%)">
+              <Field label={t("label.tax", "Vergi") + " (%)"}>
                 <input type="number" className={INPUT} value={form.taxRate} onChange={e => setField("taxRate", e.target.value)} />
               </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Fiyat (TRY) *">
+              <Field label={`${t("label.price", "Fiyat")} (TRY) *`}>
                 <input type="number" step="0.01" className={INPUT} value={form.price} onChange={e => setField("price", e.target.value)} />
               </Field>
-              <Field label="İndirimli Fiyat">
-                <input type="number" step="0.01" className={INPUT} placeholder="İsteğe bağlı" value={form.discountPrice} onChange={e => setField("discountPrice", e.target.value)} />
+              <Field label={t("label.discount", "İndirim")}>
+                <input type="number" step="0.01" className={INPUT} placeholder={t("auto.istegeBagliPlaceholder", "İsteğe bağlı")} value={form.discountPrice} onChange={e => setField("discountPrice", e.target.value)} />
               </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Kategori *">
+              <Field label={`${t("auto.kategoriSec", "Kategori Seç")} *`}>
                 <select className={SELECT} value={form.categoryId} onChange={e => setField("categoryId", e.target.value)}>
-                  <option value="">Seçiniz...</option>
+                  <option value="">{t("auto.seciniz", "Seçiniz...")}</option>
                   {categories.filter(c => !c.parentCategoryId).map(parent => {
                     const subs = categories.filter(c => c.parentCategoryId === parent.id);
                     return subs.length > 0 ? (
@@ -1131,29 +1139,29 @@ export default function AdminProductsPage() {
                   })}
                 </select>
               </Field>
-              <Field label="Marka">
+              <Field label={t("auto.markaSec", "Marka Seç")}>
                 <select className={SELECT} value={form.brandId} onChange={e => setField("brandId", e.target.value)}>
-                  <option value="">Seçiniz...</option>
+                  <option value="">{t("auto.seciniz", "Seçiniz...")}</option>
                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </Field>
             </div>
 
-            <Field label="Kısa Açıklama">
+            <Field label={t("auto.kisaAciklama", "Kısa Açıklama")}>
               <input className={INPUT} value={form.shortDescription} onChange={e => setField("shortDescription", e.target.value)} />
             </Field>
 
-            <Field label="Açıklama">
+            <Field label={t("label.description", "Açıklama")}>
               <RichTextEditor
                 value={form.description}
                 onChange={v => setField("description", v)}
-                placeholder="Ürün açıklaması yazın…"
+                placeholder={t("auto.urunAciklamasiYazin", "Ürün açıklaması yazın…")}
                 minHeight={160}
               />
             </Field>
 
             {modal === "create" && (
-              <Field label="Başlangıç Stok Adedi">
+              <Field label={t("auto.baslangicStok", "Başlangıç Stok Adedi")}>
                 <input type="number" className={INPUT} value={form.initialStock} onChange={e => setField("initialStock", e.target.value)} />
               </Field>
             )}
@@ -1161,7 +1169,7 @@ export default function AdminProductsPage() {
             {modal === "create" && (
               <div className="pt-3 border-t border-slate-100 space-y-3">
                 <p className="text-xs font-semibold text-slate-700">
-                  Fotoğraflar <span className="font-normal text-slate-400">(isteğe bağlı)</span>
+                  {t("auto.fotograflar", "Fotoğraflar")} <span className="font-normal text-slate-400">({t("auto.istegeBagli", "isteğe bağlı")})</span>
                 </p>
 
                 {stagedImages.length > 0 && (
@@ -1174,13 +1182,13 @@ export default function AdminProductsPage() {
                         </div>
                         {i === 0 && (
                           <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">
-                            <Star size={11} fill="currentColor" /> Ana Fotoğraf
+                            <Star size={11} fill="currentColor" /> {t("auto.anaFotograf", "Ana Fotoğraf")}
                           </span>
                         )}
                         <button type="button"
                           onClick={() => setStagedImages(imgs => imgs.filter((_, idx) => idx !== i))}
                           className="flex items-center justify-center gap-1 text-red-400 hover:text-red-600 border border-red-100 rounded-lg p-1 hover:bg-red-50 transition w-full text-xs">
-                          <Trash2 size={12} /> Kaldır
+                          <Trash2 size={12} /> {t("auto.kaldir", "Kaldır")}
                         </button>
                       </div>
                     ))}
@@ -1190,12 +1198,12 @@ export default function AdminProductsPage() {
                 <div className="flex gap-2">
                   <input
                     className={INPUT}
-                    placeholder="Fotoğraf URL'si veya dosya yükleyin..."
+                    placeholder={t("auto.fotografUrlPlaceholder", "Fotoğraf URL'si veya dosya yükleyin...")}
                     value={newImageUrl}
                     onChange={e => setNewImageUrl(e.target.value)}
                   />
                   <label className={`flex items-center gap-1.5 px-3 py-2 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 cursor-pointer transition whitespace-nowrap ${imageLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <ImagePlus size={13} /> Dosyadan
+                    <ImagePlus size={13} /> {t("auto.dosyadan", "Dosyadan")}
                     <input type="file" accept="image/*" className="hidden" disabled={imageLoading}
                       onChange={async e => {
                         const file = e.target.files?.[0]; if (!file) return;
@@ -1211,7 +1219,7 @@ export default function AdminProductsPage() {
                     onClick={() => { if (!newImageUrl) return; setStagedImages(imgs => [...imgs, newImageUrl]); setNewImageUrl(""); }}
                     disabled={imageLoading || !newImageUrl}
                     className="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap transition">
-                    {imageLoading ? "..." : "Ekle"}
+                    {imageLoading ? "..." : t("action.add", "Ekle")}
                   </button>
                 </div>
               </div>
@@ -1220,27 +1228,27 @@ export default function AdminProductsPage() {
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={form.isPublished} onChange={e => setField("isPublished", e.target.checked)} />
-                Yayında
+                {t("status.published", "Yayında")}
               </label>
               {modal === "edit" && (
                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                   <input type="checkbox" checked={form.isActive} onChange={e => setField("isActive", e.target.checked)} />
-                  Aktif
+                  {t("status.active", "Aktif")}
                 </label>
               )}
               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={form.isFeatured} onChange={e => setField("isFeatured", e.target.checked)} />
-                Öne Çıkan
+                {t("status.featured", "Öne Çıkan")}
               </label>
             </div>
 
             {/* Image management — edit only */}
             {modal === "edit" && (
               <div className="pt-3 border-t border-slate-100 space-y-3">
-                <p className="text-xs font-semibold text-slate-700">Fotoğraflar</p>
+                <p className="text-xs font-semibold text-slate-700">{t("auto.fotograflar", "Fotoğraflar")}</p>
 
                 {productImages.length === 0 ? (
-                  <p className="text-xs text-slate-400">Henüz fotoğraf eklenmemiş.</p>
+                  <p className="text-xs text-slate-400">{t("auto.henuzFotografEklenmemis", "Henüz fotoğraf eklenmemiş.")}</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     {productImages.map(img => (
@@ -1251,14 +1259,14 @@ export default function AdminProductsPage() {
                         </div>
                         {img.isMain && (
                           <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">
-                            <Star size={11} fill="currentColor" /> Ana Fotoğraf
+                            <Star size={11} fill="currentColor" /> {t("auto.anaFotograf", "Ana Fotoğraf")}
                           </span>
                         )}
                         <div className="flex gap-1">
                           {!img.isMain && (
                             <button type="button" onClick={() => handleSetMainImage(img.id)}
                               className="flex-1 text-xs text-teal-600 hover:text-teal-800 border border-teal-200 rounded-lg py-1 hover:bg-teal-50 transition">
-                              Ana Yap
+                              {t("auto.anaYap", "Ana Yap")}
                             </button>
                           )}
                           <button type="button" onClick={() => handleDeleteImage(img.id)}
@@ -1275,12 +1283,12 @@ export default function AdminProductsPage() {
                 <div className="flex gap-2">
                   <input
                     className={INPUT}
-                    placeholder="Fotoğraf URL'si (https://...)"
+                    placeholder={t("auto.fotografUrlHttps", "Fotoğraf URL'si (https://...)")}
                     value={newImageUrl}
                     onChange={e => setNewImageUrl(e.target.value)}
                   />
                   <label className={`flex items-center gap-1.5 px-3 py-2 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 cursor-pointer transition whitespace-nowrap ${imageLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <ImagePlus size={13} /> Dosyadan
+                    <ImagePlus size={13} /> {t("auto.dosyadan", "Dosyadan")}
                     <input type="file" accept="image/*" className="hidden" disabled={imageLoading}
                       onChange={async e => {
                         const file = e.target.files?.[0]; if (!file) return;
@@ -1295,7 +1303,7 @@ export default function AdminProductsPage() {
                   <button type="button" onClick={handleAddImage}
                     disabled={imageLoading || !newImageUrl}
                     className="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap transition">
-                    {imageLoading ? "..." : "Ekle"}
+                    {imageLoading ? "..." : t("action.add", "Ekle")}
                   </button>
                 </div>
               </div>
@@ -1303,11 +1311,11 @@ export default function AdminProductsPage() {
 
             <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
               <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50">
-                {saving ? "Kaydediliyor..." : modal === "create" ? "Oluştur" : "Güncelle"}
+                {saving ? t("auto.kaydediliyor", "Kaydediliyor...") : modal === "create" ? t("action.create", "Oluştur") : t("action.update", "Güncelle")}
               </button>
             </div>
           </div>

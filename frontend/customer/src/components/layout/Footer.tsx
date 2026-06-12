@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
+import { st } from "@/lib/server-i18n";
 import FooterLogoImg from "./FooterLogoImg";
 
 function IconInstagram() {
@@ -56,18 +57,63 @@ function FooterBrandName({ name }: { name: string }) {
 
 export default async function Footer() {
   const settings = await getSettings();
+  const [
+    accountTitle,
+    helpTitle,
+    corporateTitle,
+    contactTitle,
+    loginLabel,
+    registerLabel,
+    ordersLabel,
+    addressesLabel,
+    faqLabel,
+    returnsExchangeLabel,
+    trackingLabel,
+    contactLinkLabel,
+    aboutLabel,
+    privacyLabel,
+    safePaymentLabel,
+    copyrightLabel,
+    taglineLabel,
+    instagramLabel,
+    xLabel,
+    youtubeLabel,
+    linkedinLabel,
+  ] = await Promise.all([
+    st("footer.account"),
+    st("footer.help"),
+    st("footer.corporate"),
+    st("footer.contact"),
+    st("footer.login"),
+    st("footer.register"),
+    st("header.orders"),
+    st("header.addresses"),
+    st("footer.faq"),
+    st("footer.returns_exchange"),
+    st("footer.shipment_tracking"),
+    st("footer.contact"),
+    st("footer.about"),
+    st("footer.privacy"),
+    st("footer.safe_payment"),
+    st("footer.copyright"),
+    st("footer.tagline"),
+    st("social.instagram"),
+    st("social.x"),
+    st("social.youtube"),
+    st("social.linkedin"),
+  ]);
 
   const siteName = settings.SiteName || "";
   const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || undefined;
-  const tagline = settings.Footer_Tagline || "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.";
+  const tagline = settings.Footer_Tagline || taglineLabel;
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
 
   const socials = [
-    { icon: <IconInstagram />, label: "Instagram", url: settings.SocialInstagram || "" },
-    { icon: <IconX />, label: "X", url: settings.SocialTwitter || "" },
-    { icon: <IconYouTube />, label: "YouTube", url: settings.SocialYoutube || "" },
-    { icon: <IconLinkedIn />, label: "LinkedIn", url: settings.SocialLinkedin || "" },
+    { icon: <IconInstagram />, label: instagramLabel, url: settings.SocialInstagram || "" },
+    { icon: <IconX />, label: xLabel, url: settings.SocialTwitter || "" },
+    { icon: <IconYouTube />, label: youtubeLabel, url: settings.SocialYoutube || "" },
+    { icon: <IconLinkedIn />, label: linkedinLabel, url: settings.SocialLinkedin || "" },
   ].filter(s => s.url);
 
   const year = new Date().getFullYear();
@@ -76,7 +122,6 @@ export default async function Footer() {
     <footer className="bg-[#12304A] text-slate-400 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-          {/* Marka */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
               {logoUrl && (
@@ -101,10 +146,10 @@ export default async function Footer() {
             ) : (
               <div className="flex gap-2">
                 {[
-                  { icon: <IconInstagram />, label: "Instagram" },
-                  { icon: <IconX />, label: "X" },
-                  { icon: <IconYouTube />, label: "YouTube" },
-                  { icon: <IconLinkedIn />, label: "LinkedIn" },
+                  { icon: <IconInstagram />, label: instagramLabel },
+                  { icon: <IconX />, label: xLabel },
+                  { icon: <IconYouTube />, label: youtubeLabel },
+                  { icon: <IconLinkedIn />, label: linkedinLabel },
                 ].map(s => (
                   <a key={s.label} href="#" aria-label={s.label}
                     className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
@@ -115,39 +160,36 @@ export default async function Footer() {
             )}
           </div>
 
-          {/* Hesabım */}
           <div>
-            <h4 className="text-white text-sm font-semibold mb-4">Hesabım</h4>
+            <h4 className="text-white text-sm font-semibold mb-4">{accountTitle}</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link href="/giris" className="hover:text-white transition">Giriş Yap</Link></li>
-              <li><Link href="/kayit" className="hover:text-white transition">Kayıt Ol</Link></li>
-              <li><Link href="/hesabim/siparisler" className="hover:text-white transition">Siparişlerim</Link></li>
-              <li><Link href="/hesabim/adresler" className="hover:text-white transition">Adreslerim</Link></li>
+              <li><Link href="/giris" className="hover:text-white transition">{loginLabel}</Link></li>
+              <li><Link href="/kayit" className="hover:text-white transition">{registerLabel}</Link></li>
+              <li><Link href="/hesabim/siparisler" className="hover:text-white transition">{ordersLabel}</Link></li>
+              <li><Link href="/hesabim/adresler" className="hover:text-white transition">{addressesLabel}</Link></li>
             </ul>
           </div>
 
-          {/* Yardım */}
           <div>
-            <h4 className="text-white text-sm font-semibold mb-4">Yardım</h4>
+            <h4 className="text-white text-sm font-semibold mb-4">{helpTitle}</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link href="/sss" className="hover:text-white transition">SSS</Link></li>
-              <li><Link href="/iade-degisim" className="hover:text-white transition">İade & Değişim</Link></li>
-              <li><Link href="/kargo-takibi" className="hover:text-white transition">Kargo Takibi</Link></li>
-              <li><Link href="/iletisim" className="hover:text-white transition">İletişim</Link></li>
+              <li><Link href="/sss" className="hover:text-white transition">{faqLabel}</Link></li>
+              <li><Link href="/iade-degisim" className="hover:text-white transition">{returnsExchangeLabel}</Link></li>
+              <li><Link href="/kargo-takibi" className="hover:text-white transition">{trackingLabel}</Link></li>
+              <li><Link href="/iletisim" className="hover:text-white transition">{contactLinkLabel}</Link></li>
             </ul>
           </div>
 
-          {/* Kurumsal + İletişim */}
           <div>
-            <h4 className="text-white text-sm font-semibold mb-4">Kurumsal</h4>
+            <h4 className="text-white text-sm font-semibold mb-4">{corporateTitle}</h4>
             <ul className="space-y-2.5 text-sm mb-5">
-              <li><Link href="/hakkimizda" className="hover:text-white transition">Hakkımızda</Link></li>
+              <li><Link href="/hakkimizda" className="hover:text-white transition">{aboutLabel}</Link></li>
               <li><Link href="/kvkk" className="hover:text-white transition">KVKK</Link></li>
-              <li><Link href="/gizlilik" className="hover:text-white transition">Gizlilik Politikası</Link></li>
+              <li><Link href="/gizlilik" className="hover:text-white transition">{privacyLabel}</Link></li>
             </ul>
             {(email || phone) && (
               <div className="space-y-1.5 text-xs text-slate-500">
-                <p className="text-slate-400 font-medium text-sm">İletişim</p>
+                <p className="text-slate-400 font-medium text-sm">{contactTitle}</p>
                 {email && <p>{email}</p>}
                 {phone && <p>{phone}</p>}
               </div>
@@ -155,11 +197,12 @@ export default async function Footer() {
           </div>
         </div>
 
-        {/* Ödeme yöntemleri */}
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500">© {year} {siteName}. Tüm hakları saklıdır.</p>
+          <p className="text-xs text-slate-500">
+            {copyrightLabel.replace("{year}", String(year)).replace("{siteName}", siteName)}
+          </p>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 mr-1">Güvenli ödeme:</span>
+            <span className="text-xs text-slate-500 mr-1">{safePaymentLabel}</span>
             {["VISA", "MC", "TROY", "SSL"].map(p => (
               <span key={p} className="bg-white/10 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-md tracking-wide">
                 {p}

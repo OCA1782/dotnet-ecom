@@ -6,17 +6,18 @@ import Link from "next/link";
 import { useAuth, type LoginResult } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useI18n } from "@/contexts/I18nContext";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 2FA adımı
   const [step, setStep] = useState<"login" | "2fa">("login");
   const [pendingUserId, setPendingUserId] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -38,7 +39,7 @@ export default function LoginPage() {
       }
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Giriş başarısız");
+      setError(err instanceof Error ? err.message : t("auth.login"));
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ export default function LoginPage() {
       completeLogin(data);
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Doğrulama başarısız");
+      setError(err instanceof Error ? err.message : t("chat.error"));
     } finally {
       setTwoFaLoading(false);
     }
@@ -72,7 +73,7 @@ export default function LoginPage() {
       }
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Google ile giriş başarısız");
+      setError(err instanceof Error ? err.message : t("auth.login"));
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ export default function LoginPage() {
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-slate-900">İki Faktörlü Doğrulama</h1>
+            <h1 className="text-xl font-bold text-slate-900">{t("auth.login")}</h1>
             <p className="text-sm text-slate-500 mt-1">Authenticator uygulamanızdaki 6 haneli kodu girin</p>
           </div>
           <form onSubmit={handleTwoFa} className="space-y-4">
@@ -130,9 +131,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">Giriş Yap</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("nav.login")}</h1>
 
-        {/* Google Butonu */}
         {googleClientId && (
           <div className="mb-4">
             <div className="flex justify-center">
@@ -178,13 +178,13 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
           >
-            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {loading ? "Giriş yapılıyor..." : t("nav.login")}
           </button>
         </form>
         <div className="mt-4 flex flex-col items-center gap-2">
           <p className="text-sm text-slate-600">
             Hesabın yok mu?{" "}
-            <Link href="/kayit" className="text-teal-600 font-medium hover:underline">Kayıt Ol</Link>
+            <Link href="/kayit" className="text-teal-600 font-medium hover:underline">{t("nav.register")}</Link>
           </p>
           <Link href="/sifre-sifirla" className="text-sm text-slate-400 hover:text-slate-700 transition">
             Şifremi Unuttum

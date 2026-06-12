@@ -12,15 +12,16 @@ const LANGS = [
 type Lang = typeof LANGS[number]["code"];
 const LANG_KEY = "ecom:lang";
 
+function readLang(): Lang {
+  if (typeof window === "undefined") return "tr";
+  const stored = localStorage.getItem(LANG_KEY) as Lang | null;
+  return stored && LANGS.some(l => l.code === stored) ? stored : "tr";
+}
+
 export default function LanguageSwitcher() {
-  const [lang, setLangState] = useState<Lang>("tr");
+  const [lang, setLangState] = useState<Lang>(() => readLang());
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(LANG_KEY) as Lang | null;
-    if (stored && LANGS.some(l => l.code === stored)) setLangState(stored);
-  }, []);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -48,7 +49,7 @@ export default function LanguageSwitcher() {
         <span className="text-base leading-none">{current.flag}</span>
         <span className="hidden sm:inline font-medium">{current.code.toUpperCase()}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
-          <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </button>
       {open && (

@@ -60,12 +60,7 @@ const REFRESH_INTERVAL = 5;
 
 // ── Konfigürasyon ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG = {
-  ok:       { label: "Sağlıklı",   color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", dot: "bg-emerald-500", icon: CheckCircle2 },
-  degraded: { label: "Yavaş",      color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   dot: "bg-amber-500",   icon: AlertTriangle },
-  down:     { label: "Çevrimdışı", color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     dot: "bg-red-500",     icon: XCircle },
-  unknown:  { label: "Bilinmiyor", color: "text-slate-400",   bg: "bg-slate-50",   border: "border-slate-200",   dot: "bg-slate-300",   icon: AlertTriangle },
-};
+// STATUS_CONFIG is defined inside the component to allow t() calls
 
 const ITEM_STATUS = {
   ok:      { dot: "bg-emerald-400", label: "text-emerald-600" },
@@ -150,18 +145,7 @@ const RABBITMQ_TRIGGERS: Record<string, { screen: string; href: string; action: 
   "OrderProcessingSaga":        { screen: "Siparişler",   href: "/siparisler",  action: "Sipariş akışı state machine" },
 };
 
-const SERVICE_META: Record<string, {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  description: string;
-  thresholdOk: number; thresholdWarn: number; sla: string;
-  actions: { id: string; label: string; variant?: "primary" | "danger" }[];
-}> = {
-  "API":        { icon: Server,   description: "HTTP API sunucusu. Tüm admin ve müşteri istekleri bu katmandan geçer. JWT doğrulama, CORS, rate limiting ve hata loglama middleware'leri burada çalışır.",             thresholdOk: 100,  thresholdWarn: 300,  sla: "99.9%",  actions: [{ id: "ping-db",    label: "DB Ping Testi" }] },
-  "Veritabanı": { icon: Database, description: "SQL veritabanı (geliştirme: SQL Server LocalDB, prod: PostgreSQL). Tüm varlık verileri, denetim kayıtları ve iş akışı verileri burada saklanır.",   thresholdOk: 50,   thresholdWarn: 200,  sla: "99.95%", actions: [{ id: "ping-db",    label: "Bağlantı Testi" }] },
-  "Redis":      { icon: Wifi,     description: "Dağıtık önbellek (Redis veya InMemory). Dashboard istatistikleri, ürün listeleri, lisans doğrulama sonuçları ve job çıktıları burada cache'lenir.",     thresholdOk: 10,   thresholdWarn: 50,   sla: "99.9%",  actions: [{ id: "ping-cache", label: "Önbellek Testi" }, { id: "flush-cache", label: "Test Anahtarını Temizle", variant: "danger" }] },
-  "RabbitMQ":   { icon: Activity, description: "Mesaj kuyruğu (MassTransit + RabbitMQ veya InMemory). Sipariş oluşturma, ödeme onayı ve durum değişikliği eventleri asenkron olarak işlenir. Outbox pattern ile güvenli mesaj teslimatı sağlanır.",        thresholdOk: 20,   thresholdWarn: 100,  sla: "99.5%",  actions: [{ id: "ping-rabbitmq", label: "Bus Testi" }] },
-  "E-posta":    { icon: Mail,     description: "SMTP e-posta servisi (MailKit). Sipariş onayı, kargo bildirimi, şifre sıfırlama, düşük stok uyarısı ve doğrulama e-postaları bu servis üzerinden gönderilir. Yapılandırılmamışsa geliştirme modunda log'a yazılır.", thresholdOk: 500, thresholdWarn: 2000, sla: "99.0%",  actions: [{ id: "ping-smtp", label: "SMTP TCP Testi" }, { id: "send-test-email", label: "Test E-postası Gönder", variant: "primary" }] },
-};
+// SERVICE_META is defined inside the component to allow t() calls
 
 // ── Yardımcı bileşenler ──────────────────────────────────────────────────────
 
@@ -253,6 +237,27 @@ function StatCell({ label, value, unit = "ms", highlight }: { label: string; val
 
 export default function ServislerPage() {
   const { t } = useI18n();
+
+  const STATUS_CONFIG = {
+    ok:       { label: t("status.healthy", "Sağlıklı"),   color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", dot: "bg-emerald-500", icon: CheckCircle2 },
+    degraded: { label: t("auto.yavas", "Yavaş"),          color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   dot: "bg-amber-500",   icon: AlertTriangle },
+    down:     { label: t("auto.cevrimdisi", "Çevrimdışı"), color: "text-red-600",    bg: "bg-red-50",     border: "border-red-200",     dot: "bg-red-500",     icon: XCircle },
+    unknown:  { label: t("status.unknown", "Bilinmiyor"), color: "text-slate-400",   bg: "bg-slate-50",   border: "border-slate-200",   dot: "bg-slate-300",   icon: AlertTriangle },
+  };
+
+  const SERVICE_META: Record<string, {
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    description: string;
+    thresholdOk: number; thresholdWarn: number; sla: string;
+    actions: { id: string; label: string; variant?: "primary" | "danger" }[];
+  }> = {
+    "API":        { icon: Server,   description: "HTTP API sunucusu. Tüm admin ve müşteri istekleri bu katmandan geçer. JWT doğrulama, CORS, rate limiting ve hata loglama middleware'leri burada çalışır.",             thresholdOk: 100,  thresholdWarn: 300,  sla: "99.9%",  actions: [{ id: "ping-db",       label: t("auto.dbPingTesti", "DB Ping Testi") }] },
+    "Veritabanı": { icon: Database, description: "SQL veritabanı (geliştirme: SQL Server LocalDB, prod: PostgreSQL). Tüm varlık verileri, denetim kayıtları ve iş akışı verileri burada saklanır.",   thresholdOk: 50,   thresholdWarn: 200,  sla: "99.95%", actions: [{ id: "ping-db",       label: t("auto.baglanti", "Bağlantı") + " " + t("auto.testi", "Testi") }] },
+    "Redis":      { icon: Wifi,     description: "Dağıtık önbellek (Redis veya InMemory). Dashboard istatistikleri, ürün listeleri, lisans doğrulama sonuçları ve job çıktıları burada cache'lenir.",     thresholdOk: 10,   thresholdWarn: 50,   sla: "99.9%",  actions: [{ id: "ping-cache",    label: t("auto.onbellekTesti", "Önbellek Testi") }, { id: "flush-cache", label: t("auto.testAnahtariniTemizle", "Test Anahtarını Temizle"), variant: "danger" }] },
+    "RabbitMQ":   { icon: Activity, description: "Mesaj kuyruğu (MassTransit + RabbitMQ veya InMemory). Sipariş oluşturma, ödeme onayı ve durum değişikliği eventleri asenkron olarak işlenir. Outbox pattern ile güvenli mesaj teslimatı sağlanır.",        thresholdOk: 20,   thresholdWarn: 100,  sla: "99.5%",  actions: [{ id: "ping-rabbitmq", label: t("auto.busTesti", "Bus Testi") }] },
+    "E-posta":    { icon: Mail,     description: "SMTP e-posta servisi (MailKit). Sipariş onayı, kargo bildirimi, şifre sıfırlama, düşük stok uyarısı ve doğrulama e-postaları bu servis üzerinden gönderilir. Yapılandırılmamışsa geliştirme modunda log'a yazılır.", thresholdOk: 500, thresholdWarn: 2000, sla: "99.0%",  actions: [{ id: "ping-smtp",      label: t("auto.smtpTcpTesti", "SMTP TCP Testi") }, { id: "send-test-email", label: t("auto.testEpostasi", "Test E-postası Gönder"), variant: "primary" }] },
+  };
+
   const [report, setReport]           = useState<HealthReport | null>(null);
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
@@ -309,7 +314,7 @@ export default function ServislerPage() {
     } finally {
       setLoading(false); setRefreshing(false); setCountdown(REFRESH_INTERVAL);
     }
-  }, [report, upSince]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [report, upSince]);
 
   function startAutoRefresh() {
     intervalRef.current  = setInterval(() => load(false), REFRESH_INTERVAL * 1000);
@@ -320,7 +325,16 @@ export default function ServislerPage() {
     if (countdownRef.current) clearInterval(countdownRef.current);
   }
 
-  useEffect(() => { load(); startAutoRefresh(); return stopAutoRefresh; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void load();
+      startAutoRefresh();
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      stopAutoRefresh();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleManualRefresh() { stopAutoRefresh(); load(true).then(() => startAutoRefresh()); }
 
@@ -332,11 +346,11 @@ export default function ServislerPage() {
       const data = await api.post<{ message?: string; error?: string }>(
         `/api/admin/health/actions/${actionId}`
       );
-      setActionResult(prev => ({ ...prev, [key]: { ok: true, message: data?.message ?? "Başarılı" } }));
+      setActionResult(prev => ({ ...prev, [key]: { ok: true, message: data?.message ?? t("auto.basarili", "Başarılı") } }));
       // E-posta gönderildiyse log'a da yazdır (opsiyonel refresh)
       if (actionId === "send-test-email") handleManualRefresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Hata oluştu";
+      const msg = e instanceof Error ? e.message : t("auto.hataOlustu", "Hata oluştu");
       setActionResult(prev => ({ ...prev, [key]: { ok: false, message: msg } }));
     } finally {
       setActionLoading(prev => ({ ...prev, [key]: false }));
@@ -355,8 +369,14 @@ export default function ServislerPage() {
     / report.services.length
   ) : 0;
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const uptimeStr = upSince ? (() => {
-    const diff = Math.floor((Date.now() - upSince.getTime()) / 1000);
+    const diff = Math.floor((now - upSince.getTime()) / 1000);
     if (diff < 60) return `${diff}s`;
     if (diff < 3600) return `${Math.floor(diff / 60)}d ${diff % 60}s`;
     return `${Math.floor(diff / 3600)}sa ${Math.floor((diff % 3600) / 60)}d`;
@@ -377,12 +397,12 @@ export default function ServislerPage() {
             <HealthRing score={healthScore} />
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./servisler", "Servis Durumu")}</h1>
-              <p className="text-teal-100 text-xs mt-0.5">API, veritabanı ve bağlı servislerin gerçek zamanlı sağlık kontrolü</p>
+              <p className="text-teal-100 text-xs mt-0.5">{t("auto.servislerSubtitle", "API, veritabanı ve bağlı servislerin gerçek zamanlı sağlık kontrolü")}</p>
               {report && (
                 <div className="flex items-center gap-3 mt-1.5 text-xs">
-                  <span className="text-emerald-200 font-semibold">{okCount} sağlıklı</span>
-                  {warnCount > 0 && <span className="text-amber-200 font-semibold">{warnCount} yavaş</span>}
-                  {downCount > 0 && <span className="text-red-200 font-semibold">{downCount} çevrimdışı</span>}
+                  <span className="text-emerald-200 font-semibold">{okCount} {t("status.healthy", "Sağlıklı")}</span>
+                  {warnCount > 0 && <span className="text-amber-200 font-semibold">{warnCount} {t("auto.yavas", "Yavaş")}</span>}
+                  {downCount > 0 && <span className="text-red-200 font-semibold">{downCount} {t("auto.cevrimdisi", "Çevrimdışı")}</span>}
                 </div>
               )}
             </div>
@@ -401,7 +421,7 @@ export default function ServislerPage() {
             </div>
             <button onClick={handleManualRefresh} disabled={refreshing}
               className="flex items-center gap-2 bg-white text-teal-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-teal-50 transition shadow disabled:opacity-50">
-              <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> Yenile
+              <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> {t("action.refresh", "Yenile")}
             </button>
           </div>
         </div>
@@ -414,13 +434,13 @@ export default function ServislerPage() {
             <OverallIcon size={22} className={overallCfg.color} />
             <div>
               <p className={`text-sm font-bold ${overallCfg.color}`}>
-                {overall === "ok"       ? "Tüm servisler normal çalışıyor" :
-                 overall === "degraded" ? "Bazı servisler yavaş yanıt veriyor" :
-                                          "Kritik servis sorunu tespit edildi"}
+                {overall === "ok"       ? t("auto.tumServislerNormal", "Tüm servisler normal çalışıyor") :
+                 overall === "degraded" ? t("auto.bazıServislerYavas", "Bazı servisler yavaş yanıt veriyor") :
+                                          t("auto.kritikServisSorunu", "Kritik servis sorunu tespit edildi")}
               </p>
               <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                <Clock size={11} /> Son kontrol: {new Date(report.checkedAt).toLocaleTimeString("tr-TR")}
-                {lastRefresh && <> &bull; Güncellendi: {lastRefresh.toLocaleTimeString("tr-TR")}</>}
+                <Clock size={11} /> {t("auto.sonKontrol", "Son Kontrol")}: {new Date(report.checkedAt).toLocaleTimeString("tr-TR")}
+                {lastRefresh && <> &bull; {t("auto.guncellendi", "Güncellendi")}: {lastRefresh.toLocaleTimeString("tr-TR")}</>}
               </p>
             </div>
           </div>
@@ -429,11 +449,11 @@ export default function ServislerPage() {
               <p className={`text-lg font-extrabold ${healthScore >= 90 ? "text-emerald-600" : healthScore >= 60 ? "text-amber-600" : "text-red-600"}`}>
                 {healthScore}/100
               </p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Sağlık Skoru</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider">{t("auto.saglikSkoru", "Sağlık Skoru")}</p>
             </div>
             <div className="text-xs text-slate-500">
-              {okCount}/{report.services.length} sağlıklı
-              {incidents.length > 0 && <p className="text-amber-600 font-semibold">{incidents.length} olay bu oturumda</p>}
+              {okCount}/{report.services.length} {t("status.healthy", "Sağlıklı")}
+              {incidents.length > 0 && <p className="text-amber-600 font-semibold">{incidents.length} {t("auto.olayBuOturumda", "olay bu oturumda")}</p>}
             </div>
           </div>
         </div>
@@ -496,7 +516,7 @@ export default function ServislerPage() {
                           svc.responseMs > meta.thresholdWarn ? "text-red-600" :
                           svc.responseMs > meta.thresholdOk   ? "text-amber-600" : "text-emerald-600"
                         }`}>{svc.responseMs}ms</p>
-                        {avgMs > 0 && <p className="text-xs text-slate-400">ort. {avgMs}ms</p>}
+                        {avgMs > 0 && <p className="text-xs text-slate-400">{t("auto.ort", "ort.")} {avgMs}ms</p>}
                       </div>
                     )}
                   </div>
@@ -529,7 +549,7 @@ export default function ServislerPage() {
                   <button
                     onClick={() => setExpandedSvc(prev => prev === svc.name ? null : svc.name)}
                     className="mt-3 w-full flex items-center justify-between text-xs text-slate-400 hover:text-slate-600 transition group">
-                    <span className="font-medium group-hover:text-slate-600">Metrikler & İşlemler</span>
+                    <span className="font-medium group-hover:text-slate-600">{t("auto.metriklerVeIslemler", "Metrikler & İşlemler")}</span>
                     {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
                 </div>
@@ -548,7 +568,7 @@ export default function ServislerPage() {
                     {SERVICE_SCREENS[svc.name] && (
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Monitor size={11} /> Bu Servisi Kullanan Ekranlar
+                          <Monitor size={11} /> {t("auto.buServisiKullananEkranlar", "Bu Servisi Kullanan Ekranlar")}
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {SERVICE_SCREENS[svc.name].map((screen, idx) => (
@@ -568,7 +588,7 @@ export default function ServislerPage() {
                     {/* ── E-posta Şablonları ── */}
                     {svc.name === "E-posta" && (
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-posta Şablonları</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{t("auto.epostaTemplates", "E-posta Şablonları")}</p>
                         <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
                           {Object.entries(EMAIL_TRIGGERS).map(([fn, trigger]) => (
                             <div key={fn} className="flex items-start gap-2 px-3 py-2">
@@ -589,7 +609,7 @@ export default function ServislerPage() {
                     {/* ── RabbitMQ Tüketiciler ── */}
                     {svc.name === "RabbitMQ" && (
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Mesaj Tüketiciler</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{t("auto.mesajTuketiciler", "Mesaj Tüketiciler")}</p>
                         <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
                           {Object.entries(RABBITMQ_TRIGGERS).map(([consumer, trigger]) => (
                             <div key={consumer} className="flex items-start gap-2 px-3 py-2">
@@ -612,7 +632,7 @@ export default function ServislerPage() {
                       <div className="flex items-center gap-2">
                         <BarChart2 size={12} className="text-slate-300 shrink-0" />
                         <Sparkline points={hist} color={sparkColor} />
-                        <span className="text-xs text-slate-400">son {hist.length} ölçüm</span>
+                        <span className="text-xs text-slate-400">{t("auto.son", "son")} {hist.length} {t("auto.olcum", "ölçüm")}</span>
                       </div>
                     )}
 
@@ -630,16 +650,16 @@ export default function ServislerPage() {
                     {stats && (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white rounded-xl border border-slate-200 px-3 py-2.5">
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Oturum Uptime</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{t("auto.oturumUptime", "Oturum Uptime")}</p>
                           <p className={`text-lg font-extrabold mt-0.5 ${parseFloat(stats.uptimePct) >= 99 ? "text-emerald-600" : parseFloat(stats.uptimePct) >= 90 ? "text-amber-600" : "text-red-600"}`}>
                             %{stats.uptimePct}
                           </p>
-                          <p className="text-[10px] text-slate-400">{stats.checks} kontrol</p>
+                          <p className="text-[10px] text-slate-400">{stats.checks} {t("auto.kontrol", "kontrol")}</p>
                         </div>
                         <div className="bg-white rounded-xl border border-slate-200 px-3 py-2.5">
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Hedef SLA</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{t("auto.hedefSla", "Hedef SLA")}</p>
                           <p className="text-lg font-extrabold text-slate-700 mt-0.5">{meta.sla}</p>
-                          <p className="text-[10px] text-slate-400">eşik: &lt;{meta.thresholdWarn}ms</p>
+                          <p className="text-[10px] text-slate-400">{t("auto.esik", "eşik")}: &lt;{meta.thresholdWarn}ms</p>
                         </div>
                       </div>
                     )}
@@ -647,12 +667,12 @@ export default function ServislerPage() {
                     {/* Meta bilgisi */}
                     {svc.meta && (
                       <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
-                        {svc.meta.typeLabel && <MetaRow label="Tür"       value={svc.meta.typeLabel} />}
-                        {svc.meta.provider  && <MetaRow label="Sağlayıcı" value={svc.meta.provider}  mono />}
-                        {svc.meta.url       && <MetaRow label="URL"       value={svc.meta.url}        mono />}
-                        {svc.meta.database  && <MetaRow label={svc.name === "E-posta" ? "Gönderici" : "Veritabanı"} value={svc.meta.database} mono />}
-                        {svc.meta.port      && <MetaRow label="Port"      value={svc.meta.port}       mono />}
-                        {svc.meta.extra     && <MetaRow label="Güvenlik"  value={svc.meta.extra}      mono />}
+                        {svc.meta.typeLabel && <MetaRow label={t("auto.tur", "Tür")}              value={svc.meta.typeLabel} />}
+                        {svc.meta.provider  && <MetaRow label={t("auto.saglayici", "Sağlayıcı")}   value={svc.meta.provider}  mono />}
+                        {svc.meta.url       && <MetaRow label="URL"                                  value={svc.meta.url}        mono />}
+                        {svc.meta.database  && <MetaRow label={svc.name === "E-posta" ? t("auto.gonderici", "Gönderici") : t("auto.veritabani", "Veritabanı")} value={svc.meta.database} mono />}
+                        {svc.meta.port      && <MetaRow label="Port"                                 value={svc.meta.port}       mono />}
+                        {svc.meta.extra     && <MetaRow label={t("auto.guvenlik", "Güvenlik")}      value={svc.meta.extra}      mono />}
                       </div>
                     )}
 
@@ -671,12 +691,11 @@ export default function ServislerPage() {
                     {/* ── Manuel Tetikleme ── */}
                     {meta.actions.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Manuel İşlemler</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("auto.manuelIslemler", "Manuel İşlemler")}</p>
                         <div className="flex flex-wrap gap-2">
                           {meta.actions.map(action => {
                             const key     = `${svc.name}:${action.id}`;
                             const isLoading = actionLoading[key];
-                            const result  = actionResult[key];
                             return (
                               <button key={action.id}
                                 onClick={() => runAction(action.id, svc.name)}
@@ -714,9 +733,9 @@ export default function ServislerPage() {
 
                     {/* Eşik açıklaması */}
                     <div className="flex gap-4 text-xs text-slate-400 pt-1 border-t border-slate-100">
-                      <span className="text-emerald-600">✓ Hızlı: &lt;{meta.thresholdOk}ms</span>
-                      <span className="text-amber-600">⚠ Yavaş: &lt;{meta.thresholdWarn}ms</span>
-                      <span className="text-red-500">✗ Kritik: &gt;{meta.thresholdWarn}ms</span>
+                      <span className="text-emerald-600">✓ {t("auto.hizli", "Hızlı")}: &lt;{meta.thresholdOk}ms</span>
+                      <span className="text-amber-600">⚠ {t("auto.yavas", "Yavaş")}: &lt;{meta.thresholdWarn}ms</span>
+                      <span className="text-red-500">✗ {t("auto.kritik", "Kritik")}: &gt;{meta.thresholdWarn}ms</span>
                     </div>
                   </div>
                 )}
@@ -727,11 +746,11 @@ export default function ServislerPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
           <XCircle size={32} className="text-red-400 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-slate-700">Sağlık kontrolü başarısız</p>
-          <p className="text-xs text-slate-400 mt-1">API sunucusuna ulaşılamıyor.</p>
+          <p className="text-sm font-semibold text-slate-700">{t("auto.saglikKontrolBasarisiz", "Sağlık kontrolü başarısız")}</p>
+          <p className="text-xs text-slate-400 mt-1">{t("auto.apiSunucusuUlasilamiyor", "API sunucusuna ulaşılamıyor.")}</p>
           <button onClick={handleManualRefresh}
             className="mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">
-            Tekrar Dene
+            {t("auto.tekrarDene", "Tekrar Dene")}
           </button>
         </div>
       )}
@@ -741,20 +760,20 @@ export default function ServislerPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <Shield size={16} className="text-teal-600" />
-            <h2 className="text-sm font-semibold text-slate-700">Servis Karşılaştırması</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.servisKarsilastirmasi", "Servis Karşılaştırması")}</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">Servis</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500">Durum</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Yanıt</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">{t("auto.servisAdi", "Servis Adı")}</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500">{t("col.status", "Durum")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("auto.yanit", "Yanıt")}</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Min</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Ort.</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("auto.ort", "Ort.")}</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">P95</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Uptime</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">SLA Hedefi</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("col.uptime", "Çalışma Süresi")}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t("auto.hedefSla", "Hedef SLA")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -800,17 +819,17 @@ export default function ServislerPage() {
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertOctagon size={16} className={incidents.length > 0 ? "text-amber-500" : "text-slate-300"} />
-            <h2 className="text-sm font-semibold text-slate-700">Olay Günlüğü (Bu Oturum)</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("auto.olayGunlugu", "Olay Günlüğü (Bu Oturum)")}</h2>
           </div>
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${incidents.length > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"}`}>
-            {incidents.length} olay
+            {incidents.length} {t("auto.olay", "olay")}
           </span>
         </div>
         {incidents.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle2 size={28} className="text-emerald-300 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Bu oturumda durum değişikliği yok</p>
-            <p className="text-xs text-slate-300 mt-0.5">Servis durumları değiştiğinde burada görünür</p>
+            <p className="text-sm text-slate-400">{t("auto.buOturumDurumDegisikligiYok", "Bu oturumda durum değişikliği yok")}</p>
+            <p className="text-xs text-slate-300 mt-0.5">{t("auto.servisDurumlariDegistiginde", "Servis durumları değiştiğinde burada görünür")}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -843,7 +862,7 @@ export default function ServislerPage() {
 
       <p className="text-xs text-slate-400 text-center flex items-center justify-center gap-1.5">
         <Radio size={11} className="text-teal-400" />
-        Her {REFRESH_INTERVAL} saniyede bir otomatik güncelleme · Son {MAX_HISTORY} ölçüm saklanır
+        {t("auto.herXSaniyeGuncelleme", "Her")} {REFRESH_INTERVAL} {t("auto.saniyedebirOtomatikGuncelleme", "saniyede bir otomatik güncelleme")} · {t("auto.son", "son")} {MAX_HISTORY} {t("auto.olcumSaklanir", "ölçüm saklanır")}
       </p>
     </div>
   );

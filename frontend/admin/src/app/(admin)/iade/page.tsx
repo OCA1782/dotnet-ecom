@@ -21,10 +21,10 @@ export default function IadePage() {
     setSeeding(true);
     try {
       await api.post("/api/admin/seed/returns", {});
-      setMsg({ text: "3 test iade kaydı oluşturuldu.", ok: true });
+      setMsg({ text: t("iade.seedSuccess", "3 test iade kaydı oluşturuldu."), ok: true });
       fetchOrders();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Seed hatası", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("iade.seedError", "Seed hatası"), ok: false });
     } finally { setSeeding(false); }
   }
 
@@ -65,10 +65,10 @@ export default function IadePage() {
     setNoteInput("");
     try {
       await api.put(`/api/orders/admin/${orderId}/status`, { status: 10, note });
-      setMsg({ text: "İade onaylandı.", ok: true });
+      setMsg({ text: t("iade.approveSuccess", "İade onaylandı."), ok: true });
       fetchOrders();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Onaylama başarısız.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("iade.approveFail", "Onaylama başarısız."), ok: false });
     }
   }
 
@@ -79,10 +79,10 @@ export default function IadePage() {
     setNoteInput("");
     try {
       await api.put(`/api/orders/admin/${orderId}/status`, { status: 7, note });
-      setMsg({ text: "İade talebi reddedildi, sipariş tamamlandı olarak işaretlendi.", ok: true });
+      setMsg({ text: t("iade.rejectSuccess", "İade talebi reddedildi, sipariş tamamlandı olarak işaretlendi."), ok: true });
       fetchOrders();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Reddetme başarısız.", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("iade.rejectFail", "Reddetme başarısız."), ok: false });
     }
   }
 
@@ -101,7 +101,7 @@ export default function IadePage() {
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./iade", "İade Yönetimi")}</h1>
               <p className="text-red-100 text-xs mt-0.5">
-                Müşterinin iade talep ettiği siparişler — onaylayın veya reddedin
+                {t("iade.subtitle", "Müşterinin iade talep ettiği siparişler — onaylayın veya reddedin")}
               </p>
             </div>
           </div>
@@ -109,18 +109,18 @@ export default function IadePage() {
             {totalCount > 0 && (
               <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
                 <AlertTriangle size={13} className="text-orange-200" />
-                <span className="text-white text-xs font-bold">{totalCount} talep</span>
+                <span className="text-white text-xs font-bold">{totalCount} {t("iade.requestCount", "talep")}</span>
               </div>
             )}
             {totalCount === 0 && !loading && (
               <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
                 <CheckCircle2 size={13} className="text-white/80" />
-                <span className="text-white text-xs font-semibold">Bekleyen talep yok</span>
+                <span className="text-white text-xs font-semibold">{t("iade.noPending", "Bekleyen talep yok")}</span>
               </div>
             )}
             <button onClick={handleSeedReturns} disabled={seeding}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition disabled:opacity-50">
-              <Database size={13} /> {seeding ? "Oluşturuluyor..." : "Test Verisi"}
+              <Database size={13} /> {seeding ? t("iade.creating", "Oluşturuluyor...") : t("iade.testData", "Test Verisi")}
             </button>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function IadePage() {
           msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
         }`}>
           {msg.text}
-          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">Kapat</button>
+          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">{t("action.close", "Kapat")}</button>
         </div>
       )}
 
@@ -142,14 +142,14 @@ export default function IadePage() {
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Sipariş no veya müşteri..."
+            placeholder={t("ui.searchOrders", "Sipariş no veya müşteri...")}
             className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 w-64 text-slate-900 bg-white"
           />
         </div>
-        <button type="submit" className="px-4 py-2 bg-red-600 text-white text-sm rounded-xl hover:bg-red-700 transition">Ara</button>
+        <button type="submit" className="px-4 py-2 bg-red-600 text-white text-sm rounded-xl hover:bg-red-700 transition">{t("action.search", "Ara")}</button>
         {(search || searchInput) && (
           <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">Temizle</button>
+            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
         )}
       </form>
 
@@ -162,8 +162,8 @@ export default function IadePage() {
         ) : orders.length === 0 ? (
           <div className="py-16 text-center">
             <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-300" />
-            <p className="text-slate-500 font-medium">Bekleyen iade talebi yok</p>
-            <p className="text-slate-400 text-sm mt-1">Tüm iade talepleri işlendi.</p>
+            <p className="text-slate-500 font-medium">{t("iade.noPending", "Bekleyen iade talebi yok")}</p>
+            <p className="text-slate-400 text-sm mt-1">{t("iade.allProcessed", "Tüm iade talepleri işlendi.")}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -182,7 +182,7 @@ export default function IadePage() {
                       {order.orderNumber}
                     </Link>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600"}`}>
-                      İade Talep Edildi
+                      {t("iade.returnRequested", "İade Talep Edildi")}
                     </span>
                     <span className="text-xs text-slate-400">{PAYMENT_STATUS[order.paymentStatus] ?? "—"}</span>
                     {order.dataSource && (
@@ -200,19 +200,19 @@ export default function IadePage() {
                 {/* Sağ: aksiyonlar */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Link href={`/siparisler/${order.orderNumber}`}
-                    title="Detay"
+                    title={t("action.details", "Detaylar")}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                     <Eye size={16} />
                   </Link>
                   <button
                     onClick={() => { setNoteInput(""); setApproveModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
-                    title="İadeyi Onayla"
+                    title={t("iade.approveReturn", "İadeyi Onayla")}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                     <CheckCircle2 size={16} />
                   </button>
                   <button
                     onClick={() => { setNoteInput(""); setRejectModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
-                    title="İadeyi Reddet"
+                    title={t("iade.rejectReturn", "İadeyi Reddet")}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
                     <XCircle size={16} />
                   </button>
@@ -225,9 +225,9 @@ export default function IadePage() {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>}
+          {page > 1 && <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.prev", "← Önceki")}</button>}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
-          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>}
+          {page < totalPages && <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.next", "Sonraki →")}</button>}
         </div>
       )}
 
@@ -240,19 +240,19 @@ export default function IadePage() {
                 <CheckCircle2 size={20} className="text-emerald-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900">İadeyi Onayla</h2>
+                <h2 className="font-bold text-slate-900">{t("iade.approveReturn", "İadeyi Onayla")}</h2>
                 <p className="text-xs text-slate-500">{approveModal.orderNumber}</p>
               </div>
             </div>
             <p className="text-sm text-slate-600">
-              Müşterinin iade talebi onaylanacak. Sipariş durumu <strong>İade Edildi</strong> olarak güncellenecek.
+              {t("iade.approveConfirmMsg", "Müşterinin iade talebi onaylanacak. Sipariş durumu")} <strong>{t("status.returned", "İade Edildi")}</strong> {t("iade.approveConfirmMsg2", "olarak güncellenecek.")}
             </p>
             <div>
-              <label className="text-xs font-semibold text-slate-600 block mb-1">Not (isteğe bağlı)</label>
+              <label className="text-xs font-semibold text-slate-600 block mb-1">{t("iade.noteOptional", "Not (isteğe bağlı)")}</label>
               <textarea
                 value={noteInput}
                 onChange={e => { setNoteInput(e.target.value); setApproveModal(m => m ? { ...m, note: e.target.value } : m); }}
-                placeholder="İade nedeni veya açıklama..."
+                placeholder={t("iade.noteAprovePlaceholder", "İade nedeni veya açıklama...")}
                 rows={3}
                 className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
               />
@@ -260,11 +260,11 @@ export default function IadePage() {
             <div className="flex gap-3 pt-1">
               <button onClick={confirmApprove}
                 className="flex-1 bg-emerald-600 text-white font-semibold py-2.5 rounded-xl hover:bg-emerald-700 transition text-sm">
-                Onayla
+                {t("action.approve", "Onayla")}
               </button>
               <button onClick={() => { setApproveModal(null); setNoteInput(""); }}
                 className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
             </div>
           </div>
@@ -280,19 +280,19 @@ export default function IadePage() {
                 <XCircle size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900">İadeyi Reddet</h2>
+                <h2 className="font-bold text-slate-900">{t("iade.rejectReturn", "İadeyi Reddet")}</h2>
                 <p className="text-xs text-slate-500">{rejectModal.orderNumber}</p>
               </div>
             </div>
             <p className="text-sm text-slate-600">
-              İade talebi reddedilecek. Sipariş durumu <strong>Tamamlandı</strong> olarak güncellenecek.
+              {t("iade.rejectConfirmMsg", "İade talebi reddedilecek. Sipariş durumu")} <strong>{t("status.completed", "Tamamlandı")}</strong> {t("iade.rejectConfirmMsg2", "olarak güncellenecek.")}
             </p>
             <div>
-              <label className="text-xs font-semibold text-slate-600 block mb-1">Red nedeni (isteğe bağlı)</label>
+              <label className="text-xs font-semibold text-slate-600 block mb-1">{t("iade.rejectReasonOptional", "Red nedeni (isteğe bağlı)")}</label>
               <textarea
                 value={noteInput}
                 onChange={e => { setNoteInput(e.target.value); setRejectModal(m => m ? { ...m, note: e.target.value } : m); }}
-                placeholder="Red gerekçesi veya açıklama..."
+                placeholder={t("iade.rejectNotePlaceholder", "Red gerekçesi veya açıklama...")}
                 rows={3}
                 className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
               />
@@ -300,11 +300,11 @@ export default function IadePage() {
             <div className="flex gap-3 pt-1">
               <button onClick={confirmReject}
                 className="flex-1 bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
-                Reddet
+                {t("action.reject", "Reddet")}
               </button>
               <button onClick={() => { setRejectModal(null); setNoteInput(""); }}
                 className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
-                Vazgeç
+                {t("action.cancel", "Vazgeç")}
               </button>
             </div>
           </div>

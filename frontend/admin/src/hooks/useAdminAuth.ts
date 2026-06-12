@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import type { AuthUser } from "@/types";
+import { normalizeAdminRoles } from "@/lib/roles";
 
 const TOKEN_KEY = "admin_token";
 const USER_KEY = "admin_user";
@@ -20,32 +21,41 @@ interface LoginResult {
 }
 
 export function useAdminAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") return null;
     const stored = localStorage.getItem(USER_KEY);
     if (stored) {
       try {
-        setUser(JSON.parse(stored));
-        // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
-        api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
-          .then(data => {
-            setUser(prev => {
-              if (!prev) return prev;
-              const updated = { ...prev, name: data.name, surname: data.surname, avatarUrl: data.avatarUrl ?? prev.avatarUrl };
-              localStorage.setItem(USER_KEY, JSON.stringify(updated));
-              return updated;
-            });
-          })
-          .catch(() => {});
+        const parsed = JSON.parse(stored) as AuthUser;
+        const normalized = { ...parsed, roles: normalizeAdminRoles(parsed.roles) };
+        if ((parsed.roles ?? []).join("|") !== normalized.roles.join("|")) {
+          localStorage.setItem(USER_KEY, JSON.stringify(normalized));
+        }
+        return normalized;
       } catch {
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
       }
     }
-    setLoading(false);
+    return null;
+  });
+  const loading = false;
+  const initialUserRef = useRef(user);
+
+  useEffect(() => {
+    if (!initialUserRef.current) return;
+    // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
+    api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
+      .then(data => {
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, name: data.name, surname: data.surname, avatarUrl: data.avatarUrl ?? prev.avatarUrl };
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -80,7 +90,7 @@ export function useAdminAuth() {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
     localStorage.setItem(TOKEN_KEY, data.token);
     const authUser: AuthUser = {
-      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles, avatarUrl: data.avatarUrl,
+      userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: normalizeAdminRoles(data.roles), avatarUrl: data.avatarUrl,
     };
     localStorage.setItem(USER_KEY, JSON.stringify(authUser));
     if (data.refreshToken) {
@@ -99,7 +109,7 @@ export function useAdminAuth() {
       const data = await api.post<LoginResult>("/api/auth/refresh", { refreshToken });
       localStorage.setItem(TOKEN_KEY, data.token);
       const authUser: AuthUser = {
-        userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: data.roles, avatarUrl: data.avatarUrl,
+        userId: data.userId, name: data.name, surname: data.surname, email: data.email, token: data.token, roles: normalizeAdminRoles(data.roles), avatarUrl: data.avatarUrl,
       };
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));
       if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);

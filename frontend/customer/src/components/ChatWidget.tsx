@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
@@ -24,11 +25,15 @@ const STORAGE_KEY = "chat_session";
 function getOrCreateSession() {
   if (typeof window === "undefined") return "";
   let id = sessionStorage.getItem(STORAGE_KEY);
-  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(STORAGE_KEY, id); }
+  if (!id) {
+    id = crypto.randomUUID();
+    sessionStorage.setItem(STORAGE_KEY, id);
+  }
   return id;
 }
 
 export default function ChatWidget() {
+  const { t } = useI18n();
   const [config, setConfig] = useState<ChatConfig | null>(null);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,7 +43,7 @@ export default function ChatWidget() {
 
   useEffect(() => {
     fetch(`${API_BASE}/api/chatbot/config`)
-      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(r => (r.ok ? r.json() : Promise.reject()))
       .then((d: ChatConfig) => setConfig(d))
       .catch(() => setConfig({ enabled: false, provider: undefined }));
   }, []);
@@ -47,7 +52,6 @@ export default function ChatWidget() {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  // Config yüklenmediyse veya widget pasifse hiç render etme
   if (config === null) return null;
   if (!config.enabled) return null;
 
@@ -57,7 +61,7 @@ export default function ChatWidget() {
 
   function whatsAppUrl() {
     const num = config?.whatsAppNumber?.replace(/\D/g, "");
-    const msg = encodeURIComponent(config?.whatsAppWelcomeMessage ?? "Merhaba! Yardımcı olabilir misiniz?");
+    const msg = encodeURIComponent(config?.whatsAppWelcomeMessage ?? t("chat.subtitle"));
     return `https://wa.me/${num}?text=${msg}`;
   }
 
@@ -82,71 +86,78 @@ export default function ChatWidget() {
       const reply = data.reply ?? data.output ?? data.message ?? JSON.stringify(data);
       setMessages(prev => [...prev, { role: "bot", text: reply }]);
     } catch {
-      setMessages(prev => [...prev, { role: "bot", text: "Bir hata oluştu, lütfen tekrar deneyin." }]);
+      setMessages(prev => [...prev, { role: "bot", text: t("chat.error") }]);
     }
     setSending(false);
   }
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-      {/* Chat panel */}
       {open && (
         <div className="w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-          {/* Header */}
           <div className="bg-teal-600 px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-white font-semibold text-sm">Müşteri Hizmetleri</p>
-              <p className="text-teal-200 text-xs">Size nasıl yardımcı olabiliriz?</p>
+              <p className="text-white font-semibold text-sm">{t("chat.title")}</p>
+              <p className="text-teal-200 text-xs">{t("chat.subtitle")}</p>
             </div>
             <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white transition">
               <X size={18} />
             </button>
           </div>
 
-          {/* Channel buttons */}
           {(showWhatsApp || showTelegram) && (
             <div className="px-4 py-3 flex gap-2 border-b border-slate-100">
               {showWhatsApp && (
-                <a href={whatsAppUrl()} target="_blank" rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-2 rounded-xl transition">
+                <a
+                  href={whatsAppUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-2 rounded-xl transition"
+                >
                   <WhatsAppIcon /> WhatsApp
                 </a>
               )}
               {showTelegram && (
-                <a href={telegramUrl()} target="_blank" rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-2 rounded-xl transition">
+                <a
+                  href={telegramUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-2 rounded-xl transition"
+                >
                   <TelegramIcon /> Telegram
                 </a>
               )}
             </div>
           )}
 
-          {/* Fallback when provider not configured */}
           {!showWhatsApp && !showTelegram && !showInline && (
             <div className="px-4 py-5 text-center">
-              <p className="text-sm text-slate-600 font-medium mb-1">Nasıl yardımcı olabiliriz?</p>
-              <p className="text-xs text-slate-400 mb-4">Destek ekibimize ulaşmak için e-posta ile yazabilirsiniz.</p>
-              <a href="mailto:destek@example.com"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-teal-600 hover:text-teal-800 transition">
-                ✉️ destek@example.com
+              <p className="text-sm text-slate-600 font-medium mb-1">{t("chat.fallback_title")}</p>
+              <p className="text-xs text-slate-400 mb-4">{t("chat.fallback_desc")}</p>
+              <a
+                href={`mailto:${t("chat.fallback_email")}`}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-teal-600 hover:text-teal-800 transition"
+              >
+                ✉️ {t("chat.fallback_email")}
               </a>
             </div>
           )}
 
-          {/* Inline chat (n8n) */}
           {showInline && (
             <>
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-64 min-h-[80px]">
                 {messages.length === 0 && (
-                  <p className="text-xs text-slate-400 text-center mt-4">Mesajınızı yazın, bot yanıtlayacaktır.</p>
+                  <p className="text-xs text-slate-400 text-center mt-4">{t("chat.inline_empty")}</p>
                 )}
                 {messages.map((m, i) => (
                   <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
-                      m.role === "user"
-                        ? "bg-teal-600 text-white rounded-br-sm"
-                        : "bg-slate-100 text-slate-800 rounded-bl-sm"
-                    }`}>
+                    <div
+                      className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
+                        m.role === "user"
+                          ? "bg-teal-600 text-white rounded-br-sm"
+                          : "bg-slate-100 text-slate-800 rounded-bl-sm"
+                      }`}
+                    >
                       {m.text}
                     </div>
                   </div>
@@ -166,11 +177,14 @@ export default function ChatWidget() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && sendMessage()}
-                  placeholder="Mesaj yazın..."
+                  placeholder={t("chat.placeholder")}
                   className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
-                <button onClick={sendMessage} disabled={!input.trim() || sending}
-                  className="p-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition disabled:opacity-40">
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || sending}
+                  className="p-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition disabled:opacity-40"
+                >
                   <Send size={15} />
                 </button>
               </div>
@@ -179,11 +193,10 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Toggle button */}
       <button
         onClick={() => setOpen(v => !v)}
         className="w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
-        aria-label="Müşteri hizmetleri"
+        aria-label={t("chat.aria")}
       >
         {open ? <X size={22} /> : <MessageCircle size={22} />}
       </button>

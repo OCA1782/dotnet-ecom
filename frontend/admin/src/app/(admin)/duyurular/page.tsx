@@ -80,6 +80,11 @@ const label = "block text-xs font-semibold text-slate-600 mb-1";
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
+
 function catInfo(cat: string) {
   return CATEGORIES.find(c => c.value === cat) ?? CATEGORIES[0];
 }
@@ -124,11 +129,6 @@ export default function DuyurularPage() {
     setPage(1);
   }
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
-  }
-
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(empty);
@@ -158,7 +158,10 @@ export default function DuyurularPage() {
     }
   }, [page, search, catFilter, activeFilter, sortField, sortDir]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   function openCreate() {
     setEditId(null);
@@ -188,7 +191,7 @@ export default function DuyurularPage() {
   }
 
   async function save() {
-    if (!form.title.trim()) { setFormError("Başlık zorunludur."); return; }
+    if (!form.title.trim()) { setFormError(t("label.title", "Başlık") + " zorunludur."); return; }
     setSaving(true);
     setFormError(null);
     try {
@@ -214,7 +217,7 @@ export default function DuyurularPage() {
       setShowForm(false);
       await load();
     } catch (e) {
-      setFormError((e as Error).message || "Bir hata oluştu.");
+      setFormError((e as Error).message || t("msg.error", "Bir hata oluştu"));
     } finally {
       setSaving(false);
     }
@@ -235,7 +238,7 @@ export default function DuyurularPage() {
       const type = file.type.startsWith("video/") ? "video" : file.type === "image/gif" ? "gif" : "image";
       setForm(f => ({ ...f, mediaUrl: res.url, mediaType: type }));
     } catch (e) {
-      setFormError((e as Error).message || "Yükleme hatası.");
+      setFormError((e as Error).message || t("msg.error", "Bir hata oluştu"));
     } finally {
       setUploading(false);
     }
@@ -255,14 +258,14 @@ export default function DuyurularPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800">{t("page./duyurular", "Duyurular & Bültenler")}</h1>
-            <p className="text-xs text-slate-500">{total} kayıt · {activeCount} aktif</p>
+            <p className="text-xs text-slate-500">{total} {t("table.perPage", "kayıt")} · {activeCount} {t("status.active", "Aktif").toLowerCase()}</p>
           </div>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
         >
-          <Plus size={16} /> Yeni Duyuru
+          <Plus size={16} /> {t("ui.newAnnouncement", "Yeni Duyuru")}
         </button>
       </div>
 
@@ -274,7 +277,7 @@ export default function DuyurularPage() {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { setSearch(searchInput); setPage(1); } }}
-            placeholder="Başlık ara… (Enter)"
+            placeholder={t("filter.search", "Ara...")}
             className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400"
           />
           {searchInput && (
@@ -285,20 +288,20 @@ export default function DuyurularPage() {
         </div>
         <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1); }}
           className="text-sm rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-teal-400 bg-white">
-          <option value="">Tüm Kategoriler</option>
+          <option value="">{t("filter.allTypes", "Tüm Türler")}</option>
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         <select value={activeFilter} onChange={e => { setActiveFilter(e.target.value); setPage(1); }}
           className="text-sm rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-teal-400 bg-white">
-          <option value="">Tüm Durumlar</option>
-          <option value="true">Aktif</option>
-          <option value="false">Pasif</option>
+          <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
+          <option value="true">{t("status.active", "Aktif")}</option>
+          <option value="false">{t("status.passive", "Pasif")}</option>
         </select>
         <button onClick={() => handleSort("createdDate")} className="flex items-center gap-1 text-xs border border-slate-200 rounded-xl px-3 py-2 hover:border-teal-400 hover:text-teal-600 transition select-none bg-white">
-          Oluşturma Tarihi <SortIcon field="createdDate" />
+          {t("col.createdAt", "Oluşturma")} Tarihi <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} />
         </button>
         <button onClick={() => handleSort("dataSource")} className="flex items-center gap-1 text-xs border border-slate-200 rounded-xl px-3 py-2 hover:border-teal-400 hover:text-teal-600 transition select-none bg-white">
-          Kaynak <SortIcon field="dataSource" />
+          Kaynak <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} />
         </button>
       </div>
 
@@ -312,9 +315,9 @@ export default function DuyurularPage() {
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Megaphone size={40} className="mb-3 opacity-30" />
-          <p className="text-sm">Henüz duyuru yok</p>
+          <p className="text-sm">{t("table.noData", "Kayıt bulunamadı")}</p>
           <button onClick={openCreate} className="mt-4 text-sm text-teal-600 font-semibold hover:underline">
-            İlk duyuruyu oluştur →
+            {t("ui.newAnnouncement", "Yeni Duyuru")} →
           </button>
         </div>
       ) : (
@@ -340,8 +343,8 @@ export default function DuyurularPage() {
                     </div>
                     <div className="absolute top-2 right-2">
                       {item.isActive
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white">Aktif</span>
-                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-400 text-white">Pasif</span>
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white">{t("status.active", "Aktif")}</span>
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-400 text-white">{t("status.passive", "Pasif")}</span>
                       }
                     </div>
                   </div>
@@ -352,8 +355,8 @@ export default function DuyurularPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.color}`}>{cat.label}</span>
                       {item.isActive
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Aktif</span>
-                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Pasif</span>
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{t("status.active", "Aktif")}</span>
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{t("status.passive", "Pasif")}</span>
                       }
                     </div>
                   )}
@@ -397,13 +400,13 @@ export default function DuyurularPage() {
                       onClick={() => openEdit(item)}
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 py-1.5 rounded-lg transition"
                     >
-                      <Pencil size={12} /> Düzenle
+                      <Pencil size={12} /> {t("action.edit", "Düzenle")}
                     </button>
                     <button
                       onClick={() => setConfirmDelete(item.id)}
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg transition"
                     >
-                      <Trash2 size={12} /> Sil
+                      <Trash2 size={12} /> {t("action.delete", "Sil")}
                     </button>
                   </div>
                 </div>
@@ -416,7 +419,7 @@ export default function DuyurularPage() {
       {/* Sayfalama */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">{total} kayıttan {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} gösteriliyor</span>
+          <span className="text-slate-500">{total} {t("table.perPage", "kayıt")}tan {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} gösteriliyor</span>
           <div className="flex items-center gap-2">
             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
               className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-teal-400 disabled:opacity-40">
@@ -435,11 +438,11 @@ export default function DuyurularPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-80">
-            <h3 className="font-bold text-slate-800 mb-2">Duyuruyu sil?</h3>
-            <p className="text-sm text-slate-500 mb-5">Bu işlem geri alınamaz.</p>
+            <h3 className="font-bold text-slate-800 mb-2">{t("ui.deleteAnnouncement", "Duyuruyu Sil")}</h3>
+            <p className="text-sm text-slate-500 mb-5">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">İptal</button>
-              <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold">Sil</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "İptal")}</button>
+              <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold">{t("action.delete", "Sil")}</button>
             </div>
           </div>
         </div>
@@ -452,7 +455,7 @@ export default function DuyurularPage() {
 
             {/* Modal başlık */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
-              <h2 className="font-bold text-slate-800">{editId ? "Duyuruyu Düzenle" : "Yeni Duyuru"}</h2>
+              <h2 className="font-bold text-slate-800">{editId ? t("ui.editAnnouncement", "Duyuruyu Düzenle") : t("ui.newAnnouncement", "Yeni Duyuru")}</h2>
               <div className="flex items-center gap-2">
                 <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
                 <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -467,12 +470,12 @@ export default function DuyurularPage() {
               {/* Başlık + Kategori */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className={label}>Başlık *</label>
+                  <label className={label}>{t("label.title", "Başlık")} *</label>
                   <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                     placeholder="Duyuru başlığı" className={inp} />
                 </div>
                 <div>
-                  <label className={label}>Kategori</label>
+                  <label className={label}>{t("label.type", "Tür")}</label>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inp}>
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
@@ -488,7 +491,7 @@ export default function DuyurularPage() {
 
               {/* İçerik */}
               <div>
-                <label className={label}>İçerik (tam metin)</label>
+                <label className={label}>{t("label.description", "Açıklama")} (tam metin)</label>
                 <RichTextEditor
                   value={form.content}
                   onChange={v => setForm(f => ({ ...f, content: v }))}
@@ -526,7 +529,7 @@ export default function DuyurularPage() {
                       <button onClick={() => fileRef.current?.click()}
                         disabled={uploading}
                         className="text-xs font-medium text-teal-600 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition">
-                        {uploading ? "Yükleniyor…" : "Dosya Seç"}
+                        {uploading ? t("action.loading", "Yükleniyor...") : "Dosya Seç"}
                       </button>
                     </div>
                   )}
@@ -543,7 +546,7 @@ export default function DuyurularPage() {
 
               {/* Medya türü */}
               <div>
-                <label className={label}>Medya Türü</label>
+                <label className={label}>{t("label.type", "Tür")}</label>
                 <div className="flex gap-2 flex-wrap">
                   {MEDIA_TYPES.map(mt => {
                     const Icon = mt.icon;
@@ -582,7 +585,7 @@ export default function DuyurularPage() {
               {/* Tarih aralığı */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={label}>Yayın Başlangıç</label>
+                  <label className={label}>{t("label.startDate", "Başlangıç Tarihi")}</label>
                   <div className="relative">
                     <Calendar size={13} className="absolute left-3 top-2.5 text-slate-400" />
                     <input type="datetime-local" value={form.startsAt}
@@ -591,7 +594,7 @@ export default function DuyurularPage() {
                   </div>
                 </div>
                 <div>
-                  <label className={label}>Yayın Bitiş</label>
+                  <label className={label}>{t("label.endDate", "Bitiş Tarihi")}</label>
                   <div className="relative">
                     <Calendar size={13} className="absolute left-3 top-2.5 text-slate-400" />
                     <input type="datetime-local" value={form.endsAt}
@@ -613,8 +616,8 @@ export default function DuyurularPage() {
                   <button onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))}
                     className="flex items-center gap-2">
                     {form.isActive
-                      ? <><ToggleRight size={28} className="text-teal-500" /><span className="text-sm font-semibold text-teal-600">Aktif</span></>
-                      : <><ToggleLeft size={28} className="text-slate-400" /><span className="text-sm text-slate-500">Pasif</span></>
+                      ? <><ToggleRight size={28} className="text-teal-500" /><span className="text-sm font-semibold text-teal-600">{t("status.active", "Aktif")}</span></>
+                      : <><ToggleLeft size={28} className="text-slate-400" /><span className="text-sm text-slate-500">{t("status.passive", "Pasif")}</span></>
                     }
                   </button>
                 </div>
@@ -628,11 +631,11 @@ export default function DuyurularPage() {
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
-                  İptal
+                  {t("action.cancel", "İptal")}
                 </button>
                 <button onClick={save} disabled={saving}
                   className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition disabled:opacity-60">
-                  {saving ? "Kaydediliyor…" : editId ? "Güncelle" : "Yayınla"}
+                  {saving ? t("action.saving", "Kaydediliyor...") : editId ? t("action.update", "Güncelle") : t("action.publish", "Yayınla")}
                 </button>
               </div>
             </div>

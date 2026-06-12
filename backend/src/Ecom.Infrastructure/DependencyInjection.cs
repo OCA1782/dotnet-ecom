@@ -146,6 +146,11 @@ public static class DependencyInjection
         services.AddSingleton<IJobRunner, TodoVerificationJob>();
         services.AddSingleton<IJobRunner, VerificationReminderJob>();
         services.AddSingleton<IJobRunner, PasswordReminderJob>();
+        services.AddSingleton<IJobRunner, AdminLintAuditJob>();
+        services.AddSingleton<IJobRunner, I18nPageScannerJob>();
+        services.AddSingleton<IJobRunner, I18nDictionaryBuilderJob>();
+        services.AddSingleton<IJobRunner, CustomerI18nPageScannerJob>();
+        services.AddSingleton<IJobRunner, CustomerI18nDictionaryBuilderJob>();
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
 

@@ -92,6 +92,11 @@ type PageSize = typeof PAGE_SIZES[number];
 
 type SortField = "createdDate" | "dataSource";
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
+  if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
+  return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
+}
+
 function buildPageNums(total: number, current: number): (number | "…")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | "…")[] = [1];
@@ -151,11 +156,6 @@ export default function KategorilerPage() {
     setPage(1);
   }
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
-    return sortDir === "asc" ? <ChevronUp size={12} className="text-teal-600 ml-1 inline-block" /> : <ChevronDown size={12} className="text-teal-600 ml-1 inline-block" />;
-  }
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -165,10 +165,16 @@ export default function KategorilerPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchData(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchData]);
 
   // Reset to page 1 when any filter/sort changes
-  useEffect(() => { setPage(1); }, [filterText, menuFilter, activeFilter, pageSize, sortField, sortDir]);
+  useEffect(() => {
+    const id = window.setTimeout(() => setPage(1), 0);
+    return () => window.clearTimeout(id);
+  }, [filterText, menuFilter, activeFilter, pageSize, sortField, sortDir]);
 
   function toggleCollapse(id: string) {
     setCollapsedIds(prev => {
@@ -185,19 +191,19 @@ export default function KategorilerPage() {
   }
 
   async function handleSave() {
-    if (!form.name) { setError("Ad zorunludur."); return; }
+    if (!form.name) { setError(t("form.nameRequired", "Ad zorunludur.")); return; }
     setSaving(true); setError("");
     try {
       const body = { name: form.name, slug: form.slug || slugify(form.name), parentCategoryId: form.parentCategoryId || null, description: form.description || null, imageUrl: form.imageUrl || null, sortOrder: parseInt(form.sortOrder) || 0, showInMenu: form.showInMenu, metaTitle: null, metaDescription: null };
       if (modal === "create") {
         await api.post("/api/categories", body);
-        setMsg({ text: "Kategori oluşturuldu.", ok: true });
+        setMsg({ text: t("msg.created", "Başarıyla oluşturuldu"), ok: true });
       } else {
         await api.put(`/api/categories/${form.id}`, { id: form.id, isActive: form.isActive, ...body });
-        setMsg({ text: "Kategori güncellendi.", ok: true });
+        setMsg({ text: t("msg.updated", "Başarıyla güncellendi"), ok: true });
       }
       setModal(null); await fetchData();
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Hata"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu")); }
     finally { setSaving(false); }
   }
 
@@ -206,8 +212,8 @@ export default function KategorilerPage() {
       categories.map(c => ({
         "Ad": c.name, "Slug": c.slug,
         "Üst Kategori": c.parentCategoryName ?? "",
-        "Sıra": c.sortOrder, "Menüde": c.showInMenu ? "Evet" : "Hayır",
-        "Durum": c.isActive ? "Aktif" : "Pasif",
+        "Sıra": c.sortOrder, "Menüde": c.showInMenu ? t("action.yes", "Evet") : t("action.no", "Hayır"),
+        "Durum": c.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif"),
       })),
       "kategoriler", "Kategoriler"
     );
@@ -234,7 +240,7 @@ export default function KategorilerPage() {
       }
       setImportResult(`${ok} kategori eklendi${fail > 0 ? `, ${fail} hatalı` : ""}.`);
       await fetchData();
-    } catch { setImportResult("Dosya okunamadı."); }
+    } catch { setImportResult(t("msg.fileReadFailed", "Dosya okunamadı.")); }
     finally { setImporting(false); e.target.value = ""; }
   }
 
@@ -243,11 +249,11 @@ export default function KategorilerPage() {
     setDeleting(true);
     try {
       await api.delete(`/api/categories/${deleteTarget.id}`);
-      setMsg({ text: `"${deleteTarget.name}" silindi.`, ok: true });
+      setMsg({ text: `"${deleteTarget.name}" ${t("msg.deleted", "Başarıyla silindi")}`, ok: true });
       setDeleteTarget(null);
       await fetchData();
     } catch (e: unknown) {
-      setMsg({ text: e instanceof Error ? e.message : "Silinemedi", ok: false });
+      setMsg({ text: e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"), ok: false });
       setDeleteTarget(null);
     } finally { setDeleting(false); }
   }
@@ -300,17 +306,17 @@ export default function KategorilerPage() {
         <h1 className="text-2xl font-bold text-slate-900">{t("nav./kategoriler", "Kategoriler")}</h1>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTemplate(["Ad", "Açıklama", "Sıra", "Menüde"], "kategoriler")}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">Şablon İndir</button>
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">{t("action.downloadTemplate", "Şablon İndir")}</button>
           <button onClick={handleExport}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
-            <Download size={14} /> Excel'e Aktar
+            <Download size={14} /> {t("action.exportExcel", "Excel'e Aktar")}
           </button>
           <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
-            <Upload size={14} /> {importing ? "Aktarılıyor..." : "İçe Aktar"}
+            <Upload size={14} /> {importing ? t("action.importing", "Aktarılıyor...") : t("action.importFile", "İçe Aktar")}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
           <button onClick={openCreate} className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-            <Plus size={16} /> Yeni Kategori
+            <Plus size={16} /> {t("ui.newCategory", "Yeni Kategori")}
           </button>
         </div>
       </div>
@@ -320,7 +326,7 @@ export default function KategorilerPage() {
         <div className="relative">
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input value={filterText} onChange={e => setFilterText(e.target.value)}
-            placeholder="Kategori adı ara..."
+            placeholder={t("ui.searchCategories", "Kategori adı...")}
             className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white" />
           {filterText && (
             <button onClick={() => setFilterText("")} className="absolute right-2 top-2.5 text-slate-300 hover:text-slate-500">
@@ -330,20 +336,20 @@ export default function KategorilerPage() {
         </div>
         <select value={menuFilter} onChange={e => setMenuFilter(e.target.value as "" | "true" | "false")}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          <option value="">Tüm Menü</option>
+          <option value="">{t("filter.all", "Tümü")} Menü</option>
           <option value="true">Menüde</option>
           <option value="false">Menüde Değil</option>
         </select>
         <select value={activeFilter} onChange={e => setActiveFilter(e.target.value as "" | "true" | "false")}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          <option value="">Tüm Durum</option>
-          <option value="true">Aktif</option>
-          <option value="false">Pasif</option>
+          <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
+          <option value="true">{t("status.active", "Aktif")}</option>
+          <option value="false">{t("status.passive", "Pasif")}</option>
         </select>
         {isSearching && (
           <button onClick={() => { setFilterText(""); setMenuFilter(""); setActiveFilter(""); }}
             className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">
-            Temizle
+            {t("action.clear", "Temizle")}
           </button>
         )}
 
@@ -353,10 +359,10 @@ export default function KategorilerPage() {
             <button
               onClick={() => anyCollapsed ? setCollapsedIds(new Set()) : setCollapsedIds(new Set(allRoots.map(c => c.id)))}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 transition"
-              title={anyCollapsed ? "Tümünü Genişlet" : "Tümünü Daralt"}
+              title={anyCollapsed ? t("action.selectAll", "Tümünü Seç") : t("action.clear", "Temizle")}
             >
               {anyCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
-              {anyCollapsed ? "Genişlet" : "Daralt"}
+              {anyCollapsed ? t("ui.expand", "Genişlet") : t("ui.collapse", "Daralt")}
             </button>
           )}
 
@@ -371,7 +377,7 @@ export default function KategorilerPage() {
           </div>
 
           <span className="text-sm text-slate-500 ml-2 whitespace-nowrap">
-            {totalRoots} ana kategori
+            {totalRoots} {t("ui.rootCategories", "ana kategori")}
           </span>
         </div>
       </div>
@@ -390,25 +396,25 @@ export default function KategorilerPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
-          <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+          <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
         ) : pagedRoots.length === 0 ? (
-          <p className="p-8 text-center text-slate-400">Henüz kategori yok</p>
+          <p className="p-8 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Kategori</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.category", "Kategori")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
                   <span className="flex items-center gap-1">
                     Slug
                     <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-ayakkabisi' → /kategori/erkek-ayakkabisi. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
                   </span>
                 </th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Menüde</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Durum</th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Oluşturulma Tarihi <SortIcon field="createdDate" /></button></th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">Kaynak <SortIcon field="dataSource" /></button></th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Oluşturan</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("ui.inMenu", "Menüde")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.createdAt", "Oluşturma")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.createdBy", "Oluşturan")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"></th>
               </tr>
             </thead>
@@ -444,7 +450,7 @@ export default function KategorilerPage() {
                           <span className="text-slate-800">{cat.name}</span>
                           {visibleKids.length > 0 && (
                             <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold shrink-0">
-                              {visibleKids.length} alt
+                              {visibleKids.length} {t("ui.sub", "alt")}
                             </span>
                           )}
                         </div>
@@ -452,12 +458,12 @@ export default function KategorilerPage() {
                       <td className="px-5 py-3 text-slate-400 text-xs font-mono">{cat.slug}</td>
                       <td className="px-5 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                          {cat.showInMenu ? "Evet" : "Hayır"}
+                          {cat.showInMenu ? t("action.yes", "Evet") : t("action.no", "Hayır")}
                         </span>
                       </td>
                       <td className="px-5 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                          {cat.isActive ? "Aktif" : "Pasif"}
+                          {cat.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
@@ -473,15 +479,15 @@ export default function KategorilerPage() {
                       <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={cat.createdByAdminEmail}>{cat.createdByAdminEmail ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 justify-end">
-                          <button onClick={() => openHistory(cat)} title="Geçmiş"
+                          <button onClick={() => openHistory(cat)} title={t("tab.history", "Geçmiş")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
                             <History size={16} />
                           </button>
-                          <button onClick={() => openEdit(cat)} title="Düzenle"
+                          <button onClick={() => openEdit(cat)} title={t("action.edit", "Düzenle")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                             <Pencil size={18} />
                           </button>
-                          <button onClick={() => setDeleteTarget(cat)} title="Sil"
+                          <button onClick={() => setDeleteTarget(cat)} title={t("action.delete", "Sil")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                             <Trash2 size={18} />
                           </button>
@@ -505,12 +511,12 @@ export default function KategorilerPage() {
                         <td className="px-5 py-2.5 text-slate-400 text-xs font-mono">{sub.slug}</td>
                         <td className="px-5 py-2.5">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${sub.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                            {sub.showInMenu ? "Evet" : "Hayır"}
+                            {sub.showInMenu ? t("action.yes", "Evet") : t("action.no", "Hayır")}
                           </span>
                         </td>
                         <td className="px-5 py-2.5">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${sub.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                            {sub.isActive ? "Aktif" : "Pasif"}
+                            {sub.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                           </span>
                         </td>
                         <td className="px-5 py-2.5 text-xs text-slate-500">
@@ -525,15 +531,15 @@ export default function KategorilerPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1.5 justify-end">
-                            <button onClick={() => openHistory(sub)} title="Geçmiş"
+                            <button onClick={() => openHistory(sub)} title={t("tab.history", "Geçmiş")}
                               className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-150 active:scale-95">
                               <History size={14} />
                             </button>
-                            <button onClick={() => openEdit(sub)} title="Düzenle"
+                            <button onClick={() => openEdit(sub)} title={t("action.edit", "Düzenle")}
                               className="w-8 h-8 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                               <Pencil size={16} />
                             </button>
-                            <button onClick={() => setDeleteTarget(sub)} title="Sil"
+                            <button onClick={() => setDeleteTarget(sub)} title={t("action.delete", "Sil")}
                               className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                               <Trash2 size={16} />
                             </button>
@@ -553,7 +559,7 @@ export default function KategorilerPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-500">
-            {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalRoots)} / {totalRoots} ana kategori
+            {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalRoots)} / {totalRoots} {t("ui.rootCategories", "ana kategori")}
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(1)} disabled={safePage === 1}
@@ -586,23 +592,23 @@ export default function KategorilerPage() {
                   <Trash2 size={18} className="text-red-600" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900">Kategoriyi Sil</h3>
-                  <p className="text-xs text-slate-500">Bu işlem geri alınamaz.</p>
+                  <h3 className="font-bold text-slate-900">{t("ui.deleteCategory", "Kategoriyi Sil")}</h3>
+                  <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm text-slate-700">
                 <p className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                  <strong>"{deleteTarget.name}"</strong> kategorisi silinecek.
+                  <strong>&quot;{deleteTarget.name}&quot;</strong> {t("ui.willBeDeleted", "kategorisi silinecek.")}
                 </p>
-                <p className="text-xs text-slate-500 px-1">Alt kategorisi veya aktif ürünü olan kategoriler silinemez.</p>
+                <p className="text-xs text-slate-500 px-1">{t("ui.categoryDeleteWarning", "Alt kategorisi veya aktif ürünü olan kategoriler silinemez.")}</p>
               </div>
             </div>
             <div className="px-6 pb-5 flex justify-end gap-3">
               <button onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition">İptal</button>
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition">{t("action.cancel", "İptal")}</button>
               <button onClick={handleDelete} disabled={deleting}
                 className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
-                {deleting ? "Siliniyor..." : "Evet, Sil"}
+                {deleting ? t("action.deleting", "Siliniyor...") : t("action.yes", "Evet")}
               </button>
             </div>
           </div>
@@ -616,7 +622,7 @@ export default function KategorilerPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <div>
                 <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                  <History size={16} className="text-amber-500" /> Kategori Geçmişi
+                  <History size={16} className="text-amber-500" /> {t("ui.categoryHistory", "Kategori Geçmişi")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">{historyTarget.name}</p>
               </div>
@@ -624,14 +630,14 @@ export default function KategorilerPage() {
             </div>
             <div className="overflow-y-auto flex-1">
               {historyLoading ? (
-                <p className="p-8 text-center text-slate-400">Yükleniyor...</p>
+                <p className="p-8 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
               ) : historyLogs.length === 0 ? (
-                <p className="p-8 text-center text-slate-400">Bu kategoriye ait hareket kaydı bulunamadı.</p>
+                <p className="p-8 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                     <tr>
-                      {["Tarih", "İşlemi Yapan", "Aksiyon", "Detay"].map(h => (
+                      {[t("col.date", "Tarih"), t("ui.actionBy", "İşlemi Yapan"), t("ui.actionLabel", "Aksiyon"), t("action.details", "Detaylar")].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{h}</th>
                       ))}
                     </tr>
@@ -664,7 +670,7 @@ export default function KategorilerPage() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex justify-end">
-              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Kapat</button>
+              <button onClick={() => setHistoryTarget(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.close", "Kapat")}</button>
             </div>
           </div>
         </div>
@@ -675,7 +681,7 @@ export default function KategorilerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col transition-all duration-200 ${showPreview ? "max-w-4xl" : "max-w-2xl"}`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-              <h2 className="font-bold text-slate-800">{modal === "create" ? "Yeni Kategori" : "Kategoriyi Düzenle"}</h2>
+              <h2 className="font-bold text-slate-800">{modal === "create" ? t("ui.newCategory", "Yeni Kategori") : t("ui.editCategory", "Kategoriyi Düzenle")}</h2>
               <div className="flex items-center gap-2">
                 <PreviewToggleButton open={showPreview} onToggle={() => setShowPreview(p => !p)} />
                 <button onClick={() => setModal(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
@@ -685,7 +691,7 @@ export default function KategorilerPage() {
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Ad *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.name", "Ad")} *</label>
                 <input className={INPUT} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, slug: slugify(e.target.value) }))} />
               </div>
               <div>
@@ -695,44 +701,44 @@ export default function KategorilerPage() {
                 </label>
                 <input className={INPUT} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: slugify(e.target.value) }))} />
               </div>
-              <ImageUpload value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label="Kategori Görseli" />
+              <ImageUpload value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label={t("ui.categoryImage", "Kategori Görseli")} />
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Üst Kategori</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.category", "Kategori")} ({t("label.name", "Ad")})</label>
                 <select className={INPUT} value={form.parentCategoryId} onChange={e => setForm(f => ({ ...f, parentCategoryId: e.target.value }))}>
-                  <option value="">Ana Kategori</option>
+                  <option value="">{t("ui.rootCategory", "Ana Kategori")}</option>
                   {categories.filter(c => c.id !== form.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Açıklama</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.description", "Açıklama")}</label>
                 <RichTextEditor
                   value={form.description}
                   onChange={v => setForm(f => ({ ...f, description: v }))}
-                  placeholder="Kategori açıklaması (isteğe bağlı)..."
+                  placeholder={t("ui.categoryDescPlaceholder", "Kategori açıklaması (isteğe bağlı)...")}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Sıra</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{t("ui.sortOrder", "Sıra")}</label>
                   <input type="number" className={INPUT} value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
                 </div>
                 <div className="flex flex-col gap-2 justify-end pb-1">
                   <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                     <input type="checkbox" checked={form.showInMenu} onChange={e => setForm(f => ({ ...f, showInMenu: e.target.checked }))} />
-                    Menüde Göster
+                    {t("ui.showInMenu", "Menüde Göster")}
                   </label>
                   {modal === "edit" && (
                     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                       <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
-                      Aktif
+                      {t("status.active", "Aktif")}
                     </label>
                   )}
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">Vazgeç</button>
+                <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
-                  {saving ? "Kaydediliyor..." : modal === "create" ? "Oluştur" : "Güncelle"}
+                  {saving ? t("action.saving", "Kaydediliyor...") : modal === "create" ? t("action.create", "Oluştur") : t("action.update", "Güncelle")}
                 </button>
               </div>
             </div>

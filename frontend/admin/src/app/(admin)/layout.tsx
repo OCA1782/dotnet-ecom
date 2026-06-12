@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -14,11 +14,11 @@ import {
   Image, FolderOpen, Gift, ShieldCheck, HelpCircle, Info,
   Lightbulb, MousePointer2, ListChecks, Sparkles, GraduationCap,
 } from "lucide-react";
-import { PAGE_GUIDES } from "@/lib/pageGuides";
+import { getPageGuides } from "@/lib/pageGuides";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { api } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/utils";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_LABELS, getPrimaryAdminRole } from "@/lib/roles";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SessionTimeoutWarning from "@/components/SessionTimeoutWarning";
@@ -86,7 +86,7 @@ const GROUP_ICON_MAP: Record<string, React.ComponentType<{ size?: number; classN
 };
 
 function filterByRole(items: NavItem[], roles: string[]): NavItem[] {
-  const isSuperAdmin = roles.includes("SuperAdmin") || roles.includes("Admin");
+  const isSuperAdmin = roles.includes("SuperAdmin");
   return items.filter(item =>
     !item.allowedRoles || item.allowedRoles.some(r => roles.includes(r)) || isSuperAdmin
   );
@@ -138,7 +138,7 @@ function EnvBadge() {
 }
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { user, loading, logout, refreshSession } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -162,9 +162,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const [yonetimRoles, setYonetimRoles] = useState<string[] | null>(null);
 
   const showTest = (() => {
-    const allowed = testRoles ? testRoles.some(r => userRoles.includes(r)) : isSuperAdmin;
-    // Production'da: sadece SuperAdmin VE matris izin veriyorsa
-    return isProd ? (allowed && isSuperAdmin) : allowed;
+    if (isSuperAdmin) return true;
+    const allowed = testRoles ? testRoles.some(r => userRoles.includes(r)) : false;
+    // Production'da: yalnızca SuperAdmin görünür.
+    return isProd ? false : allowed;
   })();
 
   const showYonetim = yonetimRoles
@@ -188,14 +189,21 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const userDropRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const pageGuides = useMemo(() => getPageGuides(lang), [lang]);
+  useEffect(() => {
+    const id = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(id);
+  }, []);
   useEffect(() => {
     if (!helpOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setHelpOpen(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [helpOpen]);
-  useEffect(() => { setHelpOpen(false); }, [pathname]);
+  useEffect(() => {
+    const id = window.setTimeout(() => setHelpOpen(false), 0);
+    return () => window.clearTimeout(id);
+  }, [pathname]);
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const t = e.target as Node;
@@ -212,6 +220,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     setUserMenuOpen(o => !o);
   }, []);
   const roleLabel = (role: string) => ROLE_LABELS[role] ?? role;
+  const primaryRoleLabel = roleLabel(getPrimaryAdminRole(userRoles));
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -495,7 +504,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="border-t border-white/10">
           {/* Test — env & rol korumalı */}
           {showTest && (
-            <Link href={TEST_ITEM.href} title={collapsed ? TEST_ITEM.label : undefined}
+            <Link href={TEST_ITEM.href} title={collapsed ? t("nav./test", TEST_ITEM.label) : undefined}
               className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
                 collapsed ? "px-0 justify-center" : "px-6"
               } ${
@@ -506,7 +515,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
               <FlaskConical size={17} className="shrink-0" />
               {!collapsed && (
                 <>
-                  <span>Test</span>
+                  <span>{t("nav./test", TEST_ITEM.label)}</span>
                   {isProd && (
                     <span className="ml-auto text-[8px] font-bold text-amber-400 border border-amber-400/40 px-1 rounded">PROD</span>
                   )}
@@ -517,7 +526,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
           {/* Yönetim — rol korumalı */}
           {showYonetim && (
-            <Link href={SETTINGS_ITEM.href} title={collapsed ? SETTINGS_ITEM.label : undefined}
+            <Link href={SETTINGS_ITEM.href} title={collapsed ? t("nav./yonetim", SETTINGS_ITEM.label) : undefined}
               className={`flex items-center gap-3 py-3 text-sm font-medium transition border-l-2 ${
                 collapsed ? "px-0 justify-center" : "px-6"
               } ${
@@ -526,19 +535,19 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                   : "text-slate-400 hover:text-white hover:bg-white/5 border-transparent"
               }`}>
               <Settings size={17} className="shrink-0" />
-              {!collapsed && <span>{SETTINGS_ITEM.label}</span>}
+              {!collapsed && <span>{t("nav./yonetim", SETTINGS_ITEM.label)}</span>}
               {!collapsed && pathname === SETTINGS_ITEM.href && <ChevronRight size={14} className="ml-auto opacity-60 shrink-0" />}
             </Link>
           )}
 
           {/* Logout + Collapse Toggle */}
           <div className={`pb-3 pt-1 flex items-center ${collapsed ? "flex-col gap-1 px-0" : "justify-between px-4"}`}>
-            <button onClick={() => { logout(); router.push("/giris"); }} title="Çıkış Yap"
+            <button onClick={() => { logout(); router.push("/giris"); }} title={t("action.logout", "Çıkış Yap")}
               className={`flex items-center gap-2 text-slate-400 hover:text-white text-sm transition ${collapsed ? "py-1.5 justify-center" : "px-2 py-1.5"}`}>
               <LogOut size={16} />
-              {!collapsed && <span>Çıkış Yap</span>}
+              {!collapsed && <span>{t("action.logout", "Çıkış Yap")}</span>}
             </button>
-            <button onClick={toggleSidebar} title={collapsed ? "Genişlet" : "Daralt"}
+            <button onClick={toggleSidebar} title={collapsed ? t("action.expand", "Genişlet") : t("action.collapse", "Daralt")}
               className="text-slate-500 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10">
               {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
@@ -578,10 +587,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <EnvBadge />
-            {PAGE_GUIDES[pathname] && (
+            {pageGuides[pathname] && (
               <button
                 onClick={() => setHelpOpen(o => !o)}
-                title="Kullanım Kılavuzu"
+                title={t("ui.usageGuide", "Kullanım Kılavuzu")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border shadow-sm ${
                   helpOpen
                     ? "bg-indigo-600 border-indigo-600 text-white shadow-indigo-200"
@@ -589,7 +598,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <HelpCircle size={14} className={helpOpen ? "" : "animate-pulse"} />
-                <span>Kılavuz</span>
+                <span>{t("ui.guide", "Kılavuz")}</span>
               </button>
             )}
             <NotificationsPanel />
@@ -608,7 +617,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className="text-xs font-semibold text-slate-800 leading-tight">{user.name} {user.surname}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">{user.roles?.[0] ? roleLabel(user.roles[0]) : "Admin"}</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">{primaryRoleLabel}</p>
                 </div>
                 <ChevronDown size={13} className="text-slate-400 hidden sm:block" />
               </button>
@@ -697,7 +706,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* ── Kullanım Kılavuzu Paneli ── */}
         {helpOpen && mounted && (() => {
-          const guide = PAGE_GUIDES[pathname];
+          const guide = pageGuides[pathname];
           if (!guide) return null;
 
           function sectionMeta(title: string): {
@@ -705,15 +714,15 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             bg: string; border: string; text: string; dot: string;
           } {
             const t = title.toLowerCase();
-            if (t.includes("veri") || t.includes("kaynak"))
+            if (t.includes("veri") || t.includes("kaynak") || t.includes("data") || t.includes("source"))
               return { icon: Database,       bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-700",   dot: "bg-blue-400" };
-            if (t.includes("buton") || t.includes("aksiyon") || t.includes("işlem"))
+            if (t.includes("buton") || t.includes("aksiyon") || t.includes("işlem") || t.includes("field") || t.includes("action"))
               return { icon: MousePointer2,  bg: "bg-teal-50",   border: "border-teal-200",   text: "text-teal-700",   dot: "bg-teal-400" };
-            if (t.includes("kullanım") || t.includes("nasıl") || t.includes("adım"))
+            if (t.includes("kullanım") || t.includes("nasıl") || t.includes("adım") || t.includes("how"))
               return { icon: GraduationCap,  bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", dot: "bg-purple-400" };
-            if (t.includes("ipucu") || t.includes("önemli") || t.includes("not"))
+            if (t.includes("ipucu") || t.includes("önemli") || t.includes("not") || t.includes("warning") || t.includes("important"))
               return { icon: Lightbulb,      bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  dot: "bg-amber-400" };
-            if (t.includes("filtre") || t.includes("arama") || t.includes("sıralama"))
+            if (t.includes("filtre") || t.includes("arama") || t.includes("sıralama") || t.includes("filter") || t.includes("search"))
               return { icon: Search,         bg: "bg-sky-50",    border: "border-sky-200",    text: "text-sky-700",    dot: "bg-sky-400" };
             return    { icon: ListChecks,    bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", dot: "bg-indigo-400" };
           }
@@ -737,7 +746,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                         <Sparkles size={18} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Kullanım Kılavuzu</p>
+                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">{t("ui.usageGuide", "Kullanım Kılavuzu")}</p>
                         <p className="text-base font-extrabold text-white leading-tight mt-0.5">{guide.title}</p>
                       </div>
                     </div>
@@ -789,11 +798,11 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 {/* Footer */}
                 <div className="px-4 py-3 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50 flex items-center justify-between">
                   <p className="text-[10px] text-slate-400">
-                    <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">ESC</kbd> veya dışarı tıkla
+                    <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">ESC</kbd> {t("ui.orClickOutside", "veya dışarı tıkla")}
                   </p>
                   <div className="flex items-center gap-1 text-[10px] text-indigo-400 font-medium">
                     <BookOpen size={10} />
-                    <span>{guide.sections.length} bölüm</span>
+                    <span>{guide.sections.length} {lang === "tr" ? "bölüm" : "sections"}</span>
                   </div>
                 </div>
               </div>

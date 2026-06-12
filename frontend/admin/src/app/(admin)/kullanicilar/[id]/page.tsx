@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate, resolveMediaUrl } from "@/lib/utils";
@@ -95,7 +96,7 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggleModal, setToggleModal] = useState(false);
-  const [toggling, setToggling] = useState(false);
+  const [, setToggling] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const load = useCallback(async () => {
@@ -110,7 +111,10 @@ export default function UserDetailPage() {
     }
   }, [userId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   async function handleToggleActive() {
     if (!user) return;
@@ -173,8 +177,14 @@ export default function UserDetailPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex flex-col items-center text-center gap-3">
               {user.avatarUrl ? (
-                <img src={resolveMediaUrl(user.avatarUrl)} alt={user.name}
-                  className="w-20 h-20 rounded-full object-cover border-2 border-teal-200 shadow" />
+                <Image
+                  src={resolveMediaUrl(user.avatarUrl)}
+                  alt={user.name}
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="w-20 h-20 rounded-full object-cover border-2 border-teal-200 shadow"
+                />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-2xl font-bold text-white shadow">
                   {initials}

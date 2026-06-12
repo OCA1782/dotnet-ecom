@@ -8,7 +8,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:i18n": "node scripts/check-i18n.js",
+    "sync:i18n-fallbacks": "node scripts/sync-i18n-fallbacks.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",

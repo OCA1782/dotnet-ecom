@@ -13,12 +13,7 @@ import Link from "next/link";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } from "recharts";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const fmtLevel = (v: any, n: any) => [v, n === "error" ? "Hata" : n === "warning" ? "Uyarı" : "Bilgi"] as [any, any];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const fmtCount = (v: any) => [v, "Adet"] as [any, any];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fmtPair = (v: any, n: any) => [v, n] as [any, any];
 
@@ -55,10 +50,6 @@ interface Stats {
 }
 
 const PAGE_SIZES = [20, 30, 50, 100];
-const SOURCE_COLORS: Record<string, string[]> = {
-  Backend: ["#6d28d9", "#c4b5fd"],
-  Frontend: ["#0d9488", "#99f6e4"],
-};
 const CATEGORY_COLORS: Record<string, string> = {
   "Veritabanı": "#ef4444",
   "HTTP / Ağ": "#f59e0b",
@@ -82,10 +73,12 @@ function levelBadge(level: string) {
   return "bg-sky-100 text-sky-700 border border-sky-200";
 }
 
-function levelLabel(level: string) {
-  if (level === "Error") return "Hata";
-  if (level === "Warning") return "Uyarı";
-  return "Bilgi";
+type TFn = (key: string, fallback: string) => string;
+
+function levelLabel(level: string, t: TFn) {
+  if (level === "Error") return t("status.error", "Hata");
+  if (level === "Warning") return t("status.warning", "Uyarı");
+  return t("status.info", "Bilgi");
 }
 
 function sourceBadge(source: string) {
@@ -98,22 +91,23 @@ function sourceIcon(source: string) {
   return <Monitor size={11} className="text-teal-500" />;
 }
 
-function exceptionCategory(exType?: string): string {
+function exceptionCategory(exType?: string, tr?: TFn): string {
   if (!exType) return "";
-  const t = exType.toLowerCase();
-  if (t.includes("dbupdateexception") || t.includes("sqlexception") || t.includes("dbexception") || t.includes("entityexception")) return "Veritabanı";
-  if (t.includes("httprequestexception") || t.includes("socketexception") || t.includes("webexception")) return "HTTP / Ağ";
-  if (t.includes("timeoutexception")) return "Zaman Aşımı";
-  if (t.includes("unauthorizedaccessexception")) return "Yetki";
-  if (t.includes("filenotfoundexception") || t.includes("directorynotfound") || t.includes("ioexception")) return "Dosya";
-  if (t.includes("argumentexception") || t.includes("invalidoperationexception") || t.includes("nullreferenceexception")) return "Uygulama";
-  if (t.includes("validationexception")) return "Doğrulama";
-  return "Diğer";
+  const s = exType.toLowerCase();
+  const t2 = tr ?? ((_key: string, fb: string) => fb);
+  if (s.includes("dbupdateexception") || s.includes("sqlexception") || s.includes("dbexception") || s.includes("entityexception")) return t2("category.database", "Veritabanı");
+  if (s.includes("httprequestexception") || s.includes("socketexception") || s.includes("webexception")) return t2("category.httpNetwork", "HTTP / Ağ");
+  if (s.includes("timeoutexception")) return t2("category.timeout", "Zaman Aşımı");
+  if (s.includes("unauthorizedaccessexception")) return t2("category.auth", "Yetki");
+  if (s.includes("filenotfoundexception") || s.includes("directorynotfound") || s.includes("ioexception")) return t2("category.file", "Dosya");
+  if (s.includes("argumentexception") || s.includes("invalidoperationexception") || s.includes("nullreferenceexception")) return t2("category.application", "Uygulama");
+  if (s.includes("validationexception")) return t2("category.validation", "Doğrulama");
+  return t2("category.other", "Diğer");
 }
 
-function buildTitle(log: ErrorLog): string {
-  const parts: string[] = [levelLabel(log.level), log.source];
-  const cat = exceptionCategory(log.exceptionType);
+function buildTitle(log: ErrorLog, t: TFn): string {
+  const parts: string[] = [levelLabel(log.level, t), log.source];
+  const cat = exceptionCategory(log.exceptionType, t);
   if (cat) parts.push(cat);
   if (log.exceptionType) parts.push(log.exceptionType);
   return parts.join(" › ");
@@ -135,6 +129,10 @@ function statusCodeColor(code?: number) {
 
 export default function TakipPage() {
   const { t } = useI18n();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fmtLevel = (v: any, n: any) => [v, n === "error" ? t("status.error", "Hata") : n === "warning" ? t("status.warning", "Uyarı") : t("status.info", "Bilgi")] as [any, any];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fmtCount = (v: any) => [v, t("ui.count", "Adet")] as [any, any];
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,20 +185,26 @@ export default function TakipPage() {
       setTotalCount(data.totalCount);
     } catch (e) {
       setLogs([]);
-      setListError(e instanceof Error ? e.message : "Bilinmeyen hata");
+      setListError(e instanceof Error ? e.message : t("ui.unknownError", "Bilinmeyen hata"));
     }
     finally { setLoading(false); }
-  }, [page, pageSize, sourceFilter, levelFilter, search, startDate, endDate]);
+  }, [page, pageSize, sourceFilter, levelFilter, search, startDate, endDate, t]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
-  useEffect(() => { fetchStats(statDays); }, [fetchStats, statDays]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchLogs(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchLogs]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchStats(statDays); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchStats, statDays]);
 
   const hasFilter = !!(sourceFilter || levelFilter || search || startDate || endDate);
 
   const pieData = stats ? [
-    { name: "Hata", value: stats.totalError },
-    { name: "Uyarı", value: stats.totalWarning },
-    { name: "Bilgi", value: stats.totalInfo },
+    { name: t("status.error", "Hata"), value: stats.totalError },
+    { name: t("status.warning", "Uyarı"), value: stats.totalWarning },
+    { name: t("status.info", "Bilgi"), value: stats.totalInfo },
   ].filter(d => d.value > 0) : [];
 
   const PIE_COLORS = ["#ef4444", "#f59e0b", "#38bdf8"];
@@ -222,7 +226,7 @@ export default function TakipPage() {
             <div>
               <h1 className="text-xl font-extrabold text-white">{t("page./takip", "Sistem Takibi")}</h1>
               <p className="text-red-100 text-xs mt-0.5">
-                Backend &amp; frontend hataları, uyarılar ve bilgi mesajları — gerçek zamanlı izleme
+                {t("ui.takipSubtitle", "Backend & frontend hataları, uyarılar ve bilgi mesajları — gerçek zamanlı izleme")}
               </p>
             </div>
           </div>
@@ -232,19 +236,19 @@ export default function TakipPage() {
                 {stats.totalError > 0 && (
                   <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
                     <AlertCircle size={13} className="text-red-200" />
-                    <span className="text-white text-xs font-bold">{stats.totalError} hata</span>
+                    <span className="text-white text-xs font-bold">{stats.totalError} {t("ui.errorCount", "hata")}</span>
                   </div>
                 )}
                 {stats.totalWarning > 0 && (
                   <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
                     <AlertTriangle size={13} className="text-amber-200" />
-                    <span className="text-white text-xs font-semibold">{stats.totalWarning} uyarı</span>
+                    <span className="text-white text-xs font-semibold">{stats.totalWarning} {t("ui.warningCount", "uyarı")}</span>
                   </div>
                 )}
               </>
             )}
             <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
-              <span className="text-white/70 text-xs">{totalCount} kayıt</span>
+              <span className="text-white/70 text-xs">{totalCount} {t("ui.recordCount", "kayıt")}</span>
             </div>
           </div>
         </div>
@@ -256,43 +260,43 @@ export default function TakipPage() {
           <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-red-800 flex items-center gap-1.5">
-              Takip
-              <span className="text-[10px] bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full font-bold">Bu ekran</span>
+              {t("ui.tracking", "Takip")}
+              <span className="text-[10px] bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{t("ui.thisScreen", "Bu ekran")}</span>
             </p>
             <p className="text-xs text-red-600 mt-1 leading-relaxed">
-              Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları. <strong>Sistem ne zaman, nerede hata verdi?</strong>
+              {t("ui.trackingDesc", "Backend ve frontend hataları: exception logları, HTTP 5xx, uyarı mesajları.")} <strong>{t("ui.trackingQuestion", "Sistem ne zaman, nerede hata verdi?")}</strong>
             </p>
-            <p className="text-[10px] text-red-400 mt-1.5 font-medium">Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı</p>
+            <p className="text-[10px] text-red-400 mt-1.5 font-medium">{t("ui.trackingSource", "Kaynak: ErrorLog tablosu · Backend + Frontend kaynaklı")}</p>
           </div>
         </div>
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
           <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-indigo-800 flex items-center gap-1.5">
-              Hareketler
+              {t("ui.movements", "Hareketler")}
               <Link href="/hareketler" className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-indigo-200 transition inline-flex items-center gap-0.5">
-                <LinkIcon size={8} /> Git
+                <LinkIcon size={8} /> {t("ui.go", "Git")}
               </Link>
             </p>
             <p className="text-xs text-indigo-600 mt-1 leading-relaxed">
-              Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri. <strong>Kim ne yaptı?</strong>
+              {t("ui.movementsDesc", "Kimliği doğrulanmış kullanıcıların işlem geçmişi: giriş/çıkış, kayıt oluşturma/güncelleme/silme, admin eylemleri.")} <strong>{t("ui.movementsQuestion", "Kim ne yaptı?")}</strong>
             </p>
-            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar</p>
+            <p className="text-[10px] text-indigo-400 mt-1.5 font-medium">{t("ui.movementsSource", "Kaynak: AuditLog tablosu · Yalnızca auth kullanıcılar")}</p>
           </div>
         </div>
         <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-start gap-3">
           <MapPin size={18} className="text-teal-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
-              Ziyaretçiler
+              {t("ui.visitors", "Ziyaretçiler")}
               <Link href="/ziyaretciler" className="text-[10px] bg-teal-100 text-teal-600 px-1.5 py-0.5 rounded-full font-bold hover:bg-teal-200 transition inline-flex items-center gap-0.5">
-                <LinkIcon size={8} /> Git
+                <LinkIcon size={8} /> {t("ui.go", "Git")}
               </Link>
             </p>
             <p className="text-xs text-teal-600 mt-1 leading-relaxed">
-              Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa. <strong>Kim nereden geldi?</strong>
+              {t("ui.visitorsDesc", "Müşteri sitesine gelen tüm trafik: anonim ziyaretçiler dahil, coğrafi konum, tarayıcı, sayfa.")} <strong>{t("ui.visitorsQuestion", "Kim nereden geldi?")}</strong>
             </p>
-            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar</p>
+            <p className="text-[10px] text-teal-400 mt-1.5 font-medium">{t("ui.visitorsSource", "Kaynak: VisitorLog tablosu · Anonim + auth kullanıcılar")}</p>
           </div>
         </div>
       </div>
@@ -301,17 +305,17 @@ export default function TakipPage() {
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
           <div className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-xs text-slate-500">Hata</span>
+          <span className="text-xs text-slate-500">{t("status.error", "Hata")}</span>
           <span className="text-base font-bold text-red-600">{stats?.totalError ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
           <div className="w-2 h-2 rounded-full bg-amber-500" />
-          <span className="text-xs text-slate-500">Uyarı</span>
+          <span className="text-xs text-slate-500">{t("status.warning", "Uyarı")}</span>
           <span className="text-base font-bold text-amber-600">{stats?.totalWarning ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
           <div className="w-2 h-2 rounded-full bg-sky-400" />
-          <span className="text-xs text-slate-500">Bilgi</span>
+          <span className="text-xs text-slate-500">{t("status.info", "Bilgi")}</span>
           <span className="text-base font-bold text-sky-600">{stats?.totalInfo ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
@@ -330,9 +334,9 @@ export default function TakipPage() {
         </div>
         <select value={statDays} onChange={e => setStatDays(Number(e.target.value))}
           className="text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 bg-white focus:outline-none shadow-sm ml-auto">
-          <option value={7}>Son 7 gün</option>
-          <option value={14}>Son 14 gün</option>
-          <option value={30}>Son 30 gün</option>
+          <option value={7}>{t("ui.last7Days", "Son 7 gün")}</option>
+          <option value={14}>{t("ui.last14Days", "Son 14 gün")}</option>
+          <option value={30}>{t("ui.last30Days", "Son 30 gün")}</option>
         </select>
       </div>
 
@@ -342,9 +346,9 @@ export default function TakipPage() {
 
           {/* Kaynak dağılımı — Backend / Frontend */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Kaynak Dağılımı</p>
+            <p className="text-sm font-semibold text-slate-700 mb-4">{t("ui.sourceDistribution", "Kaynak Dağılımı")}</p>
             {stats.bySource.length === 0 ? (
-              <div className="h-40 flex items-center justify-center text-slate-300 text-sm">Veri yok</div>
+              <div className="h-40 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
             ) : (
               <>
                 <ResponsiveContainer width="100%" height={160}>
@@ -354,9 +358,9 @@ export default function TakipPage() {
                     <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} width={24} />
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
                       formatter={fmtLevel} />
-                    <Bar dataKey="error" name="Hata" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="warning" name="Uyarı" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="info" name="Bilgi" stackId="a" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="error" name={t("status.error", "Hata")} stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="warning" name={t("status.warning", "Uyarı")} stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="info" name={t("status.info", "Bilgi")} stackId="a" fill="#38bdf8" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-3 space-y-2">
@@ -367,9 +371,9 @@ export default function TakipPage() {
                         <span className="text-slate-600 font-medium">{s.source}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        {s.error > 0 && <span className="text-red-600 font-semibold">{s.error} hata</span>}
-                        {s.warning > 0 && <span className="text-amber-600">{s.warning} uyarı</span>}
-                        {s.info > 0 && <span className="text-sky-500">{s.info} bilgi</span>}
+                        {s.error > 0 && <span className="text-red-600 font-semibold">{s.error} {t("ui.errorCount", "hata")}</span>}
+                        {s.warning > 0 && <span className="text-amber-600">{s.warning} {t("ui.warningCount", "uyarı")}</span>}
+                        {s.info > 0 && <span className="text-sky-500">{s.info} {t("ui.infoCount", "bilgi")}</span>}
                       </div>
                     </div>
                   ))}
@@ -380,7 +384,7 @@ export default function TakipPage() {
 
           {/* Günlük trend */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:col-span-2">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Günlük Dağılım</p>
+            <p className="text-sm font-semibold text-slate-700 mb-4">{t("ui.dailyDistribution", "Günlük Dağılım")}</p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.byDay} barSize={8} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -389,7 +393,7 @@ export default function TakipPage() {
                 <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
                   formatter={fmtLevel} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }}
-                  formatter={(v: string) => v === "error" ? "Hata" : v === "warning" ? "Uyarı" : "Bilgi"} />
+                  formatter={(v: string) => v === "error" ? t("status.error", "Hata") : v === "warning" ? t("status.warning", "Uyarı") : t("status.info", "Bilgi")} />
                 <Bar dataKey="error" name="error" fill="#ef4444" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="warning" name="warning" fill="#f59e0b" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="info" name="info" fill="#38bdf8" radius={[3, 3, 0, 0]} />
@@ -399,9 +403,9 @@ export default function TakipPage() {
 
           {/* Hata kategorileri + Exception türleri */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:col-span-2">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Hata Kategorileri</p>
+            <p className="text-sm font-semibold text-slate-700 mb-4">{t("ui.errorCategories", "Hata Kategorileri")}</p>
             {stats.byCategory.length === 0 ? (
-              <div className="h-20 flex items-center justify-center text-slate-300 text-sm">Veri yok</div>
+              <div className="h-20 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(120, stats.byCategory.length * 32)}>
                 <BarChart data={stats.byCategory} layout="vertical" barSize={14}>
@@ -422,9 +426,9 @@ export default function TakipPage() {
 
           {/* Hata/Uyarı/Bilgi pasta grafiği */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Seviye Dağılımı</p>
+            <p className="text-sm font-semibold text-slate-700 mb-4">{t("ui.levelDistribution", "Seviye Dağılımı")}</p>
             {pieData.length === 0 ? (
-              <div className="h-40 flex items-center justify-center text-slate-300 text-sm">Veri yok</div>
+              <div className="h-40 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>
             ) : (
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
@@ -439,10 +443,10 @@ export default function TakipPage() {
             {/* Exception türleri */}
             {stats.byExceptionType.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {stats.byExceptionType.map(t => (
-                  <div key={t.exceptionType} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                    <span className="text-xs text-slate-500 font-mono">{t.exceptionType}</span>
-                    <span className="text-xs font-bold text-red-600">{t.count}</span>
+                {stats.byExceptionType.map(tp => (
+                  <div key={tp.exceptionType} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                    <span className="text-xs text-slate-500 font-mono">{tp.exceptionType}</span>
+                    <span className="text-xs font-bold text-red-600">{tp.count}</span>
                   </div>
                 ))}
               </div>
@@ -459,50 +463,50 @@ export default function TakipPage() {
           <div className="relative">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-              placeholder="Mesaj veya path ara..."
+              placeholder={t("filter.search", "Ara...")}
               className="pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white" />
           </div>
-          <button type="submit" className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">Ara</button>
+          <button type="submit" className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
         </form>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-500">Kaynak:</label>
+          <label className="text-xs font-semibold text-slate-500">{t("ui.source", "Kaynak")}:</label>
           <select value={sourceFilter} onChange={e => { setSourceFilter(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-            <option value="">Tümü</option>
+            <option value="">{t("filter.all", "Tümü")}</option>
             <option value="Backend">Backend</option>
             <option value="Frontend">Frontend</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-500">Seviye:</label>
+          <label className="text-xs font-semibold text-slate-500">{t("ui.level", "Seviye")}:</label>
           <select value={levelFilter} onChange={e => { setLevelFilter(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-            <option value="">Tümü</option>
-            <option value="Error">Hata</option>
-            <option value="Warning">Uyarı</option>
-            <option value="Info">Bilgi</option>
+            <option value="">{t("filter.all", "Tümü")}</option>
+            <option value="Error">{t("status.error", "Hata")}</option>
+            <option value="Warning">{t("status.warning", "Uyarı")}</option>
+            <option value="Info">{t("status.info", "Bilgi")}</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-500">Başlangıç:</label>
+          <label className="text-xs font-semibold text-slate-500">{t("ui.startDate", "Başlangıç")}:</label>
           <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-500">Bitiş:</label>
+          <label className="text-xs font-semibold text-slate-500">{t("ui.endDate", "Bitiş")}:</label>
           <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }}
             className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400" />
         </div>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-2 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} kayıt</option>)}
+          {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
         </select>
         {hasFilter && (
           <button onClick={() => {
             setSourceFilter(""); setLevelFilter(""); setSearch(""); setSearchInput("");
             setStartDate(""); setEndDate(""); setPage(1);
           }} className="text-xs text-slate-500 hover:text-slate-700 underline flex items-center gap-1">
-            <X size={12} /> Temizle
+            <X size={12} /> {t("action.clear", "Temizle")}
           </button>
         )}
       </div>
@@ -510,27 +514,27 @@ export default function TakipPage() {
       {/* Log list */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
-          <div className="py-16 text-center text-slate-400 text-sm">Yükleniyor...</div>
+          <div className="py-16 text-center text-slate-400 text-sm">{t("action.loading", "Yükleniyor...")}</div>
         ) : listError ? (
           <div className="py-16 text-center">
             <AlertCircle size={32} className="text-red-300 mx-auto mb-3" />
-            <p className="text-red-500 text-sm font-semibold">Kayıtlar yüklenirken hata oluştu</p>
+            <p className="text-red-500 text-sm font-semibold">{t("ui.logsLoadError", "Kayıtlar yüklenirken hata oluştu")}</p>
             <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">{listError}</p>
-            <button onClick={fetchLogs} className="mt-4 text-xs text-teal-600 hover:underline">Tekrar dene</button>
+            <button onClick={fetchLogs} className="mt-4 text-xs text-teal-600 hover:underline">{t("action.retry", "Tekrar Dene")}</button>
           </div>
         ) : logs.length === 0 ? (
           <div className="py-16 text-center">
             <AlertCircle size={32} className="text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400 text-sm">Kayıt bulunamadı</p>
+            <p className="text-slate-400 text-sm">{t("table.noData", "Kayıt bulunamadı")}</p>
             {(sourceFilter || levelFilter || search || startDate || endDate) && (
-              <p className="text-slate-300 text-xs mt-1">Filtreleri temizleyerek tüm kayıtları görüntüleyebilirsiniz</p>
+              <p className="text-slate-300 text-xs mt-1">{t("ui.clearFiltersHint", "Filtreleri temizleyerek tüm kayıtları görüntüleyebilirsiniz")}</p>
             )}
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {logs.map(log => {
               const isExpanded = expanded === log.id;
-              const title = buildTitle(log);
+              const title = buildTitle(log, t);
               const displayUrl = log.url || null;
               return (
                 <div key={log.id} className="hover:bg-slate-50/70 transition">
@@ -540,14 +544,14 @@ export default function TakipPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center flex-wrap gap-1.5 mb-1">
                         <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${levelBadge(log.level)}`}>
-                          {levelLabel(log.level)}
+                          {levelLabel(log.level, t)}
                         </span>
                         <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${sourceBadge(log.source)}`}>
                           {sourceIcon(log.source)} {log.source}
                         </span>
-                        {exceptionCategory(log.exceptionType) && (
+                        {exceptionCategory(log.exceptionType, t) && (
                           <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                            {exceptionCategory(log.exceptionType)}
+                            {exceptionCategory(log.exceptionType, t)}
                           </span>
                         )}
                         {log.exceptionType && (
@@ -585,21 +589,21 @@ export default function TakipPage() {
                       <div className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                         <p className="text-sm text-slate-800 font-medium flex-1">{log.message}</p>
                         <button onClick={() => copyToClipboard(log.message, `${log.id}-msg`)}
-                          title="Kopyala" className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded mt-0.5">
+                          title={t("action.copy", "Kopyala")} className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded mt-0.5">
                           {copiedKey === `${log.id}-msg` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
                         </button>
                       </div>
                       {displayUrl && (
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-1">Tam URL</p>
+                          <p className="text-xs font-semibold text-slate-500 mb-1">{t("ui.fullUrl", "Tam URL")}</p>
                           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                             <p className="text-xs text-slate-700 font-mono break-all flex-1">{displayUrl}</p>
                             <button onClick={() => copyToClipboard(displayUrl, `${log.id}-url`)}
-                              title="Kopyala" className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded">
+                              title={t("action.copy", "Kopyala")} className="shrink-0 text-slate-400 hover:text-teal-600 transition p-0.5 rounded">
                               {copiedKey === `${log.id}-url` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
                             </button>
                             <a href={displayUrl} target="_blank" rel="noopener noreferrer"
-                              className="shrink-0 text-slate-400 hover:text-teal-600 transition" title="Aç">
+                              className="shrink-0 text-slate-400 hover:text-teal-600 transition" title={t("ui.open", "Aç")}>
                               <ExternalLink size={13} />
                             </a>
                           </div>
@@ -610,9 +614,9 @@ export default function TakipPage() {
                           <div className="flex items-center justify-between mb-1.5">
                             <p className="text-xs font-semibold text-slate-500">Stack Trace</p>
                             <button onClick={() => copyToClipboard(log.stackTrace!, `${log.id}-stack`)}
-                              title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                              title={t("action.copy", "Kopyala")} className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
                               {copiedKey === `${log.id}-stack` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
-                              <span className="text-xs">{copiedKey === `${log.id}-stack` ? "Kopyalandı" : "Kopyala"}</span>
+                              <span className="text-xs">{copiedKey === `${log.id}-stack` ? t("ui.copied", "Kopyalandı") : t("action.copy", "Kopyala")}</span>
                             </button>
                           </div>
                           <pre className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
@@ -625,11 +629,11 @@ export default function TakipPage() {
                           {log.requestPayload && (
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold text-slate-500">İstek (Request) Payload</p>
+                                <p className="text-xs font-semibold text-slate-500">{t("ui.requestPayload", "İstek (Request) Payload")}</p>
                                 <button onClick={() => copyToClipboard(log.requestPayload!, `${log.id}-req`)}
-                                  title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                                  title={t("action.copy", "Kopyala")} className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
                                   {copiedKey === `${log.id}-req` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
-                                  <span className="text-xs">{copiedKey === `${log.id}-req` ? "Kopyalandı" : "Kopyala"}</span>
+                                  <span className="text-xs">{copiedKey === `${log.id}-req` ? t("ui.copied", "Kopyalandı") : t("action.copy", "Kopyala")}</span>
                                 </button>
                               </div>
                               <pre className="text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-48 overflow-y-auto">
@@ -640,11 +644,11 @@ export default function TakipPage() {
                           {log.responsePayload && (
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold text-slate-500">Yanıt (Response) Payload</p>
+                                <p className="text-xs font-semibold text-slate-500">{t("ui.responsePayload", "Yanıt (Response) Payload")}</p>
                                 <button onClick={() => copyToClipboard(log.responsePayload!, `${log.id}-resp`)}
-                                  title="Kopyala" className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
+                                  title={t("action.copy", "Kopyala")} className="text-slate-400 hover:text-teal-600 transition p-0.5 rounded flex items-center gap-1">
                                   {copiedKey === `${log.id}-resp` ? <Check size={13} className="text-teal-500" /> : <Copy size={13} />}
-                                  <span className="text-xs">{copiedKey === `${log.id}-resp` ? "Kopyalandı" : "Kopyala"}</span>
+                                  <span className="text-xs">{copiedKey === `${log.id}-resp` ? t("ui.copied", "Kopyalandı") : t("action.copy", "Kopyala")}</span>
                                 </button>
                               </div>
                               <pre className="text-xs text-slate-600 bg-amber-50 border border-amber-200 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-48 overflow-y-auto">
@@ -663,19 +667,19 @@ export default function TakipPage() {
                         )}
                         {log.ipAddress && (
                           <div>
-                            <p className="text-xs text-slate-400 mb-0.5">IP Adresi</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t("col.ip", "IP Adresi")}</p>
                             <p className="text-xs text-slate-700 font-mono">{log.ipAddress}</p>
                           </div>
                         )}
                         {log.userEmail && (
                           <div>
-                            <p className="text-xs text-slate-400 mb-0.5">Kullanıcı</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t("ui.user", "Kullanıcı")}</p>
                             <p className="text-xs text-slate-700">{log.userEmail}</p>
                           </div>
                         )}
                         {log.path && (
                           <div>
-                            <p className="text-xs text-slate-400 mb-0.5">Path</p>
+                            <p className="text-xs text-slate-400 mb-0.5">{t("col.path", "Yol")}</p>
                             <p className="text-xs text-slate-700 font-mono">{log.path}</p>
                           </div>
                         )}
@@ -684,7 +688,7 @@ export default function TakipPage() {
                           <div className="flex items-center gap-1.5">
                             <p className="text-xs text-slate-400 font-mono">{log.id}</p>
                             <button onClick={() => copyToClipboard(log.id, `${log.id}-id`)}
-                              title="Kopyala" className="text-slate-300 hover:text-teal-600 transition p-0.5 rounded">
+                              title={t("action.copy", "Kopyala")} className="text-slate-300 hover:text-teal-600 transition p-0.5 rounded">
                               {copiedKey === `${log.id}-id` ? <Check size={11} className="text-teal-500" /> : <Copy size={11} />}
                             </button>
                           </div>
@@ -703,12 +707,12 @@ export default function TakipPage() {
         <div className="flex justify-center gap-2">
           {page > 1 && (
             <button onClick={() => setPage(p => p - 1)}
-              className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">← Önceki</button>
+              className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.prev", "← Önceki")}</button>
           )}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && (
             <button onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">Sonraki →</button>
+              className="px-4 py-2 rounded-xl border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">{t("table.next", "Sonraki →")}</button>
           )}
         </div>
       )}

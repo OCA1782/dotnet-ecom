@@ -8,12 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCompare } from "@/contexts/CompareContext";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 import type { ProductListItem } from "@/types";
 
 export default function ProductCard({ product, initialLiked = false }: {
   product: ProductListItem;
   initialLiked?: boolean;
 }) {
+  const { t } = useI18n();
   const { addToCart } = useCart();
   const { user } = useAuth();
   const { isComparing, addProduct, removeProduct, isFull } = useCompare();
@@ -52,7 +54,7 @@ export default function ProductCard({ product, initialLiked = false }: {
       setAdded(true);
       setTimeout(() => setAdded(false), 1800);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Sepete eklenemedi.";
+      const msg = err instanceof Error ? err.message : t("product.add_error");
       setCartError(msg);
       setTimeout(() => setCartError(null), 3000);
     } finally {
@@ -65,16 +67,21 @@ export default function ProductCard({ product, initialLiked = false }: {
       <Link href={`/urun/${product.slug}`} className="block relative">
         {product.discountPrice && (
           <span className="absolute top-2 left-2 z-10 bg-[#FF7A45] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-            İndirim
+            {t("product.sale_badge")}
           </span>
         )}
         <button
-          onClick={e => { e.preventDefault(); comparing ? removeProduct(product.id) : addProduct(product); }}
+          onClick={e => {
+            e.preventDefault();
+            if (comparing) removeProduct(product.id);
+            else addProduct(product);
+          }}
           disabled={!comparing && isFull}
           className={`absolute bottom-2 left-2 z-10 w-7 h-7 flex items-center justify-center rounded-full shadow transition-all text-xs font-bold ${
             comparing ? "bg-teal-500 text-white" : isFull ? "bg-white/50 text-slate-300 cursor-not-allowed" : "bg-white/80 text-slate-400 hover:bg-teal-100 hover:text-teal-600"
           } backdrop-blur-sm`}
-          title={comparing ? "Karşılaştırmadan çıkar" : isFull ? "Karşılaştırma listesi dolu" : "Karşılaştırmaya ekle"}>
+          title={comparing ? t("product.compare.remove") : isFull ? t("product.compare.full") : t("product.compare.add")}
+        >
           ⇄
         </button>
         <button
@@ -83,7 +90,8 @@ export default function ProductCard({ product, initialLiked = false }: {
           className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow transition-all ${
             liked ? "bg-red-500 text-white" : "bg-white/80 text-slate-400 hover:text-red-400"
           } backdrop-blur-sm`}
-          title={liked ? "Favorilerden çıkar" : "Favorilere ekle"}>
+          title={liked ? t("product.wishlist.remove") : t("product.wishlist.add")}
+        >
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
@@ -120,13 +128,13 @@ export default function ProductCard({ product, initialLiked = false }: {
         </div>
 
         {product.availableStock > 0 && product.price >= 500 && (
-          <p className="text-xs text-teal-600 font-semibold mt-2">✓ Ücretsiz kargo</p>
+          <p className="text-xs text-teal-600 font-semibold mt-2">{t("product.free_shipping")}</p>
         )}
         {cartError && (
           <p className="text-xs text-red-500 mt-2 leading-tight">{cartError}</p>
         )}
         {product.availableStock === 0 ? (
-          <p className="text-xs text-red-500 mt-3 font-medium">Stokta Yok</p>
+          <p className="text-xs text-red-500 mt-3 font-medium">{t("product.out_of_stock_short")}</p>
         ) : (
           <button
             onClick={handleAddToCart}
@@ -139,7 +147,7 @@ export default function ProductCard({ product, initialLiked = false }: {
                 : "bg-[#12304A] hover:bg-[#FF7A45]"
             } disabled:opacity-60`}
           >
-            {adding ? "Ekleniyor..." : added ? "✓ Eklendi" : cartError ? "Tekrar Dene" : "Sepete Ekle"}
+            {adding ? t("product.adding") : added ? t("product.added") : cartError ? t("product.retry") : t("product.add_to_cart")}
           </button>
         )}
       </div>

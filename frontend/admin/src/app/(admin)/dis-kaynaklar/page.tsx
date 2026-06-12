@@ -251,9 +251,6 @@ function SkipDiagnosticsPanel({
   );
 }
 
-const defaultConfig = (type: string) =>
-  type === "RestApi" ? JSON.stringify({ url: "", headers: {}, dataPath: "" }, null, 2) : "";
-
 export default function DisKaynaklarPage() {
   const { t } = useI18n();
   const [sources, setSources] = useState<ExternalSource[]>([]);
@@ -290,28 +287,7 @@ export default function DisKaynaklarPage() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const data = await api.get<ExternalSource[]>("/api/admin/external-sources");
-      setSources(data);
-      // Auto-start polling for any source that still has an active job (survives page refresh)
-      for (const src of data) {
-        if (src.hasActiveJob) loadLogs(src.id);
-      }
-    } catch { setSources([]); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => {
-    load();
-    return () => {
-      Object.values(pollTimers.current).forEach(clearInterval);
-      Object.values(logPollTimers.current).forEach(clearTimeout);
-    };
-  }, []);
-
-  async function loadLogs(id: string) {
+  const loadLogs = useCallback(async (id: string) => {
     try {
       const logs = await api.get<ImportLog[]>(`/api/admin/external-sources/${id}/logs`);
       setLogsMap(prev => ({ ...prev, [id]: logs }));
@@ -325,7 +301,34 @@ export default function DisKaynaklarPage() {
         delete logPollTimers.current[id];
       }
     } catch { setLogsMap(prev => ({ ...prev, [id]: [] })); }
-  }
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<ExternalSource[]>("/api/admin/external-sources");
+      setSources(data);
+      // Auto-start polling for any source that still has an active job (survives page refresh)
+      for (const src of data) {
+        if (src.hasActiveJob) loadLogs(src.id);
+      }
+    } catch { setSources([]); }
+    finally { setLoading(false); }
+  }, [loadLogs]);
+
+  useEffect(() => {
+    const pollTimersSnapshot = pollTimers.current;
+    const logPollTimersSnapshot = logPollTimers.current;
+    const loadTimer = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(loadTimer);
+      Object.values(pollTimersSnapshot).forEach(clearInterval);
+      Object.values(logPollTimersSnapshot).forEach(clearTimeout);
+    };
+  }, [load]);
 
   async function loadServerPreview(source: ExternalSource) {
     if (previewMap[source.id]) return; // already in memory
@@ -433,7 +436,7 @@ export default function DisKaynaklarPage() {
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) chunks.push(rows.slice(i, i + CHUNK_SIZE));
 
     let totalIns = 0, totalUpd = 0, totalSkip = 0;
-    let mergedSkipReasons: Record<string, number> = {};
+    const mergedSkipReasons: Record<string, number> = {};
 
     setImportProgress(prev => ({
       ...prev,
@@ -650,7 +653,7 @@ export default function DisKaynaklarPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("nav./dis-kaynaklar", "Dış Kaynaklar")}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Excel veya REST API üzerinden veri içe aktarın</p>
+          <p className="text-sm text-slate-500 mt-0.5">{t("dis-kaynaklar.subtitle", "Excel veya REST API üzerinden veri içe aktarın")}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setShowHelp(v => !v)}
@@ -660,12 +663,12 @@ export default function DisKaynaklarPage() {
             <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current shrink-0">
               <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.25a.75.75 0 0 1-1.5 0V5.75a.75.75 0 0 1 1.5 0v3.5z"/>
             </svg>
-            Nasıl Kullanılır?
+            {t("dis-kaynaklar.howToUse", "Nasıl Kullanılır?")}
           </button>
           <div className="relative">
             <button onClick={() => setShowTemplateMenu(v => !v)}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-              <FileSpreadsheet size={15} /> Şablon İndir <ChevronDown size={13} />
+              <FileSpreadsheet size={15} /> {t("dis-kaynaklar.downloadTemplate", "Şablon İndir")} <ChevronDown size={13} />
             </button>
             {showTemplateMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden">
@@ -680,7 +683,7 @@ export default function DisKaynaklarPage() {
           </div>
           <button onClick={() => { setEditSource(null); setShowModal(true); }}
             className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
-            <Plus size={15} /> Yeni Kaynak
+            <Plus size={15} /> {t("ui.newSource", "Yeni Kaynak")}
           </button>
         </div>
       </div>
@@ -689,7 +692,7 @@ export default function DisKaynaklarPage() {
       {showHelp && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-4">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-blue-900 text-sm">Dış Kaynaklar Kullanım Kılavuzu</h3>
+            <h3 className="font-bold text-blue-900 text-sm">{t("dis-kaynaklar.helpTitle", "Dış Kaynaklar Kullanım Kılavuzu")}</h3>
             <button onClick={() => setShowHelp(false)} className="text-blue-400 hover:text-blue-700 shrink-0"><X size={15} /></button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-blue-800">
@@ -743,12 +746,12 @@ export default function DisKaynaklarPage() {
 
       {/* List */}
       {loading ? (
-        <div className="text-center py-12 text-slate-400">Yükleniyor...</div>
+        <div className="text-center py-12 text-slate-400">{t("action.loading", "Yükleniyor...")}</div>
       ) : sources.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <Database size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium mb-1">Henüz kaynak eklenmedi</p>
-          <p className="text-xs">REST API veya Excel şablonundan veri aktarmak için kaynak ekleyin.</p>
+          <p className="font-medium mb-1">{t("dis-kaynaklar.noSources", "Henüz kaynak eklenmedi")}</p>
+          <p className="text-xs">{t("dis-kaynaklar.noSourcesHint", "REST API veya Excel şablonundan veri aktarmak için kaynak ekleyin.")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -787,8 +790,6 @@ export default function DisKaynaklarPage() {
             const selRowCount = selRowSet?.size ?? 0;
             const selColCount = selColSet?.size ?? preview?.columns.length ?? 0;
             const progress = importProgress[source.id];
-            const isAsync = (preview?.rows.length ?? 0) > ASYNC_THRESHOLD;
-
             return (
               <div key={source.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 {/* Header row */}
@@ -801,7 +802,7 @@ export default function DisKaynaklarPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-slate-900 truncate">{source.name}</p>
-                        {!source.isActive && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full shrink-0">Pasif</span>}
+                        {!source.isActive && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full shrink-0">{t("status.passive", "Pasif")}</span>}
                         {hasLiveJob && (
                           <span className="flex items-center gap-1 text-[10px] bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
                             <RefreshCw size={8} className="animate-spin" />
@@ -833,15 +834,15 @@ export default function DisKaynaklarPage() {
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => { setEditSource(source); setShowModal(true); }} title="Düzenle"
+                    <button onClick={() => { setEditSource(source); setShowModal(true); }} title={t("action.edit", "Düzenle")}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition">
                       <Pencil size={15} />
                     </button>
-                    <button onClick={() => setDeleteTarget(source)} title="Sil"
+                    <button onClick={() => setDeleteTarget(source)} title={t("action.delete", "Sil")}
                       className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition">
                       <Trash2 size={15} />
                     </button>
-                    <button onClick={() => toggleExpand(source.id)} title={isExpanded ? "Kapat" : "Detaylar"}
+                    <button onClick={() => toggleExpand(source.id)} title={isExpanded ? t("action.close", "Kapat") : t("action.details", "Detaylar")}
                       className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition relative">
                       {/* Red dot if there are error logs */}
                       {!isExpanded && logsMap[source.id]?.some(l => l.errorMessage) && (
@@ -864,8 +865,8 @@ export default function DisKaynaklarPage() {
                       return (
                         <div className="flex border-b border-slate-100 px-4 bg-slate-50/60">
                           {([
-                            { key: "preview" as const, label: "Veri & Aktarma", badge: preview?.rows.length, badgeRed: false },
-                            { key: "history" as const, label: "Aktarma Geçmişi", badge: logs?.length, badgeRed: errorCount > 0 },
+                            { key: "preview" as const, label: t("dis-kaynaklar.tabDataImport", "Veri & Aktarma"), badge: preview?.rows.length, badgeRed: false },
+                            { key: "history" as const, label: t("dis-kaynaklar.tabHistory", "Aktarma Geçmişi"), badge: logs?.length, badgeRed: errorCount > 0 },
                           ]).map(tab => (
                             <button key={tab.key}
                               onClick={() => switchTab(source.id, tab.key)}
@@ -892,12 +893,12 @@ export default function DisKaynaklarPage() {
                         {fetching === source.id ? (
                           <div className="text-center py-10 text-slate-400 space-y-3">
                             <RefreshCw size={28} className="mx-auto animate-spin opacity-40" />
-                            <p className="text-sm font-medium">Veriler yükleniyor...</p>
+                            <p className="text-sm font-medium">{t("dis-kaynaklar.loadingData", "Veriler yükleniyor...")}</p>
                           </div>
                         ) : !preview ? (
                           <div className="text-center py-10 text-slate-400 space-y-2">
                             <Database size={32} className="mx-auto opacity-25" />
-                            <p className="text-sm font-medium">Henüz veri çekilmedi</p>
+                            <p className="text-sm font-medium">{t("dis-kaynaklar.noDataYet", "Henüz veri çekilmedi")}</p>
                             <p className="text-xs">
                               {source.type === "RestApi"
                                 ? 'Düzenle modalını açıp "Veri Çek & Önizle" butonuyla API\'den veri alın'
@@ -925,7 +926,7 @@ export default function DisKaynaklarPage() {
                                 setFilterText(prev => ({ ...prev, [source.id]: e.target.value }));
                                 setTablePage(prev => ({ ...prev, [source.id]: 0 }));
                               }}
-                              placeholder="Satırlarda filtrele..."
+                              placeholder={t("dis-kaynaklar.filterRows", "Satırlarda filtrele...")}
                               className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 placeholder-slate-400"
                             />
                             {filterTxt && (
@@ -945,32 +946,32 @@ export default function DisKaynaklarPage() {
                                   onClick={() => selectFilteredRows(source.id, filteredIdxs)}
                                   className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition font-medium border border-amber-200"
                                 >
-                                  Filtrelenenleri Seç ({filteredCount.toLocaleString("tr-TR")})
+                                  {t("dis-kaynaklar.selectFiltered", "Filtrelenenleri Seç")} ({filteredCount.toLocaleString("tr-TR")})
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => selectAllRows(source.id, preview.rows.length)}
                                   className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-100 hover:text-teal-700 text-slate-600 transition font-medium"
                                 >
-                                  Tümünü Seç
+                                  {t("dis-kaynaklar.selectAll", "Tümünü Seç")}
                                 </button>
                               )}
                               <button
                                 onClick={() => deselectAllRows(source.id)}
                                 className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 transition font-medium"
                               >
-                                Seçimi Kaldır
+                                {t("dis-kaynaklar.deselectAll", "Seçimi Kaldır")}
                               </button>
                               <span className="text-xs text-slate-500">
                                 <span className="font-semibold text-teal-600">{selRowCount.toLocaleString("tr-TR")}</span>
-                                <span className="text-slate-400"> seçili</span>
+                                <span className="text-slate-400"> {t("dis-kaynaklar.selected", "seçili")}</span>
                                 {isFiltered && (
-                                  <span className="text-amber-600"> · {filteredCount.toLocaleString("tr-TR")} filtrelendi</span>
+                                  <span className="text-amber-600"> · {filteredCount.toLocaleString("tr-TR")} {t("dis-kaynaklar.filtered", "filtrelendi")}</span>
                                 )}
-                                <span className="text-slate-400"> / {preview.rows.length.toLocaleString("tr-TR")} toplam</span>
+                                <span className="text-slate-400"> / {preview.rows.length.toLocaleString("tr-TR")} {t("dis-kaynaklar.total", "toplam")}</span>
                                 <span className="mx-1.5 text-slate-300">·</span>
                                 <span className="font-semibold text-violet-600">{selColCount}</span>
-                                <span className="text-slate-400">/{preview.columns.length} sütun</span>
+                                <span className="text-slate-400">/{preview.columns.length} {t("dis-kaynaklar.columns", "sütun")}</span>
                               </span>
                             </div>
                             {totalPages > 1 && (
@@ -1010,7 +1011,7 @@ export default function DisKaynaklarPage() {
                                     checked={allOnPageSelected}
                                     onChange={() => togglePageRows(source.id, pageFilteredIdxs, allOnPageSelected)}
                                     className="accent-teal-600 cursor-pointer"
-                                    title="Sayfadaki tümünü seç/kaldır"
+                                    title={t("dis-kaynaklar.togglePageRows", "Sayfadaki tümünü seç/kaldır")}
                                   />
                                 </th>
                                 {/* Row number */}
@@ -1022,7 +1023,7 @@ export default function DisKaynaklarPage() {
                                     <th
                                       key={col}
                                       onClick={() => toggleCol(source.id, col, preview)}
-                                      title={isColSel ? "Tıkla: sütunu çıkar" : "Tıkla: sütunu dahil et"}
+                                      title={isColSel ? t("dis-kaynaklar.excludeCol", "Tıkla: sütunu çıkar") : t("dis-kaynaklar.includeCol", "Tıkla: sütunu dahil et")}
                                       className={`px-3 py-2.5 text-left whitespace-nowrap cursor-pointer select-none transition border-r border-slate-200 last:border-r-0 group ${
                                         isColSel
                                           ? "text-slate-700 font-medium hover:bg-slate-200"
@@ -1096,22 +1097,22 @@ export default function DisKaynaklarPage() {
 
                         {/* Mapping + import config */}
                         <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                          <p className="text-xs font-semibold text-slate-600">Aktarma Ayarları</p>
+                          <p className="text-xs font-semibold text-slate-600">{t("dis-kaynaklar.importSettings", "Aktarma Ayarları")}</p>
                           <div className="flex items-center gap-4 flex-wrap">
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">Hedef</label>
+                              <label className="block text-xs text-slate-500 mb-1">{t("dis-kaynaklar.target", "Hedef")}</label>
                               <select value={target} onChange={e => handleTargetChange(source.id, e.target.value)}
                                 className="border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
                                 {TARGET_ENTITIES.map(t => <option key={t} value={t}>{TARGET_LABELS[t]}</option>)}
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">Çakışma stratejisi</label>
+                              <label className="block text-xs text-slate-500 mb-1">{t("dis-kaynaklar.conflictStrategy", "Çakışma stratejisi")}</label>
                               <select value={conflictMap[source.id] || "skip"}
                                 onChange={e => setConflictMap(prev => ({ ...prev, [source.id]: e.target.value }))}
                                 className="border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                                <option value="skip">Mevcut olanı atla</option>
-                                <option value="update">Mevcut olanı güncelle</option>
+                                <option value="skip">{t("dis-kaynaklar.conflictSkip", "Mevcut olanı atla")}</option>
+                                <option value="update">{t("dis-kaynaklar.conflictUpdate", "Mevcut olanı güncelle")}</option>
                               </select>
                             </div>
                           </div>
@@ -1119,10 +1120,10 @@ export default function DisKaynaklarPage() {
                           {/* Field mapping — only shows selected columns */}
                           <div>
                             <label className="block text-xs text-slate-500 mb-2">
-                              Alan eşlemesi
-                              <span className="ml-1 text-teal-600">(otomatik algılandı)</span>
+                              {t("dis-kaynaklar.fieldMapping", "Alan eşlemesi")}
+                              <span className="ml-1 text-teal-600">({t("dis-kaynaklar.autoDetected", "otomatik algılandı")})</span>
                               {selColCount < preview.columns.length && (
-                                <span className="ml-1 text-violet-500">· yalnızca seçili sütunlar</span>
+                                <span className="ml-1 text-violet-500">· {t("dis-kaynaklar.onlySelectedCols", "yalnızca seçili sütunlar")}</span>
                               )}
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1140,7 +1141,7 @@ export default function DisKaynaklarPage() {
                                             ? "border-amber-300 bg-amber-50/50"
                                             : "border-slate-300"
                                       }`}>
-                                      <option value="">— Eşleme yok —</option>
+                                      <option value="">— {t("dis-kaynaklar.noMapping", "Eşleme yok")} —</option>
                                       {activeCols.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                   </div>
@@ -1156,12 +1157,12 @@ export default function DisKaynaklarPage() {
                             <div className="flex items-center justify-between text-xs">
                               <span className={`font-semibold flex items-center gap-1.5 ${progress.error ? "text-red-600" : "text-teal-700"}`}>
                                 {importing === source.id
-                                  ? <><RefreshCw size={12} className="animate-spin" />{progress.mode === "async" ? `Arka planda işleniyor${progress.jobStatus ? ` · ${progress.jobStatus}` : ""}` : "Aktarılıyor..."}</>
+                                  ? <><RefreshCw size={12} className="animate-spin" />{progress.mode === "async" ? `${t("dis-kaynaklar.processingBackground", "Arka planda işleniyor")}${progress.jobStatus ? ` · ${progress.jobStatus}` : ""}` : t("action.importing", "Aktarılıyor...")}</>
                                   : progress.error
-                                    ? <><AlertCircle size={12} /> Aktarım hatası</>
+                                    ? <><AlertCircle size={12} /> {t("dis-kaynaklar.importError", "Aktarım hatası")}</>
                                     : progress.skipped > 0
-                                      ? <><AlertCircle size={12} className="text-amber-500" /> Aktarım tamamlandı — bazı satırlar atlandı</>
-                                      : <><CheckCircle size={12} /> Aktarım tamamlandı</>
+                                      ? <><AlertCircle size={12} className="text-amber-500" /> {t("dis-kaynaklar.importCompletedSkipped", "Aktarım tamamlandı — bazı satırlar atlandı")}</>
+                                      : <><CheckCircle size={12} /> {t("dis-kaynaklar.importCompleted", "Aktarım tamamlandı")}</>
                                 }
                               </span>
                               <span className="text-slate-500 tabular-nums">
@@ -1500,9 +1501,9 @@ export default function DisKaynaklarPage() {
               <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
                 <Trash2 size={26} className="text-red-500" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900 mb-1">Kaynağı Sil</h2>
+              <h2 className="text-lg font-bold text-slate-900 mb-1">{t("dis-kaynaklar.deleteTitle", "Kaynağı Sil")}</h2>
               <p className="text-sm text-slate-500">
-                Bu işlem geri alınamaz.
+                {t("dis-kaynaklar.deleteWarning", "Bu işlem geri alınamaz.")}
               </p>
             </div>
 
@@ -1524,7 +1525,7 @@ export default function DisKaynaklarPage() {
             {/* Warning */}
             <div className="mx-6 mb-6 flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3">
               <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              <span>Kaynağa ait tüm aktarma geçmişi de kalıcı olarak silinecek.</span>
+              <span>{t("dis-kaynaklar.deleteDetail", "Kaynağa ait tüm aktarma geçmişi de kalıcı olarak silinecek.")}</span>
             </div>
 
             {/* Actions */}
@@ -1534,7 +1535,7 @@ export default function DisKaynaklarPage() {
                 disabled={deleting}
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition disabled:opacity-50"
               >
-                İptal
+                {t("action.cancel", "Vazgeç")}
               </button>
               <button
                 onClick={confirmDelete}
@@ -1542,9 +1543,9 @@ export default function DisKaynaklarPage() {
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {deleting ? (
-                  <><RefreshCw size={13} className="animate-spin" /> Siliniyor...</>
+                  <><RefreshCw size={13} className="animate-spin" /> {t("dis-kaynaklar.deleting", "Siliniyor...")}</>
                 ) : (
-                  <><Trash2 size={13} /> Evet, Sil</>
+                  <><Trash2 size={13} /> {t("dis-kaynaklar.confirmDelete", "Evet, Sil")}</>
                 )}
               </button>
             </div>
@@ -1563,6 +1564,7 @@ function SourceModal({
   onClose: () => void;
   onSaved: (id: string, preview?: PreviewData) => void;
 }) {
+  const { t } = useI18n();
   const isEdit = !!source;
   const hasServerFile = isEdit && source.type === "Excel" && source.hasExcelFile;
 
@@ -1686,8 +1688,8 @@ function SourceModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
           <div>
-            <h2 className="font-bold text-slate-900">{isEdit ? "Kaynağı Düzenle" : "Yeni Dış Kaynak"}</h2>
-            {!isEdit && <p className="text-xs text-slate-400 mt-0.5">Kaynak türünü seçip yapılandırın</p>}
+            <h2 className="font-bold text-slate-900">{isEdit ? t("ui.editSource", "Kaynağı Düzenle") : t("ui.newSource", "Yeni Kaynak")}</h2>
+            {!isEdit && <p className="text-xs text-slate-400 mt-0.5">{t("dis-kaynaklar.modal.configureHint", "Kaynak türünü seçip yapılandırın")}</p>}
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
         </div>
@@ -1697,7 +1699,7 @@ function SourceModal({
           {/* Type selector — yeni kaynak için */}
           {!isEdit && (
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-2">Kaynak Türü</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">{t("auto.kaynakTuru", "Kaynak Türü")}</label>
               <div className="grid grid-cols-2 gap-3">
                 {([
                   { t: "Excel", label: "Excel Dosyası", sub: ".xlsx / .xls dosyasından veri yükleyin", Icon: FileSpreadsheet, accent: "amber" },
@@ -1983,13 +1985,13 @@ function SourceModal({
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white">
           <button onClick={onClose}
             className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition hover:bg-slate-50">
-            İptal
+            {t("action.cancel", "Vazgeç")}
           </button>
           <button onClick={save} disabled={saving}
             className="px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2">
             {saving
-              ? <><RefreshCw size={13} className="animate-spin" /> Kaydediliyor...</>
-              : isEdit ? "Güncelle" : "Kaydet"}
+              ? <><RefreshCw size={13} className="animate-spin" /> {t("dis-kaynaklar.modal.saving", "Kaydediliyor...")}</>
+              : isEdit ? t("dis-kaynaklar.modal.update", "Güncelle") : t("action.save", "Kaydet")}
           </button>
         </div>
       </div>

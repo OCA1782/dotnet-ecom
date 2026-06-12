@@ -1,35 +1,34 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 #nullable disable
 
 namespace Ecom.Infrastructure.Persistence.Migrations
 {
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260606120000_AddErrorLogPayloads")]
     public partial class AddErrorLogPayloads : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "RequestPayload",
-                table: "ErrorLogs",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('dbo.ErrorLogs', 'RequestPayload') IS NULL
+                    ALTER TABLE [ErrorLogs] ADD [RequestPayload] nvarchar(max) NULL;
 
-            migrationBuilder.AddColumn<string>(
-                name: "ResponsePayload",
-                table: "ErrorLogs",
-                type: "nvarchar(max)",
-                nullable: true);
+                IF COL_LENGTH('dbo.ErrorLogs', 'ResponsePayload') IS NULL
+                    ALTER TABLE [ErrorLogs] ADD [ResponsePayload] nvarchar(max) NULL;
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "RequestPayload",
-                table: "ErrorLogs");
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('dbo.ErrorLogs', 'ResponsePayload') IS NOT NULL
+                    ALTER TABLE [ErrorLogs] DROP COLUMN [ResponsePayload];
 
-            migrationBuilder.DropColumn(
-                name: "ResponsePayload",
-                table: "ErrorLogs");
+                IF COL_LENGTH('dbo.ErrorLogs', 'RequestPayload') IS NOT NULL
+                    ALTER TABLE [ErrorLogs] DROP COLUMN [RequestPayload];
+                """);
         }
     }
 }

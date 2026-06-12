@@ -64,15 +64,69 @@ public static class DbInitializer
     {
         var adminEmail = config["Seed:AdminEmail"] ?? "admin@ecom.com";
 
-        var exists = await db.Users.IgnoreQueryFilters()
-            .AnyAsync(u => u.Email == adminEmail);
-
-        if (exists) return;
-
         var adminPassword = config["Seed:AdminPassword"];
         if (string.IsNullOrWhiteSpace(adminPassword))
             throw new InvalidOperationException(
                 "Seed:AdminPassword yapılandırması eksik. .env dosyasında SEED_ADMIN_PASSWORD tanımlayın.");
+
+        var existingUsers = await db.Users
+            .IgnoreQueryFilters()
+            .Include(u => u.Roles)
+            .Where(u => u.Email == adminEmail)
+            .ToListAsync();
+
+        if (existingUsers.Count > 0)
+        {
+            var changed = false;
+            foreach (var existing in existingUsers)
+            {
+                var roleNames = existing.Roles.Select(r => r.Role).ToHashSet();
+
+                if (roleNames.Contains(UserRoleEnum.Admin))
+                {
+                    var adminRoles = existing.Roles.Where(r => r.Role == UserRoleEnum.Admin).ToList();
+                    db.UserRoles.RemoveRange(adminRoles);
+                    changed = true;
+                }
+
+                if (!roleNames.Contains(UserRoleEnum.SuperAdmin))
+                {
+                    db.UserRoles.Add(new UserRoleEntity { UserId = existing.Id, Role = UserRoleEnum.SuperAdmin });
+                    changed = true;
+                }
+
+                if (!existing.IsActive)
+                {
+                    existing.IsActive = true;
+                    changed = true;
+                }
+
+                if (!existing.EmailConfirmed)
+                {
+                    existing.EmailConfirmed = true;
+                    changed = true;
+                }
+
+                if (!existing.KvkkConsent)
+                {
+                    existing.KvkkConsent = true;
+                    existing.KvkkConsentDate = DateTime.UtcNow;
+                    changed = true;
+                }
+
+                if (existing.TwoFactorEnabled)
+                {
+                    existing.TwoFactorEnabled = false;
+                    existing.TwoFactorSecret = null;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+                await db.SaveChangesAsync();
+
+            return;
+        }
 
         var admin = new User
         {
@@ -87,7 +141,6 @@ public static class DbInitializer
         };
 
         admin.Roles.Add(new UserRoleEntity { UserId = admin.Id, Role = UserRoleEnum.SuperAdmin });
-        admin.Roles.Add(new UserRoleEntity { UserId = admin.Id, Role = UserRoleEnum.Admin });
 
         db.Users.Add(admin);
         await db.SaveChangesAsync();
@@ -105,7 +158,29 @@ public static class DbInitializer
             new() { Key = "DefaultTaxRate", Value = "20", Group = "General" },
             new() { Key = "FreeShippingLimit", Value = "500", Group = "Shipping" },
             new() { Key = "DefaultShippingCost", Value = "29.90", Group = "Shipping" },
-            new() { Key = "MaintenanceMode", Value = "false", Group = "System" }
+            new() { Key = "MaintenanceMode", Value = "false", Group = "System" },
+            new() { Key = "I18nJob:EnableAutoRun", Value = "false", Group = "Jobs" },
+            new() { Key = "I18nJob:AllowSourceMutation", Value = "false", Group = "Jobs" },
+            new() { Key = "I18nJob:AllowDocsWrite", Value = "false", Group = "Jobs" },
+            new() { Key = "I18nJob:TriggerBuilderFromScanner", Value = "false", Group = "Jobs" },
+            new() { Key = "I18nJob:ProjectRoot", Value = "", Group = "Jobs" },
+            new() { Key = "I18nJob:DocsPath", Value = "", Group = "Jobs" },
+            new() { Key = "I18nJob:ScheduleTimeZone", Value = "Turkey Standard Time", Group = "Jobs" },
+            new() { Key = "I18nJob:DictionaryBuilderWindowStart", Value = "01:00:00", Group = "Jobs" },
+            new() { Key = "I18nJob:DictionaryBuilderWindowEnd", Value = "07:00:00", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:EnableAutoRun", Value = "false", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:AllowSourceMutation", Value = "false", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:AllowDocsWrite", Value = "false", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:TriggerBuilderFromScanner", Value = "false", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:ProjectRoot", Value = "", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:DocsPath", Value = "", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:ScheduleTimeZone", Value = "Turkey Standard Time", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:DictionaryBuilderWindowStart", Value = "01:00:00", Group = "Jobs" },
+            new() { Key = "CustomerI18nJob:DictionaryBuilderWindowEnd", Value = "07:00:00", Group = "Jobs" },
+            new() { Key = "VerificationJob:ApiBaseUrl", Value = "http://localhost:5124", Group = "Jobs" },
+            new() { Key = "VerificationJob:ProjectRoot", Value = "", Group = "Jobs" },
+            new() { Key = "VerificationJob:LogFilePath", Value = "", Group = "Jobs" },
+            new() { Key = "AdminLintAudit:TodoPath", Value = "TODO_PENDING.md", Group = "Jobs" }
         };
 
         db.SiteSettings.AddRange(settings);

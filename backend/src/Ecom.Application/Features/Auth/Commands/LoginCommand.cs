@@ -1,5 +1,7 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
+using Ecom.Domain.Enums;
+using UserRoleEnum = Ecom.Domain.Enums.UserRole;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +35,8 @@ public class LoginCommandHandler(
     {
         var user = await db.Users
             .Include(u => u.Roles)
+            .OrderByDescending(u => u.Roles.Any(r => r.Role == UserRoleEnum.SuperAdmin))
+            .ThenByDescending(u => u.Roles.Any(r => r.Role == UserRoleEnum.Admin))
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
 
         // Hesap kilitli mi?

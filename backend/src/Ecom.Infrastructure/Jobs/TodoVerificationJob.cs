@@ -62,14 +62,15 @@ public class TodoVerificationJob(
 
     public async Task RunAsync(Func<string, Task> log, CancellationToken ct)
     {
+        var siteSettings = await LoadSiteSettingsAsync(ct);
         await log("TODO doğrulama kontrolleri başlıyor...");
         var items = new List<VerificationItem>();
 
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var apiBase = config["VerificationJob:ApiBaseUrl"] ?? "http://localhost:5124";
-        var projectRoot = ResolveProjectRoot();
+        var apiBase = ResolveSetting(siteSettings, "VerificationJob:ApiBaseUrl") ?? "http://localhost:5124";
+        var projectRoot = ResolveProjectRoot(siteSettings);
 
         // API checks
         await log("  [API] Endpoint kontrolleri...");
@@ -218,9 +219,16 @@ public class TodoVerificationJob(
         return results;
     }
 
-    private string? ResolveProjectRoot()
+    private async Task<Dictionary<string, string>> LoadSiteSettingsAsync(CancellationToken ct)
     {
-        var configured = config["VerificationJob:ProjectRoot"];
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        return await db.SiteSettings.ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+    }
+
+    private string? ResolveProjectRoot(IReadOnlyDictionary<string, string> siteSettings)
+    {
+        var configured = ResolveSetting(siteSettings, "VerificationJob:ProjectRoot");
         if (!string.IsNullOrEmpty(configured) && Directory.Exists(configured))
             return configured;
 
@@ -238,7 +246,8 @@ public class TodoVerificationJob(
 
     private async Task WriteLogAsync(VerificationSnapshot snap, string? projectRoot, Func<string, Task> log, CancellationToken ct)
     {
-        var logPath = config["VerificationJob:LogFilePath"];
+        var siteSettings = await LoadSiteSettingsAsync(ct);
+        var logPath = ResolveSetting(siteSettings, "VerificationJob:LogFilePath");
         if (string.IsNullOrEmpty(logPath) && projectRoot != null)
         {
             var parent = Directory.GetParent(projectRoot)?.FullName;
@@ -297,4 +306,9 @@ public class TodoVerificationJob(
             await log($"  ✗ Log yazılamadı: {ex.Message}");
         }
     }
+
+    private string? ResolveSetting(IReadOnlyDictionary<string, string> siteSettings, string key) =>
+        siteSettings.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : config[key];
 }

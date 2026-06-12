@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -144,7 +144,7 @@ export default function AdminOrderDetailPage() {
   const [editShipmentForm, setEditShipmentForm] = useState({ carrier: "", trackingNumber: "", trackingUrl: "", status: 3 });
   const [savingShipment, setSavingShipment] = useState(false);
 
-  async function fetchOrder() {
+  const fetchOrder = useCallback(async () => {
     try {
       const data = await api.get<AdminOrderDetail>(`/api/orders/admin/${orderNumber}`);
       setOrder(data);
@@ -153,9 +153,12 @@ export default function AdminOrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderNumber]);
 
-  useEffect(() => { fetchOrder(); }, [orderNumber]);
+  useEffect(() => {
+    const id = window.setTimeout(() => { void fetchOrder(); }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchOrder]);
 
   async function handleStatusUpdate() {
     if (!order || newStatus === "") return;
@@ -223,9 +226,6 @@ export default function AdminOrderDetailPage() {
   );
 
   const allowedNext = ALLOWED_TRANSITIONS[order.status] ?? [];
-  const discountAmount = (order.totalProductAmount + order.shippingAmount) - order.grandTotal + order.taxAmount
-    - ((order.totalProductAmount + order.shippingAmount + order.taxAmount) - order.grandTotal);
-
   const isDangerousStatus = newStatus === 8 || newStatus === 11;
   const statusConfirmMessage = newStatus !== ""
     ? `Sipariş durumu "${ORDER_STATUS[order?.status ?? 0] ?? "—"}" → "${ORDER_STATUS[Number(newStatus)] ?? "—"}" olarak değiştirilecek.${isDangerousStatus ? " Bu işlem geri alınamaz." : ""}`
@@ -345,7 +345,7 @@ export default function AdminOrderDetailPage() {
           {/* Müşteri notu */}
           {order.note && (
             <Section title="Sipariş Notu" icon={FileText} iconColor="bg-amber-500">
-              <p className="px-5 py-4 text-sm text-slate-700 italic">"{order.note}"</p>
+              <p className="px-5 py-4 text-sm text-slate-700 italic">&quot;{order.note}&quot;</p>
             </Section>
           )}
 
@@ -572,7 +572,7 @@ export default function AdminOrderDetailPage() {
                               )}
                             </div>
                             <p className="text-[11px] text-slate-400">{formatDate(h.changedAt)}</p>
-                            {h.note && <p className="text-[11px] text-slate-500 italic mt-0.5">"{h.note}"</p>}
+                            {h.note && <p className="text-[11px] text-slate-500 italic mt-0.5">&quot;{h.note}&quot;</p>}
                           </div>
                         </div>
                       );

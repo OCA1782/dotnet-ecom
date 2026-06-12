@@ -29,6 +29,17 @@ export const ROLE_SHORT_LABELS: Record<string, string> = Object.fromEntries(
   ROLE_DEFS.map(r => [r.key, r.shortLabel])
 );
 
+export function normalizeAdminRoles(roles: string[] | undefined | null): string[] {
+  const unique = [...new Set((roles ?? []).filter(Boolean))];
+  if (unique.includes("SuperAdmin")) return ["SuperAdmin"];
+  return unique;
+}
+
+export function getPrimaryAdminRole(roles: string[] | undefined | null): string {
+  const normalized = normalizeAdminRoles(roles);
+  return normalized[0] ?? "Admin";
+}
+
 // RBAC matrisinde gösterilen admin rolleri (Customer hariç — panel erişimi yok)
 export const ADMIN_ROLE_COLUMNS = ROLE_DEFS.filter(r => r.isAdmin).map(r => ({
   key: r.key,
