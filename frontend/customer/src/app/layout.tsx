@@ -11,6 +11,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import CompareBar from "@/components/CompareBar";
 import GoogleProvider from "@/components/GoogleProvider";
 import { CompareProvider } from "@/contexts/CompareContext";
+import { I18nProvider } from "@/contexts/I18nContext";
 import { getSettings } from "@/lib/settings";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
       <body className="min-h-full flex flex-col">
         <GoogleProvider>
+        <I18nProvider>
         <CompareProvider>
           <Header
             logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
@@ -76,6 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ThemeProvider />
           <CompareBar />
         </CompareProvider>
+        </I18nProvider>
         </GoogleProvider>
       </body>
     </html>

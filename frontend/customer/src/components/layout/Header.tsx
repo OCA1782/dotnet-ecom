@@ -73,7 +73,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
       }, 0);
       return () => window.clearTimeout(timer);
     }
-    setSuggestLoading(true);
+    window.setTimeout(() => setSuggestLoading(true), 0);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`${API_BASE}/api/products/suggestions?q=${encodeURIComponent(search)}&limit=9`);

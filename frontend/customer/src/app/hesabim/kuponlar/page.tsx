@@ -38,7 +38,7 @@ export default function KuponlarPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    window.setTimeout(() => setLoading(true), 0);
     api
       .get<PaginatedList<CouponUsage>>(`/api/coupons/my?page=${page}&pageSize=10`)
       .then((data) => { setUsages(data.items); setTotalPages(data.totalPages); })

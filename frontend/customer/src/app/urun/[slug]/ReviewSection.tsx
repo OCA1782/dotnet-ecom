@@ -269,7 +269,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
     }
   }, [productId, page]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { window.setTimeout(() => load(), 0); }, [load]);
 
   async function handleSubmit() {
     if (rating === 0) { setSubmitError("Lütfen bir puan seçin."); return; }

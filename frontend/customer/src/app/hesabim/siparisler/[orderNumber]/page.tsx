@@ -491,7 +491,7 @@ export default function OrderDetailPage() {
       .finally(() => setLoading(false));
   }, [user, orderNumber]);
 
-  useEffect(() => { loadOrder(); }, [loadOrder]);
+  useEffect(() => { window.setTimeout(() => loadOrder(), 0); }, [loadOrder]);
 
   async function cancelOrder(reason: string) {
     if (!order) return;

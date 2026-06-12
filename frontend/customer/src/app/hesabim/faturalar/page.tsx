@@ -46,7 +46,7 @@ export default function FaturalarPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    window.setTimeout(() => setLoading(true), 0);
     api
       .get<PaginatedList<Invoice>>(`/api/invoices/my?page=${page}&pageSize=10`)
       .then((data) => { setInvoices(data.items); setTotalPages(data.totalPages); })

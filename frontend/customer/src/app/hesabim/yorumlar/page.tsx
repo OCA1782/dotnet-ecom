@@ -43,7 +43,7 @@ export default function YorumlarPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    window.setTimeout(() => setLoading(true), 0);
     api
       .get<PaginatedList<MyReview>>(`/api/reviews/my?page=${page}&pageSize=10`)
       .then((data) => { setReviews(data.items); setTotalPages(data.totalPages); })

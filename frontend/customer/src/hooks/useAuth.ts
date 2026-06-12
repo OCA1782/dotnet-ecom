@@ -59,7 +59,7 @@ export function useAuth() {
     if (user) {
       api.get("/api/users/me").catch(() => {});
     }
-    setLoading(false);
+    window.setTimeout(() => setLoading(false), 0);
 
     function handleAuthChange() {
       const s = localStorage.getItem(USER_KEY);

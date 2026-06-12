@@ -47,7 +47,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    window.setTimeout(() => setLoading(true), 0);
     api
       .get<PaginatedList<OrderSummary>>(`/api/orders/my?page=${page}&pageSize=10`)
       .then((data) => { setOrders(data.items); setTotalPages(data.totalPages); })

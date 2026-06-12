@@ -121,7 +121,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     fetchCart();
-    if (user) fetchAddresses();
+    if (user) window.setTimeout(() => fetchAddresses(), 0);
   }, [user, fetchCart, fetchAddresses]);
 
   function setGuest(f: keyof GuestForm, v: string) { setGuestForm((p) => ({ ...p, [f]: v })); }

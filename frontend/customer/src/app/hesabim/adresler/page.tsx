@@ -63,7 +63,7 @@ export default function AddressesPage() {
   }, []);
 
   useEffect(() => {
-    if (user) fetchAddresses();
+    if (user) window.setTimeout(() => fetchAddresses(), 0);
   }, [user, fetchAddresses]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {

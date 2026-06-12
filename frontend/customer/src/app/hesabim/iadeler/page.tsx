@@ -26,7 +26,7 @@ export default function IadelerPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    window.setTimeout(() => setLoading(true), 0);
     api
       .get<PaginatedList<OrderSummary>>(
         `/api/orders/my?page=${page}&pageSize=10&statuses=${RETURN_STATUSES}`

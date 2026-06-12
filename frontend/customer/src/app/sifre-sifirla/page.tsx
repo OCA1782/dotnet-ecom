@@ -17,7 +17,7 @@ function ResetPasswordForm() {
   const token = searchParams.get("token") ?? "";
 
   const [step, setStep] = useState<"channel" | "request" | "reset">(email && token ? "reset" : "channel");
-  const [channel, setChannel] = useState<Channel>("email");
+  const [, setChannel] = useState<Channel>("email");
   const [requestEmail, setRequestEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
