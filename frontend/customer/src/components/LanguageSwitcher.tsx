@@ -39,8 +39,7 @@ export default function LanguageSwitcher() {
         className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition"
         title="Dil Seç / Language"
       >
-        <span className="text-base leading-none">{current.flag}</span>
-        <span className="hidden sm:inline font-medium">{current.code.toUpperCase()}</span>
+        <span className="font-medium">{current.code.toUpperCase()}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
           <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>

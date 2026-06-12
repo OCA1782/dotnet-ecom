@@ -31,8 +31,7 @@ export default function LanguageSwitcher() {
         }`}
       >
         <Globe size={13} className="shrink-0" />
-        <span className="text-sm leading-none">{current.flag}</span>
-        <span className="hidden sm:inline text-xs font-bold tracking-wide">{current.short}</span>
+        <span className="text-xs font-bold tracking-wide">{current.short}</span>
         <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className={`opacity-50 transition-transform duration-150 ${open ? "rotate-180" : ""}`}>
           <path d="M1 2.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
