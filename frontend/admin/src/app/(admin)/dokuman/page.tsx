@@ -1506,11 +1506,11 @@ function DocsNotlarTab() {
 
   useEffect(() => {
     if (!selected && preferredFile) {
-      setSelected(preferredFile);
+      window.setTimeout(() => setSelected(preferredFile), 0);
       return;
     }
     if (selected && files.length > 0 && !files.some(f => f.name === selected) && preferredFile) {
-      setSelected(preferredFile);
+      window.setTimeout(() => setSelected(preferredFile), 0);
     }
   }, [files, preferredFile, selected]);
 

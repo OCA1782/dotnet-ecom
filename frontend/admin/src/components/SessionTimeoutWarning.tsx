@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Clock, RefreshCw, LogOut } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const TOKEN_KEY = "admin_token";
 const WARN_BEFORE_MS = 5 * 60 * 1000; // 5 dakika kala uyar
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function SessionTimeoutWarning({ onRefresh, onLogout }: Props) {
+  const { t } = useI18n();
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -79,12 +81,12 @@ export default function SessionTimeoutWarning({ onRefresh, onLogout }: Props) {
       </div>
       <div className="flex-1 min-w-0">
         <p className={`font-semibold text-sm ${expired ? "text-red-800" : "text-amber-800"}`}>
-          {expired ? "Oturum süresi doldu" : `Oturum ${minutesLeft} dk içinde dolacak`}
+          {expired ? t("session.expired", "Oturum süresi doldu") : `${t("session.expiresIn", "Oturum")} ${minutesLeft} ${t("session.expiresInMin", "dk içinde dolacak")}`}
         </p>
         <p className={`text-xs mt-0.5 ${expired ? "text-red-600" : "text-amber-600"}`}>
           {expired
-            ? "Devam etmek için tekrar giriş yapın."
-            : "Çalışmaya devam etmek için oturumu yenileyin."}
+            ? t("session.expiredMsg", "Devam etmek için tekrar giriş yapın.")
+            : t("session.expiresMsg", "Çalışmaya devam etmek için oturumu yenileyin.")}
         </p>
         <div className="flex gap-2 mt-3">
           {!expired && (
@@ -94,7 +96,7 @@ export default function SessionTimeoutWarning({ onRefresh, onLogout }: Props) {
               className="flex items-center gap-1.5 bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-700 transition disabled:opacity-60"
             >
               <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-              {refreshing ? "Yenileniyor..." : "Oturumu Yenile"}
+              {refreshing ? t("session.refreshing", "Yenileniyor...") : t("session.refresh", "Oturumu Yenile")}
             </button>
           )}
           <button
@@ -106,14 +108,14 @@ export default function SessionTimeoutWarning({ onRefresh, onLogout }: Props) {
             }`}
           >
             <LogOut size={12} />
-            Çıkış Yap
+            {t("action.logout", "Çıkış Yap")}
           </button>
           {!expired && (
             <button
               onClick={() => setDismissed(true)}
               className="ml-auto text-xs text-amber-500 hover:text-amber-700 transition px-1"
             >
-              Kapat
+              {t("action.close", "Kapat")}
             </button>
           )}
         </div>

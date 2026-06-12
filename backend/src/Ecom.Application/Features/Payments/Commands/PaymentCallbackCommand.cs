@@ -15,7 +15,9 @@ public record PaymentCallbackCommand(
 
 public class PaymentCallbackHandler(
     IApplicationDbContext db,
-    IPaymentService paymentService,
+#pragma warning disable CS9113
+    IPaymentService paymentService,  // reserved for Iyzico callback verification
+#pragma warning restore CS9113
     IStockService stockService,
     IEventPublisher eventPublisher
 ) : IRequestHandler<PaymentCallbackCommand, Result>

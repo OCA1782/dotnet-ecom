@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, ShoppingCart, AlertTriangle, MessageSquare, X } from "lucide-react";
 import { api } from "@/lib/api";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface NotificationItem {
   type: "order" | "stock" | "review";
@@ -30,16 +31,9 @@ const TYPE_COLOR = {
   review: "text-violet-600 bg-violet-50",
 } as const;
 
-function timeAgo(iso: string): string {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "az önce";
-  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} sa önce`;
-  return `${Math.floor(diff / 86400)} gün önce`;
-}
-
 export default function NotificationsPanel() {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<NotificationsDto | null>(null);
   const [loading, setLoading] = useState(false);
@@ -95,7 +89,7 @@ export default function NotificationsPanel() {
       {open && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-            <span className="text-sm font-semibold text-slate-800">Bildirimler</span>
+            <span className="text-sm font-semibold text-slate-800">{t("notifications.title", "Bildirimler")}</span>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 transition">
               <X size={16} />
             </button>
@@ -103,17 +97,25 @@ export default function NotificationsPanel() {
 
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-50">
             {loading && !data && (
-              <div className="px-4 py-6 text-center text-sm text-slate-400">Yükleniyor...</div>
+              <div className="px-4 py-6 text-center text-sm text-slate-400">{t("action.loading", "Yükleniyor...")}</div>
             )}
             {!loading && data?.items.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-slate-400">
                 <Bell size={28} className="mx-auto mb-2 opacity-30" />
-                Bildirim yok
+                {t("notifications.empty", "Bildirim yok")}
               </div>
             )}
             {data?.items.map((item, i) => {
               const Icon = TYPE_ICON[item.type];
               const color = TYPE_COLOR[item.type];
+              const diff = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
+              const ago = diff < 60
+                ? t("timeAgo.justNow", "az önce")
+                : diff < 3600
+                  ? `${Math.floor(diff / 60)} ${t("timeAgo.min", "dk önce")}`
+                  : diff < 86400
+                    ? `${Math.floor(diff / 3600)} ${t("timeAgo.hour", "sa önce")}`
+                    : `${Math.floor(diff / 86400)} ${t("timeAgo.day", "gün önce")}`;
               return (
                 <button
                   key={i}
@@ -126,7 +128,7 @@ export default function NotificationsPanel() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-slate-700">{item.title}</p>
                     <p className="text-xs text-slate-500 truncate">{item.body}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{timeAgo(item.createdAt)}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{ago}</p>
                   </div>
                 </button>
               );
@@ -138,7 +140,7 @@ export default function NotificationsPanel() {
               onClick={fetchNotifications}
               className="text-xs text-teal-600 hover:text-teal-700 font-medium transition"
             >
-              Yenile
+              {t("action.refresh", "Yenile")}
             </button>
           </div>
         </div>
