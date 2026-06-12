@@ -34,7 +34,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
+  const [mounted, setMounted] = useState(false);
 
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
@@ -310,7 +310,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
 
             <div className="flex items-center gap-4" data-slot="actions">
               <LanguageSwitcher />
-              {user ? (
+              {mounted && user ? (
                 <button ref={buttonRef} onClick={openMenu} className="flex items-center gap-1.5 text-sm transition">
                   <User size={20} />
                   <span className="hidden sm:inline font-medium">{t("header.greeting").replace("{name}", user.name)}</span>
