@@ -49,7 +49,7 @@ export default function LanguageSwitcher() {
           {langs.map(l => (
             <button
               key={l.code}
-              onClick={() => { setLang(l.code as Lang); setOpen(false); }}
+              onClick={() => { setLang(l.code as Lang); setOpen(false); window.location.reload(); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition ${
                 lang === l.code
                   ? "bg-indigo-50 text-indigo-700"

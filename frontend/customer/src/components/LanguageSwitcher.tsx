@@ -32,9 +32,10 @@ export default function LanguageSwitcher() {
   }, []);
 
   function chooseLang(code: Lang) {
-    setLangState(code);
     localStorage.setItem(LANG_KEY, code);
+    document.cookie = `ecom_lang=${code}; path=/; max-age=${60 * 60 * 24 * 365}`;
     setOpen(false);
+    window.location.reload();
   }
 
   const current = LANGS.find(l => l.code === lang) ?? LANGS[0];
