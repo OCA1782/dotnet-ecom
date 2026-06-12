@@ -59,7 +59,7 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
           <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-1"
-              onError={e => { (e.currentTarget as HTMLImageElement).src = "/logo-icon.png"; }} />
+              onError={e => { (e.currentTarget as HTMLImageElement).src = "/logo-icon.svg"; }} />
           </div>
           <LoginBrandName title={siteTitle} />
           {siteTitle.trim().split(/\s+/).length >= 3 && (

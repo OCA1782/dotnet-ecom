@@ -147,7 +147,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     typeof window !== "undefined" ? (localStorage.getItem("admin:siteTitle") || "") : ""
   );
   const [logoUrl, setLogoUrl] = useState(() =>
-    typeof window !== "undefined" ? (localStorage.getItem("admin:logoUrl") || "/logo-icon.png") : "/logo-icon.png"
+    typeof window !== "undefined" ? (localStorage.getItem("admin:logoUrl") || "/logo-icon.svg") : "/logo-icon.svg"
   );
   const [logoNamedUrl, setLogoNamedUrl] = useState(() =>
     typeof window !== "undefined" ? (localStorage.getItem("admin:logoNamedUrl") || "") : ""
@@ -258,7 +258,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     function onSettingsUpdated(e: Event) {
       const s = (e as CustomEvent<Record<string, string>>).detail;
       if (s.AdminTitle) { setSiteTitle(s.AdminTitle); localStorage.setItem("admin:siteTitle", s.AdminTitle); }
-      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png";
+      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.svg";
       const logoNamed = s.AdminLogoNamed || "";
       setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
       setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
@@ -270,7 +270,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     api.get<Record<string, string>>("/api/admin/settings").then(s => {
       if (s.AdminTitle) { setSiteTitle(s.AdminTitle); localStorage.setItem("admin:siteTitle", s.AdminTitle); }
-      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.png";
+      const logo = s.AdminLogoIcon || s.LogoUrl || "/logo-icon.svg";
       const logoNamed = s.AdminLogoNamed || "";
       setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
       setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
@@ -365,7 +365,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="w-12 h-12 bg-white rounded-xl overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
-                onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.png"; }} />
+                onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.svg"; }} />
             </div>
           ) : logoNamedUrl ? (
             /* Genişletilmiş: isimli logo görsel olarak */

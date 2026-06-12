@@ -8,14 +8,14 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const title = settings.AdminTitle || "Admin Panel";
-  const rawFavicon = settings.AdminFaviconUrl || settings.FaviconUrl || "/logo-icon.png";
+  const rawFavicon = settings.AdminFaviconUrl || settings.FaviconUrl || "/logo-icon.svg";
   const version = settings.SettingsVersion ?? "";
   const faviconUrl = version ? `${rawFavicon}?v=${version}` : rawFavicon;
   return {
     title,
     description: `${title} yönetim paneli`,
     icons: {
-      icon: [{ url: faviconUrl, type: "image/png" }],
+      icon: [{ url: faviconUrl, type: faviconUrl.endsWith(".svg") ? "image/svg+xml" : "image/png" }],
       apple: faviconUrl,
     },
   };

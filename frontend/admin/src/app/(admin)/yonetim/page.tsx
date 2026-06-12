@@ -1892,7 +1892,7 @@ export default function YonetimPage() {
                   <span className="w-5 h-5 rounded-full bg-indigo-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">◀</span>
                   <div>
                     <p className="text-xs font-semibold text-slate-700">{t("auto.daraltilmisSidebar", "Daraltılmış sidebar → her zaman Admin İsimsiz Logo ikonu")}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boşsa <code className="bg-slate-100 px-1 rounded">/logo-icon.png</code> gösterilir.</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5"><code className="bg-slate-100 px-1 rounded">AdminLogoIcon</code> boşsa <code className="bg-slate-100 px-1 rounded">/logo-icon.svg</code> gösterilir.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">

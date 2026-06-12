@@ -103,7 +103,7 @@ export default function HeroSlider({ announcements }: Props) {
                 </div>
                 <div className="absolute right-8 bottom-4 w-72 h-72 pointer-events-none hidden lg:block opacity-[0.07]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-icon.png" alt="" className="w-full h-full object-contain" style={{ filter: "brightness(100)" }} />
+                  <img src="/logo-icon.svg" alt="" className="w-full h-full object-contain" style={{ filter: "brightness(100)" }} />
                 </div>
                 <div className="relative px-8 py-16 lg:px-16 lg:py-20">
                   <span className="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6 backdrop-blur-sm border border-white/20">
