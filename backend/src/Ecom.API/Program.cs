@@ -232,6 +232,7 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<InputSanitizationMiddleware>();
 app.UseMiddleware<ValidationExceptionMiddleware>();
+app.UseMiddleware<Ecom.Infrastructure.Middleware.IpWhitelistMiddleware>();
 app.UseCors("EcomCors");
 app.UseMiddleware<LicenseMiddleware>();
 app.UseMiddleware<ErrorLoggingMiddleware>();

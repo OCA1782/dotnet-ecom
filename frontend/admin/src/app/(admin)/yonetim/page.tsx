@@ -1780,6 +1780,13 @@ export default function YonetimPage() {
     return () => window.clearTimeout(timer);
   }, [tab, isSuperAdmin, loadLicenseAssignments, loadLicenseHistory]);
 
+  // ── IP Whitelist state ─────────────────────────────────────────────────────
+  const [ipEnabled, setIpEnabled]   = useState(false);
+  const [ipList, setIpList]         = useState<string[]>([]);
+  const [ipNewEntry, setIpNewEntry] = useState("");
+  const [ipSaving, setIpSaving]     = useState(false);
+  const [ipSaved, setIpSaved]       = useState(false);
+
   // ── Bildirimler tab state ───────────────────────────────────────────────────
   const [alertEnabled, setAlertEnabled]   = useState(false);
   const [alertEmails, setAlertEmails]     = useState<string[]>([]);
@@ -1799,6 +1806,12 @@ export default function YonetimPage() {
   }, [tab]);
 
   useEffect(() => {
+    if (tab !== "sistem") return;
+    setIpEnabled(settings["Security:IpWhitelistEnabled"] === "true");
+    setIpList((settings["Security:IpWhitelist"] ?? "").split(",").map(s => s.trim()).filter(Boolean));
+  }, [tab, settings]);
+
+  useEffect(() => {
     if (tab !== "bildirimler") return;
     const timer = window.setTimeout(() => {
       const enabled = settings["Alert:Enabled"] === "true";
@@ -1809,6 +1822,22 @@ export default function YonetimPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [tab, settings]);
+
+  async function saveIpWhitelist() {
+    setIpSaving(true);
+    try {
+      await api.put("/api/admin/settings", {
+        "Security:IpWhitelistEnabled": ipEnabled ? "true" : "false",
+        "Security:IpWhitelist": ipList.join(","),
+      });
+      set("Security:IpWhitelistEnabled", ipEnabled ? "true" : "false");
+      set("Security:IpWhitelist", ipList.join(","));
+      setIpSaved(true);
+      setTimeout(() => setIpSaved(false), 2500);
+    } catch { } finally {
+      setIpSaving(false);
+    }
+  }
 
   async function saveAlertSettings() {
     setAlertSaving(true);
@@ -4769,6 +4798,96 @@ export default function YonetimPage() {
                   <Lock size={11} className="shrink-0 mt-0.5 text-slate-400" />
                   Private key yalnızca bu tarayıcı sekmesinde kullanılır. Sunucuya gönderilmez.
                 </div>
+              </div>
+            </Section>
+          )}
+
+          {/* ── IP Whitelist (SuperAdmin only) ── */}
+          {isSuperAdmin && (
+            <Section title="IP Erişim Kısıtlaması" icon={<Shield size={16} />}
+              subtitle="Yalnızca izin listesindeki IP adreslerinden /api/admin/* isteklerine izin verir. Loopback (127.0.0.1, ::1) her zaman izin verilir. Değişiklikler 60 saniye içinde etkin olur.">
+              <div className="space-y-4">
+                {/* Toggle */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">IP Whitelist Aktif</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {ipEnabled
+                        ? "Aktif — Sadece listedeki IP'ler admin API'ye erişebilir."
+                        : "Pasif — Tüm IP'ler admin API'ye erişebilir."}
+                    </p>
+                  </div>
+                  <button onClick={() => setIpEnabled(v => !v)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${ipEnabled ? "bg-red-500" : "bg-slate-300"}`}>
+                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${ipEnabled ? "left-7" : "left-1"}`} />
+                  </button>
+                </div>
+
+                {ipEnabled && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-start gap-2">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Dikkat:</strong> Kaydet&apos;e basmadan önce kendi IP&apos;nizi listeye ekleyin.
+                      Aksi hâlde admin paneline erişiminiz kesilebilir.
+                    </span>
+                  </div>
+                )}
+
+                {/* IP listesi */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-600">İzin Verilen IP Adresleri</p>
+                  {ipList.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Henüz IP eklenmedi.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {ipList.map(ip => (
+                        <div key={ip} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                          <span className="flex-1 font-mono text-xs text-slate-700">{ip}</span>
+                          <button onClick={() => setIpList(prev => prev.filter(x => x !== ip))}
+                            className="text-slate-400 hover:text-red-500 transition">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Yeni IP ekle */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={ipNewEntry}
+                      onChange={e => setIpNewEntry(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && ipNewEntry.trim() && !ipList.includes(ipNewEntry.trim())) {
+                          setIpList(prev => [...prev, ipNewEntry.trim()]);
+                          setIpNewEntry("");
+                        }
+                      }}
+                      placeholder="1.2.3.4"
+                      className={inp + " flex-1 font-mono text-sm"}
+                    />
+                    <button
+                      type="button"
+                      disabled={!ipNewEntry.trim() || ipList.includes(ipNewEntry.trim())}
+                      onClick={() => {
+                        if (ipNewEntry.trim() && !ipList.includes(ipNewEntry.trim())) {
+                          setIpList(prev => [...prev, ipNewEntry.trim()]);
+                          setIpNewEntry("");
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl transition disabled:opacity-40">
+                      <Plus size={13} /> Ekle
+                    </button>
+                  </div>
+                </div>
+
+                {/* Kaydet */}
+                <button onClick={saveIpWhitelist} disabled={ipSaving}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50">
+                  {ipSaving ? <Loader2 size={14} className="animate-spin" /> : ipSaved ? <CheckCircle size={14} /> : <Save size={14} />}
+                  {ipSaved ? "Kaydedildi!" : "Kaydet"}
+                </button>
               </div>
             </Section>
           )}
