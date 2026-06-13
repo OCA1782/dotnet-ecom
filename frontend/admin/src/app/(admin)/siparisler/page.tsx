@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { AdminOrderSummary, PaginatedList } from "@/types";
 import { ORDER_STATUS, ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
-import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw, CheckCircle2, Trash2, Activity, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Search, Download, PauseCircle, XCircle, Eye, AlertTriangle, Clock, RotateCcw, CheckCircle2, Trash2, Activity, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2 } from "lucide-react";
 import { exportToExcel } from "@/lib/excel";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -105,6 +105,8 @@ export default function OrdersPage() {
   const [cancelModal, setCancelModal] = useState<ModalTarget | null>(null);
   const [deleteModal, setDeleteModal] = useState<ModalTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -136,6 +138,9 @@ export default function OrdersPage() {
     const id = window.setTimeout(() => { void fetchOrders(); }, 0);
     return () => window.clearTimeout(id);
   }, [fetchOrders]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSelectedIds(new Set()); }, [page]);
 
   async function confirmApprove() {
     if (!approveModal) return;
@@ -190,6 +195,36 @@ export default function OrdersPage() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  const allPageIds = orders.map(o => o.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id)) && !allSelected;
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) allPageIds.forEach(id => next.delete(id));
+      else allPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  async function handleBulkCancel() {
+    const ids = [...selectedIds].filter(id => CANCELLABLE.has(orders.find(o => o.id === id)?.status ?? -1));
+    if (ids.length === 0) { setMsg({ text: t("msg.noCancellable", "Seçili siparişlerin hiçbiri iptal edilemiyor."), ok: false }); return; }
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.post(`/api/orders/admin/${id}/cancel`, {})));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} sipariş iptal edildi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void fetchOrders();
   }
 
   async function handleCsvExport() {
@@ -298,6 +333,25 @@ export default function OrdersPage() {
         </select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
+          <span className="text-sm font-semibold shrink-0">{selectedIds.size} sipariş seçili</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={handleBulkCancel}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={13} />}
+              {t("action.cancelOrder", "İptal Et")}
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
+              <XCircle size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Liste-bazlı alarm bandı */}
       {!loading && (() => {
         const refundCount = orders.filter(o => o.status === 9).length;
@@ -343,6 +397,11 @@ export default function OrdersPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  <th className="px-4 py-3 w-10">
+                    <button onClick={toggleSelectAll} className="text-slate-400 hover:text-slate-700 transition">
+                      {allSelected ? <CheckSquare size={16} className="text-slate-700" /> : someSelected ? <CheckSquare size={16} className="opacity-50" /> : <Square size={16} />}
+                    </button>
+                  </th>
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.orderNumber", "Sipariş No")}</th>
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.customer", "Müşteri")}</th>
                   <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
@@ -355,7 +414,7 @@ export default function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {orders.length === 0 ? (
-                  <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                  <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
                 ) : orders.map((order) => {
                   const warning = getOrderWarning(order.status);
                   return (
@@ -366,7 +425,12 @@ export default function OrdersPage() {
                           : warning?.level === "amber"
                           ? "bg-amber-50/50 border-l-4 border-l-amber-400 hover:bg-amber-50"
                           : "hover:bg-slate-50"
-                      }`}>
+                      } ${selectedIds.has(order.id) ? "!bg-slate-100" : ""}`}>
+                        <td className="px-4 py-3.5 w-10">
+                          <button onClick={() => toggleSelect(order.id)} className="text-slate-400 hover:text-slate-700 transition">
+                            {selectedIds.has(order.id) ? <CheckSquare size={15} className="text-slate-700" /> : <Square size={15} />}
+                          </button>
+                        </td>
                         <td className="px-5 py-3.5">
                           <Link href={`/siparisler/${order.orderNumber}`} className="font-semibold text-slate-800 hover:text-teal-600 text-xs font-mono">
                             {order.orderNumber}
@@ -431,7 +495,7 @@ export default function OrdersPage() {
                         <tr className={warning.level === "red"
                           ? "bg-red-50 border-l-4 border-l-red-500"
                           : "bg-amber-50/50 border-l-4 border-l-amber-400"}>
-                          <td colSpan={7} className="px-5 pb-2.5 pt-0">
+                          <td colSpan={8} className="px-5 pb-2.5 pt-0">
                             <div className="flex items-center gap-2">
                               {warning.icon}
                               <span className={`text-xs font-semibold ${warning.level === "red" ? "text-red-600" : "text-amber-700"}`}>

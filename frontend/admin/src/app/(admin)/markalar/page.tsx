@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
-import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, Pencil, X, Download, Upload, Search, ToggleLeft, ToggleRight, Trash2, Info, History, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2 } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import BrandPreview from "@/components/previews/BrandPreview";
@@ -102,6 +102,8 @@ export default function MarkalarPage() {
   const [pageSize, setPageSize] = useState(20);
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -130,6 +132,40 @@ export default function MarkalarPage() {
     const id = window.setTimeout(() => { void fetch(); }, 0);
     return () => window.clearTimeout(id);
   }, [fetch]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSelectedIds(new Set()); }, [page]);
+
+  const allPageIds = brands.map(b => b.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id)) && !allSelected;
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) allPageIds.forEach(id => next.delete(id));
+      else allPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  async function handleBulkToggle(targetActive: boolean) {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => {
+      const b = brands.find(b => b.id === id);
+      if (!b || b.isActive === targetActive) return Promise.resolve();
+      return api.put(`/api/brands/${id}`, { id, name: b.name, slug: b.slug, logoUrl: b.logoUrl || null, description: null, metaTitle: null, metaDescription: null, isActive: targetActive });
+    }));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    setMsg({ text: `${ok} marka ${targetActive ? "aktif" : "pasif"} yapıldı.`, ok: true });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    void fetch();
+  }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -246,6 +282,27 @@ export default function MarkalarPage() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
+          <span className="text-sm font-semibold shrink-0">{selectedIds.size} marka seçili</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => handleBulkToggle(true)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/80 hover:bg-emerald-500 rounded-xl transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleRight size={13} />}
+              {t("action.activate", "Aktifleştir")}
+            </button>
+            <button onClick={() => handleBulkToggle(false)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50">
+              <ToggleLeft size={13} /> Pasife Al
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Search & Filter */}
       <div className="sticky top-0 z-10 bg-white py-3 flex flex-wrap gap-3">
         <form onSubmit={handleSearch} className="flex gap-2">
@@ -298,6 +355,11 @@ export default function MarkalarPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-slate-700 transition">
+                    {allSelected ? <CheckSquare size={16} className="text-slate-700" /> : someSelected ? <CheckSquare size={16} className="opacity-50" /> : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("ui.brandLabel", "Marka")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
                   <span className="flex items-center gap-1">
@@ -315,9 +377,14 @@ export default function MarkalarPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {brands.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : brands.map(b => (
-                <tr key={b.id} className="hover:bg-slate-50">
+                <tr key={b.id} className={`hover:bg-slate-50 ${selectedIds.has(b.id) ? "!bg-slate-100" : ""}`}>
+                  <td className="px-4 py-3 w-10">
+                    <button onClick={() => toggleSelect(b.id)} className="text-slate-400 hover:text-slate-700 transition">
+                      {selectedIds.has(b.id) ? <CheckSquare size={15} className="text-slate-700" /> : <Square size={15} />}
+                    </button>
+                  </td>
                   <td className="px-5 py-3 font-semibold text-slate-800 text-xs">
                     <div className="flex items-center gap-3">
                       {b.logoUrl

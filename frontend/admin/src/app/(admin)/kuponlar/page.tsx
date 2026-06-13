@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import type { Coupon, PaginatedList } from "@/types";
 import { COUPON_TYPE_LABEL } from "@/types";
 import { exportToExcel } from "@/lib/excel";
-import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Search, X, History, Clock, Tag, ShoppingCart, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import CouponPreview from "@/components/previews/CouponPreview";
@@ -109,6 +109,9 @@ export default function KuponlarPage() {
 
   const [pageSize, setPageSize] = useState(20);
   const PAGE_SIZES = [20, 50, 100];
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -169,6 +172,50 @@ export default function KuponlarPage() {
     const id = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSelectedIds(new Set()); }, [page]);
+
+  const allPageIds = coupons.map(c => c.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id)) && !allSelected;
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) allPageIds.forEach(id => next.delete(id));
+      else allPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  async function handleBulkToggleActive(targetActive: boolean) {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => {
+      const c = coupons.find(c => c.id === id);
+      if (!c || c.isActive === targetActive) return Promise.resolve();
+      return api.put(`/api/admin/coupons/${id}`, {
+        code: c.code,
+        type: c.type,
+        value: c.value,
+        minOrderAmount: c.minOrderAmount,
+        maxUsageCount: c.maxUsageCount,
+        maxUsagePerUser: c.maxUsagePerUser,
+        startDate: c.startDate ? new Date(c.startDate).toISOString() : undefined,
+        endDate: c.endDate ? new Date(c.endDate).toISOString() : undefined,
+        isActive: targetActive,
+      });
+    }));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    setMsg({ text: `${ok} kupon ${targetActive ? "aktif" : "pasif"} yapıldı.`, ok: true });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    void load();
+  }
   useEffect(() => {
     if (activeTab !== "hareketler") return;
     const id = window.setTimeout(() => { void loadAllUsages(); }, 0);
@@ -290,9 +337,35 @@ export default function KuponlarPage() {
         ))}
       </div>
 
+      {msg && (
+        <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {msg.text} <button onClick={() => setMsg(null)}><X size={14} /></button>
+        </div>
+      )}
+
       {/* ===== KUPONLAR TAB ===== */}
       {activeTab === "kuponlar" && (
         <>
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
+              <span className="text-sm font-semibold shrink-0">{selectedIds.size} kupon seçili</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button onClick={() => handleBulkToggleActive(true)} disabled={bulkLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/80 hover:bg-emerald-500 rounded-xl transition disabled:opacity-50">
+                  {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleRight size={13} />}
+                  {t("action.activate", "Aktifleştir")}
+                </button>
+                <button onClick={() => handleBulkToggleActive(false)} disabled={bulkLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50">
+                  <ToggleLeft size={13} /> Pasife Al
+                </button>
+                <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-3 items-center">
             <form onSubmit={e => { e.preventDefault(); setPage(1); setSearch(searchInput); }} className="flex gap-2">
               <div className="relative">
@@ -337,6 +410,11 @@ export default function KuponlarPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
+                    <th className="px-4 py-3 w-10">
+                      <button onClick={toggleSelectAll} className="text-slate-400 hover:text-slate-700 transition">
+                        {allSelected ? <CheckSquare size={16} className="text-slate-700" /> : someSelected ? <CheckSquare size={16} className="opacity-50" /> : <Square size={16} />}
+                      </button>
+                    </th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.code", "Kod")}</th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.type", "Tür")}</th>
                     <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.discount", "İndirim")}</th>
@@ -352,9 +430,14 @@ export default function KuponlarPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {coupons.length === 0 ? (
-                    <tr><td colSpan={11} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                    <tr><td colSpan={12} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
                   ) : coupons.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50">
+                    <tr key={c.id} className={`hover:bg-slate-50 ${selectedIds.has(c.id) ? "!bg-slate-100" : ""}`}>
+                      <td className="px-4 py-3 w-10">
+                        <button onClick={() => toggleSelect(c.id)} className="text-slate-400 hover:text-slate-700 transition">
+                          {selectedIds.has(c.id) ? <CheckSquare size={15} className="text-slate-700" /> : <Square size={15} />}
+                        </button>
+                      </td>
                       <td className="px-5 py-3 font-mono font-semibold text-slate-800 text-xs">{c.code}</td>
                       <td className="px-5 py-3 text-slate-600 text-xs">{COUPON_TYPE_LABEL[c.type]}</td>
                       <td className="px-5 py-3 text-slate-600 text-xs">

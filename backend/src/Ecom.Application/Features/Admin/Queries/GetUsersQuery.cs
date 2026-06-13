@@ -23,7 +23,7 @@ public record UserListItemDto(
     string? CreatedByAdminEmail = null
 );
 
-public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null, string? SortBy = null) : IRequest<PaginatedList<UserListItemDto>>;
+public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null, string? SortBy = null, string? Role = null, bool? IsActive = null) : IRequest<PaginatedList<UserListItemDto>>;
 
 public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetUsersQuery, PaginatedList<UserListItemDto>>
 {
@@ -41,6 +41,18 @@ public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService curre
         {
             var s = request.Search.Trim();
             query = query.Where(u => u.Email.Contains(s) || u.Name.Contains(s) || u.Surname.Contains(s));
+        }
+
+        if (request.IsActive.HasValue)
+            query = query.Where(u => u.IsActive == request.IsActive.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.Role) && Enum.TryParse<UserRoleEnum>(request.Role, out var roleEnum))
+        {
+            var usersWithRole = await db.UserRoles
+                .Where(r => r.Role == roleEnum)
+                .Select(r => r.UserId)
+                .ToListAsync(cancellationToken);
+            query = query.Where(u => usersWithRole.Contains(u.Id));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

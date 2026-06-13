@@ -8,7 +8,7 @@ import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate, resolveMediaUrl } from "@/lib/utils";
 import { ROLE_COLORS, ROLE_LABELS, ADMIN_ROLES, ALL_ROLE_DEFS } from "@/lib/roles";
 import type { AdminUser, PaginatedList } from "@/types";
-import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2 } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import { UserPreview } from "@/components/previews/UserPreview";
@@ -108,6 +108,10 @@ export default function UsersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState<"" | "true" | "false">("");
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -155,18 +159,65 @@ export default function UsersPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (search) qs.set("search", search);
       if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
+      if (roleFilter) qs.set("role", roleFilter);
+      if (userStatusFilter) qs.set("isActive", userStatusFilter);
       const data = await api.get<PaginatedList<AdminUser>>(`/api/admin/users?${qs}`);
       setUsers(data.items);
       setTotalPages(data.totalPages);
       setTotalCount(data.totalCount);
     } catch { setUsers([]); }
     finally { setLoading(false); }
-  }, [page, pageSize, search, sortField, sortDir]);
+  }, [page, pageSize, search, sortField, sortDir, roleFilter, userStatusFilter]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void fetchUsers(); }, 0);
     return () => window.clearTimeout(id);
   }, [fetchUsers]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSelectedIds(new Set()); }, [page]);
+
+  const allPageIds = users.map(u => u.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id)) && !allSelected;
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) allPageIds.forEach(id => next.delete(id));
+      else allPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  async function handleBulkDeactivate() {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => {
+      const u = users.find(u => u.id === id);
+      return u?.isActive ? api.patch(`/api/admin/users/${id}/deactivate`, {}) : Promise.resolve();
+    }));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    setMsg({ text: `${ok} kullanıcı pasife alındı.`, ok: true });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    void fetchUsers();
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/admin/users/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setMsg({ text: `${ok} kullanıcı silindi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    void fetchUsers();
+  }
 
   async function handleCreate() {
     if (!form.name || !form.surname || !form.email || !form.password) {
@@ -343,20 +394,59 @@ export default function UsersPage() {
               className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-64 text-slate-900 bg-white" />
           </div>
           <button type="submit" className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition">{t("action.search", "Ara")}</button>
-          {search && <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
-            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>}
+          {(search || searchInput || roleFilter || userStatusFilter) && (
+            <button type="button" onClick={() => { setSearch(""); setSearchInput(""); setRoleFilter(""); setUserStatusFilter(""); setPage(1); }}
+              className="px-4 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
+          )}
         </form>
+        <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <option value="">Tüm Roller</option>
+          {ALL_ROLE_DEFS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+        </select>
+        <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value as "" | "true" | "false"); setPage(1); }}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
+          <option value="true">{t("status.active", "Aktif")}</option>
+          <option value="false">{t("status.passive", "Pasif")}</option>
+        </select>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
           {PAGE_SIZES.map(s => <option key={s} value={s}>{s} {t("table.perPage", "kayıt")}</option>)}
         </select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
+          <span className="text-sm font-semibold shrink-0">{selectedIds.size} kullanıcı seçili</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={handleBulkDeactivate} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleLeft size={13} />}
+              Pasife Al
+            </button>
+            <button onClick={handleBulkDelete} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50">
+              <Trash2 size={12} /> {t("action.delete", "Sil")}
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-slate-700 transition">
+                    {allSelected ? <CheckSquare size={16} className="text-slate-700" /> : someSelected ? <CheckSquare size={16} className="opacity-50" /> : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.user", "Kullanıcı")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.email", "E-posta")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.phone", "Cep Telefonu")}</th>
@@ -370,11 +460,16 @@ export default function UsersPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : users.map(u => (
-                <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""}`}>
+                <tr key={u.id} className={`hover:bg-slate-50 transition ${!u.isActive ? "opacity-60" : ""} ${selectedIds.has(u.id) ? "!bg-slate-100" : ""}`}>
+                  <td className="px-4 py-3.5 w-10">
+                    <button onClick={() => toggleSelect(u.id)} className="text-slate-400 hover:text-slate-700 transition">
+                      {selectedIds.has(u.id) ? <CheckSquare size={15} className="text-slate-700" /> : <Square size={15} />}
+                    </button>
+                  </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">

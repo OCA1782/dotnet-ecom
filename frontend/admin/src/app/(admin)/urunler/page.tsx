@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2 } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -178,6 +178,8 @@ export default function AdminProductsPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   // Bulk selection state
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -516,6 +518,54 @@ export default function AdminProductsPage() {
     } finally { setDeleting(false); }
   }
 
+  async function handleDuplicate(p: AdminProduct) {
+    setDuplicating(p.id);
+    try {
+      const detail = await api.get<ProductDetail>(`/api/products/${p.id}`);
+      const newName = `${p.name} (Kopya)`;
+      const newSku = p.sku.length > 20 ? p.sku.substring(0, 18) + "-K" : `${p.sku}-K`;
+      const created = await api.post<{ id: string }>("/api/products", {
+        name: newName,
+        slug: slugify(newName),
+        sku: newSku,
+        description: detail.description || null,
+        shortDescription: detail.shortDescription || null,
+        barcode: null,
+        productType: 1,
+        categoryId: detail.categoryId,
+        brandId: detail.brandId || null,
+        price: p.price,
+        discountPrice: p.discountPrice || null,
+        currency: "TRY",
+        taxRate: detail.taxRate,
+        isPublished: false,
+        isFeatured: false,
+        metaTitle: null,
+        metaDescription: null,
+        initialStock: 0,
+      });
+      if (created?.id && detail.images?.length > 0) {
+        for (let i = 0; i < detail.images.length; i++) {
+          try {
+            await api.post(`/api/products/${created.id}/images`, {
+              productId: created.id,
+              imageUrl: detail.images[i].imageUrl,
+              sortOrder: detail.images[i].sortOrder,
+              isMain: detail.images[i].isMain,
+              altText: detail.images[i].altText || null,
+            });
+          } catch { /* resim kopyalanamadı, devam */ }
+        }
+      }
+      setMsg({ text: `"${newName}" oluşturuldu (taslak, yayınlanmadı).`, ok: true });
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : t("auto.cogaltmaBasarisiz", "Çoğaltma başarısız."), ok: false });
+    } finally {
+      setDuplicating(null);
+    }
+  }
+
   async function openHistory(p: { id: string; name: string }) {
     setHistoryTarget(p);
     setHistory([]);
@@ -801,6 +851,12 @@ export default function AdminProductsPage() {
                         title={t("action.edit", "Düzenle")}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                         <Pencil size={18} />
+                      </button>
+                      <button onClick={() => handleDuplicate(p)}
+                        title={t("action.duplicate", "Çoğalt")}
+                        disabled={duplicating === p.id}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-violet-50 text-violet-600 hover:bg-violet-500 hover:text-white shadow-sm hover:shadow-violet-200 hover:shadow-md transition-all duration-150 active:scale-95 disabled:opacity-50">
+                        {duplicating === p.id ? <Loader2 size={18} className="animate-spin" /> : <Copy size={18} />}
                       </button>
                       <button onClick={() => openHistory({ id: p.id, name: p.name })}
                         title={t("auto.gecmis", "Geçmiş")}

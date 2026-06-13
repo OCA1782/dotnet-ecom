@@ -95,10 +95,15 @@ export default function StockPage() {
   const [movementsPage, setMovementsPage] = useState(1);
   const [movementsTotalPages, setMovementsTotalPages] = useState(1);
   const [movementsTypeFilter, setMovementsTypeFilter] = useState("");
+  const [movFilProdInput, setMovFilProdInput] = useState("");
+  const [movFilProdOptions, setMovFilProdOptions] = useState<ProductOption[]>([]);
+  const [movFilProdId, setMovFilProdId] = useState("");
+  const [movFilProdName, setMovFilProdName] = useState("");
 
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [stockSearch, setStockSearch] = useState("");
@@ -153,7 +158,7 @@ export default function StockPage() {
   const fetchStocks = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const qs = new URLSearchParams({ page: String(page), pageSize: String(stockPageSize) });
       if (criticalOnly) qs.set("onlyCritical", "true");
       if (stockSearch) qs.set("search", stockSearch);
       if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
@@ -162,7 +167,7 @@ export default function StockPage() {
       setTotalPages(data.totalPages);
     } catch { setStocks([]); }
     finally { setLoading(false); }
-  }, [page, criticalOnly, stockSearch, sortField, sortDir]);
+  }, [page, stockPageSize, criticalOnly, stockSearch, sortField, sortDir]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void fetchStocks(); }, 0);
@@ -174,12 +179,13 @@ export default function StockPage() {
     try {
       const qs = new URLSearchParams({ page: String(movementsPage), pageSize: "30" });
       if (movementsTypeFilter) qs.set("movementType", movementsTypeFilter);
+      if (movFilProdId) qs.set("productId", movFilProdId);
       const data = await api.get<PaginatedList<StockMovementRow>>(`/api/admin/stocks/movements?${qs}`);
       setMovements(data.items);
       setMovementsTotalPages(data.totalPages);
     } catch { setMovements([]); }
     finally { setMovementsLoading(false); }
-  }, [movementsPage, movementsTypeFilter]);
+  }, [movementsPage, movementsTypeFilter, movFilProdId]);
 
   useEffect(() => {
     if (tab !== "hareketler") return;
@@ -201,6 +207,21 @@ export default function StockPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [productSearch]);
+
+  // Product search for movements filter
+  useEffect(() => {
+    if (!movFilProdInput || movFilProdInput.length < 2) {
+      const id = window.setTimeout(() => setMovFilProdOptions([]), 0);
+      return () => window.clearTimeout(id);
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const data = await api.get<{ items: ProductOption[] }>(`/api/products?search=${encodeURIComponent(movFilProdInput)}&pageSize=10&admin=true`);
+        setMovFilProdOptions(data.items || []);
+      } catch { setMovFilProdOptions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [movFilProdInput]);
 
   async function handleAdjust() {
     if (!adjustTarget || !adjustForm.quantity) return;
@@ -324,14 +345,55 @@ export default function StockPage() {
       {tab === "hareketler" && (
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <select value={movementsTypeFilter} onChange={e => { setMovementsTypeFilter(e.target.value); setMovementsPage(1); }}
               className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
               <option value="">Tüm Hareket Tipleri</option>
               {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-            {movementsTypeFilter && (
-              <button onClick={() => { setMovementsTypeFilter(""); setMovementsPage(1); }}
+
+            {/* Product search autocomplete */}
+            <div className="relative">
+              {movFilProdId ? (
+                <div className="flex items-center gap-2 border border-teal-400 bg-teal-50 rounded-xl px-3 py-2 text-sm text-teal-800">
+                  <Search size={13} className="text-teal-500 shrink-0" />
+                  <span className="max-w-[200px] truncate font-medium">{movFilProdName}</span>
+                  <button onClick={() => { setMovFilProdId(""); setMovFilProdName(""); setMovFilProdInput(""); setMovementsPage(1); }}
+                    className="ml-1 text-teal-500 hover:text-teal-700"><X size={13} /></button>
+                </div>
+              ) : (
+                <div>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      value={movFilProdInput}
+                      onChange={e => { setMovFilProdInput(e.target.value); if (!e.target.value) setMovFilProdOptions([]); }}
+                      placeholder="Ürüne göre filtrele..."
+                      className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 text-slate-900 bg-white"
+                    />
+                  </div>
+                  {movFilProdOptions.length > 0 && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 w-64 max-h-48 overflow-y-auto">
+                      {movFilProdOptions.map(o => (
+                        <button key={o.id} onClick={() => {
+                          setMovFilProdId(o.id);
+                          setMovFilProdName(o.name);
+                          setMovFilProdInput("");
+                          setMovFilProdOptions([]);
+                          setMovementsPage(1);
+                        }} className="w-full text-left px-3 py-2 text-sm hover:bg-teal-50 text-slate-800 border-b border-slate-100 last:border-0">
+                          <p className="font-medium truncate">{o.name}</p>
+                          <p className="text-xs text-slate-400 font-mono">{o.sku}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {(movementsTypeFilter || movFilProdId) && (
+              <button onClick={() => { setMovementsTypeFilter(""); setMovFilProdId(""); setMovFilProdName(""); setMovFilProdInput(""); setMovementsPage(1); }}
                 className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">{t("action.clear", "Temizle")}</button>
             )}
           </div>
@@ -419,6 +481,15 @@ export default function StockPage() {
             onChange={e => { setCriticalOnly(e.target.checked); setPage(1); }} className="rounded" />
           Sadece kritik stoklar
         </label>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span className="text-xs text-slate-500 whitespace-nowrap">{t("auto.sayfaBasi", "Sayfa başı:")} </span>
+          {([20, 50, 100] as const).map(n => (
+            <button key={n} onClick={() => { setStockPageSize(n); setPage(1); }}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${stockPageSize === n ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+              {n}
+            </button>
+          ))}
+        </div>
       </div>
 
       {msg && (

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
-import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Megaphone, Image as ImageIcon, Palette, Type } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Megaphone, Image as ImageIcon, Palette, Type, Search } from "lucide-react";
 
 interface Campaign {
   id: string;
@@ -119,6 +119,8 @@ export default function KampanyalarPage() {
   const [activeTab, setActiveTab] = useState<"content" | "style">("content");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "passive" | "featured">("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,6 +180,20 @@ export default function KampanyalarPage() {
   const scheme = getScheme(form.colorScheme);
   const activeCount = items.filter(i => i.isActive).length;
 
+  const filteredItems = items
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .filter(i => {
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        if (!i.title.toLowerCase().includes(q) && !(i.subtitle ?? "").toLowerCase().includes(q)) return false;
+      }
+      if (statusFilter === "active") return i.isActive;
+      if (statusFilter === "passive") return !i.isActive;
+      if (statusFilter === "featured") return i.isFeatured;
+      return true;
+    });
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -196,6 +212,35 @@ export default function KampanyalarPage() {
         </button>
       </div>
 
+      {/* Search & Filter */}
+      {!loading && items.length > 0 && (
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder={t("ui.searchCampaigns", "Başlık veya alt başlık...")}
+              className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-full text-slate-900 bg-white"
+            />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1">
+            {([["", "Tümü"], ["active", "Aktif"], ["passive", "Pasif"], ["featured", "Öne Çıkan"]] as const).map(([val, label]) => (
+              <button key={val} onClick={() => setStatusFilter(val)}
+                className={`px-3 py-2 text-xs font-semibold rounded-xl transition ${statusFilter === val ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-slate-400 ml-auto">{filteredItems.length} / {items.length}</span>
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -207,9 +252,15 @@ export default function KampanyalarPage() {
           <p className="text-sm">{t("table.noData", "Kayıt bulunamadı")}</p>
           <button onClick={openCreate} className="mt-4 text-sm text-teal-600 font-semibold hover:underline">{t("ui.newCampaign", "Yeni Kampanya")} →</button>
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <Megaphone size={32} className="mb-3 opacity-30" />
+          <p className="text-sm">{t("table.noResults", "Sonuç bulunamadı")}</p>
+          <button onClick={() => { setSearchTerm(""); setStatusFilter(""); }} className="mt-2 text-xs text-teal-600 hover:underline">Filtreleri Temizle</button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {items.slice().sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
+          {filteredItems.map(item => {
             const s = getScheme(item.colorScheme);
             const st = parseStyles(item.stylesJson);
             return (
