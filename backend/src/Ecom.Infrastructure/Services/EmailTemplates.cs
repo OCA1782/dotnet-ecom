@@ -1,6 +1,6 @@
 namespace Ecom.Infrastructure.Services;
 
-internal static class EmailTemplates
+public static class EmailTemplates
 {
     private static string Wrap(string title, string body) => $"""
         <!DOCTYPE html>
@@ -212,5 +212,45 @@ internal static class EmailTemplates
             <p style="color:#71717a;font-size:13px;line-height:1.6;">
               Bu hatırlatma otomatik olarak gönderilmiştir. Şifrenizi zaten değiştirdiyseniz bu e-postayı dikkate almayınız.
             </p>
+        """);
+
+    public static string ContactForm(string fromName, string fromEmail, string message) =>
+        Wrap("İletişim Formu", $"""
+            <h2 style="color:#0f766e">Yeni İletişim Formu Mesajı</h2>
+            <p><strong>Ad Soyad:</strong> {fromName}</p>
+            <p><strong>E-posta:</strong> <a href="mailto:{fromEmail}">{fromEmail}</a></p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
+            <p style="white-space:pre-wrap">{message}</p>
+            <p style="color:#94a3b8;font-size:12px;margin-top:24px">{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
+        """);
+
+    public static string ReviewRejection(string toName, string productName, string? note)
+    {
+        var noteSection = string.IsNullOrWhiteSpace(note)
+            ? ""
+            : $"<div style=\"background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px\"><p style=\"margin:0;color:#b91c1c;font-size:13px\"><strong>Yönetici Notu:</strong> {note}</p></div>";
+        return Wrap("Yorum Reddi", $"""
+            <h2 style="color:#b91c1c">Yorumunuz Yayınlanamadı</h2>
+            <p>Merhaba {toName},</p>
+            <p><strong>{productName}</strong> ürünü için bıraktığınız yorum, yönetimimiz tarafından incelenerek yayınlanmamasına karar verildi.</p>
+            {noteSection}
+            <p style="color:#64748b;font-size:13px;margin-top:16px">Sorularınız için destek ekibimize ulaşabilirsiniz.</p>
+        """);
+    }
+
+    public static string TestEmail() =>
+        Wrap("SMTP Test", $"""
+            <h2 style="color:#0f766e">SMTP Test E-postası</h2>
+            <p>Bu e-posta, SMTP yapılandırmanızın doğru çalıştığını doğrulamak için gönderildi.</p>
+            <p style="color:#64748b;font-size:13px">Gönderim zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>
+        """);
+
+    public static string AlertSample() =>
+        Wrap("Sistem Uyarısı", """
+            <h2 style="color:#b91c1c">⚠ Sistem Uyarısı</h2>
+            <p style="color:#3f3f46">Bu bir sistem uyarısıdır. Konu ve içerik çalışma zamanında dinamik olarak belirlenir.</p>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:16px 0;">
+              <p style="margin:0;font-size:13px;color:#b91c1c;">Örnek: API versiyonu eski — lütfen güncelleme yapın.</p>
+            </div>
         """);
 }

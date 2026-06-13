@@ -13,6 +13,7 @@ import {
   Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket, Clock,
   Image, FolderOpen, Gift, ShieldCheck, HelpCircle, Info,
   Lightbulb, MousePointer2, ListChecks, Sparkles, GraduationCap,
+  Mail,
 } from "lucide-react";
 import { getPageGuides } from "@/lib/pageGuides";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -59,6 +60,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/kullanicilar", label: "Kullanıcılar",  icon: Users,           group: "kullanici", allowedRoles: ["SuperAdmin","Admin","CustomerSupport"] },
   { href: "/ziyaretciler", label: "Ziyaretçiler",  icon: MapPin,          group: "kullanici", allowedRoles: ["SuperAdmin","Admin"] },
   // Sistem
+  { href: "/mailler",      label: "Mailler",       icon: Mail,            group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/hareketler",   label: "Hareketler",    icon: Activity,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/takip",        label: "Takip",         icon: ShieldAlert,     group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/dis-kaynaklar",label: "Dış Kaynaklar", icon: Database,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },

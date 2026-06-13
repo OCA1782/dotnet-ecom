@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Ecom.Domain.Entities;
 using Ecom.Infrastructure.Security;
+using Ecom.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -20,6 +21,7 @@ public static class DbInitializer
         await EnsureAlertSettings(db);
         await SeedRevealPassword(db, config);
         await SeedTestExternalSources(db, contentRootPath);
+        await SeedMailTemplates(db);
     }
 
     private static async Task EnsureAlertSettings(ApplicationDbContext db)
@@ -311,4 +313,208 @@ public static class DbInitializer
 
         wb.SaveAs(filePath);
     }
+
+    private static async Task SeedMailTemplates(ApplicationDbContext db)
+    {
+        var definitions = GetMailTemplateDefinitions();
+        var existing = await db.MailTemplates.Select(t => t.Name).ToHashSetAsync();
+
+        var toAdd = definitions.Where(d => !existing.Contains(d.Name)).ToList();
+        if (toAdd.Count == 0) return;
+
+        db.MailTemplates.AddRange(toAdd);
+        await db.SaveChangesAsync();
+    }
+
+    public static List<MailTemplate> GetMailTemplateDefinitions() =>
+    [
+        new()
+        {
+            Name = "OrderConfirmation",
+            DisplayName = "Sipariş Onayı",
+            Source = "Outbox Consumer",
+            SourceDetail = "OrderCreatedConsumer",
+            Trigger = "Sipariş oluşturunca otomatik",
+            TriggerPath = "Outbox: OrderCreated event → OrderCreatedConsumer",
+            Subject = "Siparişiniz Alındı — {{orderNumber}}",
+            DefaultBodyHtml = EmailTemplates.OrderConfirmation("{{name}}", "{{orderNumber}}", "{{grandTotal}}"),
+            Variables = """["name","orderNumber","grandTotal"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","orderNumber":"ORD-2026-0001","grandTotal":"₺1.250,00"}""",
+        },
+        new()
+        {
+            Name = "PaymentSuccess",
+            DisplayName = "Ödeme Onayı",
+            Source = "Outbox Consumer",
+            SourceDetail = "PaymentCompletedConsumer",
+            Trigger = "Ödeme tamamlanınca otomatik",
+            TriggerPath = "Outbox: PaymentCompleted event → PaymentCompletedConsumer",
+            Subject = "Ödemeniz Onaylandı — {{orderNumber}}",
+            DefaultBodyHtml = EmailTemplates.PaymentSuccess("{{name}}", "{{orderNumber}}", "{{grandTotal}}"),
+            Variables = """["name","orderNumber","grandTotal"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","orderNumber":"ORD-2026-0001","grandTotal":"₺1.250,00"}""",
+        },
+        new()
+        {
+            Name = "ShippingNotification",
+            DisplayName = "Kargo Bildirimi",
+            Source = "Command Handler",
+            SourceDetail = "CreateShipmentCommand",
+            Trigger = "Admin kargo kaydı oluşturduğunda",
+            TriggerPath = "POST /api/admin/shipments",
+            Subject = "Siparişiniz Kargoya Verildi — {{orderNumber}}",
+            DefaultBodyHtml = EmailTemplates.ShippingNotification("{{name}}", "{{orderNumber}}", "{{cargoCompany}}", "{{trackingNumber}}", "{{trackingUrl}}"),
+            Variables = """["name","orderNumber","cargoCompany","trackingNumber","trackingUrl"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","orderNumber":"ORD-2026-0001","cargoCompany":"Yurtiçi Kargo","trackingNumber":"TRK123456","trackingUrl":"https://yurticikargo.com/sorgula/TRK123456"}""",
+        },
+        new()
+        {
+            Name = "EmailVerification",
+            DisplayName = "E-posta Doğrulama",
+            Source = "Command Handler",
+            SourceDetail = "RegisterCommand",
+            Trigger = "Yeni kullanıcı kaydında",
+            TriggerPath = "POST /api/auth/register",
+            Subject = "E-posta Doğrulama — Ecom",
+            DefaultBodyHtml = EmailTemplates.EmailVerification("{{name}}", "{{code}}"),
+            Variables = """["name","code"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","code":"847291"}""",
+        },
+        new()
+        {
+            Name = "VerificationReminder",
+            DisplayName = "Doğrulama Hatırlatıcı",
+            Source = "Command Handler + Job",
+            SourceDetail = "ResendVerificationCommand, VerificationReminderJob",
+            Trigger = "Kullanıcı talep edince / 12 saatte bir otomatik (doğrulanmamış hesaplara)",
+            TriggerPath = "POST /api/auth/resend-verification  |  Job: her 720 dk",
+            Subject = "Hesabınızı Doğrulayın — Ecom",
+            DefaultBodyHtml = EmailTemplates.VerificationReminder("{{name}}", "{{code}}"),
+            Variables = """["name","code"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","code":"847291"}""",
+        },
+        new()
+        {
+            Name = "PasswordReset",
+            DisplayName = "Şifre Sıfırlama",
+            Source = "Command Handler",
+            SourceDetail = "ForgotPasswordCommand",
+            Trigger = "Kullanıcı 'Şifremi Unuttum' talep ettiğinde",
+            TriggerPath = "POST /api/auth/forgot-password",
+            Subject = "Şifre Sıfırlama — Ecom",
+            DefaultBodyHtml = EmailTemplates.PasswordReset("{{name}}", "{{resetUrl}}"),
+            Variables = """["name","resetUrl"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","resetUrl":"http://localhost:3000/sifre-sifirla?token=abc123&email=ahmet@ornek.com"}""",
+        },
+        new()
+        {
+            Name = "PasswordReminder",
+            DisplayName = "Şifre Güncelleme Hatırlatıcı",
+            Source = "Job",
+            SourceDetail = "PasswordReminderJob",
+            Trigger = "Her 24 saatte otomatik — 60+ gün şifre değiştirmeyenlere",
+            TriggerPath = "Job: her 1440 dk",
+            Subject = "Şifrenizi Güncelleme Zamanı — Ecom",
+            DefaultBodyHtml = EmailTemplates.PasswordReminder("{{name}}", 73),
+            Variables = """["name","daysSinceLastChange"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","daysSinceLastChange":"73"}""",
+        },
+        new()
+        {
+            Name = "LowStockAlertBatch",
+            DisplayName = "Kritik Stok Uyarısı",
+            Source = "Job",
+            SourceDetail = "StockAlertJob",
+            Trigger = "Her 5 dakikada otomatik — kritik stok altı ürünler varsa",
+            TriggerPath = "Job: her 5 dk",
+            Subject = "⚠ Kritik Stok Uyarısı — {{count}} ürün",
+            DefaultBodyHtml = EmailTemplates.LowStockAlertBatch([
+                ("Xiaomi Redmi Note 13", 2, 5),
+                ("Samsung Galaxy Buds 2", 0, 3),
+                ("Logitech MX Master 3", 1, 5),
+            ]),
+            Variables = """["count"]""",
+            SampleVariables = """{"count":"3"}""",
+            IsBodyEditable = false,
+        },
+        new()
+        {
+            Name = "ReviewRejection",
+            DisplayName = "Yorum Reddi",
+            Source = "Command Handler",
+            SourceDetail = "ApproveReviewCommand (isApproved=false)",
+            Trigger = "Admin yorumu reddettiğinde",
+            TriggerPath = "PUT /api/admin/reviews/{id}/approve  (isApproved: false)",
+            Subject = "Yorumunuz Hakkında Bilgi — {{productName}}",
+            DefaultBodyHtml = EmailTemplates.ReviewRejection("{{toName}}", "{{productName}}", "Yorum içerik politikamızla uyuşmuyor."),
+            Variables = """["toName","productName","note"]""",
+            SampleVariables = """{"toName":"Ahmet Yılmaz","productName":"Xiaomi Redmi Note 13","note":"Yorum içerik politikamızla uyuşmuyor."}""",
+        },
+        new()
+        {
+            Name = "ContactForm",
+            DisplayName = "İletişim Formu",
+            Source = "Public API",
+            SourceDetail = "ContactController",
+            Trigger = "Müşteri iletişim formunu gönderdiğinde",
+            TriggerPath = "POST /api/contact",
+            Subject = "İletişim Formu — {{fromName}}",
+            DefaultBodyHtml = EmailTemplates.ContactForm("{{fromName}}", "{{fromEmail}}", "{{message}}"),
+            Variables = """["fromName","fromEmail","message"]""",
+            SampleVariables = """{"fromName":"Ayşe Kaya","fromEmail":"ayse@ornek.com","message":"Siparişim hakkında bilgi almak istiyorum."}""",
+        },
+        new()
+        {
+            Name = "LicenseAssignment",
+            DisplayName = "Lisans Ataması",
+            Source = "EcomLicence Servis",
+            SourceDetail = "LicenseAssignmentsController (dotnet-ecom-licence repo)",
+            Trigger = "Admin lisans atadığında / yenilediğinde",
+            TriggerPath = "Harici servis: dotnet-ecom-licence  →  /api/license/assignments",
+            Subject = "Ecom Platform Lisansınız Hazır",
+            DefaultBodyHtml = EmailTemplates.LicenseAssignment("{{name}}", "eyJhbGci...token", "ViewPass123", "{{issuer}}", "{{expiresAt}}"),
+            Variables = """["name","licenseToken","viewPassword","issuer","expiresAt"]""",
+            SampleVariables = """{"name":"Ahmet Yılmaz","licenseToken":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...","viewPassword":"ViewPass123","issuer":"EcomLicence","expiresAt":"2027-06-13"}""",
+        },
+        new()
+        {
+            Name = "TestEmail",
+            DisplayName = "SMTP Test Maili",
+            Source = "Admin API",
+            SourceDetail = "EmailController",
+            Trigger = "Admin SMTP bağlantısını test ettiğinde",
+            TriggerPath = "POST /api/admin/email/test",
+            Subject = "SMTP Test — Ecom",
+            DefaultBodyHtml = EmailTemplates.TestEmail(),
+            Variables = "[]",
+            SampleVariables = "{}",
+        },
+        new()
+        {
+            Name = "Alert",
+            DisplayName = "Sistem Uyarısı",
+            Source = "Job + Admin API",
+            SourceDetail = "ModuleHealthCheckJob, SettingsController",
+            Trigger = "Her 60 dakikada otomatik (sağlık sorunu) / Admin test uyarısı",
+            TriggerPath = "Job: her 60 dk  |  POST /api/admin/settings/test-alert",
+            Subject = "(Dinamik — sağlık sorununun açıklaması)",
+            DefaultBodyHtml = EmailTemplates.AlertSample(),
+            Variables = """["subject","htmlBody"]""",
+            SampleVariables = """{"subject":"Sistem Uyarısı: API sürümü beklenenden eski","htmlBody":"<p>Lütfen kontrol edin.</p>"}""",
+            IsBodyEditable = false,
+        },
+        new()
+        {
+            Name = "LowStockAlert",
+            DisplayName = "Kritik Stok Uyarısı (Tekli)",
+            Source = "Job",
+            SourceDetail = "StockAlertJob (tekil gönderim — eski versiyon, batch tercih edilir)",
+            Trigger = "Her 5 dakikada otomatik — tek ürün kritik stok altındaysa",
+            TriggerPath = "Job: her 5 dk",
+            Subject = "⚠ Kritik Stok Uyarısı: {{productName}}",
+            DefaultBodyHtml = EmailTemplates.LowStockAlert("{{productName}}", 2, 5),
+            Variables = """["productName","availableStock","criticalLevel"]""",
+            SampleVariables = """{"productName":"Xiaomi Redmi Note 13","availableStock":"2","criticalLevel":"5"}""",
+        },
+    ];
 }

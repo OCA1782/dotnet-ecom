@@ -2,13 +2,16 @@ using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
+using System.Text.Json;
 
 namespace Ecom.Infrastructure.Services;
 
-public class EmailService(IConfiguration configuration, ILogger<EmailService> logger, IApplicationDbContext db) : IEmailService
+public class EmailService(IConfiguration configuration, ILogger<EmailService> logger, IApplicationDbContext db, IMemoryCache cache) : IEmailService
 {
     private readonly string _host = configuration["Email:SmtpHost"] ?? "";
     private readonly int _port = int.TryParse(configuration["Email:SmtpPort"], out var p) ? p : 587;
@@ -92,34 +95,16 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
     public async Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default)
     {
         var subject = $"Yorumunuz Hakkında Bilgi — {productName}";
-        var noteSection = string.IsNullOrWhiteSpace(note)
-            ? ""
-            : $"<div style=\"background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px\"><p style=\"margin:0;color:#b91c1c;font-size:13px\"><strong>Yönetici Notu:</strong> {note}</p></div>";
-        var body = $"""
-            <div style="font-family:sans-serif;max-width:480px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
-              <h2 style="color:#b91c1c">Yorumunuz Yayınlanamadı</h2>
-              <p>Merhaba {toName},</p>
-              <p><strong>{productName}</strong> ürünü için bıraktığınız yorum, yönetimimiz tarafından incelenerek yayınlanmamasına karar verildi.</p>
-              {noteSection}
-              <p style="color:#64748b;font-size:13px;margin-top:16px">Sorularınız için destek ekibimize ulaşabilirsiniz.</p>
-            </div>
-            """;
-        await SendAsync(toEmail, toName, subject, body, "ReviewRejection", ct);
+        var body = EmailTemplates.ReviewRejection(toName, productName, note);
+        await SendAsync(toEmail, toName, subject, body, "ReviewRejection", ct,
+            new() { ["toName"] = toName, ["productName"] = productName, ["note"] = note ?? "" });
     }
 
     public async Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default)
     {
-        var body = $"""
-            <div style="font-family:sans-serif;max-width:560px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
-              <h2 style="color:#0f766e">Yeni İletişim Formu Mesajı</h2>
-              <p><strong>Ad Soyad:</strong> {fromName}</p>
-              <p><strong>E-posta:</strong> <a href="mailto:{fromEmail}">{fromEmail}</a></p>
-              <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-              <p style="white-space:pre-wrap">{message}</p>
-              <p style="color:#94a3b8;font-size:12px;margin-top:24px">{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
-            </div>
-            """;
-        await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, "ContactForm", ct);
+        var body = EmailTemplates.ContactForm(fromName, fromEmail, message);
+        await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, "ContactForm", ct,
+            new() { ["fromName"] = fromName, ["fromEmail"] = fromEmail, ["message"] = message });
     }
 
     public async Task SendLicenseAssignmentAsync(string toEmail, string toName, string licenseToken, string viewPassword, string issuer, string expiresAt, CancellationToken ct = default)
@@ -131,13 +116,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
 
     public async Task SendTestEmailAsync(string toEmail, CancellationToken ct = default)
     {
-        var body = $"""
-            <div style="font-family:sans-serif;max-width:480px;margin:32px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
-              <h2 style="color:#0f766e">SMTP Test E-postası</h2>
-              <p>Bu e-posta, SMTP yapılandırmanızın doğru çalıştığını doğrulamak için gönderildi.</p>
-              <p style="color:#64748b;font-size:13px">Gönderim zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>
-            </div>
-            """;
+        var body = EmailTemplates.TestEmail();
         await SendAsync(toEmail, "Test", "SMTP Test — Ecom", body, "TestEmail", ct);
     }
 
@@ -149,7 +128,49 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             await SendAsync(email, "Admin", subject, htmlBody, "Alert", ct);
     }
 
-    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, string templateName, CancellationToken ct)
+    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, string templateName, CancellationToken ct, Dictionary<string, string>? vars = null)
+    {
+        // Apply DB template overrides (from/subject/cc/bcc/body), cached 5 min
+        var tpl = await GetTemplateAsync(templateName);
+        if (tpl is not null)
+        {
+            if (!tpl.IsEnabled)
+            {
+                logger.LogInformation("[EMAIL] Template {Name} disabled — skipped", templateName);
+                return;
+            }
+            var fromName    = string.IsNullOrWhiteSpace(tpl.FromName)    ? _fromName    : tpl.FromName;
+            var fromAddress = string.IsNullOrWhiteSpace(tpl.FromAddress) ? _fromAddress : tpl.FromAddress;
+            var effectiveSubject = string.IsNullOrWhiteSpace(tpl.Subject) ? subject : tpl.Subject;
+            var effectiveBody    = string.IsNullOrWhiteSpace(tpl.BodyHtml) ? htmlBody : tpl.BodyHtml;
+
+            if (vars is not null)
+            {
+                foreach (var (k, v) in vars)
+                {
+                    effectiveSubject = effectiveSubject.Replace($"{{{{{k}}}}}", v);
+                    effectiveBody    = effectiveBody.Replace($"{{{{{k}}}}}", v);
+                }
+            }
+
+            await SendCoreAsync(toEmail, toName, effectiveSubject, effectiveBody, templateName, fromName, fromAddress, tpl.CcEmails, tpl.BccEmails, ct);
+            return;
+        }
+
+        await SendCoreAsync(toEmail, toName, subject, htmlBody, templateName, _fromName, _fromAddress, "", "", ct);
+    }
+
+    private async Task<MailTemplate?> GetTemplateAsync(string name)
+    {
+        var cacheKey = $"mailtemplate:{name}";
+        if (cache.TryGetValue(cacheKey, out MailTemplate? cached)) return cached;
+        var tpl = await db.MailTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Name == name);
+        cache.Set(cacheKey, tpl, TimeSpan.FromMinutes(5));
+        return tpl;
+    }
+
+    private async Task SendCoreAsync(string toEmail, string toName, string subject, string htmlBody, string templateName,
+        string fromName, string fromAddress, string ccEmails, string bccEmails, CancellationToken ct)
     {
         var isDevMode = string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com";
 
@@ -166,8 +187,14 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         try
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(_fromName, _fromAddress));
+            message.From.Add(new MailboxAddress(fromName, fromAddress));
             message.To.Add(new MailboxAddress(toName, toEmail));
+
+            foreach (var cc in ccEmails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                message.Cc.Add(MailboxAddress.Parse(cc));
+            foreach (var bcc in bccEmails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                message.Bcc.Add(MailboxAddress.Parse(bcc));
+
             message.Subject = subject;
             message.Body = new TextPart("html") { Text = htmlBody };
 

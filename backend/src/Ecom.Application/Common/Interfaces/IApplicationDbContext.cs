@@ -52,6 +52,7 @@ public interface IApplicationDbContext
     DbSet<AlertCondition> AlertConditions { get; }
     DbSet<LicenseAssignment> LicenseAssignments { get; }
     DbSet<MailLog> MailLogs { get; }
+    DbSet<MailTemplate> MailTemplates { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

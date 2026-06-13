@@ -56,6 +56,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AlertCondition> AlertConditions => Set<AlertCondition>();
     public DbSet<LicenseAssignment> LicenseAssignments => Set<LicenseAssignment>();
     public DbSet<MailLog> MailLogs => Set<MailLog>();
+    public DbSet<MailTemplate> MailTemplates => Set<MailTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
