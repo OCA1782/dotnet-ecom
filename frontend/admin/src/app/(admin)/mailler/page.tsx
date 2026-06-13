@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import {
   Mail, Loader2, CheckCircle, Eye,
   Save, RotateCcw, AlertTriangle, Info,
   Zap, Clock, Code2, Server, Globe, KeyRound, X,
+  ExternalLink, PenLine,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────── */
@@ -66,7 +67,11 @@ export default function MaillerPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSource, setFilterSource] = useState("");
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [filterEnabled, setFilterEnabled] = useState("");
+  const [activeField, setActiveField] = useState<"subject" | "body">("body");
+  const iframeRef  = useRef<HTMLIFrameElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef    = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,11 +82,9 @@ export default function MaillerPage() {
     finally { setLoading(false); }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
   async function selectTemplate(tpl: MailTemplate) {
-    // Load full detail (includes bodyHtml)
     try {
       const detail = await api.get<MailTemplate>(`/api/admin/mail-templates/${tpl.name}`);
       setSelected(detail);
@@ -97,6 +100,7 @@ export default function MaillerPage() {
       });
       setPreview(null);
       setPreviewOpen(false);
+      setActiveField("body");
     } catch { /* ignore */ }
   }
 
@@ -108,9 +112,18 @@ export default function MaillerPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       await load();
-      // Refresh selected
       const detail = await api.get<MailTemplate>(`/api/admin/mail-templates/${selected.name}`);
       setSelected(detail);
+      setEditing({
+        displayName:  detail.displayName,
+        subject:      detail.subject,
+        bodyHtml:     detail.bodyHtml,
+        fromName:     detail.fromName,
+        fromAddress:  detail.fromAddress,
+        ccEmails:     detail.ccEmails,
+        bccEmails:    detail.bccEmails,
+        isEnabled:    detail.isEnabled,
+      });
     } catch { /* ignore */ }
     finally { setSaving(false); }
   }
@@ -147,7 +160,6 @@ export default function MaillerPage() {
     finally { setPreviewLoading(false); }
   }
 
-  // Render preview into iframe when it opens
   useEffect(() => {
     if (previewOpen && preview && iframeRef.current) {
       const doc = iframeRef.current.contentDocument;
@@ -155,18 +167,68 @@ export default function MaillerPage() {
     }
   }, [previewOpen, preview]);
 
+  /* ─── Variable inserter ────────────────────────────────────── */
+  function insertVar(varName: string) {
+    const token = `{{${varName}}}`;
+    if (activeField === "subject" && subjectRef.current) {
+      const el = subjectRef.current;
+      const start = el.selectionStart ?? el.value.length;
+      const end   = el.selectionEnd   ?? el.value.length;
+      const newVal = el.value.slice(0, start) + token + el.value.slice(end);
+      setEditing(v => ({ ...v, subject: newVal }));
+      setTimeout(() => { el.selectionStart = el.selectionEnd = start + token.length; el.focus(); }, 0);
+    } else if (bodyRef.current) {
+      const el = bodyRef.current;
+      const start = el.selectionStart ?? el.value.length;
+      const end   = el.selectionEnd   ?? el.value.length;
+      const newVal = el.value.slice(0, start) + token + el.value.slice(end);
+      setEditing(v => ({ ...v, bodyHtml: newVal }));
+      setTimeout(() => { el.selectionStart = el.selectionEnd = start + token.length; el.focus(); }, 0);
+    }
+  }
+
+  /* ─── Live subject preview ─────────────────────────────────── */
+  const subjectPreview = useMemo(() => {
+    if (!editing.subject) return "";
+    let result = editing.subject;
+    let sampleVars: Record<string, string> = {};
+    try { sampleVars = JSON.parse(selected?.sampleVariables ?? "{}") as Record<string, string>; } catch { /* */ }
+    Object.entries(sampleVars).forEach(([k, v]) => {
+      result = result.replaceAll(`{{${k}}}`, String(v));
+    });
+    return result;
+  }, [editing.subject, selected?.sampleVariables]);
+
+  const hasVarsInSubject = editing.subject ? /\{\{[^}]+\}\}/.test(editing.subject) : false;
+
+  /* ─── Dirty state ──────────────────────────────────────────── */
+  const isDirty = useMemo(() => {
+    if (!selected) return false;
+    return (
+      editing.subject     !== selected.subject     ||
+      editing.bodyHtml    !== selected.bodyHtml    ||
+      editing.fromName    !== selected.fromName    ||
+      editing.fromAddress !== selected.fromAddress ||
+      editing.ccEmails    !== selected.ccEmails    ||
+      editing.bccEmails   !== selected.bccEmails   ||
+      editing.isEnabled   !== selected.isEnabled
+    );
+  }, [editing, selected]);
+
+  /* ─── Filter helpers ───────────────────────────────────────── */
   const sources = [...new Set(templates.map(t => t.source.split("+")[0].trim()))];
 
   const filtered = templates.filter(t => {
     const q = searchQuery.toLowerCase();
     const matchQ = !q || t.displayName.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.source.toLowerCase().includes(q);
-    const matchS = !filterSource || t.source.startsWith(filterSource);
-    return matchQ && matchS;
+    const matchS = !filterSource  || t.source.startsWith(filterSource);
+    const matchE = !filterEnabled || String(t.isEnabled) === filterEnabled;
+    return matchQ && matchS && matchE;
   });
 
   let variables: string[] = [];
   if (selected) {
-    try { variables = JSON.parse(selected.variables); } catch { variables = []; }
+    try { variables = JSON.parse(selected.variables) as string[]; } catch { variables = []; }
   }
 
   return (
@@ -187,16 +249,25 @@ export default function MaillerPage() {
             onChange={e => setSearchQuery(e.target.value)}
             className={inp}
           />
-          <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className={inp}>
-            <option value="">Tüm Kaynaklar</option>
-            {sources.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className={inp}>
+              <option value="">Tüm Kaynaklar</option>
+              {sources.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filterEnabled} onChange={e => setFilterEnabled(e.target.value)} className={inp}>
+              <option value="">Tümü</option>
+              <option value="true">Aktif</option>
+              <option value="false">Pasif</option>
+            </select>
+          </div>
         </div>
 
         {/* Liste */}
         <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-8">Şablon bulunamadı</p>
           ) : filtered.map(tpl => (
             <button key={tpl.name} onClick={() => void selectTemplate(tpl)}
               className={`w-full text-left p-3 rounded-xl border transition ${
@@ -235,6 +306,11 @@ export default function MaillerPage() {
                 <p className="text-xs text-slate-400 font-mono mt-0.5">{selected.name}</p>
               </div>
               <div className="flex items-center gap-2">
+                {/* Mail Log kısayolu */}
+                <a href="/yonetim#mail-log"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-medium text-slate-600 transition">
+                  <ExternalLink size={13} /> Mail Log
+                </a>
                 <button onClick={() => void loadPreview()} disabled={previewLoading}
                   className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-medium text-slate-600 transition disabled:opacity-50">
                   {previewLoading ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />} Önizle
@@ -244,11 +320,21 @@ export default function MaillerPage() {
                   {resetting ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Sıfırla
                 </button>
                 <button onClick={() => void save()} disabled={saving}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-xl text-xs font-semibold text-white transition disabled:opacity-50">
-                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Kaydet
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition disabled:opacity-50 ${
+                    isDirty ? "bg-amber-500 hover:bg-amber-600" : "bg-teal-600 hover:bg-teal-700"
+                  }`}>
+                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  {isDirty ? "Kaydet *" : "Kaydet"}
                 </button>
               </div>
             </div>
+
+            {/* Dirty state banner */}
+            {isDirty && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-sm text-amber-700">
+                <PenLine size={14} /> Kaydedilmemiş değişiklikler var
+              </div>
+            )}
 
             {saved && (
               <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 text-sm text-emerald-700">
@@ -278,18 +364,27 @@ export default function MaillerPage() {
                 </div>
               </div>
 
-              {/* Değişkenler */}
+              {/* Değişkenler — tıklanabilir chip inserter */}
               {variables.length > 0 && (
                 <div>
-                  <p className="text-slate-400 text-xs mb-1.5">Kullanılabilir Değişkenler</p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-slate-400 text-xs">Kullanılabilir Değişkenler — tıkla: ekle</p>
+                    <span className="text-[10px] text-slate-400 bg-white border border-slate-200 rounded-full px-2 py-0.5">
+                      → {activeField === "subject" ? "Konu alanına" : "İçerik alanına"}
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {variables.map(v => (
-                      <code key={v} className="text-[11px] bg-teal-50 border border-teal-200 text-teal-700 px-2 py-0.5 rounded-lg font-mono">
+                      <button
+                        key={v}
+                        onClick={() => insertVar(v)}
+                        className="text-[11px] bg-teal-50 hover:bg-teal-100 border border-teal-200 hover:border-teal-400 text-teal-700 px-2 py-0.5 rounded-lg font-mono transition cursor-pointer"
+                      >
                         {`{{${v}}}`}
-                      </code>
+                      </button>
                     ))}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1.5">Konu ve içerik alanlarında bu değişkenleri kullanabilirsiniz.</p>
+                  <p className="text-[11px] text-slate-400 mt-1.5">Konu veya içerik alanına odaklanıp chip&apos;e tıklayın.</p>
                 </div>
               )}
             </div>
@@ -313,7 +408,7 @@ export default function MaillerPage() {
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-1 block">Gönderen Ad <span className="text-slate-400">(boş = SMTP config)</span></label>
                   <input value={editing.fromName ?? ""} onChange={e => setEditing(v => ({ ...v, fromName: e.target.value }))}
-                    placeholder={`Varsayılan: SMTP config`} className={inp} />
+                    placeholder="Varsayılan: SMTP config" className={inp} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-1 block">Gönderen E-posta <span className="text-slate-400">(boş = SMTP config)</span></label>
@@ -336,11 +431,21 @@ export default function MaillerPage() {
                 </div>
               </div>
 
-              {/* Konu */}
+              {/* Konu + canlı önizleme */}
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Konu</label>
-                <input value={editing.subject ?? ""} onChange={e => setEditing(v => ({ ...v, subject: e.target.value }))}
-                  className={inp} />
+                <input
+                  ref={subjectRef}
+                  value={editing.subject ?? ""}
+                  onChange={e => setEditing(v => ({ ...v, subject: e.target.value }))}
+                  onFocus={() => setActiveField("subject")}
+                  className={inp}
+                />
+                {hasVarsInSubject && subjectPreview && (
+                  <p className="mt-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <span className="text-slate-400 font-medium mr-1">Örnek:</span>{subjectPreview}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -368,8 +473,10 @@ export default function MaillerPage() {
                     </div>
                   )}
                   <textarea
+                    ref={bodyRef}
                     value={editing.bodyHtml ?? ""}
                     onChange={e => setEditing(v => ({ ...v, bodyHtml: e.target.value }))}
+                    onFocus={() => setActiveField("body")}
                     rows={20}
                     placeholder="Boş bırakın = sistem varsayılan HTML&#10;&#10;Özel HTML girin = bu içerik kullanılır.&#10;{{değişken}} kullanabilirsiniz — örn: Merhaba {{name}}"
                     className={`${inp} font-mono text-xs leading-relaxed resize-y`}
