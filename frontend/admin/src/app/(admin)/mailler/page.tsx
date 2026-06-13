@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import {
-  Mail, RefreshCw, Loader2, CheckCircle, XCircle, Eye, EyeOff,
-  ChevronDown, ChevronUp, Save, RotateCcw, AlertTriangle, Info,
-  Zap, Clock, Code2, Server, Package, Globe, KeyRound, X,
+  Mail, Loader2, CheckCircle, Eye,
+  Save, RotateCcw, AlertTriangle, Info,
+  Zap, Clock, Code2, Server, Globe, KeyRound, X,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────── */
@@ -77,6 +77,7 @@ export default function MaillerPage() {
     finally { setLoading(false); }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
   async function selectTemplate(tpl: MailTemplate) {
@@ -363,7 +364,7 @@ export default function MaillerPage() {
                   )}
                   {(editing.bodyHtml ?? "") !== "" && (
                     <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
-                      <AlertTriangle size={12} /> Özel içerik aktif. "Sıfırla" ile varsayılana dönebilirsiniz.
+                      <AlertTriangle size={12} /> Özel içerik aktif. &ldquo;Sıfırla&rdquo; ile varsayılana dönebilirsiniz.
                     </div>
                   )}
                   <textarea

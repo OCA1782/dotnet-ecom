@@ -1800,6 +1800,7 @@ export default function YonetimPage() {
   useEffect(() => {
     if (tab !== "mail") return;
     void loadMailLogs(1, "", "", "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMailLogsStatus("");
     setMailLogsSearch("");
     setMailLogsTemplate("");
@@ -1808,6 +1809,7 @@ export default function YonetimPage() {
 
   useEffect(() => {
     if (tab !== "sistem") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIpEnabled(settings["Security:IpWhitelistEnabled"] === "true");
     setIpList((settings["Security:IpWhitelist"] ?? "").split(",").map(s => s.trim()).filter(Boolean));
   }, [tab, settings]);
@@ -3972,7 +3974,7 @@ export default function YonetimPage() {
                     <p className="pl-12">→ Dev mi? <span className="text-green-400">hayır</span>: MailKit → SMTP gönderim</p>
                     <p className="pl-16">→ Başarı: log <span className="text-green-400">[IsSuccess=true]</span></p>
                     <p className="pl-16">→ Hata:  log <span className="text-red-400">[IsSuccess=false, ErrorMessage=...]</span>, exception fırlatılır</p>
-                    <p className="pl-12 text-slate-500">// TryLogAsync exception fırlatsa bile mail akışını kesmez</p>
+                    <p className="pl-12 text-slate-500">{"// TryLogAsync exception fırlatsa bile mail akışını kesmez"}</p>
                   </div>
                 </div>
 
