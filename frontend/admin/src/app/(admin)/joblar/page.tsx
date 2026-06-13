@@ -199,6 +199,12 @@ const JOB_META: Record<string, Record<UiLang, { title: string; description: stri
     de: { title: "Testsynchronisierung", description: "Synchronisiert die Endpunktliste mit dem Code für den Test-Bildschirm." },
     es: { title: "Sincronización de pruebas", description: "Sincroniza la lista de endpoints con el código para la pantalla Test." },
   },
+  I18nScreenProgressJob: {
+    tr: { title: "i18n ekran ilerleme takibi", description: "Admin ve Customer ekranlarını sırayla tarar, değişimi algılar, ilerlemeyi JSON dosyasına kaydeder." },
+    en: { title: "i18n screen progress tracker", description: "Scans admin and customer screens incrementally, detects changes, saves progress to JSON file." },
+    de: { title: "i18n-Bildschirmfortschrittsverfolgung", description: "Durchsucht Admin- und Customer-Screens schrittweise, erkennt Änderungen und speichert Fortschritt." },
+    es: { title: "Seguimiento de progreso i18n", description: "Analiza pantallas de admin y customer incrementalmente, detecta cambios y guarda el progreso." },
+  },
 };
 
 function normalizeLang(lang: Lang): UiLang {
@@ -1007,14 +1013,13 @@ export default function JoblarPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-xs">
+          <table className="w-full min-w-[700px] text-xs">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-5 py-3 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.job", "Job")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.aralik", "Aralık")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{t("col.status", "Durum")}</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{t("auto.sonCalisma", "Son Çalışma")}</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{t("col.actions", "İşlemler")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1025,7 +1030,7 @@ export default function JoblarPage() {
                   <tr key={job.name} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3 align-top">
                       <div className="min-w-0">
-                <p className="font-semibold text-slate-800">{getMeta(job.name).title}</p>
+                        <p className="font-semibold text-slate-800">{getMeta(job.name).title}</p>
                         <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{getMeta(job.name).description}</p>
                       </div>
                     </td>
@@ -1039,7 +1044,7 @@ export default function JoblarPage() {
                           onChange={e => setIntervalDrafts(prev => ({ ...prev, [job.name]: e.target.value }))}
                           className="w-20 px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
                         />
-                          <span className="text-[11px] text-slate-400">{lang === "tr" ? "dk" : lang === "de" ? "Min." : lang === "es" ? "min" : "min"}</span>
+                        <span className="text-[11px] text-slate-400">{lang === "tr" ? "dk" : lang === "de" ? "Min." : lang === "es" ? "min" : "min"}</span>
                         <button
                           onClick={() => saveConfigInterval(job)}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition"
@@ -1068,34 +1073,6 @@ export default function JoblarPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 align-top text-slate-600">{timeAgo(state?.lastRunAt ?? null, lang)}</td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleTrigger(job)}
-                          disabled={state?.isRunning || state?.isPaused}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Zap size={11} /> {t("action.run", "Çalıştır")}
-                        </button>
-                        <button
-                          onClick={() => setConfirmToggle(job)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
-                            state?.isPaused
-                              ? "text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100"
-                              : "text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100"
-                          }`}
-                        >
-                          {state?.isPaused ? <Play size={11} /> : <Pause size={11} />}
-                          {state?.isPaused ? t("auto.devamEt", "Devam Et") : t("action.hold", "Duraklat")}
-                        </button>
-                        <button
-                          onClick={() => setTerminalJob(job.name)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                        >
-                          <Terminal size={11} /> {lang === "tr" ? "Log" : lang === "de" ? "Protokoll" : lang === "es" ? "Registro" : "Log"}
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 );
               })}

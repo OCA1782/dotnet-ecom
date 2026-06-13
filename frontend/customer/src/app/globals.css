@@ -1127,3 +1127,327 @@ html[data-template="healthcare"] header[data-tmpl-header] span { color: #ffffff 
 html[data-template="healthcare"] .acct-card { border-color: #99f6e4; background: #f0fdf9; }
 html[data-template="healthcare"] .acct-input, html[data-template="healthcare"] .acct-input-otp { border-color: #5eead4; }
 html[data-template="healthcare"] .badge-ok { background: #d1fae5; border-color: #10b98140; color: #065f46; }
+
+/* ═══════════════════════════════════════════════════════
+   YEDEK PARÇA / OTO — onlineyedekparca.com tarzı
+   Beyaz header, turuncu aksanlar, gri zemin
+══════════════════════════════════════════════════════ */
+html[data-template="spareparts"] {
+  --tmpl-header-bg: #ffffff;
+  --tmpl-header-border: #e5e7eb;
+  --tmpl-header-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --tmpl-logo-color: #f97316;
+  --tmpl-logo-accent: #111827;
+}
+html[data-template="spareparts"] body { background: #f3f4f6; }
+/* Başlıkta koyu metin */
+html[data-template="spareparts"] header[data-tmpl-header] a,
+html[data-template="spareparts"] header[data-tmpl-header] button,
+html[data-template="spareparts"] header[data-tmpl-header] span,
+html[data-template="spareparts"] header[data-tmpl-header] .text-slate-700,
+html[data-template="spareparts"] header[data-tmpl-header] .text-slate-900 { color: #111827 !important; }
+/* Turuncu arama butonu */
+html[data-template="spareparts"] header[data-tmpl-header] [data-slot="search"] input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+  border-radius: 24px !important;
+}
+html[data-template="spareparts"] header[data-tmpl-header] [data-slot="search"] input::placeholder { color: #9ca3af !important; }
+html[data-template="spareparts"] header[data-tmpl-header] [data-slot="search"] button {
+  background: #f97316 !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+}
+/* acct sayfaları köşe tutarlılığı (genel rounded override kaldırıldı — yeni tasarım yuvarlak) */
+/* Kart & form stilleri */
+html[data-template="spareparts"] .acct-card { background: #ffffff; border-color: #f9731620; }
+html[data-template="spareparts"] .acct-input,
+html[data-template="spareparts"] .acct-input-otp { border-color: #d1d5db; border-radius: 4px !important; }
+html[data-template="spareparts"] .btn-ghost { background: #f3f4f6; border-color: #d1d5db; color: #111827; }
+html[data-template="spareparts"] .badge-ok { background: #fff7ed; border-color: #f9731640; color: #c2410c; }
+/* Ürün grid — 4 kolon */
+html[data-template="spareparts"] [data-product-grid] {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 0.75rem !important;
+}
+/* Ürün kartı — beyaz, yuvarlak, turuncu hover */
+html[data-template="spareparts"] .product-card,
+html[data-template="spareparts"] [data-product-grid] > * {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s !important;
+}
+html[data-template="spareparts"] .product-card:hover,
+html[data-template="spareparts"] [data-product-grid] > *:hover {
+  border-color: #f97316 !important;
+  box-shadow: 0 6px 18px rgba(249,115,22,0.16) !important;
+  transform: translateY(-2px) !important;
+}
+/* Görsel alanı — açık gri */
+html[data-template="spareparts"] .product-card > a > div,
+html[data-template="spareparts"] [data-product-grid] > * > a > div {
+  background: #f9fafb !important;
+}
+html[data-template="spareparts"] .bg-gradient-to-b { background: #f9fafb !important; }
+/* Fiyat turuncu */
+html[data-template="spareparts"] .text-\[\#008F86\],
+html[data-template="spareparts"] .text-teal-500,
+html[data-template="spareparts"] .text-teal-600 { color: #f97316 !important; }
+/* Marka adı turuncu */
+html[data-template="spareparts"] .product-card p.text-teal-500 { color: #f97316 !important; }
+/* Sepete ekle butonu — koyu, turuncu hover */
+html[data-template="spareparts"] .bg-\[\#12304A\] { background: #1f2937 !important; }
+html[data-template="spareparts"] .hover\:bg-\[\#FF7A45\]:hover { background: #f97316 !important; }
+/* Section arka planlar */
+html[data-template="spareparts"] .bg-white { background: #ffffff !important; }
+html[data-template="spareparts"] .bg-\[\#F7FAFA\],
+html[data-template="spareparts"] .bg-slate-50,
+html[data-template="spareparts"] .bg-gray-50 { background: #f3f4f6 !important; }
+html[data-template="spareparts"] .bg-teal-50 { background: #fff7ed !important; }
+html[data-template="spareparts"] .border-\[#E3EFEE\] { border-color: #d1d5db !important; }
+/* Ücretsiz kargo mesajı turuncu */
+html[data-template="spareparts"] .text-teal-600 { color: #ea580c !important; }
+
+/* ═══════════════════════════════════════════════════════
+   PAZAR YERİ — turuncu 2-satır header + geniş katalog
+══════════════════════════════════════════════════════ */
+html[data-template="marketplace"] {
+  --tmpl-header-bg: #e55000;
+  --tmpl-header-border: #cc4a00;
+  --tmpl-header-shadow: 0 3px 16px rgba(229,80,0,0.4);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #fed7aa;
+}
+html[data-template="marketplace"] body { background: #f5f5f5; }
+html[data-template="marketplace"] header[data-tmpl-header] a,
+html[data-template="marketplace"] header[data-tmpl-header] button,
+html[data-template="marketplace"] header[data-tmpl-header] span { color: #ffffff !important; }
+/* tek-satır header — logo sol | search orta (dar) | actions sağ */
+html[data-template="marketplace"] header[data-tmpl-header] [data-header-inner] {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="logo"] {
+  order: 1;
+  flex-shrink: 0 !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] {
+  order: 2;
+  flex: 1 1 0 !important;
+  max-width: 480px !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="actions"] {
+  order: 3;
+  flex-shrink: 0 !important;
+  margin-left: 0 !important;
+}
+/* Arama kutusu — container pill + overflow:hidden → temiz yuvarlak köşeler */
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] > div {
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  border: 1.5px solid rgba(255,255,255,0.45) !important;
+  background: #ffffff !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] > div:focus-within {
+  border-color: rgba(255,255,255,0.85) !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.2) !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  outline: none !important;
+}
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] input::placeholder { color: #9ca3af !important; }
+html[data-template="marketplace"] header[data-tmpl-header] [data-slot="search"] button {
+  background: #FF6000 !important;
+  color: #ffffff !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  padding: 0 1.25rem !important;
+  width: auto !important;
+}
+/* Hızlı kategori şeridi (sticky header'ın altına) */
+html[data-template="marketplace"] header[data-tmpl-header]::after {
+  content: "Flash Fırsatlar  ·  Kampanyalar  ·  Yeni Gelenler  ·  Çok Satanlar  ·  Mağazalar";
+  display: block;
+  background: #cc4a00;
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 1.5rem;
+  border-top: 1px solid rgba(255,150,0,0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+}
+html[data-template="marketplace"] .acct-card { background: #ffffff; border-color: #e5500020; }
+html[data-template="marketplace"] .acct-input,
+html[data-template="marketplace"] .acct-input-otp { border-color: #d1d5db; }
+html[data-template="marketplace"] .btn-ghost { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+html[data-template="marketplace"] .badge-ok { background: #fff7ed; border-color: #fb923c40; color: #9a3412; }
+/* Ürün grid — 5 kolon (kalabalık pazar yeri) */
+html[data-template="marketplace"] [data-product-grid] {
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 0.625rem !important;
+}
+/* Ürün kartı — beyaz, yuvarlak, hover elevate */
+html[data-template="marketplace"] .product-card,
+html[data-template="marketplace"] [data-product-grid] > * {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07) !important;
+  transition: box-shadow 0.2s, transform 0.2s !important;
+}
+html[data-template="marketplace"] .product-card:hover,
+html[data-template="marketplace"] [data-product-grid] > *:hover {
+  box-shadow: 0 6px 20px rgba(255,96,0,0.16) !important;
+  transform: translateY(-3px) !important;
+}
+/* Görsel alanı beyaz */
+html[data-template="marketplace"] .bg-gradient-to-b { background: #ffffff !important; }
+/* Fiyat turuncu-kırmızı (Hepsiburada tonu) */
+html[data-template="marketplace"] .text-\[\#008F86\],
+html[data-template="marketplace"] .text-teal-500,
+html[data-template="marketplace"] .text-teal-600 { color: #e55000 !important; }
+/* Sepete ekle butonu — turuncu */
+html[data-template="marketplace"] .bg-\[\#12304A\] { background: #e55000 !important; }
+html[data-template="marketplace"] .hover\:bg-\[\#FF7A45\]:hover { background: #cc4a00 !important; }
+html[data-template="marketplace"] .bg-teal-500 { background: #e55000 !important; }
+/* Section arka planlar */
+html[data-template="marketplace"] .bg-white { background: #ffffff !important; }
+html[data-template="marketplace"] .bg-\[\#F7FAFA\],
+html[data-template="marketplace"] .bg-slate-50,
+html[data-template="marketplace"] .bg-gray-50 { background: #f5f5f5 !important; }
+html[data-template="marketplace"] .bg-teal-50 { background: #fff7ed !important; }
+html[data-template="marketplace"] .border-\[#E3EFEE\] { border-color: #e5e7eb !important; }
+
+/* ═══════════════════════════════════════════════════════
+   ELEKTRONİK MAĞAZA — kırmızı header + koyu subnav
+══════════════════════════════════════════════════════ */
+html[data-template="techstore"] {
+  --tmpl-header-bg: #cc0000;
+  --tmpl-header-border: #a00000;
+  --tmpl-header-shadow: 0 3px 16px rgba(204,0,0,0.35);
+  --tmpl-logo-color: #ffffff;
+  --tmpl-logo-accent: #fecaca;
+}
+html[data-template="techstore"] body { background: #f4f4f4; }
+html[data-template="techstore"] header[data-tmpl-header] a,
+html[data-template="techstore"] header[data-tmpl-header] button,
+html[data-template="techstore"] header[data-tmpl-header] span { color: #ffffff !important; }
+/* tek-satır header — logo sol | search orta (dar) | actions sağ */
+html[data-template="techstore"] header[data-tmpl-header] [data-header-inner] {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="logo"] {
+  order: 1;
+  flex-shrink: 0 !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] {
+  order: 2;
+  flex: 1 1 0 !important;
+  max-width: 480px !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="actions"] {
+  order: 3;
+  flex-shrink: 0 !important;
+  margin-left: 0 !important;
+}
+/* Arama kutusu — container pill + overflow:hidden → temiz yuvarlak köşeler */
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] > div {
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  border: 1.5px solid rgba(255,255,255,0.4) !important;
+  background: #ffffff !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] > div:focus-within {
+  border-color: rgba(255,255,255,0.8) !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15) !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  outline: none !important;
+}
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] input::placeholder { color: #9ca3af !important; }
+html[data-template="techstore"] header[data-tmpl-header] [data-slot="search"] button {
+  background: #8b0000 !important;
+  color: #ffffff !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  padding: 0 1.25rem !important;
+  width: auto !important;
+}
+/* Koyu kategori şeridi */
+html[data-template="techstore"] header[data-tmpl-header]::after {
+  content: "Laptop  ·  Telefon  ·  Tablet  ·  TV & Ses  ·  Beyaz Eşya  ·  Oyun  ·  Aksesuar  ·  Fotoğraf";
+  display: block;
+  background: #1a1a1a;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+}
+html[data-template="techstore"] .acct-card { background: #ffffff; border-color: #be000020; }
+html[data-template="techstore"] .acct-input,
+html[data-template="techstore"] .acct-input-otp { border-color: #d1d5db; }
+html[data-template="techstore"] .btn-ghost { background: #f5f5f5; border-color: #d1d5db; color: #111827; }
+html[data-template="techstore"] .badge-ok { background: #fef2f2; border-color: #be000040; color: #991b1b; }
+/* Ürün grid — 4 kolon */
+html[data-template="techstore"] [data-product-grid] {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 0.75rem !important;
+}
+/* Ürün kartı — beyaz, yuvarlak, kırmızı hover */
+html[data-template="techstore"] .product-card,
+html[data-template="techstore"] [data-product-grid] > * {
+  background: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s !important;
+}
+html[data-template="techstore"] .product-card:hover,
+html[data-template="techstore"] [data-product-grid] > *:hover {
+  border-color: #cc0000 !important;
+  box-shadow: 0 6px 20px rgba(204,0,0,0.14) !important;
+  transform: translateY(-3px) !important;
+}
+/* Görsel alanı — çok açık gri */
+html[data-template="techstore"] .bg-gradient-to-b { background: #f9f9f9 !important; }
+/* Fiyat kırmızı (MediaMarkt tonu) */
+html[data-template="techstore"] .text-\[\#008F86\],
+html[data-template="techstore"] .text-teal-500,
+html[data-template="techstore"] .text-teal-600 { color: #cc0000 !important; }
+/* Sepete ekle butonu — koyu kırmızı */
+html[data-template="techstore"] .bg-\[\#12304A\] { background: #7f1d1d !important; }
+html[data-template="techstore"] .hover\:bg-\[\#FF7A45\]:hover { background: #cc0000 !important; }
+html[data-template="techstore"] .bg-teal-500 { background: #cc0000 !important; }
+/* Section arka planlar */
+html[data-template="techstore"] .bg-white { background: #ffffff !important; }
+html[data-template="techstore"] .bg-\[\#F7FAFA\],
+html[data-template="techstore"] .bg-slate-50,
+html[data-template="techstore"] .bg-gray-50 { background: #f4f4f4 !important; }
+html[data-template="techstore"] .bg-teal-50 { background: #fef2f2 !important; }
+html[data-template="techstore"] .border-\[#E3EFEE\] { border-color: #e4e4e7 !important; }

@@ -9,9 +9,9 @@ namespace Ecom.API.Controllers;
 public class CampaignsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetActive(CancellationToken ct)
+    public async Task<IActionResult> GetActive([FromQuery] bool featured = false, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetCampaignsQuery(OnlyActive: true), ct);
+        var result = await mediator.Send(new GetCampaignsQuery(OnlyActive: true, OnlyFeatured: featured), ct);
         return Ok(result);
     }
 }

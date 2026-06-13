@@ -15,7 +15,7 @@ import {
   Users, KeyRound, Database, Wifi, Activity,
   LayoutDashboard, Package, ShoppingCart, Layers, Tag, BarChart3,
   Inbox, BookOpen, Target, Warehouse, MessageSquare, Eye,
-  ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle, Copy,
+  ExternalLink, BellRing, Bell, BellOff, TestTube, AlertTriangle, Copy, Languages, Search,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -52,6 +52,7 @@ const DEFAULTS: SiteSettings = {
   MaintenanceMode: "false", AdminMenuOrder: "", AdminMenuConfig: "", AdminRbacMatrix: "",
   // Şablon
   CustomerTemplate: "modern",
+  DisabledTemplates: "",
   // Ortam
   AppEnvironment: "development",
   ApiBaseUrl: "http://localhost:5124",
@@ -146,6 +147,55 @@ const DEFAULTS: SiteSettings = {
   Msg_LowStockWarning: "Bu üründe sınırlı stok kalmıştır.",
   Msg_FreeShipping: "Ücretsiz kargo için ₺{limit} üzeri alışveriş yapın.",
   Msg_ReviewSuccess: "Yorumunuz alındı. İnceleme sonrası yayınlanacaktır.",
+  // Dil
+  CustomerLanguageSwitcherEnabled: "false",
+  // Şablon içerik — Spareparts
+  Spareparts_B2BText: "",
+  Spareparts_Phone: "",
+  Spareparts_HeroCount: "",
+  Spareparts_HeroCountUnit: "",
+  Spareparts_HeroSlogan: "",
+  Spareparts_HotParts: "",
+  Spareparts_TrustedBrands: "",
+  Spareparts_Trust1: "",
+  Spareparts_Trust2: "",
+  Spareparts_Trust3: "",
+  Spareparts_Trust4: "",
+  Spareparts_Promo1Title: "",
+  Spareparts_Promo1Desc: "",
+  Spareparts_Promo2Discount: "",
+  // Şablon içerik — Marketplace
+  Marketplace_FlashBarText: "",
+  Marketplace_HeroDiscount: "",
+  Marketplace_HeroTitle: "",
+  Marketplace_FreeShippingLimit: "",
+  Marketplace_Trust1: "",
+  Marketplace_Trust2: "",
+  Marketplace_Trust3: "",
+  Marketplace_Trust4: "",
+  // Şablon içerik — Techstore
+  Techstore_FlashBarText: "",
+  Techstore_HeroTitle: "",
+  Techstore_HeroSubtitle: "",
+  Techstore_HeroDesc: "",
+  Techstore_Brands: "",
+  Techstore_Trust1: "",
+  Techstore_Trust2: "",
+  Techstore_Trust3: "",
+  Techstore_Trust4: "",
+  // Şablon içerik — Genel (modern, minimal, bold vb.)
+  Default_Trust1: "",
+  Default_Trust2: "",
+  Default_Trust3: "",
+  Default_Trust4: "",
+  Default_CategoriesTitle: "",
+  Default_CategoriesSubtitle: "",
+  Default_FeaturedTitle: "",
+  Default_FeaturedSubtitle: "",
+  Default_DiscountTitle: "",
+  Default_DiscountSubtitle: "",
+  Default_CampaignsTitle: "",
+  Default_CampaignsSubtitle: "",
 };
 
 const ALL_MENU_ITEMS = [
@@ -430,10 +480,33 @@ const TEMPLATES = [
     columns: 4, headerLayout: "standard",
     headerColor: "#00695c", bgColor: "#f0faf9", cardBg: "#ffffff", textColor: "#004d40", svgRadius: 8, hasShadow: true,
   },
+  // ── Pazar / Yedek Parça Şablonları ──
+  {
+    id: "spareparts", name: "Yedek Parça / Oto", emoji: "🔧",
+    description: "4 sütun, koyu başlık, turuncu vurgular, araç filtreli kompakt düzen. Oto aksesuar ve yedek parça siteleri için.",
+    tags: ["Otomotiv", "B2B", "4 Sütun"],
+    columns: 4, headerLayout: "amazon",
+    headerColor: "#111827", bgColor: "#f3f4f6", cardBg: "#ffffff", textColor: "#111827", svgRadius: 2, hasShadow: true,
+  },
+  {
+    id: "marketplace", name: "Pazar Yeri", emoji: "🛍️",
+    description: "5 sütun, turuncu başlık, yoğun ürün ızgarası. Hepsiburada / Trendyol tarzı çok kategorili platform için.",
+    tags: ["Platform", "Turuncu", "5 Sütun"],
+    columns: 5, headerLayout: "fullwidth-dark",
+    headerColor: "#e55000", bgColor: "#f5f5f5", cardBg: "#ffffff", textColor: "#1a1a1a", svgRadius: 4, hasShadow: true,
+  },
+  {
+    id: "techstore", name: "Elektronik Mağaza", emoji: "💻",
+    description: "4 sütun, kırmızı başlık, beyaz zemin, keskin köşeler. Elektronik, teknoloji ve bilgisayar ürünleri için.",
+    tags: ["Elektronik", "Kırmızı", "4 Sütun"],
+    columns: 4, headerLayout: "standard",
+    headerColor: "#be0000", bgColor: "#f5f5f5", cardBg: "#ffffff", textColor: "#1a1a1a", svgRadius: 2, hasShadow: true,
+  },
 ] as const;
 
-function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
+function TemplatePreview({ tmpl, siteName }: { tmpl: typeof TEMPLATES[number]; siteName?: string }) {
   const { headerColor, bgColor, cardBg, textColor, svgRadius, hasShadow, id, columns, headerLayout } = tmpl;
+  const shortName = (siteName || "Mağaza").slice(0, 7);
 
   /* Accent rengi */
   const accent =
@@ -455,6 +528,9 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "education" ? "#3b82f6" :
     id === "legal" ? "#b8952a" :
     id === "healthcare" ? "#10b981" :
+    id === "spareparts" ? "#f97316" :
+    id === "marketplace" ? "#ff6000" :
+    id === "techstore" ? "#be0000" :
     "#0d9488";
 
   /* Görsel arka plan */
@@ -472,10 +548,13 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "education" ? "#dbeafe" :
     id === "legal" ? "#e8e4d8" :
     id === "healthcare" ? "#d1faf4" :
+    id === "spareparts" ? "#e5e7eb" :
+    id === "marketplace" ? "#e0e0e0" :
+    id === "techstore" ? "#e5e7eb" :
     "#e2e8f0";
 
   /* Header açık mı koyu mu */
-  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A","#1a1a2e","#003366","#1a1a1a","#1a4f8a","#1a2744","#00695c"];
+  const darkHeaders = ["#1e293b","#0f172a","#0a0020","#131921","#0d9488","rgba(255,255,255,0.12)","#1E5B8C","#C74B2A","#1a1a2e","#003366","#1a1a1a","#1a4f8a","#1a2744","#00695c","#111827","#e55000","#be0000"];
   const isLightHdr = !darkHeaders.some(c => headerColor.startsWith(c));
   const searchBg = isLightHdr ? "#f1f5f9" : id === "catalog" ? "#ffffff" : "rgba(255,255,255,0.18)";
   const iconBg   = isLightHdr ? "#e2e8f0" : "rgba(255,255,255,0.22)";
@@ -497,7 +576,247 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
     id === "automotive" ? "#38bdf833" :
     id === "manufacturing" ? "#f9731622" :
     id === "legal" ? "#b8952a22" :
+    id === "spareparts" ? "#f9731633" :
+    id === "marketplace" ? "#ff600033" :
+    id === "techstore" ? "#be000033" :
     accent + "22";
+
+  /* ── Özel layout: Yedek Parça / Pazar Yeri / Elektronik ── */
+  if (id === "spareparts") {
+    const brands = ["OPEL","BMW","VW","AUDI","FORD","SEAT","KIA","SKODA"];
+    return (
+      <svg viewBox="0 0 180 112" xmlns="http://www.w3.org/2000/svg" style={{ display:"block", width:"100%", height:"100%" }}>
+        <rect width="180" height="112" fill="#f3f4f6" />
+        {/* B2B bilgi çubuğu (koyu) */}
+        <rect width="180" height="5" fill="#1c1f2e" />
+        <rect x="3" y="1.5" width="10" height="2" rx="1" fill="#f97316" opacity="0.9" />
+        <rect x="15" y="1.5" width="30" height="2" rx="1" fill="#6b7280" opacity="0.5" />
+        <rect x="155" y="1.5" width="22" height="2" rx="1.5" fill="#f97316" opacity="0.7" />
+        {/* Main header — beyaz */}
+        <rect y="5" width="180" height="18" fill="#ffffff" />
+        <rect x="4" y="8" width="18" height="12" rx="6" fill="#f97316" opacity="0.9" />
+        <text x="5.5" y="16.5" fontSize="3" fill="#ffffff" fontFamily="sans-serif" fontWeight="700">{shortName}</text>
+        <rect x="26" y="8" width="92" height="12" rx="6" fill="#f3f4f6" stroke="#d1d5db" strokeWidth="0.5" />
+        <rect x="30" y="12" width="38" height="4" rx="2" fill="#9ca3af" opacity="0.5" />
+        <rect x="120" y="8" width="12" height="12" rx="6" fill="#f3f4f6" />
+        <rect x="136" y="8" width="12" height="12" rx="6" fill="#f3f4f6" />
+        <rect x="152" y="8" width="12" height="12" rx="6" fill="#f97316" opacity="0.12" />
+        <rect x="155" y="10" width="6" height="8" rx="1" fill="#f97316" opacity="0.7" />
+        {/* Marka pill nav (wrap, yuvarlak) */}
+        <rect y="23" width="180" height="12" fill="#ffffff" stroke="#f3f4f6" strokeWidth="0.5" />
+        {brands.map((b, i) => {
+          const x = 3 + (i % 4) * 44;
+          const y2 = 24.5 + Math.floor(i / 4) * 6;
+          return (
+            <g key={b}>
+              <rect x={x} y={y2} width={b.length * 2.8 + 5} height="4.5" rx="2.25"
+                fill={i === 0 ? "#f97316" : "#f3f4f6"}
+                stroke={i === 0 ? "none" : "#e5e7eb"} strokeWidth="0.4" />
+              <text x={x + 2.5} y={y2 + 3.3} fontSize="2.8" fill={i === 0 ? "#ffffff" : "#6b7280"} fontFamily="sans-serif" fontWeight={i===0?"700":"500"}>{b}</text>
+            </g>
+          );
+        })}
+        {/* Sol sidebar — yuvarlak */}
+        <rect x="0" y="37" width="42" height="75" rx="5" fill="#ffffff" stroke="#f3f4f6" strokeWidth="0.5" />
+        {/* Araç seçici header */}
+        <rect x="0" y="37" width="42" height="7" rx="0" fill="#374151" />
+        <rect x="0" y="40" width="42" height="4" fill="#374151" />
+        <rect x="2" y="38.5" width="28" height="3" rx="1.5" fill="#ffffff" opacity="0.7" />
+        {/* Seçici input'ları */}
+        <rect x="3" y="47" width="36" height="5" rx="2" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="0.4" />
+        <rect x="5" y="49" width="16" height="1.5" rx="0.75" fill="#9ca3af" opacity="0.6" />
+        <rect x="3" y="54" width="36" height="5" rx="2" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="0.4" />
+        <rect x="5" y="56" width="12" height="1.5" rx="0.75" fill="#9ca3af" opacity="0.6" />
+        <rect x="3" y="61" width="36" height="5" rx="2" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="0.4" />
+        <rect x="5" y="63" width="18" height="1.5" rx="0.75" fill="#9ca3af" opacity="0.6" />
+        {/* Ara butonu — yuvarlak */}
+        <rect x="3" y="68.5" width="36" height="6" rx="3" fill="#f97316" />
+        <text x="13" y="73" fontSize="3.5" fill="#ffffff" fontFamily="sans-serif" fontWeight="700">Parça Ara</text>
+        {/* Kategori başlığı */}
+        <rect x="0" y="77" width="42" height="6" fill="#f97316" />
+        <rect x="0" y="79" width="42" height="4" fill="#f97316" />
+        <rect x="2" y="78.5" width="22" height="2.5" rx="1.25" fill="#ffffff" opacity="0.8" />
+        {/* Kategori satırları */}
+        {[0,1,2,3].map(i => (
+          <g key={i}>
+            <rect x="3" y={84 + i * 6} width="36" height="4.5" rx="2" fill="#f9fafb" />
+            <rect x="5" y={85.2 + i * 6} width="20" height="2" rx="1" fill="#9ca3af" opacity="0.55" />
+          </g>
+        ))}
+        {/* Sağ içerik */}
+        {/* Promo area — 4 kolon */}
+        {/* Sol küçük */}
+        <rect x="45" y="37" width="30" height="26" rx="5" fill="#ffffff" stroke="#f3f4f6" strokeWidth="0.5" />
+        <rect x="48" y="41" width="16" height="2" rx="1" fill="#9ca3af" opacity="0.5" />
+        <rect x="48" y="45" width="22" height="3" rx="1.5" fill="#374151" opacity="0.7" />
+        <rect x="48" y="57" width="14" height="3" rx="1.5" fill="#f97316" opacity="0.7" />
+        {/* Orta hero */}
+        <rect x="77" y="37" width="57" height="26" rx="5" fill="#16213e" />
+        <rect x="80" y="42" width="18" height="3" rx="1.5" fill="#f97316" opacity="0.9" />
+        <rect x="80" y="47" width="30" height="5" rx="1" fill="#ffffff" opacity="0.8" />
+        <rect x="80" y="55" width="22" height="5" rx="2.5" fill="#f97316" />
+        <rect x="83" y="57" width="16" height="1.5" rx="0.75" fill="#ffffff" opacity="0.9" />
+        {/* Sağ promo */}
+        <rect x="136" y="37" width="42" height="26" rx="5" fill="#f97316" />
+        <rect x="139" y="42" width="22" height="3" rx="1.5" fill="#ffffff" opacity="0.7" />
+        <rect x="139" y="47" width="18" height="4" rx="1" fill="#ffffff" opacity="0.9" />
+        <rect x="139" y="54" width="28" height="6" rx="3" fill="#ffffff" />
+        <rect x="142" y="56.5" width="22" height="1.5" rx="0.75" fill="#f97316" opacity="0.8" />
+        {/* Ürün grid (3 kolon) — yuvarlak kartlar */}
+        {[0,1,2].map(i => {
+          const cx = 45 + i * 45;
+          return (
+            <g key={i}>
+              <rect x={cx} y="66" width="43" height="22" rx="5" fill="#ffffff" />
+              <rect x={cx+2} y="68" width="39" height="11" rx="3" fill="#f3f4f6" />
+              <rect x={cx+3} y="81" width="22" height="2" rx="1" fill="#374151" opacity="0.6" />
+              <rect x={cx+3} y="84.5" width="14" height="2" rx="1" fill="#f97316" opacity="0.8" />
+              <rect x={cx} y="91" width="43" height="20" rx="5" fill="#ffffff" />
+              <rect x={cx+2} y="93" width="39" height="10" rx="3" fill="#f3f4f6" />
+              <rect x={cx+3} y="105" width="22" height="2" rx="1" fill="#374151" opacity="0.6" />
+              <rect x={cx+3} y="108" width="14" height="2" rx="1" fill="#f97316" opacity="0.8" />
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  if (id === "marketplace") {
+    const mktCats = ["Elektronik","Moda","Ev","Spor","Kozmetik","Kitap","Oyun","Çocuk"];
+    const mktColors = ["#e8f0fe","#fce7f3","#ecfdf5","#fff7ed","#fdf4ff","#fffbeb","#f0fdf4","#eff6ff"];
+    const mktTexts  = ["#1a56db","#be185d","#065f46","#c2410c","#7e22ce","#b45309","#166534","#1d4ed8"];
+    return (
+      <svg viewBox="0 0 180 112" xmlns="http://www.w3.org/2000/svg" style={{ display:"block", width:"100%", height:"100%" }}>
+        <rect width="180" height="112" fill="#f7f7f7" />
+        {/* Header (turuncu, handled by CSS) */}
+        <rect width="180" height="20" fill="#FF6000" />
+        <rect x="4" y="4" width="20" height="12" rx="6" fill="rgba(255,255,255,0.3)" />
+        <rect x="7" y="7" width="14" height="6" rx="3" fill="rgba(255,255,255,0.85)" />
+        <text x="8" y="12" fontSize="3" fill="#FF6000" fontFamily="sans-serif" fontWeight="700">{shortName}</text>
+        <rect x="28" y="4" width="88" height="12" rx="6" fill="rgba(255,255,255,0.95)" />
+        <rect x="32" y="8" width="38" height="4" rx="2" fill="#d1d5db" opacity="0.6" />
+        <rect x="118" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="134" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="150" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="165" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.2)" />
+        {/* Pill kategori nav */}
+        <rect y="20" width="180" height="13" fill="#ffffff" />
+        {mktCats.slice(0,7).map((c, i) => (
+          <g key={c}>
+            <rect x={3 + i * 24} y="23" width={i === 0 ? 20 : 18} height="7" rx="3.5"
+              fill={i === 0 ? "#FF6000" : "#f3f4f6"}
+              stroke={i === 0 ? "none" : "#e5e7eb"} strokeWidth="0.4" />
+            <text x={5 + i * 24} y="28.5" fontSize="3" fill={i === 0 ? "#ffffff" : "#6b7280"} fontFamily="sans-serif" fontWeight={i===0?"700":"500"}>{c.slice(0,4)}</text>
+          </g>
+        ))}
+        {/* Hero banner (rounded) */}
+        <rect x="2" y="35" width="118" height="28" rx="6" fill="#FF6000" />
+        <rect x="7" y="40" width="32" height="4" rx="2" fill="rgba(255,255,255,0.9)" />
+        <rect x="7" y="46" width="24" height="3" rx="1.5" fill="rgba(255,255,255,0.6)" />
+        <rect x="7" y="52" width="28" height="7" rx="3.5" fill="#ffffff" />
+        <rect x="11" y="54.5" width="20" height="2" rx="1" fill="#FF6000" opacity="0.8" />
+        {/* Sağ mini kartlar */}
+        <rect x="122" y="35" width="27" height="13" rx="4" fill="#ffffff" stroke="#e5e7eb" strokeWidth="0.5" />
+        <rect x="125" y="38" width="11" height="4" rx="1.5" fill="#e5e7eb" />
+        <rect x="125" y="44" width="16" height="2" rx="1" fill="#9ca3af" opacity="0.6" />
+        <rect x="151" y="35" width="27" height="13" rx="4" fill="#fff8f4" stroke="#fed7aa" strokeWidth="0.5" />
+        <rect x="154" y="38" width="11" height="4" rx="1.5" fill="#fed7aa" />
+        <rect x="154" y="44" width="16" height="2" rx="1" fill="#f97316" opacity="0.5" />
+        <rect x="122" y="50" width="56" height="13" rx="4" fill="#ffffff" stroke="#e5e7eb" strokeWidth="0.5" />
+        {/* Kategori dairesel ikonlar */}
+        <rect x="2" y="65" width="176" height="16" rx="5" fill="#ffffff" stroke="#f3f4f6" strokeWidth="0.5" />
+        {mktCats.map((c, i) => (
+          <g key={c}>
+            <circle cx={13 + i * 22} cy="73" r="5" fill={mktColors[i]} />
+            <text x={10 + i * 22} cy="73" y="75.5" fontSize="3.5" fill={mktTexts[i]} fontFamily="sans-serif" fontWeight="700">{c.slice(0,2).toUpperCase()}</text>
+          </g>
+        ))}
+        {/* Ürün grid (5 kolon, yuvarlak kartlar) */}
+        {[0,1,2,3,4].map(i => {
+          const cx = 2 + i * 35;
+          return (
+            <g key={i}>
+              <rect x={cx} y="83" width="33" height="27" rx="4" fill="#ffffff" />
+              <rect x={cx+2} y="85" width="29" height="14" rx="3" fill="#f3f4f6" />
+              <rect x={cx+3} y="101" width="17" height="2.5" rx="1.25" fill="#374151" opacity="0.6" />
+              <rect x={cx+3} y="105" width="11" height="2.5" rx="1.25" fill="#FF6000" opacity="0.8" />
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  if (id === "techstore") {
+    const techCats = ["LP","AT","TV","BE","OY","AK"];
+    const techBgs  = ["#1e293b","#1e3a5f","#1c1917","#1a2e1a","#2d1b3d","#2a1515"];
+    const techFgs  = ["#94a3b8","#60a5fa","#a8a29e","#86efac","#c084fc","#fca5a5"];
+    return (
+      <svg viewBox="0 0 180 112" xmlns="http://www.w3.org/2000/svg" style={{ display:"block", width:"100%", height:"100%" }}>
+        <rect width="180" height="112" fill="#f2f2f2" />
+        {/* Header (kırmızı, CSS ile) */}
+        <rect width="180" height="20" fill="#cc0000" />
+        <rect x="4" y="4" width="20" height="12" rx="6" fill="rgba(255,255,255,0.2)" />
+        <rect x="6" y="7" width="16" height="6" rx="3" fill="rgba(255,255,255,0.9)" />
+        <text x="7" y="12" fontSize="3" fill="#cc0000" fontFamily="sans-serif" fontWeight="700">{shortName}</text>
+        <rect x="28" y="4" width="88" height="12" rx="6" fill="#ffffff" />
+        <rect x="32" y="8" width="38" height="4" rx="2" fill="#d1d5db" opacity="0.6" />
+        <rect x="118" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="134" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="150" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.25)" />
+        <rect x="165" y="4" width="12" height="12" rx="6" fill="rgba(255,255,255,0.2)" />
+        {/* Kategori nav bar (koyu) */}
+        <rect y="20" width="180" height="9" fill="#1a1a1a" />
+        <rect x="0" y="20" width="24" height="9" fill="#cc0000" />
+        <text x="2" y="27" fontSize="3" fill="#ffffff" fontFamily="sans-serif" fontWeight="700">Kategoriler</text>
+        {["Bilg.","Tel.","Tablet","TV","Beyaz","Oyun"].map((c, i) => (
+          <text key={c} x={26 + i * 25} y="27" fontSize="3" fill="rgba(255,255,255,0.75)" fontFamily="sans-serif">{c}</text>
+        ))}
+        {/* Pill hızlı linkler */}
+        <rect y="29" width="180" height="8" fill="#ffffff" />
+        {["Kampanya","Çok Satan","Yeni","Favoriler"].map((c, i) => (
+          <g key={c}>
+            <rect x={3 + i * 43} y="31" width={c.length * 3.2 + 4} height="4.5" rx="2.25" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="0.4" />
+            <text x={5 + i * 43} y="34.5" fontSize="2.8" fill="#6b7280" fontFamily="sans-serif">{c}</text>
+          </g>
+        ))}
+        {/* Hero banner (rounded) */}
+        <rect x="2" y="39" width="118" height="26" rx="6" fill="#1a1a1a" />
+        <rect x="5" y="44" width="20" height="3" rx="1.5" fill="#cc0000" />
+        <rect x="5" y="49" width="32" height="4" rx="2" fill="#ffffff" opacity="0.9" />
+        <rect x="5" y="55" width="22" height="3" rx="1.5" fill="rgba(255,255,255,0.45)" />
+        <rect x="5" y="60" width="26" height="3.5" rx="1.75" fill="#cc0000" />
+        {/* Sağ mini kartlar */}
+        <rect x="122" y="39" width="27" height="12" rx="4" fill="#cc0000" />
+        <rect x="125" y="42" width="14" height="3" rx="1.5" fill="rgba(255,255,255,0.7)" />
+        <rect x="125" y="46" width="10" height="2" rx="1" fill="rgba(255,255,255,0.4)" />
+        <rect x="151" y="39" width="27" height="12" rx="4" fill="#ffffff" stroke="#e5e7eb" strokeWidth="0.5" />
+        <rect x="154" y="42" width="14" height="3" rx="1.5" fill="#e5e7eb" />
+        <rect x="154" y="46" width="10" height="2" rx="1" fill="#9ca3af" opacity="0.5" />
+        <rect x="122" y="53" width="56" height="12" rx="4" fill="#ffffff" stroke="#e5e7eb" strokeWidth="0.5" />
+        {/* 6 kategori kutusu (koyu, yuvarlak) */}
+        {techCats.map((abbr, i) => (
+          <g key={abbr}>
+            <rect x={2 + i * 29.5} y="67" width="27" height="14" rx="5" fill={techBgs[i]} />
+            <text x={8 + i * 29.5} y="77" fontSize="4" fill={techFgs[i]} fontFamily="sans-serif" fontWeight="700">{abbr}</text>
+          </g>
+        ))}
+        {/* Ürün grid (4 kolon) */}
+        {[0,1,2,3].map(i => {
+          const cx = 2 + i * 44;
+          return (
+            <g key={i}>
+              <rect x={cx} y="83" width="42" height="27" rx="5" fill="#ffffff" />
+              <rect x={cx+2} y="85" width="38" height="14" rx="3" fill="#f3f4f6" />
+              <rect x={cx+3} y="101" width="22" height="2.5" rx="1.25" fill="#374151" opacity="0.7" />
+              <rect x={cx+3} y="105" width="14" height="2.5" rx="1.25" fill="#cc0000" opacity="0.8" />
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
 
   const cr = Math.min(svgRadius, 8);
   const isCentered = headerLayout === "centered";
@@ -628,7 +947,7 @@ function TemplatePreview({ tmpl }: { tmpl: typeof TEMPLATES[number] }) {
   );
 }
 
-type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "otomasyon" | "sistem" | "bildirimler";
+type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "otomasyon" | "sistem" | "bildirimler" | "dil";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "genel",    label: "Genel",    icon: <Globe size={14} /> },
@@ -644,6 +963,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "lisans",   label: "Lisans",   icon: <KeyRound size={14} /> },
   { id: "otomasyon", label: "Otomasyon", icon: <Activity size={14} /> },
   { id: "bildirimler", label: "Bildirimler", icon: <BellRing size={14} /> },
+  { id: "dil",        label: "Dil",         icon: <Languages size={14} /> },
   { id: "sistem",   label: "Sistem",   icon: <Settings size={14} /> },
 ];
 
@@ -1236,7 +1556,7 @@ function CarrierManager() {
 }
 
 /* ─── Ana sayfa ─────────────────────────────────────────────────────── */
-const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","otomasyon","sistem"];
+const VALID_TABS: Tab[] = ["genel","gorunum","sablon","kargo","menu","icerik","chatbot","odeme","mesajlar","yetkiler","lisans","otomasyon","sistem","bildirimler","dil"];
 
 export default function YonetimPage() {
   const { t } = useI18n();
@@ -1247,6 +1567,13 @@ export default function YonetimPage() {
   const [tab, setTab]             = useState<Tab>(initialTab);
   const [contentSub, setContentSub] = useState<ContentSub>("sss");
   const [settings, setSettings]   = useState<SiteSettings>(DEFAULTS);
+  const [tmplPage, setTmplPage]               = useState(0);
+  const [tmplPerPage, setTmplPerPage]         = useState(9);
+  const [showHiddenTmpls, setShowHiddenTmpls] = useState(false);
+  const [tmplFilter, setTmplFilter]           = useState("");
+  const [cmpPage, setCmpPage]                 = useState(1);
+  const [cmpPerPage, setCmpPerPage]           = useState(8);
+  const [cmpFilter, setCmpFilter]             = useState("");
   const [menuOrder, setMenuOrder] = useState<string[]>(ALL_MENU_ITEMS.map(i => i.href));
   const [menuGroupConfig, setMenuGroupConfig] = useState<MenuGroupConfig>({
     groupOrder: DEFAULT_GROUP_ORDER,
@@ -1348,6 +1675,7 @@ export default function YonetimPage() {
   const [revealError, setRevealError]         = useState("");
   const [revealLoading, setRevealLoading]     = useState(false);
   const [keyCopied, setKeyCopied]             = useState(false);
+  const [openTmplSection, setOpenTmplSection] = useState<string | null>(null);
   const adminLogoNamedRef  = useRef<HTMLInputElement>(null);
   const adminLogoIconRef   = useRef<HTMLInputElement>(null);
   const adminFaviconRef    = useRef<HTMLInputElement>(null);
@@ -1359,6 +1687,7 @@ export default function YonetimPage() {
     api.get("/api/admin/system-info").then(setSysInfo).catch(() => {});
     api.get<SiteSettings>("/api/admin/settings").then(data => {
       setSettings({ ...DEFAULTS, ...data });
+      setOpenTmplSection(s => s ?? (["spareparts","marketplace","techstore"].includes(data.CustomerTemplate || "") ? data.CustomerTemplate! : "default"));
       if (data.AdminMenuOrder) {
         try {
           const parsed: string[] = JSON.parse(data.AdminMenuOrder);
@@ -2357,50 +2686,171 @@ export default function YonetimPage() {
             <p className="text-xs text-slate-500 mb-5">
               {t("auto.sablonAciklama", "Şablon, müşteri sitesinin genel yerleşimini, başlık stilini, köşe yuvarlaklığını ve arka plan renklerini belirler. Görünüm sekmesindeki renk ve font özelleştirmeleri seçtiğiniz şablonun üzerine uygulanır.")}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {TEMPLATES.map(tmpl => {
-                const isActive = (settings.CustomerTemplate || "modern") === tmpl.id;
-                return (
-                  <button
-                    key={tmpl.id}
-                    onClick={() => set("CustomerTemplate", tmpl.id)}
-                    className={`relative text-left rounded-2xl border-2 transition-all overflow-hidden group ${
-                      isActive
-                        ? "border-teal-500 ring-2 ring-teal-200 shadow-lg shadow-teal-100/50"
-                        : "border-slate-200 hover:border-teal-300 hover:shadow-md"
-                    }`}
-                  >
-                    {/* SVG Mockup */}
-                    <div className="relative w-full bg-slate-100" style={{ paddingBottom: "62%" }}>
-                      <div className="absolute inset-0">
-                        <TemplatePreview tmpl={tmpl} />
+            {/* Template list with paging + hide/show */}
+            {(() => {
+              const disabledIds = new Set((settings.DisabledTemplates || "").split(",").map(s => s.trim()).filter(Boolean));
+              const activeId = settings.CustomerTemplate || "modern";
+              const toggleDisabled = (id: string) => {
+                const ids = new Set(disabledIds);
+                if (ids.has(id)) ids.delete(id); else ids.add(id);
+                set("DisabledTemplates", [...ids].join(","));
+              };
+              const baseTemplates = showHiddenTmpls
+                ? [...TEMPLATES]
+                : [...TEMPLATES].filter(t => !disabledIds.has(t.id));
+              const visibleTemplates = tmplFilter
+                ? baseTemplates.filter(t =>
+                    t.name.toLowerCase().includes(tmplFilter.toLowerCase()) ||
+                    t.tags.some(tag => tag.toLowerCase().includes(tmplFilter.toLowerCase())) ||
+                    t.description.toLowerCase().includes(tmplFilter.toLowerCase())
+                  )
+                : baseTemplates;
+              const totalPages = tmplPerPage === 0 ? 1 : Math.ceil(visibleTemplates.length / tmplPerPage);
+              const pageTmpls = tmplPerPage === 0 ? visibleTemplates : visibleTemplates.slice(tmplPage * tmplPerPage, tmplPage * tmplPerPage + tmplPerPage);
+              const hiddenCount = disabledIds.size;
+
+              return (
+                <>
+                  {/* Paging controls top */}
+                  <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      {/* Arama input */}
+                      <div className="relative">
+                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={tmplFilter}
+                          onChange={e => { setTmplFilter(e.target.value); setTmplPage(0); }}
+                          placeholder="Şablon ara..."
+                          className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-36 bg-white"
+                        />
                       </div>
-                      {isActive && (
-                        <div className="absolute top-2 right-2 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          ✓ {t("status.active", "Aktif")}
-                        </div>
+                      <p className="text-xs text-slate-400">
+                        {visibleTemplates.length} {t("auto.sablonVar", "şablon")} · {t("auto.sayfaGosteriliyor", "sayfa")} {Math.min(tmplPage + 1, totalPages)}/{totalPages}
+                      </p>
+                      {hiddenCount > 0 && (
+                        <button
+                          onClick={() => setShowHiddenTmpls(v => !v)}
+                          className={`text-xs px-2.5 py-1 rounded-xl border transition-colors flex items-center gap-1 ${
+                            showHiddenTmpls ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                          }`}
+                        >
+                          {showHiddenTmpls ? "🙈" : "👁"} {hiddenCount} {t("auto.gizliSablon", "gizli şablon")}
+                        </button>
                       )}
                     </div>
-
-                    {/* Card info */}
-                    <div className={`p-3.5 border-t ${isActive ? "border-teal-100 bg-teal-50/50" : "border-slate-100 group-hover:border-teal-100 bg-white group-hover:bg-teal-50"}`}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-lg leading-none">{tmpl.emoji}</span>
-                        <span className="font-bold text-sm text-slate-800">{tmpl.name}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed mb-2">{tmpl.description}</p>
-                      <div className="flex gap-1 flex-wrap">
-                        {tmpl.tags.map(tag => (
-                          <span key={tag} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                            isActive ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-600"
-                          }`}>{tag}</span>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">{t("auto.sayfadaGoster", "Sayfada göster:")}</span>
+                      {([6, 9, 12, 18, 0] as const).map(n => (
+                        <button
+                          key={n}
+                          onClick={() => { setTmplPerPage(n); setTmplPage(0); }}
+                          className={`text-xs px-2 py-1 rounded-xl border transition-colors ${
+                            tmplPerPage === n
+                              ? "bg-teal-500 text-white border-teal-500"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-teal-300"
+                          }`}
+                        >{n === 0 ? t("auto.tmumu", "Tümü") : n}</button>
+                      ))}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+
+                  {/* Scrollable grid */}
+                  <div className="overflow-y-auto" style={{ maxHeight: tmplPerPage === 0 ? undefined : "640px" }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {pageTmpls.map(tmpl => {
+                        const isActive = activeId === tmpl.id;
+                        const isDisabled = disabledIds.has(tmpl.id);
+                        return (
+                          <div key={tmpl.id} className={`relative rounded-2xl border-2 transition-all overflow-hidden ${
+                            isActive ? "border-teal-500 ring-2 ring-teal-200 shadow-lg shadow-teal-100/50"
+                            : isDisabled ? "border-slate-200 opacity-50"
+                            : "border-slate-200 hover:border-teal-300 hover:shadow-md"
+                          }`}>
+                            {/* SVG Mockup — clickable only if not disabled */}
+                            <button
+                              className="w-full text-left group"
+                              onClick={() => { if (!isDisabled) set("CustomerTemplate", tmpl.id); }}
+                              disabled={isDisabled}
+                            >
+                              <div className="relative w-full bg-slate-100" style={{ paddingBottom: "62%" }}>
+                                <div className="absolute inset-0">
+                                  <TemplatePreview tmpl={tmpl} siteName={settings.SiteName} />
+                                </div>
+                                {isActive && (
+                                  <div className="absolute top-2 right-2 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                                    ✓ {t("status.active", "Aktif")}
+                                  </div>
+                                )}
+                                {isDisabled && (
+                                  <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold bg-slate-700/80 px-3 py-1 rounded-full">Gizli</span>
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+
+                            {/* Card info */}
+                            <div className={`p-3.5 border-t ${isActive ? "border-teal-100 bg-teal-50/50" : isDisabled ? "border-slate-100 bg-slate-50" : "border-slate-100 bg-white"}`}>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg leading-none">{tmpl.emoji}</span>
+                                  <span className="font-bold text-sm text-slate-800">{tmpl.name}</span>
+                                </div>
+                                {!isActive && (
+                                  <button
+                                    onClick={() => toggleDisabled(tmpl.id)}
+                                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors shrink-0 ${
+                                      isDisabled
+                                        ? "border-teal-300 text-teal-600 hover:bg-teal-50"
+                                        : "border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
+                                    }`}
+                                    title={isDisabled ? "Şablonu göster" : "Şablonu gizle"}
+                                  >{isDisabled ? "Göster" : "Gizle"}</button>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 leading-relaxed mb-2">{tmpl.description}</p>
+                              <div className="flex gap-1 flex-wrap">
+                                {tmpl.tags.map(tag => (
+                                  <span key={tag} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-600"
+                                  }`}>{tag}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Pagination nav */}
+                  {tmplPerPage > 0 && totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1 mt-4">
+                      <button
+                        onClick={() => setTmplPage(p => Math.max(0, p - 1))}
+                        disabled={tmplPage === 0}
+                        className="px-3 py-1.5 text-xs rounded border border-slate-200 disabled:opacity-40 hover:border-teal-300 transition-colors"
+                      >‹ {t("auto.onceki", "Önceki")}</button>
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setTmplPage(i)}
+                          className={`px-3 py-1.5 text-xs rounded border transition-colors ${
+                            tmplPage === i ? "bg-teal-500 text-white border-teal-500" : "border-slate-200 hover:border-teal-300"
+                          }`}
+                        >{i + 1}</button>
+                      ))}
+                      <button
+                        onClick={() => setTmplPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={tmplPage >= totalPages - 1}
+                        className="px-3 py-1.5 text-xs rounded border border-slate-200 disabled:opacity-40 hover:border-teal-300 transition-colors"
+                      >{t("auto.sonraki", "Sonraki")} ›</button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div className="mt-5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
               <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
@@ -2412,53 +2862,300 @@ export default function YonetimPage() {
 
           {/* Canlı Önizleme */}
           <Section title={t("auto.sablonKarsilastirma", "Şablon Karşılaştırması")} icon={<Eye size={16} />}>
-            <p className="text-xs text-slate-500 mb-4">{t("auto.herSablonGoselFarkliliklari", "Her şablonun görsel farklılıkları aşağıda özetlenmiştir.")}</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50">
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.sablon", "Şablon")}</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.kartTipi", "Kart Tipi")}</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.izgara", "Izgara")}</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.baslik", "Başlık")}</th>
-                    <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.uygunKullanim", "Uygun Kullanım")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { name: "✨ Modern",         card: "Yuvarlak + gölge",      grid: "4 sütun",  header: "Beyaz",             use: "Genel amaçlı" },
-                    { name: "◻️ Minimalist",     card: "Sade + ince kenarlık",  grid: "4 sütun",  header: "Beyaz/düz",         use: "Moda, tasarım, Apple" },
-                    { name: "💪 Güçlü",          card: "Pill şekil",            grid: "4 sütun",  header: "Renkli (teal)",     use: "Spor, kampanya" },
-                    { name: "🌙 Koyu Tema",       card: "Koyu + mavi vurgu",    grid: "4 sütun",  header: "Gece mavisi",       use: "Gaming, müzik, tech" },
-                    { name: "🖼️ Vitrin",         card: "Çok uzun görsel",       grid: "2 sütun",  header: "Beyaz",             use: "Lüks, moda, koleksiyon" },
-                    { name: "👑 Lüks",           card: "Altın kenarlık",        grid: "3 sütun",  header: "2 satır + ortalı",  use: "Butik, mücevher" },
-                    { name: "⚡ Spor",           card: "Sert köşe + turuncu",   grid: "5 sütun",  header: "Tam genişlik/koyu", use: "Spor, outdoor" },
-                    { name: "🕰️ Retro",          card: "Kalın kenarlık offset", grid: "2 sütun",  header: "Sarı/sıcak",       use: "Vintage, el yapımı" },
-                    { name: "📸 Instagram",      card: "Kare + hover overlay",  grid: "3 sütun",  header: "İnce/beyaz",        use: "Görsel ürünler" },
-                    { name: "🧱 Masonry",        card: "Değişken yükseklik",    grid: "CSS col.", header: "Doğal/beyaz",       use: "El yapımı, sanat" },
-                    { name: "🏗️ Brutalist",      card: "Siyah çerçeve + offset",grid: "3 sütun",  header: "Siyah çizgili",    use: "Tasarım, mimari" },
-                    { name: "🫧 Cam Efekti",     card: "Buzlu cam",             grid: "4 sütun",  header: "Şeffaf blur",       use: "Tech, ajans, lüks" },
-                    { name: "🌆 Neon",           card: "Mor ışıltılı çerçeve",  grid: "4 sütun",  header: "Siyah/neon",        use: "Gaming, müzik, gece" },
-                    { name: "🎨 Pastel",         card: "Her kart farklı renk",  grid: "4 sütun",  header: "Pembe/yumuşak",    use: "Çocuk, hediye, kozmetik" },
-                    { name: "🛒 Katalog",        card: "Sade + Amazon stili",   grid: "5 sütun",  header: "Koyu + sarı arama", use: "Market, toptan" },
-                    { name: "🚗 Otomotiv",       card: "Koyu kart + gölge",     grid: "3 sütun",  header: "Derin koyu",        use: "Araç, yedek parça" },
-                    { name: "📡 Telekomünikasyon",card: "Beyaz + mavi vurgu",    grid: "4 sütun",  header: "Lacivert",          use: "Telekom, teknoloji" },
-                    { name: "🏭 Üretim & Sanayi",card: "Sade + siyah/turuncu",  grid: "4 sütun",  header: "Siyah endüstriyel", use: "Makine, ekipman" },
-                    { name: "🎓 Eğitim",         card: "Yuvarlak + mavi",       grid: "4 sütun",  header: "Akademik mavi",     use: "Kurs, kitap, eğitim" },
-                    { name: "⚖️ Hukuk & Danışmanlık",card: "Resmi + altın",    grid: "3 sütun",  header: "Lacivert/ortalı",   use: "Hukuk, danışmanlık" },
-                    { name: "🏥 Sağlık & Medikal",card: "Temiz + yeşil vurgu", grid: "4 sütun",  header: "Medikal yeşil",     use: "Eczane, klinik" },
-                  ].map((row, i) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="p-2 border border-slate-200 font-semibold text-slate-700">{row.name}</td>
-                      <td className="p-2 border border-slate-200 text-slate-600 font-medium">{row.card}</td>
-                      <td className="p-2 border border-slate-200 text-slate-600">{row.grid}</td>
-                      <td className="p-2 border border-slate-200 text-slate-600">{row.header}</td>
-                      <td className="p-2 border border-slate-200 text-slate-500 italic">{row.use}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const CMP_ROWS = [
+                { name: "✨ Modern",                 card: "Yuvarlak + gölge",       grid: "4 sütun",  header: "Beyaz",                   use: "Genel amaçlı" },
+                { name: "◻️ Minimalist",             card: "Sade + ince kenarlık",   grid: "4 sütun",  header: "Beyaz/düz",               use: "Moda, tasarım, Apple" },
+                { name: "💪 Güçlü",                  card: "Pill şekil",             grid: "4 sütun",  header: "Renkli (teal)",           use: "Spor, kampanya" },
+                { name: "🌙 Koyu Tema",               card: "Koyu + mavi vurgu",     grid: "4 sütun",  header: "Gece mavisi",             use: "Gaming, müzik, tech" },
+                { name: "🖼️ Vitrin",                 card: "Çok uzun görsel",        grid: "2 sütun",  header: "Beyaz",                   use: "Lüks, moda, koleksiyon" },
+                { name: "👑 Lüks",                   card: "Altın kenarlık",         grid: "3 sütun",  header: "2 satır + ortalı",        use: "Butik, mücevher" },
+                { name: "⚡ Spor",                   card: "Sert köşe + turuncu",    grid: "5 sütun",  header: "Tam genişlik/koyu",       use: "Spor, outdoor" },
+                { name: "🕰️ Retro",                  card: "Kalın kenarlık offset",  grid: "2 sütun",  header: "Sarı/sıcak",             use: "Vintage, el yapımı" },
+                { name: "📸 Instagram",              card: "Kare + hover overlay",   grid: "3 sütun",  header: "İnce/beyaz",              use: "Görsel ürünler" },
+                { name: "🧱 Masonry",                card: "Değişken yükseklik",     grid: "CSS col.", header: "Doğal/beyaz",             use: "El yapımı, sanat" },
+                { name: "🏗️ Brutalist",              card: "Siyah çerçeve + offset", grid: "3 sütun",  header: "Siyah çizgili",           use: "Tasarım, mimari" },
+                { name: "🫧 Cam Efekti",             card: "Buzlu cam",              grid: "4 sütun",  header: "Şeffaf blur",             use: "Tech, ajans, lüks" },
+                { name: "🌆 Neon",                   card: "Mor ışıltılı çerçeve",   grid: "4 sütun",  header: "Siyah/neon",              use: "Gaming, müzik, gece" },
+                { name: "🎨 Pastel",                 card: "Her kart farklı renk",   grid: "4 sütun",  header: "Pembe/yumuşak",           use: "Çocuk, hediye, kozmetik" },
+                { name: "🛒 Katalog",                card: "Sade + Amazon stili",    grid: "5 sütun",  header: "Koyu + sarı arama",       use: "Market, toptan" },
+                { name: "🚗 Otomotiv",               card: "Koyu kart + gölge",      grid: "3 sütun",  header: "Derin koyu",              use: "Araç, yedek parça" },
+                { name: "📡 Telekomünikasyon",       card: "Beyaz + mavi vurgu",     grid: "4 sütun",  header: "Lacivert",                use: "Telekom, teknoloji" },
+                { name: "🏭 Üretim & Sanayi",        card: "Sade + siyah/turuncu",   grid: "4 sütun",  header: "Siyah endüstriyel",       use: "Makine, ekipman" },
+                { name: "🎓 Eğitim",                 card: "Yuvarlak + mavi",        grid: "4 sütun",  header: "Akademik mavi",           use: "Kurs, kitap, eğitim" },
+                { name: "⚖️ Hukuk & Danışmanlık",   card: "Resmi + altın",          grid: "3 sütun",  header: "Lacivert/ortalı",         use: "Hukuk, danışmanlık" },
+                { name: "🏥 Sağlık & Medikal",       card: "Temiz + yeşil vurgu",    grid: "4 sütun",  header: "Medikal yeşil",           use: "Eczane, klinik" },
+                { name: "🔧 Yedek Parça / Oto",      card: "Sade + turuncu",         grid: "4 sütun",  header: "Koyu + turuncu",          use: "Yedek parça, oto aksesuar, B2B" },
+                { name: "🛍️ Pazar Yeri",             card: "Kompakt + gölge",        grid: "5 sütun",  header: "Turuncu tam genişlik",    use: "Çok kategorili platform" },
+                { name: "💻 Elektronik Mağaza",      card: "Sade + kırmızı",         grid: "4 sütun",  header: "Kırmızı",                 use: "Elektronik, bilgisayar, teknoloji" },
+              ];
+              const perPageOpts = [6, 8, 12, 0];
+              const filteredCmpRows = cmpFilter
+                ? CMP_ROWS.filter(r =>
+                    r.name.toLowerCase().includes(cmpFilter.toLowerCase()) ||
+                    r.use.toLowerCase().includes(cmpFilter.toLowerCase()) ||
+                    r.card.toLowerCase().includes(cmpFilter.toLowerCase())
+                  )
+                : CMP_ROWS;
+              const totalCmpPages = cmpPerPage === 0 ? 1 : Math.ceil(filteredCmpRows.length / cmpPerPage);
+              const visibleRows = cmpPerPage === 0 ? filteredCmpRows : filteredCmpRows.slice((cmpPage - 1) * cmpPerPage, cmpPage * cmpPerPage);
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={cmpFilter}
+                          onChange={e => { setCmpFilter(e.target.value); setCmpPage(1); }}
+                          placeholder="Şablon, kullanım veya kart ara..."
+                          className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-52 bg-white"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">{filteredCmpRows.length} {t("auto.sablonVar", "şablon")}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">{t("table.perPage", "Sayfa başı:")}</span>
+                      {perPageOpts.map(n => (
+                        <button key={n} onClick={() => { setCmpPerPage(n); setCmpPage(1); }}
+                          className={`px-2 py-1 rounded-xl text-xs font-medium border transition ${cmpPerPage === n ? "bg-teal-600 text-white border-teal-600" : "bg-white text-slate-600 border-slate-200 hover:border-teal-300"}`}>
+                          {n === 0 ? t("filter.all", "Tümü") : n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto" style={{ maxHeight: cmpPerPage === 0 ? "480px" : undefined, overflowY: cmpPerPage === 0 ? "auto" : undefined }}>
+                    <table className="w-full text-xs border-collapse">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-slate-50">
+                          <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.sablon", "Şablon")}</th>
+                          <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.kartTipi", "Kart Tipi")}</th>
+                          <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.izgara", "Izgara")}</th>
+                          <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.baslik", "Başlık")}</th>
+                          <th className="text-left p-2 font-semibold text-slate-600 border border-slate-200">{t("auto.uygunKullanim", "Uygun Kullanım")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleRows.map((row, i) => (
+                          <tr key={row.name} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                            <td className="p-2 border border-slate-200 font-semibold text-slate-700">{row.name}</td>
+                            <td className="p-2 border border-slate-200 text-slate-600 font-medium">{row.card}</td>
+                            <td className="p-2 border border-slate-200 text-slate-600">{row.grid}</td>
+                            <td className="p-2 border border-slate-200 text-slate-600">{row.header}</td>
+                            <td className="p-2 border border-slate-200 text-slate-500 italic">{row.use}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalCmpPages > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-slate-500">{(cmpPage - 1) * cmpPerPage + 1}–{Math.min(cmpPage * cmpPerPage, filteredCmpRows.length)} / {filteredCmpRows.length}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setCmpPage(p => Math.max(1, p - 1))} disabled={cmpPage <= 1}
+                          className="px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition">
+                          ←
+                        </button>
+                        <span className="text-xs text-slate-600 font-medium px-1">{cmpPage} / {totalCmpPages}</span>
+                        <button onClick={() => setCmpPage(p => Math.min(totalCmpPages, p + 1))} disabled={cmpPage >= totalCmpPages}
+                          className="px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition">
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </Section>
+
+          {/* ── Şablon İçerik Editörü ── */}
+          <Section title="Şablon İçerik" icon={<FileText size={16} />}>
+            <p className="text-xs text-slate-500 mb-4">
+              Her şablonun anasayfasındaki statik içerikleri düzenleyin. Boş bırakılan alanlar varsayılan değerleri kullanır.
+              {settings.CustomerTemplate && <span> Aktif şablon: <strong>{settings.CustomerTemplate}</strong></span>}
+            </p>
+            {(
+              [
+                { key: "default",     label: "🏪 Genel Şablonlar",   sub: "modern, minimal, bold, dark ve diğerleri", color: "text-slate-700"  },
+                { key: "spareparts",  label: "🔧 Yedek Parça",        sub: "Oto yedek parça şablonu",                  color: "text-orange-700" },
+                { key: "marketplace", label: "⚡ Pazar Yeri",          sub: "Trendyol / Hepsiburada tarzı",             color: "text-orange-600" },
+                { key: "techstore",   label: "💻 Elektronik Mağaza",  sub: "MediaMarkt / Vatan tarzı",                 color: "text-red-700"    },
+              ] as const
+            ).map(({ key, label, sub, color }) => {
+              const isActive = settings.CustomerTemplate === key ||
+                (key === "default" && !["spareparts","marketplace","techstore"].includes(settings.CustomerTemplate || "modern"));
+              const isOpen = openTmplSection === key;
+              return (
+                <div key={key} className={`border rounded-xl overflow-hidden mb-3 transition-all ${isActive ? "border-teal-300 bg-teal-50/30" : "border-slate-200"}`}>
+                  <button type="button" onClick={() => setOpenTmplSection(isOpen ? null : key)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-sm font-bold ${color}`}>{label}</span>
+                      <span className="text-xs text-slate-400 hidden sm:inline">{sub}</span>
+                      {isActive && <span className="text-[10px] bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">Aktif</span>}
+                    </div>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${isOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isOpen && (
+                    <div className="px-4 pb-4 border-t border-slate-100">
+
+                      {/* ── GENEL ŞABLONLAR ── */}
+                      {key === "default" && (
+                        <div className="space-y-4 pt-4">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-600 mb-2">Avantaj Şeridi — format: <code className="bg-slate-100 px-1 rounded text-slate-700">emoji|başlık|açıklama</code></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(["Default_Trust1","Default_Trust2","Default_Trust3","Default_Trust4"] as const).map((k,i) => (
+                                <input key={k} className={inp} value={settings[k] || ""} onChange={e => set(k, e.target.value)}
+                                  placeholder={["🚀|Hızlı Kargo|2-3 iş günü teslimat","🔒|Güvenli Ödeme|256-bit SSL şifreleme","↩️|Kolay İade|14 gün iade garantisi","💬|7/24 Destek|Her zaman yanınızdayız"][i]} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Field label="Kategoriler Başlığı">
+                              <input className={inp} value={settings.Default_CategoriesTitle || ""} onChange={e => set("Default_CategoriesTitle", e.target.value)} placeholder="Kategoriler" />
+                            </Field>
+                            <Field label="Kategoriler Alt Başlığı">
+                              <input className={inp} value={settings.Default_CategoriesSubtitle || ""} onChange={e => set("Default_CategoriesSubtitle", e.target.value)} placeholder="İhtiyacına göre kategorilere göz at" />
+                            </Field>
+                            <Field label="Öne Çıkan Ürünler Başlığı">
+                              <input className={inp} value={settings.Default_FeaturedTitle || ""} onChange={e => set("Default_FeaturedTitle", e.target.value)} placeholder="Öne Çıkan Ürünler" />
+                            </Field>
+                            <Field label="Öne Çıkan Ürünler Alt Başlığı">
+                              <input className={inp} value={settings.Default_FeaturedSubtitle || ""} onChange={e => set("Default_FeaturedSubtitle", e.target.value)} placeholder="Popüler ürünleri avantajlı fiyatlarla keşfet" />
+                            </Field>
+                            <Field label="İndirimler Başlığı">
+                              <input className={inp} value={settings.Default_DiscountTitle || ""} onChange={e => set("Default_DiscountTitle", e.target.value)} placeholder="Fırsat İndirimi" />
+                            </Field>
+                            <Field label="İndirimler Alt Başlığı">
+                              <input className={inp} value={settings.Default_DiscountSubtitle || ""} onChange={e => set("Default_DiscountSubtitle", e.target.value)} placeholder="İndirimli ürünleri kaçırma" />
+                            </Field>
+                            <Field label="Kampanyalar Başlığı">
+                              <input className={inp} value={settings.Default_CampaignsTitle || ""} onChange={e => set("Default_CampaignsTitle", e.target.value)} placeholder="Kampanyalar" />
+                            </Field>
+                            <Field label="Kampanyalar Alt Başlığı">
+                              <input className={inp} value={settings.Default_CampaignsSubtitle || ""} onChange={e => set("Default_CampaignsSubtitle", e.target.value)} placeholder="Kaçırmak istemeyeceğin fırsatlar" />
+                            </Field>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── YEDEK PARÇA ── */}
+                      {key === "spareparts" && (
+                        <div className="space-y-4 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Field label="B2B Bar Metni" hint="Üst çubuktaki bayi daveti mesajı">
+                              <input className={inp} value={settings.Spareparts_B2BText || ""} onChange={e => set("Spareparts_B2BText", e.target.value)} placeholder="Servis ve bayi hesabı açın — özel fiyatlar, hızlı sipariş ve öncelikli destek" />
+                            </Field>
+                            <Field label="Telefon Numarası" hint="B2B barda gösterilen numara">
+                              <input className={inp} value={settings.Spareparts_Phone || ""} onChange={e => set("Spareparts_Phone", e.target.value)} placeholder="0850 XXX XX XX" />
+                            </Field>
+                            <Field label="Hero Ürün Sayısı" hint='Örn: "700+"'>
+                              <input className={inp} value={settings.Spareparts_HeroCount || ""} onChange={e => set("Spareparts_HeroCount", e.target.value)} placeholder="700+" />
+                            </Field>
+                            <Field label="Hero Sayı Birimi" hint='Örn: "BİN ÜRÜN"'>
+                              <input className={inp} value={settings.Spareparts_HeroCountUnit || ""} onChange={e => set("Spareparts_HeroCountUnit", e.target.value)} placeholder="BİN ÜRÜN" />
+                            </Field>
+                            <Field label="Hero Slogan" hint="Ana hero alanındaki şirket sloganı">
+                              <input className={inp} value={settings.Spareparts_HeroSlogan || ""} onChange={e => set("Spareparts_HeroSlogan", e.target.value)} placeholder="TÜRKİYE'NİN EN BÜYÜK OTO PARÇA MAĞAZASI" />
+                            </Field>
+                            <Field label="Sol Promo Başlık">
+                              <input className={inp} value={settings.Spareparts_Promo1Title || ""} onChange={e => set("Spareparts_Promo1Title", e.target.value)} placeholder="Filtre & Yağ Seti" />
+                            </Field>
+                            <Field label="Sol Promo Açıklama">
+                              <input className={inp} value={settings.Spareparts_Promo1Desc || ""} onChange={e => set("Spareparts_Promo1Desc", e.target.value)} placeholder="Aracınıza uygun orijinal filtre setleri" />
+                            </Field>
+                            <Field label="Kampanya İndirim Metni">
+                              <input className={inp} value={settings.Spareparts_Promo2Discount || ""} onChange={e => set("Spareparts_Promo2Discount", e.target.value)} placeholder="%40'a varan indirim" />
+                            </Field>
+                          </div>
+                          <Field label="En Çok Aranan Parçalar" hint="Virgülle ayrılmış liste">
+                            <textarea className={inp} rows={2} value={settings.Spareparts_HotParts || ""} onChange={e => set("Spareparts_HotParts", e.target.value)} placeholder="Fren Diski,Motor Yağı,Hava Filtresi,Akü,Buji Seti,Amortisör,Debriyaj,Radyatör" />
+                          </Field>
+                          <Field label="Güvenilir Markalar" hint="Virgülle ayrılmış marka listesi">
+                            <textarea className={inp} rows={2} value={settings.Spareparts_TrustedBrands || ""} onChange={e => set("Spareparts_TrustedBrands", e.target.value)} placeholder="BOSCH,NGK,MANN,VALEO,BREMBO,CASTROL,MOBIL,TOTAL,SKF,GATES" />
+                          </Field>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-600 mb-2">Güvence Şeridi — format: <code className="bg-slate-100 px-1 rounded text-slate-700">ikon|başlık|açıklama</code></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(["Spareparts_Trust1","Spareparts_Trust2","Spareparts_Trust3","Spareparts_Trust4"] as const).map((k,i) => (
+                                <input key={k} className={inp} value={settings[k] || ""} onChange={e => set(k, e.target.value)}
+                                  placeholder={["OEM|Orijinal Parçalar|OEM kalite güvencesi","2G|Hızlı Kargo|1-2 iş günü teslimat","30G|30 Gün İade|Koşulsuz iade garantisi","7/24|Teknik Destek|Uzman ekip her an hazır"][i]} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── PAZAR YERİ ── */}
+                      {key === "marketplace" && (
+                        <div className="space-y-4 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Field label="Flash Bar Metni">
+                              <input className={inp} value={settings.Marketplace_FlashBarText || ""} onChange={e => set("Marketplace_FlashBarText", e.target.value)} placeholder="Bugünün Süper Fırsatları — Bitmeden Kaçırma!" />
+                            </Field>
+                            <Field label="Hero İndirim Yüzdesi" hint={"Örn: %70'e Varan"}>
+                              <input className={inp} value={settings.Marketplace_HeroDiscount || ""} onChange={e => set("Marketplace_HeroDiscount", e.target.value)} placeholder="%70'e Varan" />
+                            </Field>
+                            <Field label="Hero Başlık" hint='Örn: "Flash İndirimler"'>
+                              <input className={inp} value={settings.Marketplace_HeroTitle || ""} onChange={e => set("Marketplace_HeroTitle", e.target.value)} placeholder="Flash İndirimler" />
+                            </Field>
+                            <Field label="Ücretsiz Kargo Limiti (TL)">
+                              <input className={inp} type="number" min="0" value={settings.Marketplace_FreeShippingLimit || ""} onChange={e => set("Marketplace_FreeShippingLimit", e.target.value)} placeholder="300" />
+                            </Field>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-600 mb-2">Güvence Şeridi — format: <code className="bg-slate-100 px-1 rounded text-slate-700">ikon|başlık|açıklama</code></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(["Marketplace_Trust1","Marketplace_Trust2","Marketplace_Trust3","Marketplace_Trust4"] as const).map((k,i) => (
+                                <input key={k} className={inp} value={settings[k] || ""} onChange={e => set(k, e.target.value)}
+                                  placeholder={["🔒|Güvenli Alışveriş|256-bit SSL şifreleme","🚚|Hızlı Teslimat|1-3 iş günü kargo","↩️|Kolay İade|14 gün iade hakkı","⭐|Güvenilir Satıcı|Onaylı mağaza garantisi"][i]} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── ELEKTRONİK MAĞAZA ── */}
+                      {key === "techstore" && (
+                        <div className="space-y-4 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Field label="Flash Bar Metni">
+                              <input className={inp} value={settings.Techstore_FlashBarText || ""} onChange={e => set("Techstore_FlashBarText", e.target.value)} placeholder="Bugüne Özel Teknoloji Fırsatları!" />
+                            </Field>
+                            <Field label="Hero Ana Başlık">
+                              <input className={inp} value={settings.Techstore_HeroTitle || ""} onChange={e => set("Techstore_HeroTitle", e.target.value)} placeholder="En Yeni Teknoloji" />
+                            </Field>
+                            <Field label="Hero Alt Başlık">
+                              <input className={inp} value={settings.Techstore_HeroSubtitle || ""} onChange={e => set("Techstore_HeroSubtitle", e.target.value)} placeholder="En Uygun Fiyatla" />
+                            </Field>
+                            <Field label="Hero Açıklama Metni">
+                              <input className={inp} value={settings.Techstore_HeroDesc || ""} onChange={e => set("Techstore_HeroDesc", e.target.value)} placeholder="Binlerce elektronik ürün, resmi garanti, güvenli ödeme" />
+                            </Field>
+                          </div>
+                          <Field label="Yetkili Markalar" hint="Virgülle ayrılmış marka listesi">
+                            <textarea className={inp} rows={2} value={settings.Techstore_Brands || ""} onChange={e => set("Techstore_Brands", e.target.value)} placeholder="APPLE,SAMSUNG,SONY,LG,ASUS,LENOVO,HUAWEI,XIAOMI" />
+                          </Field>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-600 mb-2">Güvence Şeridi — format: <code className="bg-slate-100 px-1 rounded text-slate-700">ikon|başlık|açıklama</code></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(["Techstore_Trust1","Techstore_Trust2","Techstore_Trust3","Techstore_Trust4"] as const).map((k,i) => (
+                                <input key={k} className={inp} value={settings[k] || ""} onChange={e => set(k, e.target.value)}
+                                  placeholder={["🏅|Resmi Garanti|Türkiye distribütörü","🔒|Güvenli Ödeme|3D Secure & SSL","🔧|Teknik Servis|Yetkili servis desteği","↩️|14 Gün İade|Sorunsuz iade garantisi"][i]} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </Section>
         </div>
       )}
@@ -3463,6 +4160,24 @@ export default function YonetimPage() {
               ))}
             </div>
             <p className="text-xs text-slate-400 mt-2">Job ayarlarını değiştirmek için Admin &gt; Job Yönetimi &gt; ModuleHealthCheckJob sayfasına gidin.</p>
+          </Section>
+        </div>
+      )}
+
+      {/* ── Dil ── */}
+      {tab === "dil" && (
+        <div className="space-y-5">
+          <Section
+            title="Dil Seçici"
+            icon={<Languages size={16} />}
+            subtitle="Müşteri sitesinin header'ında dil değiştirme alanının görünüp görünmeyeceğini buradan yönetin. Değişiklik kaydedildikten sonra müşteri sitesi otomatik yansıtır."
+          >
+            <ToggleRow
+              label="Dil Seçiciyi Göster"
+              checked={settings.CustomerLanguageSwitcherEnabled === "true"}
+              onToggle={() => set("CustomerLanguageSwitcherEnabled", settings.CustomerLanguageSwitcherEnabled === "true" ? "false" : "true")}
+              hint="Aktif olduğunda müşteri sitesi header'ında dil seçici görünür. Pasif yapıldığında dil seçici tamamen gizlenir."
+            />
           </Section>
         </div>
       )}

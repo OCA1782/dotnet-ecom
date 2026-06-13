@@ -124,6 +124,9 @@ export const translations: Record<Lang, Translations> = {
     'social.x': 'X (Twitter)',
     'social.youtube': 'YouTube',
     'social.linkedin': 'LinkedIn',
+    // Errors
+    'chat.error': 'Bir hata oluştu. Lütfen tekrar deneyin.',
+    'auth.error': 'Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.',
   },
   en: {
     'nav.home': 'Home',
@@ -228,6 +231,8 @@ export const translations: Record<Lang, Translations> = {
     'social.x': 'X (Twitter)',
     'social.youtube': 'YouTube',
     'social.linkedin': 'LinkedIn',
+    'chat.error': 'An error occurred. Please try again.',
+    'auth.error': 'An error occurred during login. Please try again.',
   },
   de: {
     'nav.home': 'Startseite',
@@ -332,6 +337,8 @@ export const translations: Record<Lang, Translations> = {
     'social.x': 'X (Twitter)',
     'social.youtube': 'YouTube',
     'social.linkedin': 'LinkedIn',
+    'chat.error': 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+    'auth.error': 'Beim Anmelden ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
   },
   es: {
     'nav.home': 'Inicio',
@@ -436,6 +443,8 @@ export const translations: Record<Lang, Translations> = {
     'social.x': 'X (Twitter)',
     'social.youtube': 'YouTube',
     'social.linkedin': 'LinkedIn',
+    'chat.error': 'Se produjo un error. Por favor, inténtalo de nuevo.',
+    'auth.error': 'Se produjo un error al iniciar sesión. Por favor, inténtalo de nuevo.',
   },
 };
 

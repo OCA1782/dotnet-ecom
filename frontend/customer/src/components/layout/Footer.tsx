@@ -134,24 +134,10 @@ export default async function Footer() {
             <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
               {tagline}
             </p>
-            {socials.length > 0 ? (
+            {socials.length > 0 && (
               <div className="flex gap-2">
                 {socials.map(s => (
                   <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label}
-                    className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
-                    {s.icon}
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                {[
-                  { icon: <IconInstagram />, label: instagramLabel },
-                  { icon: <IconX />, label: xLabel },
-                  { icon: <IconYouTube />, label: youtubeLabel },
-                  { icon: <IconLinkedIn />, label: linkedinLabel },
-                ].map(s => (
-                  <a key={s.label} href="#" aria-label={s.label}
                     className="w-9 h-9 bg-white/10 hover:bg-[#19B7B1] rounded-xl flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200">
                     {s.icon}
                   </a>

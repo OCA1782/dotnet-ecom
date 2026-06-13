@@ -63,7 +63,7 @@ function AddressList({
           className={`flex gap-3 p-4 border rounded-xl cursor-pointer transition ${
             selected === addr.id ? "border-teal-500 bg-teal-50" : "border-slate-200 hover:border-slate-400"
           }`}>
-          <input type="radio" name={`addr-${addr.id}`} checked={selected === addr.id}
+          <input type="radio" name="address" checked={selected === addr.id}
             onChange={() => onSelect(addr.id)} className="mt-0.5 shrink-0 accent-teal-600" />
           <div className="flex-1 min-w-0 text-sm">
             <p className="font-semibold text-slate-900">{addr.addressTitle}</p>

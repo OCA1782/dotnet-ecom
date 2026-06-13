@@ -137,7 +137,7 @@ export default function DogrulamaPage() {
         <div className="flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-blue-500" />
           <div>
-            <h1 className="text-xl font-semibold">{t("page./dogrulama", "TODO Doğrulama")}</h1>
+            <h1 className="text-xl font-semibold">{t("page./dogrulama", "Özellik Doğrulama")}</h1>
             <p className="text-sm text-gray-500">
               {t("dogrulama.subtitle", "Tamamlanan özelliklerin gerçekten implemente edildiğini doğrular")}
             </p>

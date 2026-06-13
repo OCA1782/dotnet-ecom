@@ -51,7 +51,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe", "sport", "retro", "instagram", "masonry", "brutalist", "glassmorphism", "neon", "pastel", "catalog", "atolye", "anadolu", "cini", "automotive", "telecom", "manufacturing", "education", "legal", "healthcare"] as const;
+const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe", "sport", "retro", "instagram", "masonry", "brutalist", "glassmorphism", "neon", "pastel", "catalog", "atolye", "anadolu", "cini", "automotive", "telecom", "manufacturing", "education", "legal", "healthcare", "spareparts", "marketplace", "techstore"] as const;
 type TemplateName = typeof VALID_TEMPLATES[number];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -60,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const template: TemplateName = (VALID_TEMPLATES as readonly string[]).includes(rawTemplate)
     ? rawTemplate as TemplateName
     : "modern";
+  const languageSwitcherEnabled = settings.CustomerLanguageSwitcherEnabled !== "false";
 
   return (
     <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
@@ -69,7 +70,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <CompareProvider>
           <Header
             logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
-            siteName={settings.SiteName || undefined}
+            siteName={settings.SiteName || "Mağaza"}
+            languageSwitcherEnabled={languageSwitcherEnabled}
           />
           <main className="flex-1">{children}</main>
           <Footer />

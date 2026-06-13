@@ -151,6 +151,7 @@ public static class DependencyInjection
         services.AddSingleton<IJobRunner, I18nDictionaryBuilderJob>();
         services.AddSingleton<IJobRunner, CustomerI18nPageScannerJob>();
         services.AddSingleton<IJobRunner, CustomerI18nDictionaryBuilderJob>();
+        services.AddSingleton<IJobRunner, I18nScreenProgressJob>();
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
 

@@ -22,7 +22,7 @@ type SuggestionItem = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
-export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteName?: string }) {
+export default function Header({ logoUrl, siteName, languageSwitcherEnabled = true }: { logoUrl?: string; siteName?: string; languageSwitcherEnabled?: boolean }) {
   const { t } = useI18n();
   const { itemCount, fetchCart } = useCart();
   const { user, logout } = useAuth();
@@ -309,7 +309,7 @@ export default function Header({ logoUrl, siteName }: { logoUrl?: string; siteNa
             </form>
 
             <div className="flex items-center gap-4" data-slot="actions">
-              <LanguageSwitcher />
+              {languageSwitcherEnabled && <LanguageSwitcher />}
               {mounted && user ? (
                 <button ref={buttonRef} onClick={openMenu} className="flex items-center gap-1.5 text-sm transition">
                   <User size={20} />

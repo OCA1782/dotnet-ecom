@@ -14,5 +14,6 @@ public class Campaign : BaseEntity
     public string? LinkText { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; } = false;
     public Guid? CreatedByAdminId { get; set; }
 }

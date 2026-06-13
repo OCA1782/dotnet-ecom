@@ -10,11 +10,11 @@ public record CampaignDto(
     Guid Id, string Title, string? Subtitle, string Icon,
     string ColorScheme, string? ImageUrl, string? StylesJson,
     string? LinkUrl, string? LinkText,
-    int DisplayOrder, bool IsActive, DateTime CreatedDate,
+    int DisplayOrder, bool IsActive, bool IsFeatured, DateTime CreatedDate,
     string? CreatedByAdminEmail = null
 );
 
-public record GetCampaignsQuery(bool OnlyActive = true) : IRequest<List<CampaignDto>>;
+public record GetCampaignsQuery(bool OnlyActive = true, bool OnlyFeatured = false) : IRequest<List<CampaignDto>>;
 
 public class GetCampaignsHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetCampaignsQuery, List<CampaignDto>>
 {
@@ -22,16 +22,17 @@ public class GetCampaignsHandler(IApplicationDbContext db, ICurrentUserService c
     {
         var q = db.Campaigns.Where(c => !c.IsDeleted);
         if (request.OnlyActive) q = q.Where(c => c.IsActive);
+        if (request.OnlyFeatured) q = q.Where(c => c.IsFeatured);
         if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
             q = q.Where(c => c.CreatedByAdminId == currentUser.UserId.Value);
         return await q.OrderBy(c => c.DisplayOrder).ThenBy(c => c.CreatedDate)
-            .Select(c => new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.CreatedDate,
+            .Select(c => new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.IsFeatured, c.CreatedDate,
                 c.CreatedByAdminId != null ? db.Users.Where(u => u.Id == c.CreatedByAdminId).Select(u => u.Email).FirstOrDefault() : null))
             .ToListAsync(cancellationToken);
     }
 }
 
-public record CreateCampaignCommand(string Title, string? Subtitle, string Icon, string ColorScheme, string? ImageUrl, string? StylesJson, string? LinkUrl, string? LinkText, int DisplayOrder, bool IsActive) : IRequest<Result<CampaignDto>>;
+public record CreateCampaignCommand(string Title, string? Subtitle, string Icon, string ColorScheme, string? ImageUrl, string? StylesJson, string? LinkUrl, string? LinkText, int DisplayOrder, bool IsActive, bool IsFeatured = false) : IRequest<Result<CampaignDto>>;
 
 public class CreateCampaignValidator : AbstractValidator<CreateCampaignCommand>
 {
@@ -52,16 +53,16 @@ public class CreateCampaignHandler(IApplicationDbContext db, ICurrentUserService
             Title = request.Title, Subtitle = request.Subtitle, Icon = request.Icon,
             ColorScheme = request.ColorScheme, ImageUrl = request.ImageUrl, StylesJson = request.StylesJson,
             LinkUrl = request.LinkUrl, LinkText = request.LinkText,
-            DisplayOrder = request.DisplayOrder, IsActive = request.IsActive,
+            DisplayOrder = request.DisplayOrder, IsActive = request.IsActive, IsFeatured = request.IsFeatured,
             CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
         db.Campaigns.Add(c);
         await db.SaveChangesAsync(cancellationToken);
-        return Result<CampaignDto>.Success(new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.CreatedDate));
+        return Result<CampaignDto>.Success(new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.IsFeatured, c.CreatedDate));
     }
 }
 
-public record UpdateCampaignCommand(Guid Id, string Title, string? Subtitle, string Icon, string ColorScheme, string? ImageUrl, string? StylesJson, string? LinkUrl, string? LinkText, int DisplayOrder, bool IsActive) : IRequest<Result<bool>>;
+public record UpdateCampaignCommand(Guid Id, string Title, string? Subtitle, string Icon, string ColorScheme, string? ImageUrl, string? StylesJson, string? LinkUrl, string? LinkText, int DisplayOrder, bool IsActive, bool IsFeatured = false) : IRequest<Result<bool>>;
 
 public class UpdateCampaignHandler(IApplicationDbContext db) : IRequestHandler<UpdateCampaignCommand, Result<bool>>
 {
@@ -73,7 +74,7 @@ public class UpdateCampaignHandler(IApplicationDbContext db) : IRequestHandler<U
         c.Title = request.Title; c.Subtitle = request.Subtitle; c.Icon = request.Icon;
         c.ColorScheme = request.ColorScheme; c.ImageUrl = request.ImageUrl; c.StylesJson = request.StylesJson;
         c.LinkUrl = request.LinkUrl; c.LinkText = request.LinkText;
-        c.DisplayOrder = request.DisplayOrder; c.IsActive = request.IsActive;
+        c.DisplayOrder = request.DisplayOrder; c.IsActive = request.IsActive; c.IsFeatured = request.IsFeatured;
         c.UpdatedDate = DateTime.UtcNow;
         // Cascade: resim siliniyorsa UploadedFiles'tan da kaldır
         if (string.IsNullOrEmpty(request.ImageUrl) && !string.IsNullOrEmpty(oldImageUrl))

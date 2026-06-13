@@ -54,6 +54,21 @@ export interface ProductDetail extends ProductListItem {
   variants: ProductVariant[];
 }
 
+export interface Campaign {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  icon: string;
+  colorScheme: string;
+  imageUrl: string | null;
+  stylesJson: string | null;
+  linkUrl: string | null;
+  linkText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  isFeatured: boolean;
+}
+
 export interface PaginatedList<T> {
   items: T[];
   totalCount: number;

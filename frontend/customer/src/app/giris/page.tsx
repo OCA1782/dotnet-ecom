@@ -54,7 +54,7 @@ export default function LoginPage() {
       completeLogin(data);
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("chat.error"));
+      setError(err instanceof Error ? err.message : t("auth.error"));
     } finally {
       setTwoFaLoading(false);
     }

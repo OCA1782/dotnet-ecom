@@ -17,6 +17,7 @@ interface Campaign {
   linkText: string | null;
   displayOrder: number;
   isActive: boolean;
+  isFeatured: boolean;
   createdDate: string;
   createdByAdminEmail?: string;
 }
@@ -41,6 +42,7 @@ interface FormState {
   linkText: string;
   displayOrder: number;
   isActive: boolean;
+  isFeatured: boolean;
   styles: CampaignStyles;
 }
 
@@ -56,7 +58,7 @@ const DEFAULT_STYLES: CampaignStyles = {
 
 const empty: FormState = {
   title: "", subtitle: "", icon: "🏷️", colorScheme: "orange",
-  imageUrl: "", linkUrl: "", linkText: "", displayOrder: 0, isActive: true,
+  imageUrl: "", linkUrl: "", linkText: "", displayOrder: 0, isActive: true, isFeatured: false,
   styles: { ...DEFAULT_STYLES },
 };
 
@@ -140,7 +142,7 @@ export default function KampanyalarPage() {
       title: item.title, subtitle: item.subtitle ?? "", icon: item.icon,
       colorScheme: item.colorScheme, imageUrl: item.imageUrl ?? "",
       linkUrl: item.linkUrl ?? "", linkText: item.linkText ?? "",
-      displayOrder: item.displayOrder, isActive: item.isActive,
+      displayOrder: item.displayOrder, isActive: item.isActive, isFeatured: item.isFeatured,
       styles: parseStyles(item.stylesJson),
     });
     setFormError(null); setActiveTab("content"); setShowForm(true);
@@ -155,7 +157,7 @@ export default function KampanyalarPage() {
         colorScheme: form.colorScheme, imageUrl: form.imageUrl.trim() || null,
         stylesJson: JSON.stringify(form.styles),
         linkUrl: form.linkUrl.trim() || null, linkText: form.linkText.trim() || null,
-        displayOrder: form.displayOrder, isActive: form.isActive,
+        displayOrder: form.displayOrder, isActive: form.isActive, isFeatured: form.isFeatured,
       };
       if (editId) await api.put(`/api/admin/campaigns/${editId}`, body);
       else await api.post("/api/admin/campaigns", body);
@@ -226,10 +228,13 @@ export default function KampanyalarPage() {
                       {item.subtitle && <p className="text-xs drop-shadow" style={{ color: st.subtitleColor }}>{item.subtitle}</p>}
                     </div>
                   </div>
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/90 ${item.isActive ? "text-green-700" : "text-slate-500"}`}>
                       {item.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                     </span>
+                    {item.isFeatured && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/90 text-amber-900">⭐ Öne Çıkan</span>
+                    )}
                   </div>
                   <div className="absolute top-2 left-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/30 text-white">#{item.displayOrder}</span>
@@ -373,10 +378,14 @@ export default function KampanyalarPage() {
                           <label className={lbl}>Sıralama</label>
                           <input type="number" min={0} value={form.displayOrder} onChange={e => setForm(f => ({...f, displayOrder: Number(e.target.value)}))} className={inp} />
                         </div>
-                        <div className="flex items-center gap-2 pt-5">
+                        <div className="flex flex-col gap-2 pt-5">
                           <button type="button" onClick={() => setForm(f => ({...f, isActive: !f.isActive}))} className="flex items-center gap-2">
                             {form.isActive ? <ToggleRight size={28} className="text-teal-500" /> : <ToggleLeft size={28} className="text-slate-400" />}
                             <span className={`text-sm font-semibold ${form.isActive ? "text-teal-600" : "text-slate-500"}`}>{form.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}</span>
+                          </button>
+                          <button type="button" onClick={() => setForm(f => ({...f, isFeatured: !f.isFeatured}))} className="flex items-center gap-2">
+                            {form.isFeatured ? <ToggleRight size={28} className="text-amber-500" /> : <ToggleLeft size={28} className="text-slate-400" />}
+                            <span className={`text-sm font-semibold ${form.isFeatured ? "text-amber-600" : "text-slate-500"}`}>{form.isFeatured ? "⭐ Öne Çıkan" : "Öne Çıkan Değil"}</span>
                           </button>
                         </div>
                       </div>

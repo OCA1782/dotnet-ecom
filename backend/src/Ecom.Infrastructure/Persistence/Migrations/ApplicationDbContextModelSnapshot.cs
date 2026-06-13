@@ -298,6 +298,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFeatured")
+                        .HasColumnType("bit");
+
                     b.Property<string>("LinkText")
                         .HasColumnType("nvarchar(max)");
 
