@@ -1600,6 +1600,7 @@ export default function YonetimPage() {
   const [mailLogsStatus, setMailLogsStatus]   = useState<string>("");
   const [mailLogsSearch, setMailLogsSearch]   = useState("");
   const [mailLogsTemplate, setMailLogsTemplate] = useState("");
+  const [mailGuideOpen, setMailGuideOpen]       = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sysInfo, setSysInfo] = useState<any>(null);
   const [openMsgGroups, setOpenMsgGroups] = useState<Set<string>>(new Set(["Doğrulama Mesajları"]));
@@ -3839,6 +3840,146 @@ export default function YonetimPage() {
       {/* ── Mail Log ── */}
       {tab === "mail" && (
         <div className="space-y-5">
+
+          {/* ── Nasıl Çalışır? ── */}
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 overflow-hidden">
+            <button type="button" onClick={() => setMailGuideOpen(v => !v)}
+              className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-blue-100/60 transition">
+              <Mail size={16} className="text-blue-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-800">Mail Sistemi — Nasıl Çalışır?</p>
+                <p className="text-xs text-blue-600 mt-0.5">
+                  {mailGuideOpen
+                    ? "Tüm mail kaynakları, loglanan alanlar ve dev modu davranışı aşağıda açıklanmaktadır."
+                    : "Hangi servisler/joblar mail gönderiyor? Dev modda ne olur? Loglanan alanlar neler? — Genişletmek için tıkla."}
+                </p>
+              </div>
+              <ChevronDown size={15} className={`text-blue-400 transition-transform shrink-0 ${mailGuideOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {mailGuideOpen && (
+              <div className="px-5 pb-5 space-y-5 border-t border-blue-100">
+
+                {/* Dev Modu */}
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-xs font-bold text-amber-700 mb-1.5 flex items-center gap-1.5">
+                    <AlertTriangle size={13} /> Dev Modu Davranışı
+                  </p>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    <code className="bg-amber-100 px-1 rounded font-mono">Email:SmtpHost</code> boş veya{" "}
+                    <code className="bg-amber-100 px-1 rounded font-mono">smtp.example.com</code> ise sistem dev modundadır.{" "}
+                    Gerçek SMTP bağlantısı <strong>kurulmaz</strong>, mail gönderilmez.
+                    Ancak gönderim girişimi <strong>her zaman loglanır</strong> — tabloda{" "}
+                    <span className="inline-flex items-center gap-0.5 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">Dev</span>{" "}
+                    badge&apos;i ile görünür.
+                    SMTP yapılandırmak için{" "}
+                    <strong>Yönetim → Sistem → E-posta / SMTP Test</strong> bölümüne bakın.
+                  </p>
+                </div>
+
+                {/* Loglanan Alanlar */}
+                <div>
+                  <p className="text-xs font-bold text-slate-700 mb-2">Logda Tutulan Bilgiler (MailLog tablosu)</p>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500">Alan</th>
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500">Açıklama</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {[
+                          ["SentAt",       "Gönderim zamanı (UTC)"],
+                          ["ToEmail",      "Alıcı e-posta adresi"],
+                          ["ToName",       "Alıcı adı"],
+                          ["Subject",      "E-posta konusu"],
+                          ["TemplateName", "Kullanılan şablon adı (bkz. aşağı)"],
+                          ["IsSuccess",    "Gönderim başarılı mı? (SMTP hatasında false)"],
+                          ["IsDevMode",    "Dev modunda mı gönderildi? (SMTP bağlantısı kurulmadı)"],
+                          ["ErrorMessage", "Başarısızsa SMTP hata mesajı"],
+                        ].map(([f, d]) => (
+                          <tr key={f} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 font-mono text-teal-700">{f}</td>
+                            <td className="px-3 py-2 text-slate-600">{d}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Şablon → Kaynak Tablosu */}
+                <div>
+                  <p className="text-xs font-bold text-slate-700 mb-2">Mail Kaynakları — Kim, Ne Zaman, Hangi Şablonla?</p>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500 w-36">Şablon</th>
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500 w-28">Kaynak Tipi</th>
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500">Tetikleyici / Servis</th>
+                          <th className="text-left px-3 py-2 font-semibold text-slate-500">Aralık / Endpoint</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {([
+                          ["OrderConfirmation",    "Outbox Consumer", "OrderCreatedConsumer",       "Sipariş oluşturunca otomatik"],
+                          ["PaymentSuccess",       "Outbox Consumer", "PaymentCompletedConsumer",   "Ödeme tamamlanınca otomatik"],
+                          ["ShippingNotification", "Command Handler", "CreateShipmentCommand",      "POST /api/admin/shipments"],
+                          ["EmailVerification",    "Command Handler", "RegisterCommand",            "POST /api/auth/register"],
+                          ["VerificationReminder", "Command Handler", "ResendVerificationCommand",  "POST /api/auth/resend-verification"],
+                          ["VerificationReminder", "Job (12 saat)",   "VerificationReminderJob",    "Her 720 dk otomatik"],
+                          ["PasswordReset",        "Command Handler", "ForgotPasswordCommand",      "POST /api/auth/forgot-password"],
+                          ["PasswordReminder",     "Job (24 saat)",   "PasswordReminderJob",        "Her 1440 dk — 60+ gün değiştirmeyenlere"],
+                          ["ReviewRejection",      "Command Handler", "ApproveReviewCommand",       "PUT /api/admin/reviews/{id}/approve"],
+                          ["LowStockAlertBatch",   "Job (5 dk)",      "StockAlertJob",              "Her 5 dk — kritik stok altı ürün varsa"],
+                          ["Alert",                "Job (60 dk)",     "ModuleHealthCheckJob",       "Her 60 dk — sağlık sorunu varsa"],
+                          ["Alert",                "Admin API",       "SettingsController",         "POST /api/admin/settings/test-alert"],
+                          ["TestEmail",            "Admin API",       "EmailController",            "POST /api/admin/email/test"],
+                          ["ContactForm",          "Public API",      "ContactController",          "POST /api/contact"],
+                          ["LicenseAssignment",    "EcomLicence Servis", "LicenseAssignmentsController (dotnet-ecom-licence)", "Lisans atama / yenileme"],
+                        ] as [string,string,string,string][]).map(([tpl, src, svc, ep], i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 font-mono text-teal-700 whitespace-nowrap">{tpl}</td>
+                            <td className="px-3 py-2">
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                src.includes("Job")      ? "bg-violet-100 text-violet-700" :
+                                src.includes("Consumer") ? "bg-blue-100 text-blue-700"     :
+                                src.includes("Licen")    ? "bg-orange-100 text-orange-700" :
+                                src.includes("Admin")    ? "bg-teal-100 text-teal-700"     :
+                                src.includes("Public")   ? "bg-slate-100 text-slate-600"   :
+                                "bg-indigo-100 text-indigo-700"
+                              }`}>{src}</span>
+                            </td>
+                            <td className="px-3 py-2 text-slate-700 font-medium">{svc}</td>
+                            <td className="px-3 py-2 text-slate-500 font-mono text-[10px]">{ep}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Akış diyagramı */}
+                <div>
+                  <p className="text-xs font-bold text-slate-700 mb-2">Mail Akışı</p>
+                  <div className="bg-slate-900 rounded-xl p-4 text-[11px] font-mono text-slate-300 space-y-1 leading-relaxed">
+                    <p><span className="text-teal-400">Tetikleyici</span> (kayıt / sipariş / job / admin)</p>
+                    <p className="pl-4">→ <span className="text-blue-400">IEmailService</span> metodu çağrılır</p>
+                    <p className="pl-8">→ private <span className="text-yellow-400">SendAsync(toEmail, toName, subject, body, templateName, ct)</span></p>
+                    <p className="pl-12">→ Dev mi? <span className="text-amber-400">evet</span>: SMTP atlanır, log yazılır <span className="text-amber-400">[IsDevMode=true]</span></p>
+                    <p className="pl-12">→ Dev mi? <span className="text-green-400">hayır</span>: MailKit → SMTP gönderim</p>
+                    <p className="pl-16">→ Başarı: log <span className="text-green-400">[IsSuccess=true]</span></p>
+                    <p className="pl-16">→ Hata:  log <span className="text-red-400">[IsSuccess=false, ErrorMessage=...]</span>, exception fırlatılır</p>
+                    <p className="pl-12 text-slate-500">// TryLogAsync exception fırlatsa bile mail akışını kesmez</p>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+
           <Section title="Mail Gönderim Logu" icon={<Mail size={16} />}
             subtitle="Sistemin gönderdiği tüm e-postalar burada loglanır. Dev modda gerçek mail gönderilmez, yalnızca loglanır.">
             {/* Filtreler */}
