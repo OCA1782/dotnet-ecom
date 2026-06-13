@@ -55,6 +55,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<AlertCondition> AlertConditions => Set<AlertCondition>();
     public DbSet<LicenseAssignment> LicenseAssignments => Set<LicenseAssignment>();
+    public DbSet<MailLog> MailLogs => Set<MailLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

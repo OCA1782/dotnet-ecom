@@ -71,6 +71,8 @@ const SCREEN_MAP: Record<string, string[]> = {
   "TodoVerificationJob kayıtlı":                   ["Doğrulama"],
   // SEO
   "sitemap.ts mevcut":                             ["Mağaza — Sitemap"],
+  // Mail
+  "EmailService: mail log (IApplicationDbContext)": ["Mail Log"],
   // DB
   "Products tablosu":                              ["Ürünler", "Stok", "Mağaza"],
   "Categories tablosu":                            ["Kategoriler", "Mağaza"],
@@ -78,6 +80,7 @@ const SCREEN_MAP: Record<string, string[]> = {
   "JobLogs tablosu":                               ["Joblar"],
   "Announcements tablosu":                         ["Duyurular"],
   "Orders tablosu":                                ["Siparişler", "Raporlar"],
+  "MailLogs tablosu":                              ["Mail Log"],
 };
 
 export default function DogrulamaPage() {

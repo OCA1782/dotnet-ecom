@@ -51,6 +51,7 @@ public interface IApplicationDbContext
     DbSet<Campaign> Campaigns { get; }
     DbSet<AlertCondition> AlertConditions { get; }
     DbSet<LicenseAssignment> LicenseAssignments { get; }
+    DbSet<MailLog> MailLogs { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

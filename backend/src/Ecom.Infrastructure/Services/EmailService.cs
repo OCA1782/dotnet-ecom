@@ -1,4 +1,5 @@
 using Ecom.Application.Common.Interfaces;
+using Ecom.Domain.Entities;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +8,7 @@ using MimeKit;
 
 namespace Ecom.Infrastructure.Services;
 
-public class EmailService(IConfiguration configuration, ILogger<EmailService> logger) : IEmailService
+public class EmailService(IConfiguration configuration, ILogger<EmailService> logger, IApplicationDbContext db) : IEmailService
 {
     private readonly string _host = configuration["Email:SmtpHost"] ?? "";
     private readonly int _port = int.TryParse(configuration["Email:SmtpPort"], out var p) ? p : 587;
@@ -22,21 +23,21 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
     {
         var subject = $"Siparişiniz Alındı — {orderNumber}";
         var body = EmailTemplates.OrderConfirmation(toName, orderNumber, FormatPrice(grandTotal));
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "OrderConfirmation", ct);
     }
 
     public async Task SendPaymentSuccessAsync(string toEmail, string toName, string orderNumber, decimal grandTotal, CancellationToken ct = default)
     {
         var subject = $"Ödemeniz Onaylandı — {orderNumber}";
         var body = EmailTemplates.PaymentSuccess(toName, orderNumber, FormatPrice(grandTotal));
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "PaymentSuccess", ct);
     }
 
     public async Task SendShippingNotificationAsync(string toEmail, string toName, string orderNumber, string cargoCompany, string trackingNumber, string? trackingUrl, CancellationToken ct = default)
     {
         var subject = $"Siparişiniz Kargoya Verildi — {orderNumber}";
         var body = EmailTemplates.ShippingNotification(toName, orderNumber, cargoCompany, trackingNumber, trackingUrl);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "ShippingNotification", ct);
     }
 
     public async Task SendEmailVerificationAsync(string toEmail, string toName, string code, CancellationToken ct = default)
@@ -45,7 +46,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             logger.LogInformation("[EMAIL-DEV] VerificationCode={Code} To={To}", code, toEmail);
         var subject = "E-posta Doğrulama — Ecom";
         var body = EmailTemplates.EmailVerification(toName, code);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "EmailVerification", ct);
     }
 
     public async Task SendVerificationReminderAsync(string toEmail, string toName, string code, CancellationToken ct = default)
@@ -54,7 +55,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             logger.LogInformation("[EMAIL-DEV] VerificationReminder Code={Code} To={To}", code, toEmail);
         var subject = "Hesabınızı Doğrulayın — Ecom";
         var body = EmailTemplates.VerificationReminder(toName, code);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "VerificationReminder", ct);
     }
 
     public async Task SendPasswordReminderAsync(string toEmail, string toName, int daysSinceLastChange, CancellationToken ct = default)
@@ -63,7 +64,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             logger.LogInformation("[EMAIL-DEV] PasswordReminder Days={Days} To={To}", daysSinceLastChange, toEmail);
         var subject = "Şifrenizi Güncelleme Zamanı — Ecom";
         var body = EmailTemplates.PasswordReminder(toName, daysSinceLastChange);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "PasswordReminder", ct);
     }
 
     public async Task SendPasswordResetAsync(string toEmail, string toName, string resetToken, CancellationToken ct = default)
@@ -71,21 +72,21 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         var resetUrl = $"{_resetBaseUrl}?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
         var subject = "Şifre Sıfırlama — Ecom";
         var body = EmailTemplates.PasswordReset(toName, resetUrl);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "PasswordReset", ct);
     }
 
     public async Task SendLowStockAlertAsync(string toEmail, string productName, int availableStock, int criticalLevel, CancellationToken ct = default)
     {
         var subject = $"⚠ Kritik Stok Uyarısı: {productName}";
         var body = EmailTemplates.LowStockAlert(productName, availableStock, criticalLevel);
-        await SendAsync(toEmail, "Yönetici", subject, body, ct);
+        await SendAsync(toEmail, "Yönetici", subject, body, "LowStockAlert", ct);
     }
 
     public async Task SendLowStockAlertBatchAsync(string toEmail, IReadOnlyList<(string ProductName, int Available, int Critical)> products, CancellationToken ct = default)
     {
         var subject = $"⚠ Kritik Stok Uyarısı — {products.Count} ürün";
         var body = EmailTemplates.LowStockAlertBatch(products);
-        await SendAsync(toEmail, "Yönetici", subject, body, ct);
+        await SendAsync(toEmail, "Yönetici", subject, body, "LowStockAlertBatch", ct);
     }
 
     public async Task SendReviewRejectionAsync(string toEmail, string toName, string productName, string? note, CancellationToken ct = default)
@@ -103,7 +104,7 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
               <p style="color:#64748b;font-size:13px;margin-top:16px">Sorularınız için destek ekibimize ulaşabilirsiniz.</p>
             </div>
             """;
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "ReviewRejection", ct);
     }
 
     public async Task SendContactFormAsync(string toEmail, string fromName, string fromEmail, string message, CancellationToken ct = default)
@@ -118,14 +119,14 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
               <p style="color:#94a3b8;font-size:12px;margin-top:24px">{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
             </div>
             """;
-        await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, ct);
+        await SendAsync(toEmail, "Admin", $"İletişim Formu — {fromName}", body, "ContactForm", ct);
     }
 
     public async Task SendLicenseAssignmentAsync(string toEmail, string toName, string licenseToken, string viewPassword, string issuer, string expiresAt, CancellationToken ct = default)
     {
         var subject = "Ecom Platform Lisansınız Hazır";
         var body = EmailTemplates.LicenseAssignment(toName, licenseToken, viewPassword, issuer, expiresAt);
-        await SendAsync(toEmail, toName, subject, body, ct);
+        await SendAsync(toEmail, toName, subject, body, "LicenseAssignment", ct);
     }
 
     public async Task SendTestEmailAsync(string toEmail, CancellationToken ct = default)
@@ -137,16 +138,30 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
               <p style="color:#64748b;font-size:13px">Gönderim zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>
             </div>
             """;
-        await SendAsync(toEmail, "Test", "SMTP Test — Ecom", body, ct);
+        await SendAsync(toEmail, "Test", "SMTP Test — Ecom", body, "TestEmail", ct);
     }
 
-    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct)
+    public async Task SendAlertAsync(IEnumerable<string> toEmails, string subject, string htmlBody, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com")
+        var emails = toEmails.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct().ToList();
+        if (emails.Count == 0) return;
+        foreach (var email in emails)
+            await SendAsync(email, "Admin", subject, htmlBody, "Alert", ct);
+    }
+
+    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, string templateName, CancellationToken ct)
+    {
+        var isDevMode = string.IsNullOrWhiteSpace(_host) || _host == "smtp.example.com";
+
+        if (isDevMode)
         {
             logger.LogInformation("[EMAIL-DEV] To={To} Subject={Subject}", toEmail, subject);
+            await TryLogAsync(toEmail, toName, subject, templateName, true, true, null);
             return;
         }
+
+        bool isSuccess = false;
+        string? errorMessage = null;
 
         try
         {
@@ -164,21 +179,41 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
             await client.SendAsync(message, ct);
             await client.DisconnectAsync(true, ct);
 
+            isSuccess = true;
             logger.LogInformation("[EMAIL] Sent to={To} Subject={Subject}", toEmail, subject);
         }
         catch (Exception ex)
         {
+            errorMessage = ex.Message;
             logger.LogError(ex, "[EMAIL] Failed to send email to={To} Subject={Subject}", toEmail, subject);
             throw;
         }
+        finally
+        {
+            await TryLogAsync(toEmail, toName, subject, templateName, isSuccess, false, errorMessage);
+        }
     }
 
-    public async Task SendAlertAsync(IEnumerable<string> toEmails, string subject, string htmlBody, CancellationToken ct = default)
+    private async Task TryLogAsync(string toEmail, string toName, string subject, string templateName, bool isSuccess, bool isDevMode, string? errorMessage)
     {
-        var emails = toEmails.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct().ToList();
-        if (emails.Count == 0) return;
-        foreach (var email in emails)
-            await SendAsync(email, "Admin", subject, htmlBody, ct);
+        try
+        {
+            db.MailLogs.Add(new MailLog
+            {
+                ToEmail = toEmail,
+                ToName = toName,
+                Subject = subject,
+                TemplateName = templateName,
+                IsSuccess = isSuccess,
+                IsDevMode = isDevMode,
+                ErrorMessage = errorMessage,
+            });
+            await db.SaveChangesAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[EMAIL-LOG] Failed to save mail log for To={To}", toEmail);
+        }
     }
 
     private static string FormatPrice(decimal amount) =>

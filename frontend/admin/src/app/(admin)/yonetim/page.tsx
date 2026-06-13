@@ -947,7 +947,7 @@ function TemplatePreview({ tmpl, siteName }: { tmpl: typeof TEMPLATES[number]; s
   );
 }
 
-type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "yetkiler" | "lisans" | "otomasyon" | "sistem" | "bildirimler" | "dil";
+type Tab = "genel" | "gorunum" | "sablon" | "kargo" | "menu" | "icerik" | "chatbot" | "odeme" | "mesajlar" | "mail" | "yetkiler" | "lisans" | "otomasyon" | "sistem" | "bildirimler" | "dil";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "genel",    label: "Genel",    icon: <Globe size={14} /> },
@@ -959,6 +959,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatbot",  label: "Chatbot",  icon: <MessageCircle size={14} /> },
   { id: "odeme",    label: "Ödeme",    icon: <CreditCard size={14} /> },
   { id: "mesajlar", label: "Mesajlar", icon: <MessageSquare size={14} /> },
+  { id: "mail",     label: "Mail Log", icon: <Mail size={14} /> },
   { id: "yetkiler", label: "Yetkiler", icon: <Shield size={14} /> },
   { id: "lisans",   label: "Lisans",   icon: <KeyRound size={14} /> },
   { id: "otomasyon", label: "Otomasyon", icon: <Activity size={14} /> },
@@ -1589,6 +1590,16 @@ export default function YonetimPage() {
   const [testEmail, setTestEmail]               = useState("");
   const [testEmailSending, setTestEmailSending] = useState(false);
   const [testEmailResult, setTestEmailResult]   = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Mail log state
+  type MailLogEntry = { id: string; sentAt: string; toEmail: string; toName: string; subject: string; templateName: string; isSuccess: boolean; isDevMode: boolean; errorMessage: string | null };
+  const [mailLogs, setMailLogs]           = useState<MailLogEntry[]>([]);
+  const [mailLogsTotal, setMailLogsTotal] = useState(0);
+  const [mailLogsPage, setMailLogsPage]   = useState(1);
+  const [mailLogsLoading, setMailLogsLoading] = useState(false);
+  const [mailLogsStatus, setMailLogsStatus]   = useState<string>("");
+  const [mailLogsSearch, setMailLogsSearch]   = useState("");
+  const [mailLogsTemplate, setMailLogsTemplate] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sysInfo, setSysInfo] = useState<any>(null);
   const [openMsgGroups, setOpenMsgGroups] = useState<Set<string>>(new Set(["Doğrulama Mesajları"]));
@@ -1777,6 +1788,15 @@ export default function YonetimPage() {
   const [alertSaved, setAlertSaved]       = useState(false);
   const [alertTesting, setAlertTesting]   = useState(false);
   const [alertTestMsg, setAlertTestMsg]   = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tab !== "mail") return;
+    void loadMailLogs(1, "", "", "");
+    setMailLogsStatus("");
+    setMailLogsSearch("");
+    setMailLogsTemplate("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   useEffect(() => {
     if (tab !== "bildirimler") return;
@@ -1993,6 +2013,21 @@ export default function YonetimPage() {
   }
 
 
+  async function loadMailLogs(page = 1, status = mailLogsStatus, search = mailLogsSearch, template = mailLogsTemplate) {
+    setMailLogsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: "30" });
+      if (status) params.set("status", status);
+      if (search) params.set("search", search);
+      if (template) params.set("template", template);
+      const data = await api.get<{ total: number; page: number; logs: MailLogEntry[] }>(`/api/admin/mail-logs?${params}`);
+      setMailLogs(data.logs);
+      setMailLogsTotal(data.total);
+      setMailLogsPage(page);
+    } catch { /* ignore */ }
+    finally { setMailLogsLoading(false); }
+  }
+
   function activateEnv(env: "dev" | "staging" | "prod") {
     set("AppEnvironment", env === "dev" ? "development" : env === "staging" ? "staging" : "production");
     set("ApiBaseUrl", settings[`ApiBaseUrl_${env}`] || settings.ApiBaseUrl);
@@ -2045,6 +2080,7 @@ export default function YonetimPage() {
                 chatbot:     t("settings.tab.chatbot", "Chatbot"),
                 odeme:       t("settings.tab.odeme", "Ödeme"),
                 mesajlar:    t("settings.tab.mesajlar", "Mesajlar"),
+                mail:        t("settings.tab.mail", "Mail Log"),
                 yetkiler:    t("settings.tab.yetkiler", "Yetkiler"),
                 lisans:      t("settings.tab.lisans", "Lisans"),
                 otomasyon:   t("settings.tab.otomasyon", "Otomasyon"),
@@ -3768,6 +3804,112 @@ export default function YonetimPage() {
             <p className="font-semibold mb-1">Geliştirici Notu</p>
             <p>Bu mesajlar SiteSettings tablosunda saklanır. Frontend bileşenler <code className="font-mono bg-blue-100 px-1 rounded">GET /api/settings/theme</code> endpoint&apos;inden okuyabilir ya da hardcoded varsayılan değerleri kullanabilir. Kaydet butonuna bastıktan sonra aktif olur.</p>
           </div>
+        </div>
+      )}
+
+      {/* ── Mail Log ── */}
+      {tab === "mail" && (
+        <div className="space-y-5">
+          <Section title="Mail Gönderim Logu" icon={<Mail size={16} />}
+            subtitle="Sistemin gönderdiği tüm e-postalar burada loglanır. Dev modda gerçek mail gönderilmez, yalnızca loglanır.">
+            {/* Filtreler */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="E-posta veya konu ara..."
+                value={mailLogsSearch}
+                onChange={e => setMailLogsSearch(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && void loadMailLogs(1, mailLogsStatus, mailLogsSearch, mailLogsTemplate)}
+                className={inp + " flex-1 min-w-[200px]"}
+              />
+              <select
+                value={mailLogsStatus}
+                onChange={e => { setMailLogsStatus(e.target.value); void loadMailLogs(1, e.target.value, mailLogsSearch, mailLogsTemplate); }}
+                className={inp + " w-36"}
+              >
+                <option value="">Tüm Durumlar</option>
+                <option value="success">Başarılı</option>
+                <option value="failed">Başarısız</option>
+                <option value="dev">Dev Modu</option>
+              </select>
+              <select
+                value={mailLogsTemplate}
+                onChange={e => { setMailLogsTemplate(e.target.value); void loadMailLogs(1, mailLogsStatus, mailLogsSearch, e.target.value); }}
+                className={inp + " w-44"}
+              >
+                <option value="">Tüm Şablonlar</option>
+                {["OrderConfirmation","PaymentSuccess","ShippingNotification","EmailVerification","VerificationReminder","PasswordReminder","PasswordReset","LowStockAlert","LowStockAlertBatch","ReviewRejection","ContactForm","LicenseAssignment","TestEmail","Alert"].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <button onClick={() => void loadMailLogs(1, mailLogsStatus, mailLogsSearch, mailLogsTemplate)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-medium text-slate-600 transition">
+                <RefreshCw size={13} /> Yenile
+              </button>
+            </div>
+
+            {/* Tablo */}
+            {mailLogsLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 size={22} className="animate-spin text-slate-400" />
+              </div>
+            ) : mailLogs.length === 0 ? (
+              <div className="text-center py-10 text-sm text-slate-400">Kayıt bulunamadı</div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-xs text-slate-700">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">Zaman</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">Alıcı</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">Konu</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">Şablon</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">Durum</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {mailLogs.map(log => (
+                      <tr key={log.id} className={`hover:bg-slate-50 transition ${log.isSuccess ? "" : "bg-red-50"}`}>
+                        <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">
+                          {new Date(log.sentAt).toLocaleString("tr-TR")}
+                        </td>
+                        <td className="px-3 py-2.5 max-w-[160px] truncate" title={`${log.toName} <${log.toEmail}>`}>
+                          <span className="font-medium">{log.toName}</span>
+                          <span className="text-slate-400 ml-1">({log.toEmail})</span>
+                        </td>
+                        <td className="px-3 py-2.5 max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">{log.templateName}</span>
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {log.isDevMode ? (
+                            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Dev</span>
+                          ) : log.isSuccess ? (
+                            <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">Gönderildi</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold" title={log.errorMessage ?? ""}>Hata</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {mailLogsTotal > 30 && (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-slate-400">{mailLogsTotal} kayıt, sayfa {mailLogsPage}/{Math.ceil(mailLogsTotal / 30)}</p>
+                <div className="flex gap-1">
+                  <button disabled={mailLogsPage <= 1} onClick={() => void loadMailLogs(mailLogsPage - 1)}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition">Önceki</button>
+                  <button disabled={mailLogsPage >= Math.ceil(mailLogsTotal / 30)} onClick={() => void loadMailLogs(mailLogsPage + 1)}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition">Sonraki</button>
+                </div>
+              </div>
+            )}
+          </Section>
         </div>
       )}
 

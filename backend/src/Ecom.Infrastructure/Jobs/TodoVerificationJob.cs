@@ -58,6 +58,7 @@ public class TodoVerificationJob(
         new("Jobs", "TodoVerificationJob kayıtlı", "backend/src/Ecom.Infrastructure/DependencyInjection.cs", "TodoVerificationJob"),
         new("SEO", "sitemap.ts mevcut", "frontend/customer/src/app/sitemap.ts", "sitemap"),
         new("Lisans", "LicenseValidator: RSA", "backend/src/Ecom.Infrastructure/Security/LicenseValidator.cs", "RSA"),
+        new("Mail", "EmailService: mail log (IApplicationDbContext)", "backend/src/Ecom.Infrastructure/Services/EmailService.cs", "TryLogAsync"),
     ];
 
     public async Task RunAsync(Func<string, Task> log, CancellationToken ct)
@@ -198,6 +199,7 @@ public class TodoVerificationJob(
             ("JobLogs tablosu", () => db.JobLogs.CountAsync(ct)),
             ("Announcements tablosu", () => db.Announcements.CountAsync(ct)),
             ("Orders tablosu", () => db.Orders.CountAsync(ct)),
+            ("MailLogs tablosu", () => db.MailLogs.CountAsync(ct)),
         };
 
         foreach (var (name, fn) in checks)
