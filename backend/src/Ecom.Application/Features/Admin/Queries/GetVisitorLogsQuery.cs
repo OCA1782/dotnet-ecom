@@ -11,7 +11,8 @@ public record GetVisitorLogsQuery(
     Guid? UserId = null,
     string? Page2 = null,
     DateTime? From = null,
-    DateTime? To = null
+    DateTime? To = null,
+    string? Country = null
 ) : IRequest<GetVisitorLogsResult>;
 
 public record VisitorLogDto(
@@ -70,6 +71,11 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
         {
             where.Add("v.CreatedDate <= @To");
             param.Add("To", request.To.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(request.Country))
+        {
+            where.Add("v.Country = @Country");
+            param.Add("Country", request.Country);
         }
 
         var whereClause = string.Join(" AND ", where);

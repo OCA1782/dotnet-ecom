@@ -9,6 +9,7 @@ import {
   Download, Search, CheckCircle, XCircle, Trash2,
   MessageSquare, Bell, ThumbsUp, ThumbsDown, Flag,
   MessageCircle, AlertTriangle, X, History, ChevronUp, ChevronDown, ChevronsUpDown,
+  CheckSquare, Square, CheckCheck,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -246,6 +247,49 @@ export default function YorumlarPage() {
     } catch { }
   }
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSelectedIds(new Set()); }, [page]);
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === reviews.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(reviews.map(r => r.id)));
+  }
+
+  async function handleBulkApprove() {
+    const ids = [...selectedIds];
+    await Promise.allSettled(ids.map(id => api.patch(`/api/admin/reviews/${id}/approve`, { approved: true })));
+    setSelectedIds(new Set());
+    setMsg({ text: `${ids.length} yorum onaylandı.`, ok: true });
+    void load();
+  }
+
+  async function handleBulkReject() {
+    if (!confirm(`${selectedIds.size} yorumu reddetmek istiyor musunuz?`)) return;
+    const ids = [...selectedIds];
+    await Promise.allSettled(ids.map(id => api.patch(`/api/admin/reviews/${id}/approve`, { approved: false })));
+    setSelectedIds(new Set());
+    setMsg({ text: `${ids.length} yorum reddedildi.`, ok: false });
+    void load();
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`${selectedIds.size} yorumu kalıcı olarak silmek istiyor musunuz?`)) return;
+    const ids = [...selectedIds];
+    await Promise.allSettled(ids.map(id => api.delete(`/api/admin/reviews/${id}`)));
+    setSelectedIds(new Set());
+    void load();
+  }
+
   const totalPages = Math.ceil(total / pageSize);
   const pendingCount = reviews.filter(r => !r.isApproved && !r.rejectionNote).length;
   const reportedCount = reviews.filter(r => r.hasUnresolvedReports).length;
@@ -362,6 +406,30 @@ export default function YorumlarPage() {
         </select>
       </div>
 
+      {/* Toplu aksiyon barı */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 flex-wrap bg-violet-50 border border-violet-200 rounded-xl px-4 py-2.5">
+          <CheckCheck size={15} className="text-violet-600 shrink-0" />
+          <span className="text-sm font-semibold text-violet-700">{selectedIds.size} yorum seçildi</span>
+          <button onClick={() => void handleBulkApprove()}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-green-100 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-200 transition">
+            <CheckCircle size={12} /> Tümünü Onayla
+          </button>
+          <button onClick={() => void handleBulkReject()}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-200 transition">
+            <XCircle size={12} /> Tümünü Reddet
+          </button>
+          <button onClick={() => void handleBulkDelete()}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition">
+            <Trash2 size={12} /> Tümünü Sil
+          </button>
+          <button onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1">
+            <X size={12} /> Seçimi Temizle
+          </button>
+        </div>
+      )}
+
       {/* Tablo */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
@@ -370,6 +438,13 @@ export default function YorumlarPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-violet-600 transition">
+                    {selectedIds.size === reviews.length && reviews.length > 0
+                      ? <CheckSquare size={16} className="text-violet-600" />
+                      : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.product", "Ürün")} / {t("col.user", "Kullanıcı")}</th>
                 <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.rating", "Puan")}</th>
                 <th className="text-left px-4 py-3 text-slate-500 font-medium text-xs">{t("col.comment", "Yorum")}</th>
@@ -382,9 +457,16 @@ export default function YorumlarPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {reviews.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : reviews.map(r => (
-                <tr key={r.id} className={`align-top ${r.hasUnresolvedReports ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}>
+                <tr key={r.id} className={`align-top ${selectedIds.has(r.id) ? "bg-violet-50/60" : r.hasUnresolvedReports ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}>
+                  <td className="px-4 py-3 w-10">
+                    <button onClick={() => toggleSelect(r.id)} className="text-slate-300 hover:text-violet-600 transition">
+                      {selectedIds.has(r.id)
+                        ? <CheckSquare size={16} className="text-violet-600" />
+                        : <Square size={16} />}
+                    </button>
+                  </td>
                   <td className="px-4 py-3 max-w-[180px]">
                     <p className="text-slate-800 text-xs font-semibold line-clamp-2">{r.productName}</p>
                     <p className="text-slate-500 text-xs mt-0.5">{r.userName}</p>

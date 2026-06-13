@@ -8,6 +8,7 @@ import {
   AlertTriangle, Info, AlertCircle, Search, Filter,
   Server, Monitor, Clock, ChevronDown, ChevronUp, X, Link2,
   ExternalLink, Copy, Check, Activity, MapPin, Link as LinkIcon,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -457,7 +458,47 @@ export default function TakipPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center bg-white rounded-2xl border border-slate-200 px-5 py-4 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 shadow-sm space-y-3">
+
+        {/* Quick date presets */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={13} className="text-slate-400 shrink-0" />
+          {(["today", "yesterday", "7d", "month", "all"] as const).map(p => {
+            const labels: Record<string, string> = {
+              today: "Bugün", yesterday: "Dün", "7d": "Son 7 Gün", month: "Bu Ay", all: "Tümü",
+            };
+            const toDay = (d: Date) => d.toISOString().split("T")[0];
+            const now = new Date();
+            const today = toDay(now);
+            const isActive =
+              p === "today"     ? startDate === today && endDate === today :
+              p === "yesterday" ? (() => { const y = new Date(now); y.setDate(y.getDate() - 1); const yd = toDay(y); return startDate === yd && endDate === yd; })() :
+              p === "7d"        ? (() => { const w = new Date(now); w.setDate(w.getDate() - 7); return startDate === toDay(w) && endDate === today; })() :
+              p === "month"     ? (() => { const m = new Date(now.getFullYear(), now.getMonth(), 1); return startDate === toDay(m) && endDate === today; })() :
+              /* all */           !startDate && !endDate;
+            return (
+              <button key={p}
+                onClick={() => {
+                  const today2 = toDay(new Date());
+                  if (p === "today")     { setStartDate(today2); setEndDate(today2); }
+                  if (p === "yesterday") { const y = new Date(); y.setDate(y.getDate() - 1); const yd = toDay(y); setStartDate(yd); setEndDate(yd); }
+                  if (p === "7d")        { const w = new Date(); w.setDate(w.getDate() - 7); setStartDate(toDay(w)); setEndDate(today2); }
+                  if (p === "month")     { const m = new Date(new Date().getFullYear(), new Date().getMonth(), 1); setStartDate(toDay(m)); setEndDate(today2); }
+                  if (p === "all")       { setStartDate(""); setEndDate(""); }
+                  setPage(1);
+                }}
+                className={`text-xs px-3 py-1 rounded-lg border font-medium transition ${
+                  isActive
+                    ? "bg-red-600 border-red-600 text-white"
+                    : "border-slate-200 text-slate-600 hover:border-red-400 hover:text-red-700"
+                }`}>
+                {labels[p]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap gap-3 items-center">
         <Filter size={14} className="text-slate-400" />
         <form onSubmit={e => { e.preventDefault(); setPage(1); setSearch(searchInput); }} className="flex gap-2">
           <div className="relative">
@@ -509,6 +550,7 @@ export default function TakipPage() {
             <X size={12} /> {t("action.clear", "Temizle")}
           </button>
         )}
+        </div>
       </div>
 
       {/* Log list */}

@@ -30,10 +30,11 @@ public class VisitorController(IMediator mediator) : ControllerBase
         [FromQuery] string? pageFilter = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
+        [FromQuery] string? country = null,
         CancellationToken ct = default)
     {
         var result = await mediator.Send(
-            new GetVisitorLogsQuery(page, pageSize, ipAddress, userId, pageFilter, from, to), ct);
+            new GetVisitorLogsQuery(page, pageSize, ipAddress, userId, pageFilter, from, to, country), ct);
         return Ok(result);
     }
 }

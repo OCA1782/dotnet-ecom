@@ -8,6 +8,7 @@ import type { PaginatedList } from "@/types";
 import {
   Download, Filter, Search, Activity, Users, Clock as ClockIcon,
   RefreshCw, AlertCircle, ShoppingCart, FileText, Zap, MapPin, Link as LinkIcon,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -366,7 +367,47 @@ export default function HareketlerPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 items-center bg-white rounded-2xl border border-slate-200 px-5 py-4 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 shadow-sm space-y-3">
+
+            {/* Quick date presets */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Calendar size={13} className="text-slate-400 shrink-0" />
+              {(["today", "yesterday", "7d", "month", "all"] as const).map(p => {
+                const labels: Record<string, string> = {
+                  today: "Bugün", yesterday: "Dün", "7d": "Son 7 Gün", month: "Bu Ay", all: "Tümü",
+                };
+                const toDay = (d: Date) => d.toISOString().split("T")[0];
+                const now = new Date();
+                const td = toDay(now);
+                const isActive =
+                  p === "today"     ? startDate === td && endDate === td :
+                  p === "yesterday" ? (() => { const y = new Date(now); y.setDate(y.getDate() - 1); const yd = toDay(y); return startDate === yd && endDate === yd; })() :
+                  p === "7d"        ? (() => { const w = new Date(now); w.setDate(w.getDate() - 7); return startDate === toDay(w) && endDate === td; })() :
+                  p === "month"     ? (() => { const m = new Date(now.getFullYear(), now.getMonth(), 1); return startDate === toDay(m) && endDate === td; })() :
+                                      !startDate && !endDate;
+                return (
+                  <button key={p}
+                    onClick={() => {
+                      const td2 = toDay(new Date());
+                      if (p === "today")     { setStartDate(td2); setEndDate(td2); }
+                      if (p === "yesterday") { const y = new Date(); y.setDate(y.getDate() - 1); const yd = toDay(y); setStartDate(yd); setEndDate(yd); }
+                      if (p === "7d")        { const w = new Date(); w.setDate(w.getDate() - 7); setStartDate(toDay(w)); setEndDate(td2); }
+                      if (p === "month")     { const m = new Date(new Date().getFullYear(), new Date().getMonth(), 1); setStartDate(toDay(m)); setEndDate(td2); }
+                      if (p === "all")       { setStartDate(""); setEndDate(""); }
+                      setPage(1);
+                    }}
+                    className={`text-xs px-3 py-1 rounded-lg border font-medium transition ${
+                      isActive
+                        ? "bg-indigo-600 border-indigo-600 text-white"
+                        : "border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-700"
+                    }`}>
+                    {labels[p]}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
             <Filter size={14} className="text-slate-400" />
             <form onSubmit={e => { e.preventDefault(); setPage(1); setUserSearch(userSearchInput); }} className="flex gap-2">
               <div className="relative">
@@ -411,6 +452,7 @@ export default function HareketlerPage() {
               <button onClick={() => { setEntityFilter(""); setActionFilter(""); setUserSearch(""); setUserSearchInput(""); setStartDate(""); setEndDate(""); setPage(1); }}
                 className="text-xs text-slate-500 hover:text-slate-700 underline">{t("filter.clearFilters", "Filtreleri Temizle")}</button>
             )}
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
