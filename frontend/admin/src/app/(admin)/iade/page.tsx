@@ -9,8 +9,9 @@ import type { AdminOrderSummary, PaginatedList } from "@/types";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS } from "@/types";
 import {
   RotateCcw, CheckCircle2, XCircle, Eye, AlertTriangle,
-  Clock, User, Search, Database,
+  Clock, User, Search, Database, CheckSquare, Square, Loader2,
 } from "lucide-react";
+
 interface RefundNote { orderId: string; orderNumber: string; note: string }
 
 export default function IadePage() {
@@ -22,7 +23,7 @@ export default function IadePage() {
     try {
       await api.post("/api/admin/seed/returns", {});
       setMsg({ text: t("iade.seedSuccess", "3 test iade kaydı oluşturuldu."), ok: true });
-      fetchOrders();
+      void fetchOrders();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : t("iade.seedError", "Seed hatası"), ok: false });
     } finally { setSeeding(false); }
@@ -40,6 +41,12 @@ export default function IadePage() {
   const [rejectModal, setRejectModal] = useState<RefundNote | null>(null);
   const [noteInput, setNoteInput] = useState("");
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkNoteInput, setBulkNoteInput] = useState("");
+  const [bulkConfirm, setBulkConfirm] = useState<"approve" | "reject" | null>(null);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
@@ -56,7 +63,46 @@ export default function IadePage() {
     }
   }, [page, search]);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { void fetchOrders(); }, [fetchOrders]);
+
+  // Clear selection on page change
+  useEffect(() => {
+    const id = window.setTimeout(() => setSelectedIds(new Set()), 0);
+    return () => window.clearTimeout(id);
+  }, [page]);
+
+  const allSelected = orders.length > 0 && orders.every(o => selectedIds.has(o.id));
+  const someSelected = orders.some(o => selectedIds.has(o.id));
+
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(orders.map(o => o.id)));
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function executeBulkAction(targetStatus: number) {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    setBulkConfirm(null);
+    const results = await Promise.allSettled(
+      ids.map(id => api.put(`/api/orders/admin/${id}/status`, { status: targetStatus, note: bulkNoteInput || null }))
+    );
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    setSelectedIds(new Set());
+    setBulkNoteInput("");
+    const action = targetStatus === 10 ? "onaylandı" : "reddedildi";
+    setMsg({ text: `${ok} iade talebi ${action}${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void fetchOrders();
+  }
 
   async function confirmApprove() {
     if (!approveModal) return;
@@ -66,7 +112,7 @@ export default function IadePage() {
     try {
       await api.put(`/api/orders/admin/${orderId}/status`, { status: 10, note });
       setMsg({ text: t("iade.approveSuccess", "İade onaylandı."), ok: true });
-      fetchOrders();
+      void fetchOrders();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : t("iade.approveFail", "Onaylama başarısız."), ok: false });
     }
@@ -80,7 +126,7 @@ export default function IadePage() {
     try {
       await api.put(`/api/orders/admin/${orderId}/status`, { status: 7, note });
       setMsg({ text: t("iade.rejectSuccess", "İade talebi reddedildi, sipariş tamamlandı olarak işaretlendi."), ok: true });
-      fetchOrders();
+      void fetchOrders();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : t("iade.rejectFail", "Reddetme başarısız."), ok: false });
     }
@@ -153,8 +199,42 @@ export default function IadePage() {
         )}
       </form>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-white text-sm font-semibold">{selectedIds.size} talep seçildi</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={() => { setBulkNoteInput(""); setBulkConfirm("approve"); }} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+              Tümünü Onayla
+            </button>
+            <button onClick={() => { setBulkNoteInput(""); setBulkConfirm("reject"); }} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+              Tümünü Reddet
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 border border-slate-600 text-slate-300 text-xs rounded-lg hover:bg-slate-700 transition">
+              Temizle
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Liste */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Select all header */}
+        {!loading && orders.length > 0 && (
+          <div className="px-5 py-2.5 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
+            <button onClick={toggleSelectAll} className="flex items-center gap-2 text-sm text-slate-500 hover:text-teal-600 transition">
+              {allSelected ? <CheckSquare size={15} className="text-teal-600" /> : someSelected ? <CheckSquare size={15} className="opacity-50" /> : <Square size={15} />}
+              <span className="text-xs font-medium">Tümünü Seç</span>
+            </button>
+            {someSelected && <span className="text-xs text-slate-400">{selectedIds.size} seçili</span>}
+          </div>
+        )}
+
         {loading ? (
           <div className="py-16 text-center text-slate-400">
             <div className="w-8 h-8 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -167,58 +247,66 @@ export default function IadePage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {orders.map(order => (
-              <div key={order.id} className="px-5 py-4 flex items-start gap-4 hover:bg-red-50/30 transition-colors">
-                {/* Sol: ikon */}
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <RotateCcw size={18} className="text-orange-600 animate-pulse" />
-                </div>
+            {orders.map(order => {
+              const selected = selectedIds.has(order.id);
+              return (
+                <div key={order.id} className={`px-5 py-4 flex items-start gap-4 transition-colors ${selected ? "bg-red-50/40" : "hover:bg-red-50/30"}`}>
+                  {/* Checkbox */}
+                  <button onClick={() => toggleSelect(order.id)} className="mt-1 shrink-0 text-slate-300 hover:text-red-500 transition">
+                    {selected ? <CheckSquare size={16} className="text-red-500" /> : <Square size={16} />}
+                  </button>
 
-                {/* Orta: bilgi */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                  {/* Sol: ikon */}
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <RotateCcw size={18} className="text-orange-600 animate-pulse" />
+                  </div>
+
+                  {/* Orta: bilgi */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Link href={`/siparisler/${order.orderNumber}`}
+                        className="font-bold text-slate-800 hover:text-red-600 font-mono text-sm transition">
+                        {order.orderNumber}
+                      </Link>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600"}`}>
+                        {t("iade.returnRequested", "İade Talep Edildi")}
+                      </span>
+                      <span className="text-xs text-slate-400">{PAYMENT_STATUS[order.paymentStatus] ?? "—"}</span>
+                      {order.dataSource && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{order.dataSource}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                      <span className="flex items-center gap-1"><User size={11} />{order.customerName}</span>
+                      <span>{order.customerEmail}</span>
+                      <span className="flex items-center gap-1"><Clock size={11} />{formatDate(order.createdDate)}</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 mt-1">{formatPrice(order.grandTotal)}</p>
+                  </div>
+
+                  {/* Sağ: aksiyonlar */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <Link href={`/siparisler/${order.orderNumber}`}
-                      className="font-bold text-slate-800 hover:text-red-600 font-mono text-sm transition">
-                      {order.orderNumber}
+                      title={t("action.details", "Detaylar")}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
+                      <Eye size={16} />
                     </Link>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600"}`}>
-                      {t("iade.returnRequested", "İade Talep Edildi")}
-                    </span>
-                    <span className="text-xs text-slate-400">{PAYMENT_STATUS[order.paymentStatus] ?? "—"}</span>
-                    {order.dataSource && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{order.dataSource}</span>
-                    )}
+                    <button
+                      onClick={() => { setNoteInput(""); setApproveModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
+                      title={t("iade.approveReturn", "İadeyi Onayla")}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
+                      <CheckCircle2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => { setNoteInput(""); setRejectModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
+                      title={t("iade.rejectReturn", "İadeyi Reddet")}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
+                      <XCircle size={16} />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><User size={11} />{order.customerName}</span>
-                    <span>{order.customerEmail}</span>
-                    <span className="flex items-center gap-1"><Clock size={11} />{formatDate(order.createdDate)}</span>
-                  </div>
-                  <p className="text-sm font-bold text-slate-900 mt-1">{formatPrice(order.grandTotal)}</p>
                 </div>
-
-                {/* Sağ: aksiyonlar */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Link href={`/siparisler/${order.orderNumber}`}
-                    title={t("action.details", "Detaylar")}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
-                    <Eye size={16} />
-                  </Link>
-                  <button
-                    onClick={() => { setNoteInput(""); setApproveModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
-                    title={t("iade.approveReturn", "İadeyi Onayla")}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
-                    <CheckCircle2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => { setNoteInput(""); setRejectModal({ orderId: order.id, orderNumber: order.orderNumber, note: "" }); }}
-                    title={t("iade.rejectReturn", "İadeyi Reddet")}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white shadow-sm transition-all duration-150 active:scale-95">
-                    <XCircle size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -231,7 +319,51 @@ export default function IadePage() {
         </div>
       )}
 
-      {/* Onay Modalı */}
+      {/* Bulk Confirm Modal */}
+      {bulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bulkConfirm === "approve" ? "bg-emerald-100" : "bg-red-100"}`}>
+                {bulkConfirm === "approve" ? <CheckCircle2 size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-red-600" />}
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900">
+                  {bulkConfirm === "approve" ? `${selectedIds.size} İadeyi Onayla` : `${selectedIds.size} İadeyi Reddet`}
+                </h2>
+                <p className="text-xs text-slate-500">Toplu işlem geri alınamaz.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600">
+              {bulkConfirm === "approve"
+                ? "Seçili tüm iade talepleri onaylanacak ve siparişler \"İade Edildi\" durumuna geçecek."
+                : "Seçili tüm iade talepleri reddedilecek ve siparişler \"Tamamlandı\" durumuna geçecek."}
+            </p>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 block mb-1">{t("iade.noteOptional", "Not (isteğe bağlı)")}</label>
+              <textarea
+                value={bulkNoteInput}
+                onChange={e => setBulkNoteInput(e.target.value)}
+                placeholder="Tüm siparişlere eklenecek not..."
+                rows={2}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => executeBulkAction(bulkConfirm === "approve" ? 10 : 7)}
+                className={`flex-1 font-semibold py-2.5 rounded-xl transition text-sm text-white ${bulkConfirm === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}`}>
+                {bulkConfirm === "approve" ? "Onayla" : "Reddet"}
+              </button>
+              <button onClick={() => setBulkConfirm(null)}
+                className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
+                {t("action.cancel", "Vazgeç")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tekil Onay Modalı */}
       {approveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
@@ -271,7 +403,7 @@ export default function IadePage() {
         </div>
       )}
 
-      {/* Red Modalı */}
+      {/* Tekil Red Modalı */}
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">

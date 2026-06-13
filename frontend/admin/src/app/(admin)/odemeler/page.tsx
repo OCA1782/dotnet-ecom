@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
@@ -46,7 +46,7 @@ interface LogsResponse {
   logs: PaymentLog[];
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [20, 50, 100] as const;
 
 export default function OdemelerPage() {
   const { t } = useI18n();
@@ -86,8 +86,10 @@ export default function OdemelerPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<typeof PAGE_SIZES[number]>(20);
 
   // Action modal
   const [actionTarget, setActionTarget] = useState<Payment | null>(null);
@@ -101,11 +103,12 @@ export default function OdemelerPage() {
   const [logs, setLogs] = useState<PaymentLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  async function load(p = page, status = statusFilter, manual = false) {
+  const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true); else setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(p), pageSize: String(PAGE_SIZE) });
-      if (status) params.set("status", status);
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (statusFilter) params.set("status", statusFilter);
+      if (search) params.set("search", search);
       const res = await api.get<PaymentListResponse>(`/api/admin/payments?${params}`);
       setData(res);
     } catch {
@@ -114,22 +117,28 @@ export default function OdemelerPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, [page, pageSize, statusFilter, search]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [load]);
 
-  function applyFilter(status: string) {
-    setStatusFilter(status);
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    const id = window.setTimeout(() => setPage(1), 0);
+    return () => window.clearTimeout(id);
+  }, [statusFilter, search, pageSize]);
+
+  function applySearch() {
+    setSearch(searchInput);
     setPage(1);
-    load(1, status);
   }
 
-  function gotoPage(p: number) {
-    setPage(p);
-    load(p, statusFilter);
+  function clearSearch() {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
   }
 
   async function openLogs(payment: Payment) {
@@ -161,7 +170,7 @@ export default function OdemelerPage() {
       await api.put(`/api/admin/payments/${actionTarget.id}/${actionType}`, { note: actionNote || null });
       setActionTarget(null);
       setActionType(null);
-      load(page, statusFilter, true);
+      void load(true);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : t("msg.error", "Bir hata oluştu"));
     } finally {
@@ -169,14 +178,8 @@ export default function OdemelerPage() {
     }
   }
 
-  const filtered = data?.items.filter(p =>
-    !search ||
-    p.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-    p.customerName.toLowerCase().includes(search.toLowerCase()) ||
-    (p.customerEmail ?? "").toLowerCase().includes(search.toLowerCase())
-  ) ?? [];
-
-  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
+  const items = data?.items ?? [];
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1;
 
   function StatusBadge({ status }: { status: string }) {
     const cfg = STATUS_MAP[status] ?? { label: status, color: "text-slate-600", bg: "bg-slate-100", border: "border-slate-200", icon: Clock };
@@ -200,7 +203,7 @@ export default function OdemelerPage() {
           <p className="text-sm text-slate-500 mt-0.5">Tüm ödeme işlemlerini izleyin, onaylayın veya askıya alın</p>
         </div>
         <button
-          onClick={() => load(page, statusFilter, true)}
+          onClick={() => load(true)}
           disabled={refreshing}
           className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
         >
@@ -211,23 +214,31 @@ export default function OdemelerPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+        {/* Search */}
+        <form onSubmit={e => { e.preventDefault(); applySearch(); }} className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Sipariş no, müşteri ara..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
-        </div>
+          {searchInput && (
+            <button type="button" onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X size={14} />
+            </button>
+          )}
+        </form>
+
+        {/* Status filter */}
         <div className="flex items-center gap-2">
           <Filter size={14} className="text-slate-400 shrink-0" />
           <div className="flex gap-1 flex-wrap">
             {STATUS_FILTERS.map(f => (
               <button
                 key={f.value}
-                onClick={() => applyFilter(f.value)}
+                onClick={() => setStatusFilter(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                   statusFilter === f.value
                     ? "bg-teal-600 text-white"
@@ -239,6 +250,16 @@ export default function OdemelerPage() {
             ))}
           </div>
         </div>
+
+        {/* Page size */}
+        <div className="flex items-center gap-1 border border-slate-200 rounded-xl overflow-hidden shrink-0">
+          {PAGE_SIZES.map(s => (
+            <button key={s} onClick={() => setPageSize(s)}
+              className={`px-3 py-2 text-xs font-medium transition ${pageSize === s ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -248,7 +269,7 @@ export default function OdemelerPage() {
             <div className="animate-spin w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full mx-auto mb-2" />
             <p className="text-sm text-slate-400">{t("action.loading", "Yükleniyor...")}</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="p-10 text-center">
             <CreditCard size={28} className="text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-500">{t("table.noData", "Kayıt bulunamadı")}</p>
@@ -269,7 +290,7 @@ export default function OdemelerPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => (
+                {items.map(p => (
                   <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50 transition">
                     <td className="px-4 py-3.5">
                       <div className="font-mono text-xs font-semibold text-slate-800">{p.orderNumber}</div>
@@ -352,12 +373,14 @@ export default function OdemelerPage() {
         )}
 
         {/* Pagination */}
-        {data && data.total > PAGE_SIZE && (
+        {data && data.total > pageSize && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs text-slate-400">{data.total} {t("table.perPage", "kayıt")}tan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} gösteriliyor</span>
+            <span className="text-xs text-slate-400">
+              {data.total} {t("table.perPage", "kayıt")}tan {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} gösteriliyor
+            </span>
             <div className="flex gap-1">
               <button
-                onClick={() => gotoPage(page - 1)}
+                onClick={() => setPage(p => p - 1)}
                 disabled={page === 1}
                 className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition"
               >
@@ -366,14 +389,14 @@ export default function OdemelerPage() {
               {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
                 <button
                   key={p}
-                  onClick={() => gotoPage(p)}
+                  onClick={() => setPage(p)}
                   className={`px-3 py-1.5 text-xs rounded-lg transition ${p === page ? "bg-teal-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                 >
                   {p}
                 </button>
               ))}
               <button
-                onClick={() => gotoPage(page + 1)}
+                onClick={() => setPage(p => p + 1)}
                 disabled={page === totalPages}
                 className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition"
               >

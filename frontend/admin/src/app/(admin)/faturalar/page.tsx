@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
+import { exportToExcel } from "@/lib/excel";
 import {
   FileText, Plus, RefreshCw, Search, Eye, CheckCircle, XCircle,
   Clock, AlertCircle, Send, ChevronDown, Database,
-  ChevronsUpDown, ChevronUp,
+  ChevronsUpDown, ChevronUp, CheckSquare, Square, Loader2, Download,
 } from "lucide-react";
 
 interface InvoiceListItem {
@@ -86,6 +87,8 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+const PAGE_SIZES = [20, 50, 100] as const;
+
 export default function FaturalarPage() {
   const { t } = useI18n();
   const [seeding, setSeeding] = useState(false);
@@ -102,6 +105,7 @@ export default function FaturalarPage() {
   const [data, setData] = useState<PagedResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<typeof PAGE_SIZES[number]>(20);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<number | "">("");
   const [docTypeFilter, setDocTypeFilter] = useState<number | "">("");
@@ -113,6 +117,12 @@ export default function FaturalarPage() {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
   }
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
   const [createModal, setCreateModal] = useState(false);
   const [createOrderNumber, setCreateOrderNumber] = useState("");
   const [createDocType, setCreateDocType] = useState(1);
@@ -127,7 +137,7 @@ export default function FaturalarPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: String(page), pageSize: "20",
+        page: String(page), pageSize: String(pageSize),
         ...(search && { search }),
         ...(statusFilter !== "" && { status: String(statusFilter) }),
         ...(docTypeFilter !== "" && { docType: String(docTypeFilter) }),
@@ -137,12 +147,93 @@ export default function FaturalarPage() {
       setData(result);
     } catch { /* empty */ }
     finally { setLoading(false); }
-  }, [page, search, statusFilter, docTypeFilter, sortField, sortDir]);
+  }, [page, pageSize, search, statusFilter, docTypeFilter, sortField, sortDir]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  // Reset page on filter/sort/pageSize change
+  useEffect(() => {
+    const id = window.setTimeout(() => setPage(1), 0);
+    return () => window.clearTimeout(id);
+  }, [search, statusFilter, docTypeFilter, sortField, sortDir, pageSize]);
+
+  // Clear selection on page change
+  useEffect(() => {
+    const id = window.setTimeout(() => setSelectedIds(new Set()), 0);
+    return () => window.clearTimeout(id);
+  }, [page]);
+
+  const allPageIds = data?.items.map(i => i.id) ?? [];
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allPageIds));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkMarkSent() {
+    const ids = [...selectedIds].filter(id => {
+      const inv = data?.items.find(i => i.id === id);
+      return inv && inv.status !== 3 && inv.status !== 4;
+    });
+    if (ids.length === 0) { setMsg({ text: "Seçili faturalar zaten gönderildi veya iptal edildi.", ok: false }); return; }
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.patch(`/api/admin/invoices/${id}/status`, { status: 3 })));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} fatura gönderildi işaretlendi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void load();
+  }
+
+  async function handleBulkCancel() {
+    const ids = [...selectedIds].filter(id => {
+      const inv = data?.items.find(i => i.id === id);
+      return inv && inv.status !== 4;
+    });
+    if (ids.length === 0) { setMsg({ text: "Seçili faturalar zaten iptal edildi.", ok: false }); return; }
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.patch(`/api/admin/invoices/${id}/status`, { status: 4 })));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} fatura iptal edildi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void load();
+  }
+
+  function handleExport() {
+    const items = data?.items ?? [];
+    exportToExcel(
+      items.map(inv => ({
+        "Fatura No": inv.invoiceNumber,
+        "Sipariş": inv.orderNumber,
+        "Müşteri": inv.customerEmail ?? "",
+        "Tür": DOC_TYPE[inv.docType]?.label ?? "",
+        "Durum": STATUS_MAP[inv.status]?.label ?? "",
+        "Tutar": inv.totalAmount,
+        "Tarih": fmtDate(inv.createdDate),
+        "Kaynak": inv.dataSource ?? "",
+      })),
+      "faturalar", "Faturalar"
+    );
+  }
 
   async function openDetail(id: string) {
     setLoadingDetail(true);
@@ -183,7 +274,7 @@ export default function FaturalarPage() {
     }
   }
 
-  const totalPages = data ? Math.ceil(data.total / 20) : 1;
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1;
   const inp = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-800";
 
   return (
@@ -200,6 +291,10 @@ export default function FaturalarPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button onClick={handleExport}
+            className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+            <Download size={14} /> {t("action.exportExcel", "Excel")}
+          </button>
           <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
             <RefreshCw size={14} /> {t("action.refresh", "Yenile")}
           </button>
@@ -219,9 +314,40 @@ export default function FaturalarPage() {
         <AlertCircle size={16} className="shrink-0 mt-0.5" />
         <div>
           <strong>{t("ui.testEnvironment", "Test Ortamı")}:</strong> {t("ui.testEnvironmentDesc", "e-Arşiv/e-Fatura/e-İrsaliye işlemleri simüle edilmektedir.")}
-          {t("ui.testEnvironmentDesc2", " Gerçek entegrasyon için")} <code className="bg-amber-100 px-1 rounded">IInvoiceService</code> {t("ui.testEnvironmentDesc3", "arayüzünü uygulayan bir servis (ör. Logo, Mikro, EFinans) DI container’a kayıt edilmelidir.")}
+          {t("ui.testEnvironmentDesc2", " Gerçek entegrasyon için")} <code className="bg-amber-100 px-1 rounded">IInvoiceService</code> {t("ui.testEnvironmentDesc3", "arayüzünü uygulayan bir servis (ör. Logo, Mikro, EFinans) DI container'a kayıt edilmelidir.")}
         </div>
       </div>
+
+      {/* Msg banner */}
+      {msg && (
+        <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {msg.text}
+          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">{t("action.close", "Kapat")}</button>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-white text-sm font-semibold">{selectedIds.size} fatura seçildi</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={handleBulkMarkSent} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+              Gönderildi İşaretle
+            </button>
+            <button onClick={handleBulkCancel} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+              İptal Et
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 border border-slate-600 text-slate-300 text-xs rounded-lg hover:bg-slate-700 transition">
+              Temizle
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -247,6 +373,15 @@ export default function FaturalarPage() {
           </select>
           <ChevronDown size={13} className="absolute right-2 top-3 text-slate-400 pointer-events-none" />
         </div>
+        {/* Page size */}
+        <div className="flex items-center gap-1 border border-slate-200 rounded-xl overflow-hidden">
+          {PAGE_SIZES.map(s => (
+            <button key={s} onClick={() => setPageSize(s)}
+              className={`px-3 py-2 text-xs font-medium transition ${pageSize === s ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -264,6 +399,11 @@ export default function FaturalarPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-3 py-3 w-10">
+                      <button onClick={toggleSelectAll} className="flex items-center justify-center text-slate-400 hover:text-teal-600 transition">
+                        {allSelected ? <CheckSquare size={16} className="text-teal-600" /> : someSelected ? <CheckSquare size={16} className="text-slate-400 opacity-50" /> : <Square size={16} />}
+                      </button>
+                    </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.invoiceNo", "Fatura No")}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.orderNumber", "Sipariş")}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("col.customer", "Müşteri")}</th>
@@ -291,8 +431,14 @@ export default function FaturalarPage() {
                   {data.items.map(inv => {
                     const st = STATUS_MAP[inv.status] ?? STATUS_MAP[1];
                     const dt = DOC_TYPE[inv.docType] ?? DOC_TYPE[1];
+                    const selected = selectedIds.has(inv.id);
                     return (
-                      <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                      <tr key={inv.id} className={`border-b border-slate-50 transition ${selected ? "bg-teal-50" : "hover:bg-slate-50/50"}`}>
+                        <td className="px-3 py-3">
+                          <button onClick={() => toggleSelect(inv.id)} className="flex items-center justify-center text-slate-400 hover:text-teal-600 transition">
+                            {selected ? <CheckSquare size={15} className="text-teal-600" /> : <Square size={15} />}
+                          </button>
+                        </td>
                         <td className="px-5 py-3 font-mono text-xs font-semibold text-slate-700">{inv.invoiceNumber}</td>
                         <td className="px-4 py-3 text-slate-600 font-medium">{inv.orderNumber}</td>
                         <td className="px-4 py-3 text-slate-500 text-xs">{inv.customerEmail ?? "—"}</td>
@@ -423,7 +569,6 @@ export default function FaturalarPage() {
                   ))}
                 </div>
 
-                {/* Provider */}
                 {detailModal.providerInvoiceId && (
                   <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
                     <p className="text-xs text-teal-600 font-semibold mb-1">{t("ui.providerInvoiceId", "Sağlayıcı Fatura ID")}</p>
@@ -431,7 +576,6 @@ export default function FaturalarPage() {
                   </div>
                 )}
 
-                {/* Error */}
                 {detailModal.errorMessage && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                     <p className="text-xs text-red-600 font-semibold mb-1">{t("ui.errorMessage", "Hata Mesajı")}</p>

@@ -7,6 +7,7 @@ import {
   Plus, Pencil, Trash2, Search, X, Upload, Link2,
   Image, Video, FileText, Megaphone,
   Calendar, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown,
+  CheckSquare, Square, Loader2,
 } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
@@ -75,7 +76,7 @@ const empty: FormState = {
 };
 
 const inp = "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 bg-white";
-const label = "block text-xs font-semibold text-slate-600 mb-1";
+const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
 
 type SortField = "createdDate" | "dataSource";
 function buildSortKey(field: SortField, dir: "asc" | "desc") { return `${field}-${dir}`; }
@@ -138,6 +139,12 @@ export default function DuyurularPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Bulk
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -162,6 +169,82 @@ export default function DuyurularPage() {
     const id = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  // Clear selection on page change
+  useEffect(() => {
+    const id = window.setTimeout(() => setSelectedIds(new Set()), 0);
+    return () => window.clearTimeout(id);
+  }, [page]);
+
+  const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
+  const someSelected = items.some(i => selectedIds.has(i.id));
+
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(items.map(i => i.id)));
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleInlineToggle(item: Announcement) {
+    setToggling(item.id);
+    try {
+      await api.put(`/api/admin/announcements/${item.id}`, {
+        title: item.title, summary: item.summary, content: item.content,
+        mediaUrl: item.mediaUrl, mediaType: item.mediaType, category: item.category,
+        linkUrl: item.linkUrl, linkText: item.linkText,
+        startsAt: item.startsAt, endsAt: item.endsAt, displayOrder: item.displayOrder,
+        isActive: !item.isActive,
+      });
+      await load();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"), ok: false });
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  async function handleBulkToggle(targetActive: boolean) {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(
+      ids.map(id => {
+        const item = items.find(i => i.id === id);
+        if (!item) return Promise.reject(new Error("not found"));
+        return api.put(`/api/admin/announcements/${id}`, {
+          title: item.title, summary: item.summary, content: item.content,
+          mediaUrl: item.mediaUrl, mediaType: item.mediaType, category: item.category,
+          linkUrl: item.linkUrl, linkText: item.linkText,
+          startsAt: item.startsAt, endsAt: item.endsAt, displayOrder: item.displayOrder,
+          isActive: targetActive,
+        });
+      })
+    );
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} duyuru ${targetActive ? "aktifleştirildi" : "pasife alındı"}${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void load();
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/admin/announcements/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} duyuru silindi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void load();
+  }
 
   function openCreate() {
     setEditId(null);
@@ -269,8 +352,52 @@ export default function DuyurularPage() {
         </button>
       </div>
 
+      {/* Msg banner */}
+      {msg && (
+        <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {msg.text}
+          <button onClick={() => setMsg(null)} className="ml-4 text-xs underline">{t("action.close", "Kapat")}</button>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-800 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+          <span className="text-white text-sm font-semibold">{selectedIds.size} duyuru seçildi</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={() => handleBulkToggle(true)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleRight size={12} />}
+              Aktifleştir
+            </button>
+            <button onClick={() => handleBulkToggle(false)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ToggleLeft size={12} />}
+              Pasife Al
+            </button>
+            <button onClick={handleBulkDelete} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              Sil
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 border border-slate-600 text-slate-300 text-xs rounded-lg hover:bg-slate-700 transition">
+              Temizle
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filtreler */}
       <div className="flex flex-wrap gap-3 items-center">
+        {/* Select all */}
+        {!loading && items.length > 0 && (
+          <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-600 border border-slate-200 rounded-xl px-3 py-2 bg-white transition">
+            {allSelected ? <CheckSquare size={14} className="text-teal-600" /> : someSelected ? <CheckSquare size={14} className="opacity-50" /> : <Square size={14} />}
+            Tümünü Seç
+          </button>
+        )}
+
         <div className="relative flex-1 min-w-48">
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input
@@ -324,8 +451,19 @@ export default function DuyurularPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {items.map(item => {
             const cat = catInfo(item.category);
+            const selected = selectedIds.has(item.id);
             return (
-              <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+              <div key={item.id}
+                className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow group relative ${selected ? "border-teal-400 ring-2 ring-teal-200" : "border-slate-100"}`}>
+
+                {/* Checkbox overlay */}
+                <button
+                  onClick={() => toggleSelect(item.id)}
+                  className="absolute top-2 left-2 z-10 w-6 h-6 flex items-center justify-center rounded-lg bg-white/90 shadow-sm hover:bg-teal-50 transition"
+                >
+                  {selected ? <CheckSquare size={14} className="text-teal-600" /> : <Square size={14} className="text-slate-400" />}
+                </button>
+
                 {/* Medya */}
                 {item.mediaUrl && (
                   <div className="relative h-40 bg-slate-100 overflow-hidden">
@@ -335,7 +473,7 @@ export default function DuyurularPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     )}
-                    <div className="absolute top-2 left-2 flex gap-1.5">
+                    <div className="absolute top-2 left-8 flex gap-1.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.color}`}>{cat.label}</span>
                       {item.mediaType === "video" && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800/70 text-white">▶ Video</span>
@@ -352,7 +490,7 @@ export default function DuyurularPage() {
 
                 <div className="p-4">
                   {!item.mediaUrl && (
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 pl-5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.color}`}>{cat.label}</span>
                       {item.isActive
                         ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{t("status.active", "Aktif")}</span>
@@ -395,7 +533,25 @@ export default function DuyurularPage() {
                   </div>
 
                   {/* Aksiyonlar */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-1 pt-2 border-t border-slate-100">
+                    {/* Inline toggle */}
+                    <button
+                      onClick={() => handleInlineToggle(item)}
+                      disabled={toggling === item.id}
+                      title={item.isActive ? "Pasife Al" : "Aktifleştir"}
+                      className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition ${
+                        item.isActive
+                          ? "text-emerald-600 hover:bg-emerald-50"
+                          : "text-slate-400 hover:bg-slate-50"
+                      }`}
+                    >
+                      {toggling === item.id
+                        ? <Loader2 size={13} className="animate-spin" />
+                        : item.isActive
+                        ? <ToggleRight size={18} />
+                        : <ToggleLeft size={18} />
+                      }
+                    </button>
                     <button
                       onClick={() => openEdit(item)}
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 py-1.5 rounded-lg transition"
@@ -470,12 +626,12 @@ export default function DuyurularPage() {
               {/* Başlık + Kategori */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className={label}>{t("label.title", "Başlık")} *</label>
+                  <label className={labelCls}>{t("label.title", "Başlık")} *</label>
                   <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                     placeholder="Duyuru başlığı" className={inp} />
                 </div>
                 <div>
-                  <label className={label}>{t("label.type", "Tür")}</label>
+                  <label className={labelCls}>{t("label.type", "Tür")}</label>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={inp}>
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
@@ -484,14 +640,14 @@ export default function DuyurularPage() {
 
               {/* Özet */}
               <div>
-                <label className={label}>Kısa Özet</label>
+                <label className={labelCls}>Kısa Özet</label>
                 <input value={form.summary} onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
                   placeholder="Kart görünümünde gösterilecek kısa metin" className={inp} />
               </div>
 
               {/* İçerik */}
               <div>
-                <label className={label}>{t("label.description", "Açıklama")} (tam metin)</label>
+                <label className={labelCls}>{t("label.description", "Açıklama")} (tam metin)</label>
                 <RichTextEditor
                   value={form.content}
                   onChange={v => setForm(f => ({ ...f, content: v }))}
@@ -502,13 +658,13 @@ export default function DuyurularPage() {
 
               {/* Medya yükleme */}
               <div>
-                <label className={label}>Medya (görsel / GIF / video)</label>
+                <label className={labelCls}>Medya (görsel / GIF / video)</label>
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 hover:border-teal-300 transition"
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => {
                     e.preventDefault();
                     const file = e.dataTransfer.files[0];
-                    if (file) handleUpload(file);
+                    if (file) void handleUpload(file);
                   }}>
                   {form.mediaUrl ? (
                     <div className="space-y-2">
@@ -535,7 +691,7 @@ export default function DuyurularPage() {
                   )}
                 </div>
                 <input ref={fileRef} type="file" accept="image/*,video/mp4,video/webm"
-                  className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
+                  className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void handleUpload(f); }} />
 
                 {/* Veya URL gir */}
                 <div className="mt-2">
@@ -546,7 +702,7 @@ export default function DuyurularPage() {
 
               {/* Medya türü */}
               <div>
-                <label className={label}>{t("label.type", "Tür")}</label>
+                <label className={labelCls}>{t("label.type", "Tür")}</label>
                 <div className="flex gap-2 flex-wrap">
                   {MEDIA_TYPES.map(mt => {
                     const Icon = mt.icon;
@@ -568,7 +724,7 @@ export default function DuyurularPage() {
               {/* Link */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={label}>CTA Bağlantı URL</label>
+                  <label className={labelCls}>CTA Bağlantı URL</label>
                   <div className="relative">
                     <Link2 size={13} className="absolute left-3 top-2.5 text-slate-400" />
                     <input value={form.linkUrl} onChange={e => setForm(f => ({ ...f, linkUrl: e.target.value }))}
@@ -576,7 +732,7 @@ export default function DuyurularPage() {
                   </div>
                 </div>
                 <div>
-                  <label className={label}>CTA Buton Metni</label>
+                  <label className={labelCls}>CTA Buton Metni</label>
                   <input value={form.linkText} onChange={e => setForm(f => ({ ...f, linkText: e.target.value }))}
                     placeholder="İncele, Detaylar…" className={inp} />
                 </div>
@@ -585,7 +741,7 @@ export default function DuyurularPage() {
               {/* Tarih aralığı */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={label}>{t("label.startDate", "Başlangıç Tarihi")}</label>
+                  <label className={labelCls}>{t("label.startDate", "Başlangıç Tarihi")}</label>
                   <div className="relative">
                     <Calendar size={13} className="absolute left-3 top-2.5 text-slate-400" />
                     <input type="datetime-local" value={form.startsAt}
@@ -594,7 +750,7 @@ export default function DuyurularPage() {
                   </div>
                 </div>
                 <div>
-                  <label className={label}>{t("label.endDate", "Bitiş Tarihi")}</label>
+                  <label className={labelCls}>{t("label.endDate", "Bitiş Tarihi")}</label>
                   <div className="relative">
                     <Calendar size={13} className="absolute left-3 top-2.5 text-slate-400" />
                     <input type="datetime-local" value={form.endsAt}
@@ -607,7 +763,7 @@ export default function DuyurularPage() {
               {/* Sıralama + Durum */}
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <label className={label}>Sıralama</label>
+                  <label className={labelCls}>Sıralama</label>
                   <input type="number" min={0} value={form.displayOrder}
                     onChange={e => setForm(f => ({ ...f, displayOrder: Number(e.target.value) }))}
                     className={inp} />
