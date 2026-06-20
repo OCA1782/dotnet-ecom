@@ -1,8 +1,11 @@
+using System.Net;
+using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Features.Products.Commands;
 using Ecom.Application.Features.Products.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.API.Controllers;
 
@@ -111,4 +114,228 @@ public class ProductsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// CatalogIQ machine-to-machine upsert endpoint. Authenticates via X-CatalogIQ-Key header.
+    /// Creates or updates a product by SKU; auto-creates missing category/brand by name.
+    /// </summary>
+    [HttpPost("import")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Import(
+        [FromBody] CatalogIqProductDto dto,
+        [FromHeader(Name = "X-CatalogIQ-Key")] string? headerKey,
+        [FromHeader(Name = "Authorization")] string? authHeader,
+        [FromServices] IConfiguration configuration,
+        [FromServices] IApplicationDbContext db,
+        CancellationToken ct)
+    {
+        var expectedKey = configuration["CatalogIQ:ApiKey"];
+        var apiKey = headerKey
+            ?? (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true ? authHeader[7..] : authHeader);
+        if (string.IsNullOrEmpty(expectedKey) || apiKey != expectedKey)
+            return Unauthorized(new { error = "Geçersiz API anahtarı." });
+
+        if (string.IsNullOrWhiteSpace(dto.Sku) || string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { error = "name ve sku zorunludur." });
+
+        if (dto.Price is null or <= 0)
+            return BadRequest(new { error = "Geçerli bir fiyat gereklidir." });
+
+        // HTML-decode text fields — two passes handle double-encoded entities (&amp;nbsp; → &nbsp; → space)
+        static string? DecodeHtml(string? raw, bool stripTags = false)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var decoded = WebUtility.HtmlDecode(WebUtility.HtmlDecode(raw));
+            if (!stripTags) return decoded.Trim();
+            var stripped = System.Text.RegularExpressions.Regex.Replace(decoded, "<[^>]+>", " ");
+            return System.Text.RegularExpressions.Regex.Replace(stripped, @"\s{2,}", " ").Trim();
+        }
+        var shortDesc = DecodeHtml(dto.ShortDescription, stripTags: true);
+        var description = DecodeHtml(dto.Description, stripTags: false);
+
+        // Collect all image URLs, deduplicated and non-empty
+        var allImageUrls = new List<string>();
+        if (!string.IsNullOrWhiteSpace(dto.ImageUrl)) allImageUrls.Add(dto.ImageUrl.Trim());
+        if (dto.ImageUrls is { Length: > 0 })
+            allImageUrls.AddRange(dto.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Select(u => u.Trim()));
+        allImageUrls = allImageUrls.Distinct().ToList();
+
+        // Resolve stock quantity from status string
+        int? stockQty = null;
+        if (!string.IsNullOrWhiteSpace(dto.StockStatus))
+        {
+            var lower = dto.StockStatus.ToLowerInvariant();
+            stockQty = lower is "in_stock" or "instock" or "stokta" or "stokta var" or "var" or "mevcut" or "available" ? 99 : 0;
+        }
+
+        // Resolve or auto-create category by name (use deepest level of path)
+        Guid? categoryId = null;
+        if (!string.IsNullOrWhiteSpace(dto.CategoryName))
+        {
+            var leafCat = dto.CategoryName.Contains('>')
+                ? dto.CategoryName.Split('>').Last().Trim()
+                : dto.CategoryName.Trim();
+
+            var category = await db.Categories
+                .FirstOrDefaultAsync(c => c.Name.ToLower() == leafCat.ToLower(), ct);
+
+            if (category is null)
+            {
+                category = new Ecom.Domain.Entities.Category
+                {
+                    Name = leafCat,
+                    Slug = Slugify(leafCat),
+                };
+                db.Categories.Add(category);
+                await db.SaveChangesAsync(ct);
+            }
+            categoryId = category.Id;
+        }
+
+        // Resolve or auto-create brand by name
+        Guid? brandId = null;
+        if (!string.IsNullOrWhiteSpace(dto.BrandName))
+        {
+            var brand = await db.Brands
+                .FirstOrDefaultAsync(b => b.Name.ToLower() == dto.BrandName.ToLower(), ct);
+
+            if (brand is null)
+            {
+                brand = new Ecom.Domain.Entities.Brand
+                {
+                    Name = dto.BrandName,
+                    Slug = Slugify(dto.BrandName),
+                };
+                db.Brands.Add(brand);
+                await db.SaveChangesAsync(ct);
+            }
+            brandId = brand.Id;
+        }
+
+        // Upsert by SKU
+        var existing = await db.Products
+            .Include(p => p.Images)
+            .Include(p => p.Stock)
+            .FirstOrDefaultAsync(p => p.SKU == dto.Sku, ct);
+        if (existing is not null)
+        {
+            existing.Name = dto.Name;
+            existing.Price = dto.Price.Value;
+            if (shortDesc is not null) existing.ShortDescription = shortDesc;
+            if (description is not null) existing.Description = description;
+            existing.Currency = dto.Currency ?? existing.Currency;
+            if (!string.IsNullOrWhiteSpace(dto.Barcode)) existing.Barcode = dto.Barcode;
+            if (categoryId.HasValue) existing.CategoryId = categoryId.Value;
+            if (brandId.HasValue) existing.BrandId = brandId.Value;
+
+            // Sync images: remove stale, add new
+            if (allImageUrls.Count > 0)
+            {
+                var toRemove = existing.Images.Where(i => !allImageUrls.Contains(i.ImageUrl)).ToList();
+                foreach (var img in toRemove) db.ProductImages.Remove(img);
+
+                var existingUrls = existing.Images.Select(i => i.ImageUrl).ToHashSet();
+                for (var i = 0; i < allImageUrls.Count; i++)
+                {
+                    if (!existingUrls.Contains(allImageUrls[i]))
+                        db.ProductImages.Add(new Ecom.Domain.Entities.ProductImage { ProductId = existing.Id, ImageUrl = allImageUrls[i], IsMain = i == 0, SortOrder = i });
+                }
+                foreach (var img in existing.Images.Where(i => allImageUrls.Contains(i.ImageUrl)))
+                {
+                    var idx = allImageUrls.IndexOf(img.ImageUrl);
+                    img.IsMain = idx == 0;
+                    img.SortOrder = idx;
+                }
+            }
+
+            // Sync stock
+            if (stockQty.HasValue)
+            {
+                if (existing.Stock is null)
+                    db.Stocks.Add(new Ecom.Domain.Entities.Stock { ProductId = existing.Id, Quantity = stockQty.Value });
+                else
+                    existing.Stock.Quantity = stockQty.Value;
+            }
+
+            await db.SaveChangesAsync(ct);
+            return Ok(new { id = existing.Id, action = "updated", sku = existing.SKU });
+        }
+
+        // Create new product
+        var slug = await EnsureUniqueSlug(db, Slugify(dto.Name), ct);
+        var product = new Ecom.Domain.Entities.Product
+        {
+            Name = dto.Name,
+            Slug = slug,
+            SKU = dto.Sku,
+            ShortDescription = shortDesc,
+            Description = description,
+            Barcode = dto.Barcode,
+            Price = dto.Price.Value,
+            Currency = dto.Currency ?? "TRY",
+            CategoryId = categoryId ?? await GetDefaultCategoryId(db, ct),
+            BrandId = brandId,
+            IsPublished = true,
+            IsActive = true,
+            DataSource = "catalogiq",
+        };
+        db.Products.Add(product);
+        await db.SaveChangesAsync(ct);
+
+        for (var i = 0; i < allImageUrls.Count; i++)
+            db.ProductImages.Add(new Ecom.Domain.Entities.ProductImage { ProductId = product.Id, ImageUrl = allImageUrls[i], IsMain = i == 0, SortOrder = i });
+
+        if (stockQty.HasValue)
+            db.Stocks.Add(new Ecom.Domain.Entities.Stock { ProductId = product.Id, Quantity = stockQty.Value });
+
+        if (allImageUrls.Count > 0 || stockQty.HasValue)
+            await db.SaveChangesAsync(ct);
+
+        return CreatedAtAction(nameof(GetBySlug), new { slug = product.Slug }, new { id = product.Id, action = "created", sku = product.SKU });
+    }
+
+    private static string Slugify(string s)
+    {
+        var map = new Dictionary<char, char>
+        {
+            {'ğ','g'},{'Ğ','g'},{'ü','u'},{'Ü','u'},{'ş','s'},{'Ş','s'},
+            {'ı','i'},{'İ','i'},{'ö','o'},{'Ö','o'},{'ç','c'},{'Ç','c'},
+        };
+        var clean = new string(s.Select(c => map.TryGetValue(c, out var r) ? r : c).ToArray()).ToLowerInvariant();
+        return System.Text.RegularExpressions.Regex.Replace(clean, @"[^a-z0-9]+", "-").Trim('-');
+    }
+
+    private static async Task<string> EnsureUniqueSlug(IApplicationDbContext db, string baseSlug, CancellationToken ct)
+    {
+        var slug = baseSlug;
+        var counter = 1;
+        while (await db.Products.AnyAsync(p => p.Slug == slug, ct))
+            slug = $"{baseSlug}-{counter++}";
+        return slug;
+    }
+
+    private static async Task<Guid> GetDefaultCategoryId(IApplicationDbContext db, CancellationToken ct)
+    {
+        var cat = await db.Categories.FirstOrDefaultAsync(ct);
+        if (cat is not null) return cat.Id;
+        var newCat = new Ecom.Domain.Entities.Category { Name = "Genel", Slug = "genel" };
+        db.Categories.Add(newCat);
+        await db.SaveChangesAsync(ct);
+        return newCat.Id;
+    }
 }
+
+public record CatalogIqProductDto(
+    string Name,
+    string Sku,
+    decimal? Price,
+    string? ShortDescription,
+    string? Description,
+    string? CategoryName,
+    string? BrandName,
+    string? ImageUrl,
+    string[]? ImageUrls,
+    string? Currency,
+    string? SourceUrl,
+    string? Barcode,
+    string? StockStatus);
