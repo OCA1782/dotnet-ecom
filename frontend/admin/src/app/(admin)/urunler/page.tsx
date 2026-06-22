@@ -188,6 +188,17 @@ export default function AdminProductsPage() {
   const [priceAdjustPercent, setPriceAdjustPercent] = useState("");
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
 
+  // Toplu fiyat güncelle modal
+  const [bulkPriceModal, setBulkPriceModal] = useState(false);
+  const [bpTarget, setBpTarget] = useState<"selected" | "category" | "brand">("selected");
+  const [bpCategoryId, setBpCategoryId] = useState("");
+  const [bpBrandId, setBpBrandId] = useState("");
+  const [bpOperation, setBpOperation] = useState<"percent" | "amount" | "set">("percent");
+  const [bpValue, setBpValue] = useState("");
+  const [bpPreviewCount, setBpPreviewCount] = useState<number | null>(null);
+  const [bpPreviewLoading, setBpPreviewLoading] = useState(false);
+  const [bpApplying, setBpApplying] = useState(false);
+
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
@@ -292,6 +303,43 @@ export default function AdminProductsPage() {
     } finally {
       setBulkLoading(false);
     }
+  }
+
+  function buildBpBody() {
+    const body: Record<string, unknown> = {};
+    if (bpTarget === "selected") body.productIds = [...selected];
+    else if (bpTarget === "category") body.categoryId = bpCategoryId;
+    else if (bpTarget === "brand") body.brandId = bpBrandId;
+    return body;
+  }
+
+  async function fetchBpPreview() {
+    setBpPreviewLoading(true);
+    setBpPreviewCount(null);
+    try {
+      const r = await api.post<{ count: number }>("/api/products/bulk-price-preview", buildBpBody());
+      setBpPreviewCount(r.count);
+    } catch { setBpPreviewCount(null); }
+    finally { setBpPreviewLoading(false); }
+  }
+
+  async function handleBulkPriceApply() {
+    const val = parseFloat(bpValue);
+    if (isNaN(val)) return;
+    setBpApplying(true);
+    try {
+      const body = { ...buildBpBody() } as Record<string, unknown>;
+      if (bpOperation === "percent") { body.action = "price-adjust"; body.priceAdjustPercent = val; }
+      else if (bpOperation === "amount") { body.action = "price-adjust-amount"; body.priceAdjustAmount = val; }
+      else { body.action = "price-set"; body.priceSetValue = val; }
+      const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
+      setMsg({ text: `${r.affected} ürün fiyatı güncellendi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`, ok: true });
+      setBulkPriceModal(false);
+      setBpValue(""); setBpPreviewCount(null);
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız", ok: false });
+    } finally { setBpApplying(false); }
   }
 
   // Toggle sort: same field → flip direction; different field → set desc
@@ -594,6 +642,12 @@ export default function AdminProductsPage() {
             <Upload size={14} /> {importing ? t("action.importing", "Aktarılıyor...") : t("action.importFile", "İçe Aktar")}
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
           </label>
+          <button
+            onClick={() => { setBulkPriceModal(true); setBpTarget(selected.size > 0 ? "selected" : "category"); setBpPreviewCount(null); setBpValue(""); }}
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
+          >
+            <Percent size={14} /> {t("ui.bulkPriceUpdate", "Toplu Fiyat")}
+          </button>
           <button onClick={openCreate}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
             <Plus size={16} /> {t("ui.newProduct", "Yeni Ürün")}
@@ -957,6 +1011,114 @@ export default function AdminProductsPage() {
               <button type="submit" className="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition">→</button>
             </form>
           )}
+        </div>
+      )}
+
+      {/* Toplu Fiyat Güncelle Modal */}
+      {bulkPriceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                  <Percent size={20} className="text-violet-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Toplu Fiyat Güncelle</h2>
+                  <p className="text-xs text-slate-500">Kategori, marka veya seçili ürünlere fiyat güncelleme</p>
+                </div>
+              </div>
+              <button onClick={() => setBulkPriceModal(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
+            </div>
+
+            {/* Hedef */}
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-2">Hedef</p>
+              <div className="flex gap-2 flex-wrap">
+                {([["selected", `Seçili (${selected.size})`], ["category", "Kategoriye Göre"], ["brand", "Markaya Göre"]] as const).map(([val, label]) => (
+                  <button key={val}
+                    onClick={() => { setBpTarget(val); setBpPreviewCount(null); }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${bpTarget === val ? "bg-violet-600 text-white border-violet-600" : "border-slate-300 text-slate-600 hover:border-violet-400"}`}
+                  >{label}</button>
+                ))}
+              </div>
+              {bpTarget === "category" && (
+                <select value={bpCategoryId} onChange={e => { setBpCategoryId(e.target.value); setBpPreviewCount(null); }}
+                  className="mt-2 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  <option value="">— Kategori Seçin —</option>
+                  {flattenCategories(categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+              {bpTarget === "brand" && (
+                <select value={bpBrandId} onChange={e => { setBpBrandId(e.target.value); setBpPreviewCount(null); }}
+                  className="mt-2 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  <option value="">— Marka Seçin —</option>
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* İşlem */}
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-2">İşlem Tipi</p>
+              <div className="flex gap-2 flex-wrap">
+                {([["percent", "% Artış/Azalış"], ["amount", "± Sabit Tutar (₺)"], ["set", "= Belirli Fiyat (₺)"]] as const).map(([val, label]) => (
+                  <button key={val}
+                    onClick={() => setBpOperation(val)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${bpOperation === val ? "bg-teal-600 text-white border-teal-600" : "border-slate-300 text-slate-600 hover:border-teal-400"}`}
+                  >{label}</button>
+                ))}
+              </div>
+              <div className="mt-2 relative">
+                <input
+                  type="number"
+                  step={bpOperation === "percent" ? "0.1" : "1"}
+                  placeholder={bpOperation === "percent" ? "Örn: 20 (artış) veya -10 (indirim)" : bpOperation === "amount" ? "Örn: 100 (ekle) veya -50 (çıkar)" : "Yeni fiyat değeri"}
+                  value={bpValue}
+                  onChange={e => setBpValue(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 pr-10"
+                />
+                <span className="absolute right-3 top-2.5 text-slate-400 text-xs font-medium">
+                  {bpOperation === "percent" ? "%" : "₺"}
+                </span>
+              </div>
+              {bpOperation === "percent" && <p className="text-xs text-slate-400 mt-1">Pozitif = artış, negatif = indirim. İndirimli fiyat da orantılı güncellenir.</p>}
+              {bpOperation === "amount" && <p className="text-xs text-slate-400 mt-1">Pozitif = ekle, negatif = çıkar. İndirimli fiyat da orantılı güncellenir. Minimum 0₺.</p>}
+              {bpOperation === "set" && <p className="text-xs text-slate-400 mt-1">Seçili tüm ürünlerin fiyatı bu değere ayarlanır. İndirimli fiyat korunur.</p>}
+            </div>
+
+            {/* Önizleme */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchBpPreview}
+                disabled={bpPreviewLoading || (bpTarget === "selected" && selected.size === 0) || (bpTarget === "category" && !bpCategoryId) || (bpTarget === "brand" && !bpBrandId)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-600 hover:bg-slate-50 transition disabled:opacity-40"
+              >
+                {bpPreviewLoading ? <Loader2 size={12} className="animate-spin" /> : <Info size={12} />}
+                Kaç Ürün Etkilenecek?
+              </button>
+              {bpPreviewCount !== null && (
+                <span className="text-sm font-semibold text-violet-700 bg-violet-50 px-3 py-1 rounded-xl">
+                  {bpPreviewCount} ürün etkilenecek
+                </span>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-1 border-t border-slate-100">
+              <button onClick={() => setBulkPriceModal(false)}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">
+                Vazgeç
+              </button>
+              <button
+                onClick={handleBulkPriceApply}
+                disabled={bpApplying || !bpValue || isNaN(parseFloat(bpValue)) || (bpTarget === "selected" && selected.size === 0) || (bpTarget === "category" && !bpCategoryId) || (bpTarget === "brand" && !bpBrandId)}
+                className="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {bpApplying && <Loader2 size={14} className="animate-spin" />}
+                Fiyatları Güncelle
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

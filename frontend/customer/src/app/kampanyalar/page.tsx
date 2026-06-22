@@ -3,12 +3,15 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Campaign } from "@/types";
 import { getSettings } from "@/lib/settings";
+import { getServerLang } from "@/lib/server-i18n";
+import { t as translate } from "@/lib/i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings();
+  const [settings, lang] = await Promise.all([getSettings(), getServerLang()]);
+  const tl = (key: string) => translate(lang, key);
   return {
-    title: "Kampanyalar",
-    description: `${settings.SiteName || ""} — Tüm kampanyalar ve fırsatlar`.trim(),
+    title: tl("campaigns.title"),
+    description: `${settings.SiteName || ""} — ${tl("campaigns.subtitle")}`.trim(),
   };
 }
 
@@ -29,7 +32,8 @@ async function getAllCampaigns(): Promise<Campaign[]> {
 }
 
 export default async function KampanyalarPage() {
-  const campaigns = await getAllCampaigns();
+  const [campaigns, lang] = await Promise.all([getAllCampaigns(), getServerLang()]);
+  const t = (key: string) => translate(lang, key);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -37,12 +41,12 @@ export default async function KampanyalarPage() {
       <div className="bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <nav className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
-            <Link href="/" className="hover:text-teal-600 transition-colors">Ana Sayfa</Link>
+            <Link href="/" className="hover:text-teal-600 transition-colors">{t("common.home")}</Link>
             <span>›</span>
-            <span className="text-slate-700 font-medium">Kampanyalar</span>
+            <span className="text-slate-700 font-medium">{t("campaigns.title")}</span>
           </nav>
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Kampanyalar</h1>
-          <p className="text-slate-500 text-sm">Tüm güncel fırsatlar ve özel teklifler</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 mb-1">{t("campaigns.title")}</h1>
+          <p className="text-slate-500 text-sm">{t("campaigns.subtitle")}</p>
         </div>
       </div>
 
@@ -50,10 +54,10 @@ export default async function KampanyalarPage() {
         {campaigns.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-6xl mb-4">🏷️</div>
-            <h2 className="text-xl font-bold text-slate-700 mb-2">Henüz kampanya yok</h2>
-            <p className="text-slate-400 text-sm mb-6">Yakında yeni fırsatlar eklenecek.</p>
+            <h2 className="text-xl font-bold text-slate-700 mb-2">{t("campaigns.empty_title")}</h2>
+            <p className="text-slate-400 text-sm mb-6">{t("campaigns.empty_soon")}</p>
             <Link href="/" className="inline-block bg-teal-600 text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-teal-700 transition">
-              Ana Sayfaya Dön
+              {t("common.back_home")}
             </Link>
           </div>
         ) : (
@@ -62,11 +66,11 @@ export default async function KampanyalarPage() {
             {campaigns.some(c => c.isFeatured) && (
               <div className="mb-10">
                 <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <span>⭐</span> Öne Çıkan Kampanyalar
+                  <span>⭐</span> {t("campaigns.featured")}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {campaigns.filter(c => c.isFeatured).map(c => (
-                    <CampaignCard key={c.id} campaign={c} />
+                    <CampaignCard key={c.id} campaign={c} viewLabel={t("campaigns.view")} />
                   ))}
                 </div>
               </div>
@@ -76,11 +80,11 @@ export default async function KampanyalarPage() {
             {campaigns.some(c => !c.isFeatured) && (
               <div>
                 {campaigns.some(c => c.isFeatured) && (
-                  <h2 className="text-lg font-bold text-slate-800 mb-4">Diğer Kampanyalar</h2>
+                  <h2 className="text-lg font-bold text-slate-800 mb-4">{t("campaigns.other")}</h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {campaigns.filter(c => !c.isFeatured).map(c => (
-                    <CampaignCard key={c.id} campaign={c} compact />
+                    <CampaignCard key={c.id} campaign={c} compact viewLabel={t("campaigns.view")} />
                   ))}
                 </div>
               </div>
@@ -92,7 +96,7 @@ export default async function KampanyalarPage() {
   );
 }
 
-function CampaignCard({ campaign: c, compact = false }: { campaign: Campaign; compact?: boolean }) {
+function CampaignCard({ campaign: c, compact = false, viewLabel }: { campaign: Campaign; compact?: boolean; viewLabel: string }) {
   const gradient = SCHEME_GRADIENT[c.colorScheme] ?? SCHEME_GRADIENT.orange;
   const styles = c.stylesJson ? (() => { try { return JSON.parse(c.stylesJson); } catch { return {}; } })() : {};
   const titleStyle = { color: styles.titleColor ?? "#ffffff", fontSize: compact ? undefined : (styles.titleFontSize ? `${styles.titleFontSize}px` : undefined), fontWeight: styles.titleFontWeight ?? "800" };
@@ -114,7 +118,7 @@ function CampaignCard({ campaign: c, compact = false }: { campaign: Campaign; co
         <h3 className={`font-extrabold mb-3 leading-tight ${compact ? "text-xl" : "text-3xl"}`} style={titleStyle}>{c.title}</h3>
         {c.linkUrl && (
           <Link href={c.linkUrl} className={`inline-block font-bold rounded-xl hover:opacity-90 transition ${compact ? "text-xs px-4 py-2" : "text-sm px-6 py-2.5"}`} style={btnStyle}>
-            {c.linkText || "İncele →"}
+            {c.linkText || viewLabel}
           </Link>
         )}
       </div>

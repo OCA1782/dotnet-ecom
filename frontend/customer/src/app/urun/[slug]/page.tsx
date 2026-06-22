@@ -6,6 +6,8 @@ import { formatPrice } from "@/lib/utils";
 import AddToCartButton from "./AddToCartButton";
 import ReviewSection from "./ReviewSection";
 import ProductImageGallery from "./ProductImageGallery";
+import { getServerLang } from "@/lib/server-i18n";
+import { t as translate } from "@/lib/i18n";
 
 async function getProduct(slug: string): Promise<ProductDetail | null> {
   try {
@@ -57,7 +59,8 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const [product, lang] = await Promise.all([getProduct(slug), getServerLang()]);
+  const t = (key: string) => translate(lang, key);
 
   if (!product) notFound();
 
@@ -92,9 +95,9 @@ export default async function ProductDetailPage({
 
           {/* Stock status */}
           {product.availableStock === 0 ? (
-            <span className="inline-block text-sm text-red-600 font-medium">Stokta Yok</span>
+            <span className="inline-block text-sm text-red-600 font-medium">{t("prod2.detail.out_of_stock")}</span>
           ) : (
-            <span className="inline-block text-sm text-green-600 font-medium">Stokta Var</span>
+            <span className="inline-block text-sm text-green-600 font-medium">{t("prod2.detail.in_stock")}</span>
           )}
 
           {/* Add to cart */}
@@ -107,7 +110,7 @@ export default async function ProductDetailPage({
           {/* Description */}
           {product.description && (
             <div className="border-t border-slate-200 pt-6">
-              <h2 className="text-sm font-semibold text-slate-800 mb-3">Ürün Açıklaması</h2>
+              <h2 className="text-sm font-semibold text-slate-800 mb-3">{t("prod2.detail.description")}</h2>
               <div
                 className="text-sm text-slate-600 leading-relaxed prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: product.description }}

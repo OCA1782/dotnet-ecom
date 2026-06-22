@@ -8,23 +8,26 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderDetail, Address } from "@/types";
 import { orderStatusStyle, paymentStatusStyle } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 // ─── Progress stepper ─────────────────────────────────────────────────────────
-const STEPS = [
-  { label: "Sipariş\nAlındı",  minStatus: 1 },
-  { label: "Ödeme\nOnaylandı", minStatus: 3 },
-  { label: "Hazırlanıyor",     minStatus: 4 },
-  { label: "Kargoya\nVerildi", minStatus: 5 },
-  { label: "Teslim\nEdildi",   minStatus: 6 },
-];
-
 function OrderStepper({ status }: { status: number }) {
+  const { t } = useI18n();
+  const nl = (key: string) => t(key).replace(/\\n/g, "\n");
+  const STEPS = [
+    { label: nl("orders.step.received"),  minStatus: 1 },
+    { label: nl("orders.step.payment"),   minStatus: 3 },
+    { label: nl("orders.step.preparing"), minStatus: 4 },
+    { label: nl("orders.step.shipped"),   minStatus: 5 },
+    { label: nl("orders.step.delivered"), minStatus: 6 },
+  ];
+
   if (status === 8 || status === 11)
     return (
       <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
         <span className="text-red-500">✕</span>
         <span className="text-sm font-medium text-red-700">
-          {status === 8 ? "Sipariş iptal edildi" : "Sipariş başarısız oldu"}
+          {status === 8 ? t("orders.status.cancelled") : t("orders.status.failed")}
         </span>
       </div>
     );
@@ -33,7 +36,7 @@ function OrderStepper({ status }: { status: number }) {
       <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
         <span className="text-orange-500">↩</span>
         <span className="text-sm font-medium text-orange-700">
-          {status === 9 ? "İade talebi alındı, inceleniyor" : "İade işlemi tamamlandı"}
+          {status === 9 ? t("orders.status.refund_pending") : t("orders.status.refund_done")}
         </span>
       </div>
     );
@@ -128,17 +131,18 @@ interface AddressPickerProps {
 }
 
 function AddressPicker({ title, addresses, selected, onSelect, tab, onTabChange, form, onFormChange }: AddressPickerProps) {
+  const { t } = useI18n();
   return (
     <div>
       <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>
       {addresses.length > 0 && (
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-3">
-          {(["list", "new"] as const).map((t) => (
-            <button key={t} onClick={() => onTabChange(t)}
+          {(["list", "new"] as const).map((tabKey) => (
+            <button key={tabKey} onClick={() => onTabChange(tabKey)}
               className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition ${
-                tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                tab === tabKey ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}>
-              {t === "list" ? "Kayıtlı Adresler" : "Yeni Adres Gir"}
+              {tabKey === "list" ? t("orders.addr_modal.saved_tab") : t("orders.addr_modal.new_tab")}
             </button>
           ))}
         </div>
@@ -160,7 +164,7 @@ function AddressPicker({ title, addresses, selected, onSelect, tab, onTabChange,
               </div>
               {a.isDefaultShipping && (
                 <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full self-start shrink-0">
-                  Varsayılan
+                  {t("orders.addr_modal.default_badge")}
                 </span>
               )}
             </label>
@@ -170,36 +174,36 @@ function AddressPicker({ title, addresses, selected, onSelect, tab, onTabChange,
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Ad <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.name")}</label>
               <input className={INPUT} value={form.firstName} onChange={(e) => onFormChange("firstName", e.target.value)} placeholder="Adınız" />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Soyad <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.surname")}</label>
               <input className={INPUT} value={form.lastName} onChange={(e) => onFormChange("lastName", e.target.value)} placeholder="Soyadınız" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Telefon <span className="text-red-400">*</span></label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.phone")}</label>
             <input className={INPUT} value={form.phone} onChange={(e) => onFormChange("phone", e.target.value)} placeholder="05XX XXX XX XX" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Şehir <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.city")}</label>
               <input className={INPUT} value={form.city} onChange={(e) => onFormChange("city", e.target.value)} placeholder="İstanbul" />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">İlçe <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.district")}</label>
               <input className={INPUT} value={form.district} onChange={(e) => onFormChange("district", e.target.value)} placeholder="Kadıköy" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Açık Adres <span className="text-red-400">*</span></label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.full_address")}</label>
             <textarea className={INPUT} rows={2} value={form.fullAddress}
               onChange={(e) => onFormChange("fullAddress", e.target.value)}
               placeholder="Mahalle, sokak, bina no, daire no..." />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Posta Kodu</label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">{t("orders.addr_form.postal_code")}</label>
             <input className={INPUT} value={form.postalCode} onChange={(e) => onFormChange("postalCode", e.target.value)} placeholder="34710" />
           </div>
         </div>
@@ -215,6 +219,7 @@ interface AddressModalProps {
 }
 
 function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
+  const { t } = useI18n();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddrs, setLoadingAddrs] = useState(true);
 
@@ -250,29 +255,26 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
   async function save() {
     setError("");
 
-    // Validate shipping
-    if (shipTab === "list" && !shipSelected) { setError("Teslimat adresi seçin."); return; }
+    if (shipTab === "list" && !shipSelected) { setError(t("orders.addr_modal.err_ship_select")); return; }
     if (shipTab === "new") {
       const { firstName, lastName, phone, city, district, fullAddress } = shipForm;
       if (!firstName || !lastName || !phone || !city || !district || !fullAddress) {
-        setError("Teslimat adresi için zorunlu alanları doldurun."); return;
+        setError(t("orders.addr_modal.err_ship_fill")); return;
       }
     }
 
-    // Validate billing (if different)
     if (diffBilling) {
-      if (billTab === "list" && !billSelected) { setError("Fatura adresi seçin."); return; }
+      if (billTab === "list" && !billSelected) { setError(t("orders.addr_modal.err_bill_select")); return; }
       if (billTab === "new") {
         const { firstName, lastName, phone, city, district, fullAddress } = billForm;
         if (!firstName || !lastName || !phone || !city || !district || !fullAddress) {
-          setError("Fatura adresi için zorunlu alanları doldurun."); return;
+          setError(t("orders.addr_modal.err_bill_fill")); return;
         }
       }
     }
 
     setSaving(true);
     try {
-      // Build request body
       const body: Record<string, unknown> = {};
 
       if (shipTab === "list") {
@@ -304,7 +306,7 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
       await api.patch(`/api/orders/${orderId}/address`, body);
       onSaved();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Adres kaydedilemedi. Lütfen tekrar deneyin.");
+      setError(e instanceof Error ? e.message : t("orders.addr_modal.err_save"));
     } finally {
       setSaving(false);
     }
@@ -316,7 +318,7 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
 
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
-          <h2 className="text-base font-semibold text-slate-900">Adres Bilgileri</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t("orders.addr_modal.title")}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
         </div>
 
@@ -328,12 +330,11 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
 
         <div className="p-5 space-y-5">
           {loadingAddrs ? (
-            <p className="text-sm text-slate-400 text-center py-6">Adresler yükleniyor...</p>
+            <p className="text-sm text-slate-400 text-center py-6">{t("orders.addr_modal.loading")}</p>
           ) : (
             <>
-              {/* Shipping */}
               <AddressPicker
-                title="Teslimat Adresi"
+                title={t("orders.addr_modal.ship_title")}
                 addresses={addresses}
                 selected={shipSelected}
                 onSelect={setShipSelected}
@@ -343,18 +344,17 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
                 onFormChange={setShipF}
               />
 
-              {/* Billing toggle */}
               <div className="border-t border-slate-100 pt-4">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input type="checkbox" className="w-4 h-4 accent-teal-600 rounded"
                     checked={diffBilling} onChange={(e) => setDiffBilling(e.target.checked)} />
-                  <span className="text-sm text-slate-700">Fatura adresim teslimat adresimden farklı</span>
+                  <span className="text-sm text-slate-700">{t("orders.addr_modal.diff_billing")}</span>
                 </label>
 
                 {diffBilling && (
                   <div className="mt-4">
                     <AddressPicker
-                      title="Fatura Adresi"
+                      title={t("orders.addr_modal.bill_title")}
                       addresses={addresses}
                       selected={billSelected}
                       onSelect={setBillSelected}
@@ -372,11 +372,11 @@ function AddressModal({ orderId, onSaved, onClose }: AddressModalProps) {
 
         <div className="flex justify-end gap-3 px-5 py-4 border-t border-slate-100 sticky bottom-0 bg-white rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition">
-            İptal
+            {t("orders.addr_modal.cancel")}
           </button>
           <button onClick={save} disabled={saving || loadingAddrs}
             className="px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition disabled:opacity-60">
-            {saving ? "Kaydediliyor..." : "Kaydet"}
+            {saving ? t("orders.addr_modal.saving") : t("orders.addr_modal.save_btn")}
           </button>
         </div>
       </div>
@@ -393,6 +393,7 @@ interface CancelModalProps {
 }
 
 function CancelModal({ onConfirm, onClose, loading, error }: CancelModalProps) {
+  const { t } = useI18n();
   const [reason, setReason] = useState("");
 
   return (
@@ -405,7 +406,7 @@ function CancelModal({ onConfirm, onClose, loading, error }: CancelModalProps) {
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <span className="text-base leading-none">✕</span>
             </div>
-            <h2 className="text-base font-semibold text-slate-900">Siparişi İptal Et</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t("orders.cancel.title")}</h2>
           </div>
           <button onClick={onClose} disabled={loading}
             className="text-slate-400 hover:text-slate-700 text-xl leading-none disabled:opacity-40">&times;</button>
@@ -413,18 +414,18 @@ function CancelModal({ onConfirm, onClose, loading, error }: CancelModalProps) {
 
         <div className="p-5 space-y-4">
           <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-            <p className="text-sm text-red-800 font-medium">Bu siparişi iptal etmek istediğinizden emin misiniz?</p>
-            <p className="text-xs text-red-600 mt-0.5">Bu işlem geri alınamaz.</p>
+            <p className="text-sm text-red-800 font-medium">{t("orders.cancel.confirm")}</p>
+            <p className="text-xs text-red-600 mt-0.5">{t("orders.cancel.irreversible")}</p>
           </div>
 
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-              İptal sebebi <span className="text-slate-400 font-normal">(isteğe bağlı)</span>
+              {t("orders.cancel.reason_label")} <span className="text-slate-400 font-normal">{t("orders.cancel.reason_optional")}</span>
             </label>
             <textarea
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
               rows={3}
-              placeholder="Sebebinizi yazın..."
+              placeholder={t("orders.cancel.reason_placeholder")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={loading}
@@ -441,11 +442,11 @@ function CancelModal({ onConfirm, onClose, loading, error }: CancelModalProps) {
         <div className="flex justify-end gap-3 px-5 py-4 border-t border-slate-100">
           <button onClick={onClose} disabled={loading}
             className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition disabled:opacity-40">
-            Vazgeç
+            {t("orders.cancel.cancel")}
           </button>
           <button onClick={() => onConfirm(reason)} disabled={loading}
             className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-60">
-            {loading ? "İptal ediliyor..." : "Evet, İptal Et"}
+            {loading ? t("orders.detail.cancelling") : t("orders.cancel.yes")}
           </button>
         </div>
       </div>
@@ -462,6 +463,7 @@ interface PaymentResult {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function OrderDetailPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { orderNumber } = useParams<{ orderNumber: string }>();
@@ -502,7 +504,7 @@ export default function OrderDetailPage() {
       setShowCancel(false);
       loadOrder();
     } catch (e: unknown) {
-      setCancelError(e instanceof Error ? e.message : "İptal işlemi başarısız.");
+      setCancelError(e instanceof Error ? e.message : t("orders.cancel.fail"));
     } finally { setCancelling(false); }
   }
 
@@ -542,19 +544,19 @@ export default function OrderDetailPage() {
       setRefundReason("");
       loadOrder();
     } catch (e: unknown) {
-      setRefundError(e instanceof Error ? e.message : "İade talebi gönderilemedi.");
+      setRefundError(e instanceof Error ? e.message : t("orders.refund.fail"));
     } finally { setRefunding(false); }
   }
 
   if (authLoading || loading) {
-    return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">Yükleniyor...</div>;
+    return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">{t("orders.loading")}</div>;
   }
 
   if (!order) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <p className="text-slate-500 mb-4">Sipariş bulunamadı</p>
-        <Link href="/hesabim/siparisler" className="text-sm text-teal-700 underline">← Siparişlerime Dön</Link>
+        <p className="text-slate-500 mb-4">{t("orders.detail.not_found")}</p>
+        <Link href="/hesabim/siparisler" className="text-sm text-teal-700 underline">{t("orders.detail.back_list")}</Link>
       </div>
     );
   }
@@ -592,21 +594,21 @@ export default function OrderDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-sm">İade Talebi Oluştur</h3>
+              <h3 className="font-bold text-slate-800 text-sm">{t("orders.refund.title")}</h3>
               <button onClick={() => { setShowRefund(false); setRefundReason(""); setRefundError(""); }}
                 className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition text-lg leading-none">×</button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <p className="text-sm text-slate-600">
-                <strong>{order.orderNumber}</strong> siparişi için iade talebi oluşturulacak. İade talebiniz incelendikten sonra size dönülecektir.
+                <strong>{order.orderNumber}</strong> {t("orders.refund.desc_prefix")}
               </p>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">İade Nedeni (isteğe bağlı)</label>
+                <label className="block text-xs text-slate-500 mb-1">{t("orders.refund.reason_label")}</label>
                 <textarea
                   value={refundReason}
                   onChange={e => setRefundReason(e.target.value)}
                   rows={3}
-                  placeholder="İade nedeninizi belirtin..."
+                  placeholder={t("orders.refund.reason_placeholder")}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
                 />
               </div>
@@ -617,11 +619,11 @@ export default function OrderDetailPage() {
             <div className="flex gap-3 px-5 pb-5">
               <button onClick={() => { setShowRefund(false); setRefundReason(""); setRefundError(""); }}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 font-medium hover:bg-slate-50 transition">
-                Vazgeç
+                {t("orders.refund.cancel")}
               </button>
               <button onClick={requestRefund} disabled={refunding}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50">
-                {refunding ? "Gönderiliyor..." : "İade Talebi Gönder"}
+                {refunding ? t("orders.refund.submitting") : t("orders.refund.submit_btn")}
               </button>
             </div>
           </div>
@@ -631,7 +633,7 @@ export default function OrderDetailPage() {
       {/* Header */}
       <div>
         <Link href="/hesabim/siparisler" className="text-sm text-slate-400 hover:text-slate-700 transition">
-          ← Siparişlerim
+          {t("orders.detail.back")}
         </Link>
         <div className="flex items-start justify-between mt-2 gap-4 flex-wrap">
           <div>
@@ -650,14 +652,12 @@ export default function OrderDetailPage() {
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
           <span className="text-xl shrink-0">📍</span>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-orange-900">Teslimat adresi eksik</p>
-            <p className="text-xs text-orange-700 mt-0.5">
-              Ödemeye devam edebilmek için teslimat adresi eklemeniz gerekiyor.
-            </p>
+            <p className="text-sm font-semibold text-orange-900">{t("orders.detail.addr_missing_title")}</p>
+            <p className="text-xs text-orange-700 mt-0.5">{t("orders.detail.addr_missing_desc")}</p>
           </div>
           <button onClick={() => setShowAddr(true)}
             className="shrink-0 bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-orange-600 transition">
-            Adres Ekle
+            {t("orders.detail.addr_add_btn")}
           </button>
         </div>
       )}
@@ -668,17 +668,15 @@ export default function OrderDetailPage() {
           <div className="flex items-start gap-3">
             <span className="text-xl shrink-0">⚠️</span>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">Ödemeniz tamamlanmadı</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                Ödeme bekleniyor. Devam etmek için butona tıklayın.
-              </p>
+              <p className="text-sm font-semibold text-amber-900">{t("orders.detail.pay_title")}</p>
+              <p className="text-xs text-amber-700 mt-0.5">{t("orders.detail.pay_desc")}</p>
               {payError && (
                 <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1 mt-2">{payError}</p>
               )}
             </div>
             <button onClick={continuePayment} disabled={paying}
               className="shrink-0 bg-amber-500 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-amber-600 transition disabled:opacity-60 whitespace-nowrap">
-              {paying ? "Yönlendiriliyor..." : "Ödemeye Devam Et"}
+              {paying ? t("orders.detail.paying") : t("orders.detail.pay_btn")}
             </button>
           </div>
         </div>
@@ -690,19 +688,19 @@ export default function OrderDetailPage() {
       {/* Address section */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">Adres Bilgileri</h2>
+          <h2 className="text-sm font-semibold text-slate-800">{t("orders.detail.addr_title")}</h2>
           {isPending && addrOk && (
             <button onClick={() => setShowAddr(true)}
               className="text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1 rounded-lg transition">
-              Düzenle
+              {t("orders.detail.addr_edit")}
             </button>
           )}
         </div>
         {addrOk ? (
           <div className={`p-4 grid gap-3 ${billingDiff ? "grid-cols-1 sm:grid-cols-2" : ""}`}>
-            <AddressBlock snapshot={order.shippingAddressSnapshot} title="Teslimat Adresi" icon="📍" />
+            <AddressBlock snapshot={order.shippingAddressSnapshot} title={t("orders.detail.ship_addr")} icon="📍" />
             {billingDiff && (
-              <AddressBlock snapshot={order.billingAddressSnapshot!} title="Fatura Adresi" icon="🧾" />
+              <AddressBlock snapshot={order.billingAddressSnapshot!} title={t("orders.detail.bill_addr")} icon="🧾" />
             )}
           </div>
         ) : (
@@ -711,13 +709,13 @@ export default function OrderDetailPage() {
               <span className="text-xl leading-none">📍</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-700">Teslimat adresi eklenmemiş</p>
-              <p className="text-xs text-slate-400 mt-0.5">Ödemeye geçmek için adres gerekiyor</p>
+              <p className="text-sm font-medium text-slate-700">{t("orders.detail.addr_none")}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("orders.detail.addr_none_desc")}</p>
             </div>
             {isPending && (
               <button onClick={() => setShowAddr(true)}
                 className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-5 py-2 rounded-xl transition">
-                Adres Ekle
+                {t("orders.detail.addr_add_btn")}
               </button>
             )}
           </div>
@@ -727,7 +725,9 @@ export default function OrderDetailPage() {
       {/* Items */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-800">Ürünler ({order.items.length})</h2>
+          <h2 className="text-sm font-semibold text-slate-800">
+            {t("orders.detail.items_title").replace("{n}", String(order.items.length))}
+          </h2>
         </div>
         <div className="divide-y divide-slate-100">
           {order.items.map((item) => (
@@ -747,7 +747,9 @@ export default function OrderDetailPage() {
                 <p className="font-semibold text-slate-900">{formatPrice(item.lineTotal)}</p>
                 <p className="text-xs text-slate-400">{formatPrice(item.unitPrice)} × {item.quantity}</p>
                 {item.taxRate > 0 && (
-                  <p className="text-xs text-slate-400">KDV %{Math.round(item.taxRate * 100)}</p>
+                  <p className="text-xs text-slate-400">
+                    {t("orders.detail.tax_rate").replace("{n}", String(Math.round(item.taxRate * 100)))}
+                  </p>
                 )}
               </div>
             </div>
@@ -756,24 +758,24 @@ export default function OrderDetailPage() {
 
         <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4 space-y-1.5">
           <div className="flex justify-between text-sm text-slate-600">
-            <span>Ara Toplam</span><span>{formatPrice(order.totalProductAmount)}</span>
+            <span>{t("orders.detail.subtotal")}</span><span>{formatPrice(order.totalProductAmount)}</span>
           </div>
           {order.discountAmount > 0 && (
             <div className="flex justify-between text-sm text-emerald-700">
-              <span>İndirim</span><span>−{formatPrice(order.discountAmount)}</span>
+              <span>{t("orders.detail.discount")}</span><span>−{formatPrice(order.discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm text-slate-600">
-            <span>KDV</span><span>{formatPrice(order.taxAmount)}</span>
+            <span>{t("orders.detail.tax")}</span><span>{formatPrice(order.taxAmount)}</span>
           </div>
           <div className="flex justify-between text-sm text-slate-600">
-            <span>Kargo</span>
+            <span>{t("orders.detail.shipping")}</span>
             <span>{order.shippingAmount === 0
-              ? <span className="text-emerald-600 font-medium">Ücretsiz</span>
+              ? <span className="text-emerald-600 font-medium">{t("orders.detail.shipping_free")}</span>
               : formatPrice(order.shippingAmount)}</span>
           </div>
           <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200 text-base">
-            <span>Genel Toplam</span><span>{formatPrice(order.grandTotal)}</span>
+            <span>{t("orders.detail.grand_total")}</span><span>{formatPrice(order.grandTotal)}</span>
           </div>
         </div>
       </div>
@@ -781,7 +783,7 @@ export default function OrderDetailPage() {
       {/* Order note */}
       {order.note && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sipariş Notu</h3>
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t("orders.detail.note_title")}</h3>
           <p className="text-sm text-slate-700">{order.note}</p>
         </div>
       )}
@@ -791,7 +793,7 @@ export default function OrderDetailPage() {
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
             <span>🚚</span>
-            <h2 className="text-sm font-semibold text-slate-800">Kargo Takibi</h2>
+            <h2 className="text-sm font-semibold text-slate-800">{t("orders.detail.shipment_title")}</h2>
           </div>
           <div className="px-5 py-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -801,20 +803,20 @@ export default function OrderDetailPage() {
               </div>
               {shipment.deliveredAt && (
                 <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                  ✓ Teslim Edildi · {formatDate(shipment.deliveredAt)}
+                  {t("orders.detail.delivered_at")} {formatDate(shipment.deliveredAt)}
                 </span>
               )}
             </div>
             {shipment.trackingNumber && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-slate-500">Takip No:</span>
+                <span className="text-xs text-slate-500">{t("orders.detail.tracking_no")}</span>
                 <code className="text-xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
                   {shipment.trackingNumber}
                 </code>
                 {shipment.trackingUrl && (
                   <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer"
                     className="text-xs text-teal-600 hover:text-teal-800 font-medium underline">
-                    Kargo takip et →
+                    {t("orders.detail.track_link")}
                   </a>
                 )}
               </div>
@@ -826,7 +828,7 @@ export default function OrderDetailPage() {
       {/* Status history */}
       {order.statusHistory?.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-800 mb-4">Sipariş Geçmişi</h2>
+          <h2 className="text-sm font-semibold text-slate-800 mb-4">{t("orders.detail.history_title")}</h2>
           <div className="relative pl-5 space-y-4">
             <div className="absolute left-1.5 top-2 bottom-2 w-px bg-slate-200" />
             {order.statusHistory.map((h, i) => {
@@ -858,13 +860,13 @@ export default function OrderDetailPage() {
           {canRefund && (
             <button onClick={() => setShowRefund(true)}
               className="px-5 py-2.5 border border-orange-300 text-orange-600 text-sm rounded-xl hover:bg-orange-50 transition">
-              İade Talebi Oluştur
+              {t("orders.detail.refund_btn")}
             </button>
           )}
           {canCancel && (
             <button onClick={() => setShowCancel(true)} disabled={cancelling}
               className="px-5 py-2.5 border border-red-300 text-red-600 text-sm rounded-xl hover:bg-red-50 transition disabled:opacity-50">
-              Siparişi İptal Et
+              {t("orders.detail.cancel_btn")}
             </button>
           )}
         </div>

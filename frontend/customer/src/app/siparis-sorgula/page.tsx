@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatPrice, formatDate } from "@/lib/utils";
 import { orderStatusStyle } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -46,6 +47,7 @@ interface OrderDetail {
 }
 
 export default function SiparisSorgulaPage() {
+  const { t } = useI18n();
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export default function SiparisSorgulaPage() {
     setError("");
     setOrder(null);
     if (!orderNumber.trim() || !email.trim()) {
-      setError("Sipariş numarası ve e-posta zorunludur.");
+      setError(t("track.order.required"));
       return;
     }
     setLoading(true);
@@ -66,13 +68,13 @@ export default function SiparisSorgulaPage() {
       const res = await fetch(`${API_BASE}/api/orders/track?${qs}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error ?? "Sipariş bulunamadı.");
+        setError(body.error ?? t("track.order.not_found"));
         return;
       }
       const data: OrderDetail = await res.json();
       setOrder(data);
     } catch {
-      setError("Bir hata oluştu, lütfen tekrar deneyin.");
+      setError(t("track.order.error"));
     } finally {
       setLoading(false);
     }
@@ -83,15 +85,13 @@ export default function SiparisSorgulaPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-12 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Sipariş Sorgula</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Misafir olarak verdiğiniz siparişi sipariş numaranız ve e-postanızla sorgulayabilirsiniz.
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{t("track.order.title")}</h1>
+        <p className="text-sm text-slate-500 mt-1">{t("track.order.desc")}</p>
       </div>
 
       <form onSubmit={search} className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Sipariş Numarası</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">{t("track.order.number_label")}</label>
           <input
             value={orderNumber}
             onChange={e => setOrderNumber(e.target.value)}
@@ -100,12 +100,12 @@ export default function SiparisSorgulaPage() {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">E-posta Adresi</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">{t("track.order.email_label")}</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="sipariş verirken kullandığınız e-posta"
+            placeholder={t("track.order.email_label")}
             className={inp}
           />
         </div>
@@ -117,7 +117,7 @@ export default function SiparisSorgulaPage() {
           disabled={loading}
           className="w-full py-3 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition disabled:opacity-50 text-sm"
         >
-          {loading ? "Sorgulanıyor..." : "Sorgula"}
+          {loading ? t("track.order.querying") : t("track.order.submit")}
         </button>
       </form>
 
@@ -126,7 +126,7 @@ export default function SiparisSorgulaPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs text-slate-500">Sipariş No</p>
+                <p className="text-xs text-slate-500">{t("track.order.number_header")}</p>
                 <p className="font-bold text-slate-900 text-lg">{order.orderNumber}</p>
                 <p className="text-xs text-slate-400 mt-0.5">{formatDate(order.createdDate)}</p>
               </div>
@@ -158,17 +158,17 @@ export default function SiparisSorgulaPage() {
             {/* Totals */}
             <div className="border-t border-slate-100 pt-3 space-y-1.5 text-sm">
               <div className="flex justify-between text-slate-600">
-                <span>Kargo</span>
-                <span>{order.shippingAmount === 0 ? "Ücretsiz" : formatPrice(order.shippingAmount)}</span>
+                <span>{t("track.order.shipping")}</span>
+                <span>{order.shippingAmount === 0 ? t("track.order.free_shipping") : formatPrice(order.shippingAmount)}</span>
               </div>
               {order.discountAmount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>İndirim</span>
+                  <span>{t("track.order.discount")}</span>
                   <span>-{formatPrice(order.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2 mt-1">
-                <span>Toplam</span>
+                <span>{t("track.order.total")}</span>
                 <span>{formatPrice(order.grandTotal)}</span>
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function SiparisSorgulaPage() {
               if (!addr.firstName && !addr.fullAddress) return null;
               return (
                 <div className="border-t border-slate-100 pt-3">
-                  <p className="text-xs font-semibold text-slate-500 mb-1">Teslimat Adresi</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">{t("track.order.delivery_addr")}</p>
                   <p className="text-sm text-slate-700">{addr.firstName} {addr.lastName}</p>
                   <p className="text-xs text-slate-500">{addr.fullAddress}</p>
                   <p className="text-xs text-slate-500">{addr.district}, {addr.city}</p>
@@ -190,16 +190,16 @@ export default function SiparisSorgulaPage() {
             {/* Shipment */}
             {order.shipments.length > 0 && (
               <div className="border-t border-slate-100 pt-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1">Kargo Bilgisi</p>
+                <p className="text-xs font-semibold text-slate-500 mb-1">{t("track.order.shipment_info")}</p>
                 {order.shipments.map((s, i) => (
                   <div key={i} className="space-y-1">
-                    <p className="text-sm text-slate-700">{s.carrier} — {s.trackingNumber ?? "Takip numarası bekleniyor"}</p>
+                    <p className="text-sm text-slate-700">{s.carrier} — {s.trackingNumber ?? t("track.order.tracking_pending")}</p>
                     {s.trackingUrl && s.trackingNumber && (
                       <a href={s.trackingUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-xs text-teal-600 underline">Kargo takip et →</a>
+                        className="text-xs text-teal-600 underline">{t("track.order.track_link")}</a>
                     )}
-                    {s.shippedAt && <p className="text-xs text-slate-400">Kargoya verildi: {formatDate(s.shippedAt)}</p>}
-                    {s.deliveredAt && <p className="text-xs text-slate-400">Teslim edildi: {formatDate(s.deliveredAt)}</p>}
+                    {s.shippedAt && <p className="text-xs text-slate-400">{t("track.order.shipped_at")} {formatDate(s.shippedAt)}</p>}
+                    {s.deliveredAt && <p className="text-xs text-slate-400">{t("track.order.delivered_at")} {formatDate(s.deliveredAt)}</p>}
                   </div>
                 ))}
               </div>

@@ -5,8 +5,9 @@ import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
   BarChart3, Globe, MapPin, TrendingUp, TrendingDown, Minus,
-  Package, Users, ShoppingCart, Activity, RefreshCw,
+  Package, Users, ShoppingCart, Activity, RefreshCw, Download,
 } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
 
 interface PageVisit { page: string; visits: number; }
 interface CountryVisit { country: string; visits: number; }
@@ -166,6 +167,7 @@ const REFRESH_INTERVAL = 60_000;
 export default function AnalizPage() {
   const { t } = useI18n();
   const [days, setDays] = useState(30);
+  const [topN, setTopN] = useState<10 | 20 | 50>(20);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
@@ -181,7 +183,7 @@ export default function AnalizPage() {
     try {
       const [v, p, d] = await Promise.allSettled([
         api.get<VisitorStats>(`/api/admin/reports/visitor-stats?days=${days}`),
-        api.get<ProductSales[]>(`/api/admin/reports/product-sales?days=${days}&topN=20`),
+        api.get<ProductSales[]>(`/api/admin/reports/product-sales?days=${days}&topN=${topN}`),
         api.get<DashboardStats>("/api/admin/dashboard"),
       ]);
       if (v.status === "fulfilled") setVisitorStats(v.value);
@@ -193,7 +195,7 @@ export default function AnalizPage() {
       setLoadingP(false);
       setRefreshing(false);
     }
-  }, [days]);
+  }, [days, topN]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void loadData(); }, 0);
@@ -471,14 +473,40 @@ export default function AnalizPage() {
 
       {/* Product Performance */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
             <Package className="w-4 h-4 text-emerald-500" />
             Ürün Performansı — En Çok Satan
           </h2>
-          {productSales.length > 0 && (
-            <span className="text-xs text-slate-400">{productSales.length} ürün</span>
-          )}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-slate-200 rounded-xl overflow-hidden">
+              {([10, 20, 50] as const).map(n => (
+                <button key={n} onClick={() => setTopN(n)}
+                  className={`px-2.5 py-1 text-xs font-medium transition ${topN === n ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>
+                  {t("ui.top", "Top")} {n}
+                </button>
+              ))}
+            </div>
+            {productSales.length > 0 && (
+              <button
+                onClick={() => exportToExcel(
+                  productSales.map((p, i) => ({
+                    "Sıra": i + 1,
+                    "Ürün": p.productName,
+                    "SKU": p.sku ?? "",
+                    "Adet": p.totalQuantity,
+                    "Sipariş": p.orderCount,
+                    "Gelir (₺)": p.totalRevenue,
+                  })),
+                  `urun-satis-${days}gun`,
+                  "Ürün Satış"
+                )}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+              >
+                <Download size={13} /> Excel
+              </button>
+            )}
+          </div>
         </div>
         {loadingP ? <SkeletonRows n={6} /> : !productSales.length ? (
           <div className="h-32 flex items-center justify-center text-slate-300 text-sm">{t("table.noData", "Kayıt bulunamadı")}</div>

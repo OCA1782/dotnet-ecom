@@ -5,7 +5,8 @@ import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { SalesGoal } from "@/types";
-import { Target, TrendingUp, ShoppingCart, Check, Pencil, X } from "lucide-react";
+import { Target, TrendingUp, ShoppingCart, Check, Pencil, X, Download, Copy } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
 
 const MONTH_KEYS = [
   "hedefler.month.jan", "hedefler.month.feb", "hedefler.month.mar",
@@ -38,6 +39,7 @@ export default function HedeflerPage() {
   const [editRevenue, setEditRevenue] = useState("");
   const [editOrderCount, setEditOrderCount] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   async function load() {
@@ -89,6 +91,52 @@ export default function HedeflerPage() {
     } finally { setSaving(false); }
   }
 
+  function handleExport() {
+    const rows = MONTHS.map((monthName, idx) => {
+      const month = idx + 1;
+      const goal = getGoal(month);
+      const actual = getActual(month);
+      return {
+        "Ay": monthName,
+        "Gelir Hedefi (₺)": goal?.targetRevenue ?? 0,
+        "Gerçekleşen Gelir (₺)": actual?.revenue ?? 0,
+        "Sipariş Hedefi": goal?.targetOrderCount ?? 0,
+        "Gerçekleşen Sipariş": actual?.orderCount ?? 0,
+        "Gelir %": goal?.targetRevenue ? Math.round(((actual?.revenue ?? 0) / goal.targetRevenue) * 100) : 0,
+        "Sipariş %": goal?.targetOrderCount ? Math.round(((actual?.orderCount ?? 0) / goal.targetOrderCount) * 100) : 0,
+      };
+    });
+    exportToExcel(rows, `hedefler-${year}`, `Hedefler ${year}`);
+  }
+
+  async function handleCopyFromPrevYear() {
+    if (year <= 2020) return;
+    setCopying(true);
+    try {
+      const prevGoals = await api.get<SalesGoal[]>(`/api/admin/goals?year=${year - 1}`);
+      if (!prevGoals.length) {
+        setMsg({ text: `${year - 1} yılında hedef bulunamadı.`, ok: false });
+        return;
+      }
+      let ok = 0;
+      for (const g of prevGoals) {
+        try {
+          await api.put(`/api/admin/goals/${year}/${g.month}`, {
+            targetRevenue: g.targetRevenue,
+            targetOrderCount: g.targetOrderCount,
+          });
+          ok++;
+        } catch { /* skip existing */ }
+      }
+      setMsg({ text: `${ok} ay hedefi ${year - 1}'den kopyalandı.`, ok: true });
+      await load();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Bir hata oluştu", ok: false });
+    } finally {
+      setCopying(false);
+    }
+  }
+
   const now = new Date();
   const totalTargetRevenue = goals.reduce((s, g) => s + g.targetRevenue, 0);
   const totalTargetOrders = goals.reduce((s, g) => s + g.targetOrderCount, 0);
@@ -102,7 +150,22 @@ export default function HedeflerPage() {
           <h1 className="text-2xl font-bold text-slate-900">{t("nav./hedefler", "Hedefler")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">{t("hedefler.subtitle", "Aylık satış miktarı ve gelir hedeflerini belirleyin")}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 transition"
+          >
+            <Download size={14} /> Excel
+          </button>
+          {year > 2020 && (
+            <button
+              onClick={handleCopyFromPrevYear}
+              disabled={copying}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              <Copy size={14} /> {copying ? "Kopyalanıyor..." : `${year - 1}'den Kopyala`}
+            </button>
+          )}
           <select value={monthFilter} onChange={e => setMonthFilter(Number(e.target.value))}
             className="border border-slate-300 rounded-xl px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
             <option value={0}>{t("hedefler.allMonths", "Tüm Aylar")}</option>

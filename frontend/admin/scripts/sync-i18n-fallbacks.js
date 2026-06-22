@@ -19,10 +19,19 @@ function sectionBounds(name, input = source) {
   if (translationsStart >= 0) nextStarts.push(translationsStart);
 
   const end = Math.min(...nextStarts);
-  const close = input.lastIndexOf("\n};", end);
-  if (close < 0) throw new Error(`${name} dictionary close not found`);
+  const body = input.slice(start, end);
 
-  return { start, end, close, body: input.slice(start, end) };
+  // EN-style: block closes with its own \n}; line
+  // DE/ES compact style: block closes with ,}; inline on the last key line
+  let closeInBody = body.lastIndexOf("\n};");
+  if (closeInBody < 0) {
+    // Compact format — find last }; within the block
+    closeInBody = body.lastIndexOf("};");
+  }
+  if (closeInBody < 0) throw new Error(`${name} dictionary close not found`);
+  const close = start + closeInBody;
+
+  return { start, end, close, body };
 }
 
 function extractDict(name, input = source) {
@@ -56,8 +65,10 @@ function syncTarget(targetLang) {
   return missing.length;
 }
 
+const addedEn = syncTarget("EN");
 const addedDe = syncTarget("DE");
 const addedEs = syncTarget("ES");
-if (addedDe > 0 || addedEs > 0) fs.writeFileSync(file, source, "utf8");
+if (addedEn > 0 || addedDe > 0 || addedEs > 0) fs.writeFileSync(file, source, "utf8");
+console.log(`EN fallbacks added: ${addedEn}`);
 console.log(`DE fallbacks added: ${addedDe}`);
 console.log(`ES fallbacks added: ${addedEs}`);

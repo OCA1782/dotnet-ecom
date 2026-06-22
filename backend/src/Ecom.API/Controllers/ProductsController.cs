@@ -115,6 +115,14 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("bulk-price-preview")]
+    [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
+    public async Task<IActionResult> BulkPricePreview([FromBody] BulkPricePreviewQuery query, CancellationToken ct)
+    {
+        var count = await mediator.Send(query, ct);
+        return Ok(new { count });
+    }
+
     /// <summary>
     /// CatalogIQ machine-to-machine upsert endpoint. Authenticates via X-CatalogIQ-Key header.
     /// Creates or updates a product by SKU; auto-creates missing category/brand by name.

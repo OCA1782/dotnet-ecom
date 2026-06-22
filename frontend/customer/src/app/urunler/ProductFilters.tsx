@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import type { Brand, Category } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
@@ -21,14 +22,6 @@ interface Props {
   categorySlug?: string;
 }
 
-const SORT_OPTIONS = [
-  { value: "",             label: "Varsayılan" },
-  { value: "yeni",         label: "En Yeni" },
-  { value: "cok-satan",    label: "Çok Satan" },
-  { value: "fiyat-artan",  label: "Fiyat ↑" },
-  { value: "fiyat-azalan", label: "Fiyat ↓" },
-];
-
 const RATINGS = [4, 3, 2, 1];
 
 export default function ProductFilters({
@@ -36,12 +29,21 @@ export default function ProductFilters({
   activeBrandIds, activeRating, activeSiralama, activeIndirimli,
   activeNitelikler, categorySlug,
 }: Props) {
+  const { t } = useI18n();
   const router = useRouter();
   const [search, setSearch] = useState(searchTerm ?? "");
   const [min, setMin] = useState(minFiyat ?? "");
   const [max, setMax] = useState(maxFiyat ?? "");
   const [selectedBrands, setSelectedBrands] = useState<string[]>(activeBrandIds);
   const [attributes, setAttributes] = useState<Record<string, string[]>>({});
+
+  const SORT_OPTIONS = [
+    { value: "",             label: "Varsayılan" },
+    { value: "yeni",         label: t("prod2.sort.new") },
+    { value: "cok-satan",    label: t("prod2.sort.bestseller") },
+    { value: "fiyat-artan",  label: t("prod2.sort.price_asc") },
+    { value: "fiyat-azalan", label: t("prod2.sort.price_desc") },
+  ];
 
   // Parse active attribute pairs: "Renk:Kırmızı,Beden:M" → [{key,value}]
   const activeAttrPairs: { key: string; value: string }[] = (activeNitelikler ?? "")
@@ -129,7 +131,7 @@ export default function ProductFilters({
 
       {/* Sort */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sıralama</h3>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.sort.label")}</h3>
         <div className="space-y-1">
           {SORT_OPTIONS.map(opt => (
             <button
@@ -150,7 +152,7 @@ export default function ProductFilters({
       {/* Categories */}
       {categories.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</h3>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.category")}</h3>
           <ul className="space-y-1">
             <li>
               <button
@@ -159,7 +161,7 @@ export default function ProductFilters({
                   !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
                 }`}
               >
-                Tümü
+                {t("prod2.filter.all_categories")}
               </button>
             </li>
             {categories.map(cat => (
@@ -196,7 +198,7 @@ export default function ProductFilters({
 
       {/* Price range */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fiyat Aralığı</h3>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.price_range")}</h3>
         <div className="flex gap-2 items-center">
           <input
             type="number"
@@ -218,14 +220,14 @@ export default function ProductFilters({
           onClick={() => router.push(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
           className="mt-2 w-full py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium text-sm rounded-xl transition"
         >
-          Uygula
+          {t("prod2.filter.apply")}
         </button>
       </div>
 
       {/* Brands */}
       {brands.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Marka</h3>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.brand")}</h3>
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {brands.map(brand => (
               <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
@@ -269,7 +271,7 @@ export default function ProductFilters({
 
       {/* Rating filter */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Müşteri Puanı</h3>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.min_rating")}</h3>
         <div className="space-y-1">
           {RATINGS.map(r => (
             <button
@@ -296,7 +298,7 @@ export default function ProductFilters({
               : "bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200"
           }`}
         >
-          {activeIndirimli ? "✓ İndirimli Ürünler" : "🏷️ Sadece İndirimli"}
+          {activeIndirimli ? `✓ ${t("prod2.list.on_sale")}` : `🏷️ ${t("prod2.filter.on_sale_only")}`}
         </button>
       </div>
 
@@ -306,7 +308,7 @@ export default function ProductFilters({
           onClick={() => { setMin(""); setMax(""); setSearch(""); setSelectedBrands([]); router.push("/urunler"); }}
           className="w-full py-1.5 border border-red-200 text-red-500 text-sm rounded-xl hover:bg-red-50 transition font-medium"
         >
-          Tüm Filtreleri Temizle
+          {t("prod2.filter.clear")}
         </button>
       )}
     </div>

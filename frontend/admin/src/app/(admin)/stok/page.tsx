@@ -5,7 +5,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import type { StockItem, PaginatedList } from "@/types";
-import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX, History, Package, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, Download, Upload, X, Search, Pencil, AlertTriangle, PackageX, History, Package, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2 } from "lucide-react";
 
 const MOVEMENT_TYPES = [
   { value: "StockIn", label: "Stok Girişi" },
@@ -134,6 +134,10 @@ export default function StockPage() {
   // Delete stock entry
   const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   async function handleDeleteStock() {
     if (!deleteTarget) return;
@@ -264,6 +268,25 @@ export default function StockPage() {
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
     } finally { setNewSaving(false); }
+  }
+
+  function toggleSelectStock(id: string) {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
+  async function handleBulkDeleteStock() {
+    setBulkDeleting(true);
+    const results = await Promise.allSettled([...selectedIds].map(id => api.delete(`/api/admin/stocks/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setMsg({ text: `${ok} stok kaydı silindi${fail > 0 ? `, ${fail} hatalı` : ""}.`, ok: fail === 0 });
+    setSelectedIds(new Set());
+    setBulkDeleting(false);
+    await fetchStocks();
   }
 
   function handleExport() {
@@ -503,6 +526,22 @@ export default function StockPage() {
         </div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm flex-wrap">
+          <span className="font-semibold">{selectedIds.size} seçili</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={handleBulkDeleteStock} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-semibold transition disabled:opacity-50">
+              {bulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Seçilenleri Sil
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 text-xs transition">
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Liste-bazlı alarm bandı */}
       {!loading && (() => {
         const outOfStock = stocks.filter(s => s.availableQuantity === 0).length;
@@ -661,6 +700,21 @@ export default function StockPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-3 py-3 w-8">
+                  <button
+                    onClick={() => {
+                      const allIds = stocks.map(s => s.productId);
+                      const allSelected = allIds.every(id => selectedIds.has(id));
+                      setSelectedIds(allSelected ? new Set() : new Set(allIds));
+                    }}
+                    className="text-slate-400 hover:text-teal-600 transition"
+                  >
+                    {stocks.length > 0 && stocks.every(s => selectedIds.has(s.productId))
+                      ? <CheckSquare size={15} className="text-teal-600" />
+                      : <Square size={15} />
+                    }
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.product", "Ürün")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">SKU</th>
                 <th className="text-right px-5 py-3 text-slate-500 font-medium text-xs">Toplam</th>
@@ -674,9 +728,9 @@ export default function StockPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">{t("action.loading", "Yükleniyor...")}</td></tr>
               ) : stocks.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-slate-400">{t("table.noData", "Kayıt bulunamadı")}</td></tr>
               ) : stocks.map((s, i) => (
                 <Fragment key={`${s.productId}-${s.variantId ?? i}`}>
                   <tr className={`transition-all ${
@@ -686,6 +740,11 @@ export default function StockPage() {
                       ? "bg-amber-50/50 border-l-4 border-l-amber-400 hover:bg-amber-50"
                       : "hover:bg-slate-50"
                   }`}>
+                    <td className="px-3 py-3.5">
+                      <button onClick={() => toggleSelectStock(s.productId)} className="text-slate-400 hover:text-teal-600 transition">
+                        {selectedIds.has(s.productId) ? <CheckSquare size={15} className="text-teal-600" /> : <Square size={15} />}
+                      </button>
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className="font-medium text-slate-900 max-w-[200px] truncate text-xs">{s.productName}</p>
@@ -741,7 +800,7 @@ export default function StockPage() {
                     <tr className={s.availableQuantity === 0
                       ? "bg-red-50 border-l-4 border-l-red-500"
                       : "bg-amber-50/50 border-l-4 border-l-amber-400"}>
-                      <td colSpan={9} className="px-5 pb-3 pt-0">
+                      <td colSpan={10} className="px-5 pb-3 pt-0">
                         <div className="flex items-center gap-2">
                           {s.availableQuantity === 0 ? (
                             <>

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
-import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Megaphone, Image as ImageIcon, Palette, Type, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Megaphone, Image as ImageIcon, Palette, Type, Search, Download, CheckSquare, Square, Loader2 } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
 
 interface Campaign {
   id: string;
@@ -121,6 +122,10 @@ export default function KampanyalarPage() {
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "passive" | "featured">("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [toggling, setToggling] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,6 +182,75 @@ export default function KampanyalarPage() {
     finally { setDeleting(false); }
   }
 
+  async function handleInlineToggle(item: Campaign) {
+    setToggling(item.id);
+    try {
+      await api.put(`/api/admin/campaigns/${item.id}`, {
+        title: item.title, subtitle: item.subtitle, icon: item.icon,
+        colorScheme: item.colorScheme, imageUrl: item.imageUrl,
+        stylesJson: item.stylesJson, linkUrl: item.linkUrl, linkText: item.linkText,
+        displayOrder: item.displayOrder, isActive: !item.isActive, isFeatured: item.isFeatured,
+      });
+      setMsg({ text: `"${item.title}" ${!item.isActive ? "aktif" : "pasif"} yapıldı.`, ok: true });
+      await load();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Bir hata oluştu", ok: false });
+    } finally { setToggling(null); }
+  }
+
+  async function handleBulkToggle(targetActive: boolean) {
+    setBulkLoading(true);
+    const targets = items.filter(c => selectedIds.has(c.id));
+    const results = await Promise.allSettled(targets.map(item =>
+      api.put(`/api/admin/campaigns/${item.id}`, {
+        title: item.title, subtitle: item.subtitle, icon: item.icon,
+        colorScheme: item.colorScheme, imageUrl: item.imageUrl,
+        stylesJson: item.stylesJson, linkUrl: item.linkUrl, linkText: item.linkText,
+        displayOrder: item.displayOrder, isActive: targetActive, isFeatured: item.isFeatured,
+      })
+    ));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setMsg({ text: `${ok} kampanya güncellendi${fail > 0 ? `, ${fail} hatalı` : ""}.`, ok: fail === 0 });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    await load();
+  }
+
+  async function handleBulkDelete() {
+    setBulkLoading(true);
+    const results = await Promise.allSettled([...selectedIds].map(id => api.delete(`/api/admin/campaigns/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setMsg({ text: `${ok} kampanya silindi${fail > 0 ? `, ${fail} hatalı` : ""}.`, ok: fail === 0 });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    await load();
+  }
+
+  function handleExport() {
+    exportToExcel(
+      items.map(i => ({
+        "Başlık": i.title,
+        "Alt Başlık": i.subtitle ?? "",
+        "Renk Şeması": i.colorScheme,
+        "Sıra": i.displayOrder,
+        "Durum": i.isActive ? "Aktif" : "Pasif",
+        "Öne Çıkan": i.isFeatured ? "Evet" : "Hayır",
+        "Oluşturulma": i.createdDate ? new Date(i.createdDate).toLocaleDateString("tr-TR") : "",
+      })),
+      "kampanyalar", "Kampanyalar"
+    );
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
   const scheme = getScheme(form.colorScheme);
   const activeCount = items.filter(i => i.isActive).length;
 
@@ -207,9 +281,16 @@ export default function KampanyalarPage() {
             <p className="text-xs text-slate-500">{items.length} {t("tab.campaigns", "Kampanyalar").toLowerCase()} · {activeCount} {t("status.active", "Aktif").toLowerCase()}</p>
           </div>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
-          <Plus size={16} /> {t("ui.newCampaign", "Yeni Kampanya")}
-        </button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+              <Download size={14} /> Excel
+            </button>
+          )}
+          <button onClick={openCreate} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+            <Plus size={16} /> {t("ui.newCampaign", "Yeni Kampanya")}
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter */}
@@ -241,6 +322,37 @@ export default function KampanyalarPage() {
         </div>
       )}
 
+      {msg && (
+        <div className={`text-sm px-4 py-3 rounded-xl flex items-center justify-between ${msg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {msg.text}
+          <button onClick={() => setMsg(null)}><X size={14} /></button>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm flex-wrap">
+          <span className="font-semibold">{selectedIds.size} seçili</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={() => handleBulkToggle(true)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold transition disabled:opacity-50">
+              <ToggleRight size={14} /> Aktifleştir
+            </button>
+            <button onClick={() => handleBulkToggle(false)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-xs font-semibold transition disabled:opacity-50">
+              <ToggleLeft size={14} /> Pasife Al
+            </button>
+            <button onClick={handleBulkDelete} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-semibold transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Sil
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 text-xs transition">
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -264,12 +376,19 @@ export default function KampanyalarPage() {
             const s = getScheme(item.colorScheme);
             const st = parseStyles(item.stylesJson);
             return (
-              <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+              <div key={item.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow group relative ${selectedIds.has(item.id) ? "border-teal-400 ring-2 ring-teal-100" : "border-slate-100"}`}>
+                {/* Checkbox overlay */}
+                <button
+                  onClick={() => toggleSelect(item.id)}
+                  className="absolute top-2 left-2 z-20 w-6 h-6 flex items-center justify-center rounded-md bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition"
+                >
+                  {selectedIds.has(item.id) ? <CheckSquare size={15} className="text-teal-600" /> : <Square size={15} className="text-slate-400" />}
+                </button>
                 {/* Preview strip */}
                 <div className="relative h-24 flex items-center justify-start overflow-hidden px-5"
                   style={item.imageUrl ? { backgroundImage: `url(${item.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: s.gradient }}>
                   {item.imageUrl && <div className="absolute inset-0 bg-black/40" />}
-                  <div className="relative z-10 flex items-center gap-3">
+                  <div className="relative z-10 flex items-center gap-3 pl-7">
                     <span className="text-3xl drop-shadow select-none">{item.icon}</span>
                     <div>
                       <p className="font-extrabold leading-tight drop-shadow"
@@ -280,14 +399,11 @@ export default function KampanyalarPage() {
                     </div>
                   </div>
                   <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/90 ${item.isActive ? "text-green-700" : "text-slate-500"}`}>
-                      {item.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
-                    </span>
                     {item.isFeatured && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/90 text-amber-900">⭐ Öne Çıkan</span>
                     )}
                   </div>
-                  <div className="absolute top-2 left-2">
+                  <div className="absolute bottom-2 right-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/30 text-white">#{item.displayOrder}</span>
                   </div>
                 </div>
@@ -301,12 +417,27 @@ export default function KampanyalarPage() {
                   {item.createdByAdminEmail && (
                     <div className="text-[10px] text-slate-400 mb-2 truncate" title={item.createdByAdminEmail}>{item.createdByAdminEmail}</div>
                   )}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleInlineToggle(item)}
+                      disabled={toggling === item.id}
+                      className="flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg transition disabled:opacity-50 hover:bg-slate-50"
+                    >
+                      {toggling === item.id
+                        ? <Loader2 size={13} className="animate-spin text-slate-400" />
+                        : item.isActive
+                          ? <ToggleRight size={15} className="text-emerald-500" />
+                          : <ToggleLeft size={15} className="text-slate-400" />
+                      }
+                      <span className={item.isActive ? "text-emerald-700" : "text-slate-400"}>
+                        {item.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
+                      </span>
+                    </button>
                     <button onClick={() => openEdit(item)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 py-1.5 rounded-lg transition">
                       <Pencil size={12} /> {t("action.edit", "Düzenle")}
                     </button>
-                    <button onClick={() => setConfirmDelete(item.id)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg transition">
-                      <Trash2 size={12} /> {t("action.delete", "Sil")}
+                    <button onClick={() => setConfirmDelete(item.id)} className="flex items-center justify-center gap-1 text-xs font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 py-1.5 px-2 rounded-lg transition">
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 </div>

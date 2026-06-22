@@ -6,8 +6,9 @@ import { api } from "@/lib/api";
 import {
   Truck, Search, RefreshCw, ExternalLink, CheckCircle,
   Package, Clock, AlertCircle, XCircle, ChevronLeft, ChevronRight,
-  Pencil, X,
+  Pencil, X, Download,
 } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
 
 interface Shipment {
   id: string;
@@ -70,6 +71,7 @@ export default function KargoPage() {
   const [data, setData] = useState<PagedResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -83,7 +85,7 @@ export default function KargoPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (statusFilter) params.set("status", statusFilter);
       if (search) params.set("search", search);
       const result = await api.get<PagedResult>(`/api/admin/shipments?${params}`);
@@ -91,12 +93,17 @@ export default function KargoPage() {
     } catch { /* empty */ } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, search]);
+  }, [page, pageSize, statusFilter, search]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setPage(1), 0);
+    return () => window.clearTimeout(id);
+  }, [statusFilter, pageSize]);
 
   function openEdit(s: Shipment) {
     setEditForm({
@@ -204,6 +211,35 @@ export default function KargoPage() {
           <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
           {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden">
+          {([20, 50, 100] as const).map(n => (
+            <button key={n} onClick={() => { setPageSize(n); setPage(1); }}
+              className={`px-2.5 py-2 text-xs font-medium transition ${pageSize === n ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+              {n}
+            </button>
+          ))}
+        </div>
+        {items.length > 0 && (
+          <button
+            onClick={() => exportToExcel(
+              items.map(s => ({
+                "Sipariş No": s.orderNumber,
+                "Müşteri": s.customerName ?? "",
+                "Email": s.customerEmail ?? "",
+                "Kargo Firması": s.cargoCompany,
+                "Takip No": s.trackingNumber ?? "",
+                "Durum": STATUS_META[s.status]?.label ?? s.status,
+                "Ücret (₺)": s.shippingCost,
+                "Gönderim": s.shippedDate ? new Date(s.shippedDate).toLocaleDateString("tr-TR") : "",
+                "Teslim": s.deliveredDate ? new Date(s.deliveredDate).toLocaleDateString("tr-TR") : "",
+              })),
+              "kargo-takip", "Kargo"
+            )}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"
+          >
+            <Download size={14} /> Excel
+          </button>
+        )}
       </div>
 
       {/* Table */}

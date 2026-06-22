@@ -92,8 +92,8 @@ export default function LoginPage() {
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-slate-900">{t("auth.login")}</h1>
-            <p className="text-sm text-slate-500 mt-1">Authenticator uygulamanızdaki 6 haneli kodu girin</p>
+            <h1 className="text-xl font-bold text-slate-900">{t("auth2.login.title")}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t("auth2.2fa.desc")}</p>
           </div>
           <form onSubmit={handleTwoFa} className="space-y-4">
             {error && (
@@ -116,11 +116,11 @@ export default function LoginPage() {
               disabled={twoFaLoading || totpCode.length !== 6}
               className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
             >
-              {twoFaLoading ? "Doğrulanıyor..." : "Doğrula ve Giriş Yap"}
+              {twoFaLoading ? t("auth2.2fa.verifying") : t("auth2.2fa.verify")}
             </button>
             <button type="button" onClick={() => { setStep("login"); setError(""); setTotpCode(""); }}
               className="w-full text-sm text-slate-400 hover:text-slate-600 transition">
-              ← Geri dön
+              {t("auth2.2fa.back")}
             </button>
           </form>
         </div>
@@ -131,14 +131,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("nav.login")}</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("auth2.login.title")}</h1>
 
         {googleClientId && (
           <div className="mb-4">
             <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
-                onError={() => setError("Google ile giriş başarısız. Tekrar deneyin.")}
+                onError={() => setError(t("auth2.login.google_error"))}
                 text="signin_with"
                 shape="rectangular"
                 theme="outline"
@@ -148,7 +148,7 @@ export default function LoginPage() {
             </div>
             <div className="flex items-center gap-3 my-4">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs text-slate-400">veya e-posta ile</span>
+              <span className="text-xs text-slate-400">{t("auth2.login.or_email")}</span>
               <div className="flex-1 h-px bg-slate-200" />
             </div>
           </div>
@@ -159,18 +159,18 @@ export default function LoginPage() {
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">E-posta</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.login.email_label")}</label>
             <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={INPUT} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Şifre</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.login.password_label")}</label>
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={INPUT} />
           </div>
           <div className="flex items-center gap-2.5">
             <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer" />
             <label htmlFor="rememberMe" className="text-sm text-slate-600 cursor-pointer select-none">
-              Beni hatırla (30 gün)
+              {t("auth2.login.remember_me")}
             </label>
           </div>
           <button
@@ -178,16 +178,16 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
           >
-            {loading ? "Giriş yapılıyor..." : t("nav.login")}
+            {loading ? t("auth2.login.submitting") : t("auth2.login.submit")}
           </button>
         </form>
         <div className="mt-4 flex flex-col items-center gap-2">
           <p className="text-sm text-slate-600">
-            Hesabın yok mu?{" "}
+            {t("auth2.login.no_account")}{" "}
             <Link href="/kayit" className="text-teal-600 font-medium hover:underline">{t("nav.register")}</Link>
           </p>
           <Link href="/sifre-sifirla" className="text-sm text-slate-400 hover:text-slate-700 transition">
-            Şifremi Unuttum
+            {t("auth2.login.forgot_password")}
           </Link>
         </div>
       </div>

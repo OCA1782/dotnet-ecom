@@ -33,7 +33,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
     setMessage(null);
     try {
       await addToCart(productId, quantity, selectedVariantId);
-      setMessage({ text: "Sepete eklendi!", type: "success" });
+      setMessage({ text: t("prod2.cart.added"), type: "success" });
     } catch (err: unknown) {
       setMessage({ text: err instanceof Error ? err.message : t("product.add_error"), type: "error" });
     } finally {
@@ -45,7 +45,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
     <div className="space-y-4">
       {variants.length > 1 && (
         <div>
-          <p className="text-sm font-medium text-slate-700 mb-2">Seçenek</p>
+          <p className="text-sm font-medium text-slate-700 mb-2">{t("prod2.cart.variant_label")}</p>
           <div className="flex flex-wrap gap-2">
             {variants.map((v) => (
               <button
@@ -68,7 +68,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
       )}
 
       <div className="flex items-center gap-3">
-        <p className="text-sm font-medium text-slate-700">Adet</p>
+        <p className="text-sm font-medium text-slate-700">{t("prod2.cart.quantity_label")}</p>
         <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
           <button
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -85,7 +85,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
           </button>
         </div>
         {effectiveStock > 0 && effectiveStock <= 5 && (
-          <span className="text-xs text-orange-600">Son {effectiveStock} adet</span>
+          <span className="text-xs text-orange-600">{t("prod2.cart.last_units").replace("{n}", String(effectiveStock))}</span>
         )}
       </div>
 
@@ -94,7 +94,7 @@ export default function AddToCartButton({ productId, variants, availableStock }:
         disabled={!canAdd || loading}
         className="w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 bg-teal-600 text-white hover:bg-teal-700"
       >
-        {loading ? "Ekleniyor..." : !canAdd ? (effectiveStock === 0 ? t("product.out_of_stock_short") : "Seçenek Seçin") : t("product.add_to_cart")}
+        {loading ? t("prod2.cart.adding") : !canAdd ? (effectiveStock === 0 ? t("prod2.detail.out_of_stock") : t("prod2.cart.select_option")) : t("prod2.cart.add_btn")}
       </button>
 
       {message && (

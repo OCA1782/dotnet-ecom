@@ -1,25 +1,31 @@
 import type { Metadata } from "next";
 import { getSettings } from "@/lib/settings";
+import { getServerLang } from "@/lib/server-i18n";
+import { t as translate } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "Sıkça Sorulan Sorular",
-  description: "Merak ettiğiniz sorular ve cevapları.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getServerLang();
+  return {
+    title: translate(lang, "faq.title"),
+    description: translate(lang, "faq.subtitle"),
+  };
+}
 
 type FaqItem = { q: string; a: string };
 
 export default async function SSSPage() {
-  const settings = await getSettings();
+  const [settings, lang] = await Promise.all([getSettings(), getServerLang()]);
+  const t = (key: string) => translate(lang, key);
   let items: FaqItem[] = [];
   try { items = JSON.parse(settings.Page_SSS ?? "[]"); } catch { items = []; }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold text-slate-800 mb-2">Sıkça Sorulan Sorular</h1>
-      <p className="text-slate-500 mb-8">En çok sorulan soruları ve cevaplarını aşağıda bulabilirsiniz.</p>
+      <h1 className="text-3xl font-bold text-slate-800 mb-2">{t("faq.title")}</h1>
+      <p className="text-slate-500 mb-8">{t("faq.subtitle")}</p>
 
       {items.length === 0 ? (
-        <p className="text-center text-slate-400 py-16">Henüz içerik eklenmemiş.</p>
+        <p className="text-center text-slate-400 py-16">{t("common.no_content")}</p>
       ) : (
         <div className="space-y-3">
           {items.map((item, i) => (

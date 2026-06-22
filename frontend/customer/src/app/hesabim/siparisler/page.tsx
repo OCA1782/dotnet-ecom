@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderSummary, PaginatedList } from "@/types";
 import { orderStatusStyle, paymentStatusStyle, SHIPMENT_STATUS } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface PaymentResult {
   transactionId: string;
@@ -33,6 +34,7 @@ function ShipmentBadge({ status }: { status: number }) {
 }
 
 export default function OrdersPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -73,7 +75,6 @@ export default function OrdersPage() {
       });
       router.push("/odeme/basarili");
     } catch {
-      // silently let detail page handle it
       router.push(`/hesabim/siparisler`);
     } finally {
       setPayingId(null);
@@ -81,20 +82,20 @@ export default function OrdersPage() {
   }, [router]);
 
   if (authLoading || loading) {
-    return <div className="py-16 text-center text-slate-400">Yükleniyor...</div>;
+    return <div className="py-16 text-center text-slate-400">{t("orders.loading")}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-8">Siparişlerim</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-8">{t("orders.title")}</h1>
 
       {orders.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-3xl mb-3">📦</p>
-          <p className="text-slate-500 mb-5">Henüz siparişiniz yok</p>
+          <p className="text-slate-500 mb-5">{t("orders.empty")}</p>
           <Link href="/urunler"
             className="inline-block bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition text-sm font-medium">
-            Alışverişe Başla
+            {t("orders.empty.shop_btn")}
           </Link>
         </div>
       ) : (
@@ -116,13 +117,13 @@ export default function OrdersPage() {
                 {isPending && (
                   <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center justify-between gap-3">
                     <span className="text-xs font-medium text-amber-800">
-                      ⚠ Ödemeniz tamamlanmadı — siparişinizi kaybetmemek için ödemeye devam edin.
+                      {t("orders.pending.warning")}
                     </span>
                     <button
                       onClick={() => continuePayment(order.id)}
                       disabled={payingId === order.id}
                       className="shrink-0 text-xs font-semibold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition disabled:opacity-60">
-                      {payingId === order.id ? "Yönlendiriliyor..." : "Ödemeye Devam Et →"}
+                      {payingId === order.id ? t("orders.pending.redirecting") : t("orders.pending.pay_btn")}
                     </button>
                   </div>
                 )}
@@ -135,7 +136,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-slate-900">{formatPrice(order.grandTotal)}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{order.itemCount} ürün</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{order.itemCount} {t("orders.item.unit")}</p>
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5 items-center">
@@ -146,7 +147,7 @@ export default function OrdersPage() {
                       {ps.label}
                     </span>
                     <ShipmentBadge status={order.shipmentStatus} />
-                    <span className="ml-auto text-xs text-slate-400">Detay →</span>
+                    <span className="ml-auto text-xs text-slate-400">{t("orders.item.detail")}</span>
                   </div>
                 </Link>
               </div>
@@ -160,14 +161,14 @@ export default function OrdersPage() {
           {page > 1 && (
             <button onClick={() => setPage((p) => p - 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              ← Önceki
+              {t("orders.page.prev")}
             </button>
           )}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && (
             <button onClick={() => setPage((p) => p + 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              Sonraki →
+              {t("orders.page.next")}
             </button>
           )}
         </div>

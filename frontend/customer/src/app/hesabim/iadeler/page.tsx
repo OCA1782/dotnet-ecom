@@ -8,11 +8,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderSummary, PaginatedList } from "@/types";
 import { orderStatusStyle } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 // Statuses: 8=Cancelled, 9=RefundRequested, 10=Refunded
 const RETURN_STATUSES = "8,9,10";
 
 export default function IadelerPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -37,17 +39,17 @@ export default function IadelerPage() {
   }, [user, page]);
 
   if (authLoading || loading) {
-    return <div className="py-16 text-center text-slate-400">Yükleniyor...</div>;
+    return <div className="py-16 text-center text-slate-400">{t("returns.loading")}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-8">İadelerim</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-8">{t("returns.title")}</h1>
 
       {orders.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-3xl mb-3">↩️</p>
-          <p className="text-slate-500">İade veya iptal edilmiş siparişiniz bulunmuyor.</p>
+          <p className="text-slate-500">{t("returns.empty")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -66,14 +68,14 @@ export default function IadelerPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-slate-900">{formatPrice(order.grandTotal)}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{order.itemCount} ürün</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{order.itemCount} {t("returns.item.unit")}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${st.cls}`}>
                     {st.label}
                   </span>
-                  <span className="ml-auto text-xs text-slate-400">Detay →</span>
+                  <span className="ml-auto text-xs text-slate-400">{t("returns.item.detail")}</span>
                 </div>
               </Link>
             );
@@ -86,14 +88,14 @@ export default function IadelerPage() {
           {page > 1 && (
             <button onClick={() => setPage((p) => p - 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              ← Önceki
+              {t("orders.page.prev")}
             </button>
           )}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && (
             <button onClick={() => setPage((p) => p + 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              Sonraki →
+              {t("orders.page.next")}
             </button>
           )}
         </div>

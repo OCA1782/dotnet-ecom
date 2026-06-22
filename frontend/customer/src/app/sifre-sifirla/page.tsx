@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { Mail, MessageCircle, Send } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 type Channel = "email" | "whatsapp" | "telegram";
 
 function ResetPasswordForm() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") ?? "";
@@ -30,7 +32,6 @@ function ResetPasswordForm() {
     if (ch === "email") {
       setStep("request");
     } else if (ch === "whatsapp") {
-      // Open WhatsApp with pre-filled support message
       const msg = encodeURIComponent("Merhaba! Şifremi unuttum, yardım alabilir miyim?");
       window.open(`https://wa.me/905550000000?text=${msg}`, "_blank");
     } else if (ch === "telegram") {
@@ -44,9 +45,9 @@ function ResetPasswordForm() {
     setLoading(true);
     try {
       await api.post("/api/auth/forgot-password", { email: requestEmail });
-      setSuccess("E-posta adresinize şifre sıfırlama bağlantısı gönderildi. Spam klasörünü de kontrol edin.");
+      setSuccess(t("auth2.forgot.success_msg"));
     } catch {
-      setSuccess("E-posta adresinize şifre sıfırlama bağlantısı gönderildi. Spam klasörünü de kontrol edin.");
+      setSuccess(t("auth2.forgot.success_msg"));
     } finally {
       setLoading(false);
     }
@@ -55,15 +56,15 @@ function ResetPasswordForm() {
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (newPassword !== confirm) { setError("Şifreler eşleşmiyor"); return; }
-    if (newPassword.length < 8) { setError("Şifre en az 8 karakter olmalıdır"); return; }
+    if (newPassword !== confirm) { setError(t("auth2.forgot.password_mismatch")); return; }
+    if (newPassword.length < 8) { setError(t("auth2.forgot.password_min_length")); return; }
     setLoading(true);
     try {
       await api.post("/api/auth/reset-password", { email, token, newPassword });
-      setSuccess("Şifreniz başarıyla güncellendi. Giriş yapabilirsiniz.");
+      setSuccess(t("auth2.forgot.reset_success"));
       setTimeout(() => router.push("/giris"), 2500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Geçersiz veya süresi dolmuş bağlantı.");
+      setError(err instanceof Error ? err.message : t("auth2.forgot.invalid_link"));
     } finally {
       setLoading(false);
     }
@@ -72,11 +73,11 @@ function ResetPasswordForm() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2 text-center">Şifremi Unuttum</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2 text-center">{t("auth2.forgot.title")}</h1>
         <p className="text-sm text-slate-500 text-center mb-6">
-          {step === "channel"  ? "Nasıl yardım almak istersiniz?" :
-           step === "request"  ? "E-posta adresinize sıfırlama bağlantısı gönderelim." :
-                                 "Yeni şifrenizi belirleyin."}
+          {step === "channel"  ? t("auth2.forgot.channel_question") :
+           step === "request"  ? t("auth2.forgot.request_title") :
+                                 t("auth2.forgot.reset_title")}
         </p>
 
         {success ? (
@@ -93,8 +94,8 @@ function ResetPasswordForm() {
                 <Mail size={20} className="text-teal-600" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-slate-800">E-posta ile Sıfırla</p>
-                <p className="text-xs text-slate-500">Sıfırlama bağlantısı e-postanıza gelir</p>
+                <p className="text-sm font-semibold text-slate-800">{t("auth2.forgot.channel_email")}</p>
+                <p className="text-xs text-slate-500">{t("auth2.forgot.channel_email_desc")}</p>
               </div>
             </button>
             <button
@@ -105,8 +106,8 @@ function ResetPasswordForm() {
                 <MessageCircle size={20} className="text-green-600" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-slate-800">WhatsApp Destek</p>
-                <p className="text-xs text-slate-500">Destek hattına bağlanarak yardım alın</p>
+                <p className="text-sm font-semibold text-slate-800">{t("auth2.forgot.channel_whatsapp")}</p>
+                <p className="text-xs text-slate-500">{t("auth2.forgot.channel_whatsapp_desc")}</p>
               </div>
             </button>
             <button
@@ -117,8 +118,8 @@ function ResetPasswordForm() {
                 <Send size={20} className="text-blue-600" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-slate-800">Telegram Destek</p>
-                <p className="text-xs text-slate-500">Telegram destek botumuzla iletişime geçin</p>
+                <p className="text-sm font-semibold text-slate-800">{t("auth2.forgot.channel_telegram")}</p>
+                <p className="text-xs text-slate-500">{t("auth2.forgot.channel_telegram_desc")}</p>
               </div>
             </button>
           </div>
@@ -126,7 +127,7 @@ function ResetPasswordForm() {
           <form onSubmit={handleRequest} className="space-y-4">
             {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">E-posta Adresiniz</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.forgot.email_label")}</label>
               <input
                 type="email"
                 required
@@ -141,25 +142,25 @@ function ResetPasswordForm() {
               disabled={loading}
               className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
             >
-              {loading ? "Gönderiliyor..." : "Sıfırlama Bağlantısı Gönder"}
+              {loading ? t("auth2.forgot.sending") : t("auth2.forgot.send_btn")}
             </button>
             <button
               type="button"
               onClick={() => setStep("channel")}
               className="w-full text-sm text-slate-400 hover:text-slate-600 transition"
             >
-              ← Başka yöntem seç
+              {t("auth2.forgot.back_channel")}
             </button>
           </form>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
             {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Yeni Şifre</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.forgot.new_password")}</label>
               <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className={INPUT} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Şifre Tekrar</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.forgot.confirm_password")}</label>
               <input type="password" required value={confirm} onChange={e => setConfirm(e.target.value)} className={INPUT} />
             </div>
             <button
@@ -167,13 +168,13 @@ function ResetPasswordForm() {
               disabled={loading}
               className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
             >
-              {loading ? "Kaydediliyor..." : "Şifremi Güncelle"}
+              {loading ? t("auth2.forgot.saving") : t("auth2.forgot.reset_btn")}
             </button>
           </form>
         )}
 
         <p className="mt-4 text-center text-sm text-slate-500">
-          <Link href="/giris" className="text-slate-700 hover:underline">← Giriş sayfasına dön</Link>
+          <Link href="/giris" className="text-slate-700 hover:underline">{t("auth2.forgot.back_login")}</Link>
         </p>
       </div>
     </div>

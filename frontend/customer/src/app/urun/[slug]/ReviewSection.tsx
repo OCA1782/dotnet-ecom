@@ -4,14 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { ProductReviewsResult, ReviewReplyDto } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
-
-const REPORT_REASONS = [
-  { value: "spam",           label: "Spam / Reklam" },
-  { value: "inappropriate",  label: "Uygunsuz İçerik" },
-  { value: "offensive",      label: "Hakaret / Saldırgan" },
-  { value: "misinformation", label: "Yanlış Bilgi" },
-  { value: "other",          label: "Diğer" },
-];
+import { useI18n } from "@/contexts/I18nContext";
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
 
@@ -92,6 +85,7 @@ function RepliesPanel({
   reviewId: string; productId: string; replyCount: number;
   user: { userId: string; name: string } | null;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [replies, setReplies] = useState<ReviewReplyDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,7 +133,6 @@ function RepliesPanel({
   return (
     <div className="mt-2">
       <div className="flex items-center gap-3">
-        {/* Yanıtları göster/gizle */}
         <button
           onClick={handleToggle}
           className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition"
@@ -150,18 +143,16 @@ function RepliesPanel({
             : "Yanıtlar"}
         </button>
 
-        {/* Yanıtla butonu — sadece giriş yapmış kullanıcıya */}
         {user && (
           <button
             onClick={() => setShowInput(v => !v)}
             className="text-xs text-teal-600 hover:text-teal-800 font-medium transition"
           >
-            {showInput ? "Vazgeç" : "Yanıtla"}
+            {showInput ? t("prod2.review.cancel") : t("prod2.review.reply")}
           </button>
         )}
       </div>
 
-      {/* Yanıt yazma formu */}
       {showInput && (
         <div className="mt-2 flex gap-2 items-start pl-4 border-l-2 border-slate-100">
           <div className="flex-1">
@@ -180,16 +171,15 @@ function RepliesPanel({
             disabled={submitting || !body.trim()}
             className="shrink-0 bg-teal-600 text-white text-xs font-medium px-3 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 mt-0.5"
           >
-            {submitting ? "..." : "Gönder"}
+            {submitting ? "..." : t("prod2.review.submit_btn")}
           </button>
         </div>
       )}
 
-      {/* Yanıt listesi */}
       {open && (
         <div className="mt-2 pl-4 border-l-2 border-slate-100 space-y-3">
           {loading ? (
-            <p className="text-xs text-slate-400">Yükleniyor...</p>
+            <p className="text-xs text-slate-400">{t("prod2.review.loading")}</p>
           ) : replies.length === 0 ? (
             <p className="text-xs text-slate-400 italic">Henüz yanıt yok.</p>
           ) : (
@@ -218,12 +208,12 @@ function RepliesPanel({
 
 // ── ReviewSection ─────────────────────────────────────────────────────────────
 export default function ReviewSection({ productId }: { productId: string }) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [data, setData] = useState<ProductReviewsResult | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Yorum yazma formu
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState("");
@@ -232,7 +222,6 @@ export default function ReviewSection({ productId }: { productId: string }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Düzenleme
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRating, setEditRating] = useState(0);
   const [editTitle, setEditTitle] = useState("");
@@ -248,6 +237,14 @@ export default function ReviewSection({ productId }: { productId: string }) {
   const [reporting, setReporting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportDone, setReportDone] = useState<Set<string>>(new Set());
+
+  const REPORT_REASONS = [
+    { value: "spam",           label: t("prod2.review.report.reason.spam") },
+    { value: "inappropriate",  label: t("prod2.review.report.reason.inappropriate") },
+    { value: "offensive",      label: t("prod2.review.report.reason.offensive") },
+    { value: "misinformation", label: t("prod2.review.report.reason.misinformation") },
+    { value: "other",          label: t("prod2.review.report.reason.other") },
+  ];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -272,7 +269,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
   useEffect(() => { window.setTimeout(() => load(), 0); }, [load]);
 
   async function handleSubmit() {
-    if (rating === 0) { setSubmitError("Lütfen bir puan seçin."); return; }
+    if (rating === 0) { setSubmitError(t("prod2.review.rating_required")); return; }
     if (!body.trim()) { setSubmitError("Yorum metni zorunludur."); return; }
     setSubmitting(true);
     setSubmitError(null);
@@ -298,7 +295,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
   function cancelEdit() { setEditingId(null); setEditError(null); }
 
   async function handleUpdate() {
-    if (editRating === 0) { setEditError("Lütfen bir puan seçin."); return; }
+    if (editRating === 0) { setEditError(t("prod2.review.rating_required")); return; }
     if (!editBody.trim()) { setEditError("Yorum metni zorunludur."); return; }
     setEditSubmitting(true);
     setEditError(null);
@@ -309,7 +306,6 @@ export default function ReviewSection({ productId }: { productId: string }) {
       });
       setEditingId(null);
       setEditedIds(prev => new Set([...prev, id]));
-      // Reload to reflect updated data; review may disappear (pending re-approval)
       load();
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : "Güncelleme başarısız.");
@@ -373,31 +369,31 @@ export default function ReviewSection({ productId }: { productId: string }) {
 
   return (
     <div className="border-t border-slate-200 pt-10 mt-10">
-      {/* Başlık */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-slate-900">Müşteri Yorumları</h2>
+        <h2 className="text-lg font-bold text-slate-900">{t("prod2.review.title")}</h2>
         {user && !submitted && (
           <button
             onClick={() => setShowForm(v => !v)}
             className="text-sm text-slate-600 border border-slate-300 rounded-xl px-4 py-1.5 hover:bg-slate-50 transition"
           >
-            {showForm ? "Vazgeç" : "Yorum Yaz"}
+            {showForm ? t("prod2.review.cancel") : t("prod2.review.write_title")}
           </button>
         )}
         {!user && (
           <a href="/giris" className="text-xs text-teal-600 hover:underline">
-            Yorum yazmak için giriş yapın
+            {t("prod2.review.login_to_review")}
           </a>
         )}
       </div>
 
-      {/* Puan özeti */}
+      {/* Rating summary */}
       {data && data.totalCount > 0 && (
         <div className="flex gap-8 mb-8 p-5 bg-slate-50 rounded-xl">
           <div className="text-center">
             <p className="text-4xl font-bold text-slate-900">{data.averageRating.toFixed(1)}</p>
             <Stars rating={Math.round(data.averageRating)} size={18} />
-            <p className="text-xs text-slate-500 mt-1">{data.totalCount} yorum</p>
+            <p className="text-xs text-slate-500 mt-1">{t("prod2.review.count").replace("{n}", String(data.totalCount))}</p>
           </div>
           <div className="flex-1 space-y-1.5">
             {[5, 4, 3, 2, 1].map((star) => {
@@ -417,38 +413,38 @@ export default function ReviewSection({ productId }: { productId: string }) {
         </div>
       )}
 
-      {/* Yorum yazma formu */}
+      {/* Write form */}
       {showForm && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
-          <h3 className="font-medium text-slate-800 mb-4">Yorumunuzu Yazın</h3>
+          <h3 className="font-medium text-slate-800 mb-4">{t("prod2.review.write_title")}</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Puan *</label>
+              <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.rating_label")}</label>
               <ClickableStars value={rating} onChange={setRating} />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Başlık</label>
+              <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.title_label")}</label>
               <input value={title} onChange={(e) => setTitle(e.target.value)}
                 className={INPUT} placeholder="Kısa bir başlık (isteğe bağlı)" maxLength={150} />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Yorum *</label>
+              <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.body_label")}</label>
               <textarea value={body} onChange={(e) => setBody(e.target.value)}
                 rows={4} className={`${INPUT} resize-none`}
-                placeholder="Ürün hakkındaki deneyiminizi paylaşın..." maxLength={2000} />
+                placeholder={t("prod2.review.body_placeholder")} maxLength={2000} />
             </div>
           </div>
           {submitError && <p className="mt-2 text-xs text-red-600">{submitError}</p>}
           <button onClick={handleSubmit} disabled={submitting}
             className="mt-4 bg-teal-600 text-white text-sm font-medium px-5 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50">
-            {submitting ? "Gönderiliyor..." : "Yorum Gönder"}
+            {submitting ? t("prod2.review.submitting") : t("prod2.review.submit_btn")}
           </button>
         </div>
       )}
 
       {submitted && (
         <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 mb-6">
-          Yorumunuz alındı. Onaylandıktan sonra görünecektir.
+          {t("prod2.review.success")}
         </div>
       )}
 
@@ -459,11 +455,11 @@ export default function ReviewSection({ productId }: { productId: string }) {
         </div>
       )}
 
-      {/* Yorum listesi */}
+      {/* Review list */}
       {loading ? (
-        <p className="text-sm text-slate-400">Yorumlar yükleniyor...</p>
+        <p className="text-sm text-slate-400">{t("prod2.review.loading")}</p>
       ) : !data || data.totalCount === 0 ? (
-        <p className="text-sm text-slate-500">Henüz yorum yapılmamış. İlk yorumu sen yap!</p>
+        <p className="text-sm text-slate-500">{t("prod2.review.no_reviews")} {t("prod2.review.be_first")}</p>
       ) : (
         <div className="space-y-6">
           {data.reviews.items.map((r) => {
@@ -477,19 +473,18 @@ export default function ReviewSection({ productId }: { productId: string }) {
             return (
               <div key={r.id} className="border-b border-slate-100 pb-5 last:border-b-0">
                 {isEditing ? (
-                  /* ─── Düzenleme modu ─── */
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1">Puan *</label>
+                      <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.rating_label")}</label>
                       <ClickableStars value={editRating} onChange={setEditRating} />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1">Başlık</label>
+                      <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.title_label")}</label>
                       <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                         className={INPUT} maxLength={150} />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1">Yorum *</label>
+                      <label className="block text-xs text-slate-500 mb-1">{t("prod2.review.body_label")}</label>
                       <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)}
                         rows={3} className={`${INPUT} resize-none`} maxLength={2000} />
                     </div>
@@ -501,14 +496,12 @@ export default function ReviewSection({ productId }: { productId: string }) {
                       </button>
                       <button onClick={cancelEdit}
                         className="text-sm text-slate-600 border border-slate-300 px-4 py-1.5 rounded-xl hover:bg-slate-50 transition">
-                        Vazgeç
+                        {t("prod2.review.cancel")}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  /* ─── Normal görünüm ─── */
                   <>
-                    {/* Üst satır: puan + yazar bilgisi */}
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div>
                         <Stars rating={r.rating} size={14} />
@@ -526,18 +519,15 @@ export default function ReviewSection({ productId }: { productId: string }) {
                       </div>
                     </div>
 
-                    {/* Yorum metni */}
                     <p className="text-sm text-slate-700 leading-relaxed">{r.body}</p>
 
                     {r.isVerifiedPurchase && (
                       <span className="inline-block mt-1 text-xs text-green-600 font-medium">
-                        ✓ Doğrulanmış Satın Alma
+                        ✓ {t("prod2.review.verified")}
                       </span>
                     )}
 
-                    {/* Aksiyon çubuğu */}
                     <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-slate-100 flex-wrap">
-                      {/* Beğen */}
                       <button
                         onClick={() => handleLike(r.id)}
                         disabled={!user}
@@ -546,14 +536,12 @@ export default function ReviewSection({ productId }: { productId: string }) {
                             : vote.liked ? "text-red-500 hover:text-red-400"
                             : "text-slate-500 hover:text-red-400"
                         }`}
-                        title={user ? undefined : "Beğenmek için giriş yapın"}
                       >
                         <HeartIcon filled={vote.liked} size={14} />
                         {vote.likeCount > 0 && <span className="font-semibold">{vote.likeCount}</span>}
-                        <span>{vote.liked ? "Beğenildi" : "Beğen"}</span>
+                        <span>{t("prod2.review.helpful")}</span>
                       </button>
 
-                      {/* Beğenme */}
                       <button
                         onClick={() => handleDislike(r.id)}
                         disabled={!user}
@@ -562,14 +550,12 @@ export default function ReviewSection({ productId }: { productId: string }) {
                             : vote.disliked ? "text-indigo-500 hover:text-indigo-400"
                             : "text-slate-500 hover:text-indigo-400"
                         }`}
-                        title={user ? undefined : "Beğenmemek için giriş yapın"}
                       >
                         <ThumbDownIcon filled={vote.disliked} size={14} />
                         {vote.dislikeCount > 0 && <span className="font-semibold">{vote.dislikeCount}</span>}
-                        <span>{vote.disliked ? "Beğenilmedi" : "Beğenme"}</span>
+                        <span>{t("prod2.review.not_helpful")}</span>
                       </button>
 
-                      {/* Şikayet — sadece giriş yapmış ve başka kullanıcının yorumu */}
                       {user && !isOwn && (
                         <button
                           onClick={() => {
@@ -585,11 +571,10 @@ export default function ReviewSection({ productId }: { productId: string }) {
                           }`}
                         >
                           <FlagIcon size={12} />
-                          <span>{reportDone.has(r.id) ? "Şikayet edildi" : "Şikayet"}</span>
+                          <span>{reportDone.has(r.id) ? "Şikayet edildi" : t("prod2.review.report")}</span>
                         </button>
                       )}
 
-                      {/* Misafir için giriş daveti */}
                       {!user && (
                         <a href="/giris"
                           className="text-xs text-teal-600 hover:text-teal-800 hover:underline transition ml-1">
@@ -598,7 +583,6 @@ export default function ReviewSection({ productId }: { productId: string }) {
                       )}
                     </div>
 
-                    {/* Yanıtlar paneli */}
                     <RepliesPanel
                       reviewId={r.id}
                       productId={productId}
@@ -611,7 +595,6 @@ export default function ReviewSection({ productId }: { productId: string }) {
             );
           })}
 
-          {/* Sayfalama */}
           {data.reviews.totalPages > 1 && (
             <div className="flex gap-2 pt-2">
               {Array.from({ length: data.reviews.totalPages }, (_, i) => i + 1).map((p) => (
@@ -627,7 +610,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
         </div>
       )}
 
-      {/* ── Şikayet Modalı ── */}
+      {/* Report Modal */}
       {reportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4">
@@ -636,8 +619,8 @@ export default function ReviewSection({ productId }: { productId: string }) {
                 <FlagIcon size={16} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Yorumu Şikayet Et</h3>
-                <p className="text-xs text-slate-400">Lütfen şikayet nedeninizi seçin.</p>
+                <h3 className="text-sm font-bold text-slate-800">{t("prod2.review.report.title")}</h3>
+                <p className="text-xs text-slate-400">{t("prod2.review.report.reason")}</p>
               </div>
             </div>
 
@@ -666,11 +649,11 @@ export default function ReviewSection({ productId }: { productId: string }) {
             <div className="flex gap-3 pt-1">
               <button onClick={handleReport} disabled={reporting}
                 className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl transition">
-                {reporting ? "Gönderiliyor..." : "Şikayet Gönder"}
+                {reporting ? t("prod2.review.submitting") : t("prod2.review.report.submit")}
               </button>
               <button onClick={() => setReportModal(null)}
                 className="flex-1 border border-slate-300 text-slate-600 text-sm font-medium py-2.5 rounded-xl hover:bg-slate-50 transition">
-                Vazgeç
+                {t("prod2.review.report.cancel")}
               </button>
             </div>
           </div>

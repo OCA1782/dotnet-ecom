@@ -8,6 +8,7 @@ import {
   Plus, Pencil, Trash2, X, Download, Upload, Search,
   ChevronRight, ChevronDown, FolderOpen, Folder,
   ChevronsDownUp, ChevronsUpDown, Info, History, ChevronUp,
+  ToggleLeft, ToggleRight, Loader2, CheckSquare, Square,
 } from "lucide-react";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import CategoryPreview from "@/components/previews/CategoryPreview";
@@ -149,11 +150,59 @@ export default function KategorilerPage() {
   const [pageSize, setPageSize] = useState<PageSize>(25);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [toggling, setToggling] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
     setPage(1);
+  }
+
+  async function handleInlineToggle(cat: Category) {
+    setToggling(cat.id);
+    try {
+      await api.put(`/api/categories/${cat.id}`, {
+        id: cat.id, name: cat.name, slug: cat.slug,
+        parentCategoryId: cat.parentCategoryId ?? null,
+        description: null, imageUrl: cat.imageUrl ?? null,
+        sortOrder: cat.sortOrder, showInMenu: cat.showInMenu,
+        isActive: !cat.isActive, metaTitle: null, metaDescription: null,
+      });
+      setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !cat.isActive } : c));
+      setMsg({ text: `"${cat.name}" ${!cat.isActive ? "aktif" : "pasif"} yapıldı.`, ok: true });
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Bir hata oluştu", ok: false });
+    } finally { setToggling(null); }
+  }
+
+  async function handleBulkToggle(targetActive: boolean) {
+    setBulkLoading(true);
+    const targets = categories.filter(c => selectedIds.has(c.id));
+    const results = await Promise.allSettled(targets.map(cat =>
+      api.put(`/api/categories/${cat.id}`, {
+        id: cat.id, name: cat.name, slug: cat.slug,
+        parentCategoryId: cat.parentCategoryId ?? null,
+        description: null, imageUrl: cat.imageUrl ?? null,
+        sortOrder: cat.sortOrder, showInMenu: cat.showInMenu,
+        isActive: targetActive, metaTitle: null, metaDescription: null,
+      })
+    ));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setMsg({ text: `${ok} kategori güncellendi${fail > 0 ? `, ${fail} hatalı` : ""}.`, ok: fail === 0 });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    await fetchData();
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   const fetchData = useCallback(async () => {
@@ -299,6 +348,18 @@ export default function KategorilerPage() {
   const anyCollapsed = collapsedIds.size > 0;
   const pageNums = buildPageNums(totalPages, safePage);
 
+  const visiblePageIds = new Set<string>();
+  pagedRoots.forEach(cat => {
+    visiblePageIds.add(cat.id);
+    if (isExpanded(cat.id)) getVisibleChildren(cat.id).forEach(sub => visiblePageIds.add(sub.id));
+  });
+  const allPageSelected = visiblePageIds.size > 0 && [...visiblePageIds].every(id => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allPageSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set([...selectedIds, ...visiblePageIds]));
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -393,6 +454,35 @@ export default function KategorilerPage() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm flex-wrap">
+          <span className="font-semibold">{selectedIds.size} seçili</span>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => handleBulkToggle(true)}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-50"
+            >
+              <ToggleRight size={14} /> Aktifleştir
+            </button>
+            <button
+              onClick={() => handleBulkToggle(false)}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold transition disabled:opacity-50"
+            >
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ToggleLeft size={14} />} Pasife Al
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 text-xs transition"
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         {loading ? (
@@ -403,6 +493,11 @@ export default function KategorilerPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-3 py-3 w-8">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-teal-600 transition">
+                    {allPageSelected ? <CheckSquare size={16} className="text-teal-600" /> : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.category", "Kategori")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
                   <span className="flex items-center gap-1">
@@ -425,7 +520,12 @@ export default function KategorilerPage() {
                 return (
                   <>
                     {/* Parent row */}
-                    <tr key={cat.id} className="hover:bg-teal-50/40 border-l-4 border-l-teal-500 bg-white">
+                    <tr key={cat.id} className={`hover:bg-teal-50/40 border-l-4 border-l-teal-500 bg-white ${selectedIds.has(cat.id) ? "bg-teal-50" : ""}`}>
+                      <td className="px-3 py-3">
+                        <button onClick={() => toggleSelect(cat.id)} className="text-slate-400 hover:text-teal-600 transition">
+                          {selectedIds.has(cat.id) ? <CheckSquare size={15} className="text-teal-600" /> : <Square size={15} />}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 font-bold text-slate-800">
                         <div className="flex items-center gap-2">
                           {/* Collapse toggle */}
@@ -462,9 +562,22 @@ export default function KategorilerPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                          {cat.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
-                        </span>
+                        <button
+                          onClick={() => handleInlineToggle(cat)}
+                          disabled={toggling === cat.id}
+                          title={cat.isActive ? "Pasife al" : "Aktifleştir"}
+                          className="flex items-center gap-1.5 text-xs font-semibold transition disabled:opacity-50"
+                        >
+                          {toggling === cat.id
+                            ? <Loader2 size={16} className="animate-spin text-slate-400" />
+                            : cat.isActive
+                              ? <ToggleRight size={18} className="text-emerald-500" />
+                              : <ToggleLeft size={18} className="text-slate-300" />
+                          }
+                          <span className={cat.isActive ? "text-emerald-700" : "text-slate-400"}>
+                            {cat.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
+                          </span>
+                        </button>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {cat.createdDate ? new Date(cat.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -497,7 +610,12 @@ export default function KategorilerPage() {
 
                     {/* Child rows */}
                     {expanded && visibleKids.map(sub => (
-                      <tr key={sub.id} className="hover:bg-slate-50 bg-slate-50/50 border-l-4 border-l-transparent">
+                      <tr key={sub.id} className={`hover:bg-slate-50 bg-slate-50/50 border-l-4 border-l-transparent ${selectedIds.has(sub.id) ? "bg-teal-50/60" : ""}`}>
+                        <td className="px-3 py-2.5">
+                          <button onClick={() => toggleSelect(sub.id)} className="text-slate-300 hover:text-teal-600 transition">
+                            {selectedIds.has(sub.id) ? <CheckSquare size={14} className="text-teal-600" /> : <Square size={14} />}
+                          </button>
+                        </td>
                         <td className="px-5 py-2.5 text-xs text-slate-600 pl-12">
                           <div className="flex items-center gap-2">
                             {sub.imageUrl
@@ -515,9 +633,22 @@ export default function KategorilerPage() {
                           </span>
                         </td>
                         <td className="px-5 py-2.5">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${sub.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                            {sub.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
-                          </span>
+                          <button
+                            onClick={() => handleInlineToggle(sub)}
+                            disabled={toggling === sub.id}
+                            title={sub.isActive ? "Pasife al" : "Aktifleştir"}
+                            className="flex items-center gap-1 text-xs font-semibold transition disabled:opacity-50"
+                          >
+                            {toggling === sub.id
+                              ? <Loader2 size={14} className="animate-spin text-slate-400" />
+                              : sub.isActive
+                                ? <ToggleRight size={16} className="text-emerald-500" />
+                                : <ToggleLeft size={16} className="text-slate-300" />
+                            }
+                            <span className={sub.isActive ? "text-emerald-700" : "text-slate-400"}>
+                              {sub.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
+                            </span>
+                          </button>
                         </td>
                         <td className="px-5 py-2.5 text-xs text-slate-500">
                           {sub.createdDate ? new Date(sub.createdDate).toLocaleDateString("tr-TR") : "—"}

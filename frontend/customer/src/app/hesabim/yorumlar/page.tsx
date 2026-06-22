@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/utils";
 import type { PaginatedList } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface MyReview {
   id: string;
@@ -30,6 +31,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function YorumlarPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<MyReview[]>([]);
@@ -52,17 +54,17 @@ export default function YorumlarPage() {
   }, [user, page]);
 
   if (authLoading || loading) {
-    return <div className="py-16 text-center text-slate-400">Yükleniyor...</div>;
+    return <div className="py-16 text-center text-slate-400">{t("reviews.loading")}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-8">Yorumlarım</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-8">{t("reviews.title")}</h1>
 
       {reviews.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-3xl mb-3">💬</p>
-          <p className="text-slate-500">Henüz yorum yapmadınız.</p>
+          <p className="text-slate-500">{t("reviews.empty")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -87,11 +89,11 @@ export default function YorumlarPage() {
                 <div className="text-right shrink-0">
                   {r.isApproved ? (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                      Onaylandı
+                      {t("reviews.approved")}
                     </span>
                   ) : (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
-                      İncelemede
+                      {t("reviews.pending")}
                     </span>
                   )}
                 </div>
@@ -99,7 +101,7 @@ export default function YorumlarPage() {
               <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
                 <span>{formatDate(r.createdDate)}</span>
                 {r.isVerifiedPurchase && (
-                  <span className="text-emerald-600 font-medium">✓ Doğrulanmış alım</span>
+                  <span className="text-emerald-600 font-medium">✓ {t("reviews.verified")}</span>
                 )}
               </div>
             </div>
@@ -112,14 +114,14 @@ export default function YorumlarPage() {
           {page > 1 && (
             <button onClick={() => setPage((p) => p - 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              ← Önceki
+              {t("reviews.page.prev")}
             </button>
           )}
           <span className="px-4 py-2 text-sm text-slate-500">{page} / {totalPages}</span>
           {page < totalPages && (
             <button onClick={() => setPage((p) => p + 1)}
               className="px-4 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-100 transition">
-              Sonraki →
+              {t("reviews.page.next")}
             </button>
           )}
         </div>

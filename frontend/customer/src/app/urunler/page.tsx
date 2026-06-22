@@ -5,6 +5,8 @@ import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import ProductFilters from "./ProductFilters";
 import { getSettings } from "@/lib/settings";
+import { getServerLang } from "@/lib/server-i18n";
+import { t as translate } from "@/lib/i18n";
 
 type SearchParams = Promise<{
   s?: string;
@@ -85,7 +87,8 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [categories, brands, products] = await Promise.all([getCategories(), getBrands(), getProducts(params)]);
+  const [categories, brands, products, lang] = await Promise.all([getCategories(), getBrands(), getProducts(params), getServerLang()]);
+  const t = (key: string) => translate(lang, key);
 
   const currentPage = Number(params.sayfa ?? 1);
 
@@ -149,7 +152,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm text-teal-400 font-medium">
-                <span className="text-teal-700 font-bold">{products.totalCount}</span> ürün
+                {t("prod2.list.count").replace("{n}", String(products.totalCount))}
               </p>
               {params.s && (
                 <FilterBadge label={`"${params.s}"`} href={buildUrl({ s: undefined, sayfa: "1" })} />
@@ -158,10 +161,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 <FilterBadge label={categories.find(c => c.slug === params.kategori)?.name ?? params.kategori} href={buildUrl({ kategori: undefined, sayfa: "1" })} color="teal" />
               )}
               {params.indirimli === "true" && (
-                <FilterBadge label="İndirimli" href={buildUrl({ indirimli: undefined, sayfa: "1" })} color="orange" />
+                <FilterBadge label={t("prod2.list.on_sale")} href={buildUrl({ indirimli: undefined, sayfa: "1" })} color="orange" />
               )}
               {params.ozellik === "featured" && (
-                <FilterBadge label="Öne Çıkan" href={buildUrl({ ozellik: undefined, sayfa: "1" })} color="amber" />
+                <FilterBadge label={t("prod2.list.featured")} href={buildUrl({ ozellik: undefined, sayfa: "1" })} color="amber" />
               )}
               {(params.minFiyat || params.maxFiyat) && (
                 <FilterBadge
@@ -195,14 +198,19 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               ))}
               {params.siralama && (
                 <FilterBadge
-                  label={{ yeni: "Yeni Sezon", "cok-satan": "Çok Satanlar", "fiyat-artan": "Fiyat ↑", "fiyat-azalan": "Fiyat ↓" }[params.siralama] ?? params.siralama}
+                  label={{
+                    yeni: t("prod2.sort.new"),
+                    "cok-satan": t("prod2.sort.bestseller"),
+                    "fiyat-artan": t("prod2.sort.price_asc"),
+                    "fiyat-azalan": t("prod2.sort.price_desc"),
+                  }[params.siralama] ?? params.siralama}
                   href={buildUrl({ siralama: undefined, sayfa: "1" })}
                 />
               )}
             </div>
             {hasFilters && (
               <Link href="/urunler" className="text-xs text-slate-400 hover:text-red-500 transition font-medium">
-                Tümünü temizle ×
+                {t("prod2.filter.clear")} ×
               </Link>
             )}
           </div>
@@ -210,9 +218,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           {products.items.length === 0 ? (
             <div className="text-center py-24 text-slate-400">
               <p className="text-5xl mb-4">🔍</p>
-              <p className="text-lg font-medium text-slate-600">Ürün bulunamadı</p>
+              <p className="text-lg font-medium text-slate-600">{t("prod2.list.no_results")}</p>
               <Link href="/urunler" className="mt-3 inline-block text-sm font-semibold text-teal-600 hover:text-teal-800">
-                Filtreleri Temizle
+                {t("prod2.filter.clear")}
               </Link>
             </div>
           ) : (
@@ -226,7 +234,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                   <div className="aspect-square bg-gradient-to-br from-teal-50 to-cyan-50 flex items-center justify-center relative">
                     {product.discountPrice && (
                       <span className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-                        İndirim
+                        {t("prod2.list.on_sale")}
                       </span>
                     )}
                     {product.imageUrl ? (
@@ -252,7 +260,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                       )}
                     </div>
                     {product.availableStock === 0 && (
-                      <span className="text-xs text-red-500 mt-1 block font-medium">Stokta Yok</span>
+                      <span className="text-xs text-red-500 mt-1 block font-medium">{t("prod2.card.out_of_stock")}</span>
                     )}
                   </div>
                 </Link>
@@ -265,7 +273,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             <div className="flex justify-center gap-2 mt-10">
               {products.hasPreviousPage && (
                 <Link href={buildUrl({ sayfa: String(currentPage - 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
-                  ← Önceki
+                  {t("prod2.page.prev")}
                 </Link>
               )}
               {Array.from({ length: products.totalPages }, (_, i) => i + 1)
@@ -285,7 +293,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 ))}
               {products.hasNextPage && (
                 <Link href={buildUrl({ sayfa: String(currentPage + 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
-                  Sonraki →
+                  {t("prod2.page.next")}
                 </Link>
               )}
             </div>

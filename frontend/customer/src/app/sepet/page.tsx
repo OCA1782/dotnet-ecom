@@ -7,17 +7,20 @@ import { formatPrice } from "@/lib/utils";
 import { Minus, Plus, Trash2, Heart, ShoppingBag, Tag, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CartItem } from "@/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 function DeleteModal({
   item,
   onClose,
   onDelete,
   onWishlist,
+  t,
 }: {
   item: CartItem;
   onClose: () => void;
   onDelete: () => void;
   onWishlist: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -38,19 +41,19 @@ function DeleteModal({
             {item.variantName && <p className="text-xs text-slate-500">{item.variantName}</p>}
           </div>
         </div>
-        <p className="text-sm text-slate-600 mb-4">Bu ürünü sepetten kaldırmak istiyor musunuz?</p>
+        <p className="text-sm text-slate-600 mb-4">{t('cart.delete.modal.question')}</p>
         <div className="flex flex-col gap-2">
           <button
             onClick={onWishlist}
             className="flex items-center justify-center gap-2 w-full bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-sm py-2.5 rounded-xl transition"
           >
-            <Heart className="w-4 h-4" /> Favorilere Ekle &amp; Kaldır
+            <Heart className="w-4 h-4" /> {t('cart.delete.modal.to_wishlist')}
           </button>
           <button
             onClick={onDelete}
             className="flex items-center justify-center gap-2 w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm py-2.5 rounded-xl transition"
           >
-            <Trash2 className="w-4 h-4" /> Direkt Sil
+            <Trash2 className="w-4 h-4" /> {t('cart.delete.modal.direct')}
           </button>
         </div>
       </div>
@@ -64,12 +67,14 @@ function CartItemRow({
   onToggle,
   onDelete,
   dimmed = false,
+  t,
 }: {
   item: CartItem;
   onUpdate: (id: string, qty: number) => Promise<void>;
   onToggle: (id: string, selected: boolean) => Promise<void>;
   onDelete: () => void;
   dimmed?: boolean;
+  t: (key: string) => string;
 }) {
   return (
     <div className={`bg-white border rounded-xl p-4 flex gap-3 transition ${dimmed ? "opacity-50 border-slate-100" : "border-slate-200"}`}>
@@ -79,6 +84,7 @@ function CartItemRow({
           checked={item.isSelected}
           onChange={e => onToggle(item.cartItemId, e.target.checked)}
           className="w-4 h-4 accent-teal-600 cursor-pointer"
+          aria-label={item.productName}
         />
       </div>
       <div className="w-16 h-16 bg-slate-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
@@ -112,7 +118,7 @@ function CartItemRow({
           <button
             onClick={onDelete}
             className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-            title="Kaldır"
+            title={t('cart.item.remove_title')}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -120,13 +126,14 @@ function CartItemRow({
       </div>
       <div className="text-right shrink-0">
         <p className="font-bold text-slate-900 text-sm">{formatPrice(item.lineTotal)}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{formatPrice(item.unitPrice)} / ad.</p>
+        <p className="text-xs text-slate-400 mt-0.5">{formatPrice(item.unitPrice)} {t('cart.item.unit_price')}</p>
       </div>
     </div>
   );
 }
 
 export default function CartPage() {
+  const { t } = useI18n();
   const { cart, loading, fetchCart, updateItem, removeItem, toggleSelection, applyCoupon, removeCoupon } = useCart();
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -137,7 +144,7 @@ export default function CartPage() {
 
   async function handleApplyCoupon() {
     if (!couponInput.trim()) return;
-    if (cart?.couponCode) { setCouponError("Önce mevcut kuponu kaldırın."); return; }
+    if (cart?.couponCode) { setCouponError(t('cart.coupon.remove_existing')); return; }
     setCouponLoading(true);
     setCouponError(null);
     const error = await applyCoupon(couponInput.trim());
@@ -160,16 +167,16 @@ export default function CartPage() {
   }
 
   if (loading) {
-    return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">Sepet yükleniyor...</div>;
+    return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-400">{t('cart.loading')}</div>;
   }
 
   if (!cart || cart.items.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
         <ShoppingBag className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-        <p className="text-xl text-slate-500 mb-4">Sepetiniz boş</p>
+        <p className="text-xl text-slate-500 mb-4">{t('cart.empty')}</p>
         <Link href="/urunler" className="inline-block bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition">
-          Alışverişe Başla
+          {t('cart.empty.shop_btn')}
         </Link>
       </div>
     );
@@ -190,14 +197,15 @@ export default function CartPage() {
           onClose={() => setDeleteTarget(null)}
           onDelete={handleDeleteConfirm}
           onWishlist={handleDeleteAndWishlist}
+          t={t}
         />
       )}
 
       <h1 className="text-2xl font-bold text-slate-900 mb-6">
-        Sepetim
+        {t('cart.title')}
         <span className="ml-2 text-base font-normal text-slate-400">
-          ({cart.items.length} ürün
-          {selected.length < cart.items.length ? `, ${selected.length} seçili` : ""})
+          ({cart.items.length} {t('cart.unit')}
+          {selected.length < cart.items.length ? `, ${selected.length} ${t('cart.selected')}` : ""})
         </span>
       </h1>
 
@@ -211,13 +219,14 @@ export default function CartPage() {
               onUpdate={updateItem}
               onToggle={toggleSelection}
               onDelete={() => setDeleteTarget(item)}
+              t={t}
             />
           ))}
 
           {deselected.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                Daha Sonra ({deselected.length})
+                {t('cart.later.label')} ({deselected.length})
               </p>
               <div className="space-y-2">
                 {deselected.map(item => (
@@ -228,6 +237,7 @@ export default function CartPage() {
                     onToggle={toggleSelection}
                     onDelete={() => setDeleteTarget(item)}
                     dimmed
+                    t={t}
                   />
                 ))}
               </div>
@@ -238,14 +248,14 @@ export default function CartPage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 mt-2">
             <div className="flex items-center gap-2 mb-3">
               <Tag className="w-4 h-4 text-teal-600" />
-              <p className="text-sm font-medium text-slate-700">İndirim Kuponu</p>
-              <span className="text-xs text-slate-400">(Her siparişte 1 kupon)</span>
+              <p className="text-sm font-medium text-slate-700">{t('cart.coupon.title')}</p>
+              <span className="text-xs text-slate-400">{t('cart.coupon.hint')}</span>
             </div>
             {cart.couponCode ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center justify-between">
                   <span className="text-sm font-mono font-semibold text-green-700">{cart.couponCode}</span>
-                  <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Uygulandı ✓</span>
+                  <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{t('cart.coupon.applied')}</span>
                 </div>
                 <button
                   onClick={() => removeCoupon()}
@@ -261,7 +271,7 @@ export default function CartPage() {
                   value={couponInput}
                   onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
                   onKeyDown={e => e.key === "Enter" && handleApplyCoupon()}
-                  placeholder="Kupon kodunuzu girin"
+                  placeholder={t('cart.coupon.placeholder')}
                   className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 font-mono uppercase"
                 />
                 <button
@@ -269,7 +279,7 @@ export default function CartPage() {
                   disabled={couponLoading || !couponInput.trim()}
                   className="bg-teal-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 shrink-0"
                 >
-                  {couponLoading ? "…" : "Uygula"}
+                  {couponLoading ? t('cart.coupon.applying') : t('cart.coupon.apply')}
                 </button>
               </div>
             )}
@@ -280,28 +290,28 @@ export default function CartPage() {
         {/* Summary */}
         <div>
           <div className="bg-white border border-slate-200 rounded-xl p-6 sticky top-24 space-y-3">
-            <h2 className="font-semibold text-slate-900 mb-1">Sipariş Özeti</h2>
+            <h2 className="font-semibold text-slate-900 mb-1">{t('cart.summary.title')}</h2>
             {selected.length < cart.items.length && (
               <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">
-                Yalnızca seçili {selected.length} ürün hesaplanıyor
+                {t('cart.summary.only_selected').replace('{n}', selected.length.toString())}
               </p>
             )}
             <div className="flex justify-between text-sm text-slate-600">
-              <span>Ara Toplam ({selectedQty} ürün)</span>
+              <span>{t('cart.summary.subtotal').replace('{n}', selectedQty.toString())}</span>
               <span>{formatPrice(selectedSubTotal)}</span>
             </div>
             <div className="flex justify-between text-sm text-slate-600">
-              <span>Kargo</span>
-              <span>{selectedShipping === 0 ? "Ücretsiz" : formatPrice(selectedShipping)}</span>
+              <span>{t('cart.summary.shipping')}</span>
+              <span>{selectedShipping === 0 ? t('cart.summary.shipping_free') : formatPrice(selectedShipping)}</span>
             </div>
             {cart.discountAmount > 0 && (
               <div className="flex justify-between text-sm text-green-600 font-medium">
-                <span>İndirim {cart.couponCode && <span className="font-mono">({cart.couponCode})</span>}</span>
+                <span>{t('cart.summary.discount')} {cart.couponCode && <span className="font-mono">({cart.couponCode})</span>}</span>
                 <span>−{formatPrice(cart.discountAmount)}</span>
               </div>
             )}
             <div className="border-t border-slate-200 pt-3 flex justify-between font-bold text-slate-900">
-              <span>Toplam</span>
+              <span>{t('cart.summary.total')}</span>
               <span>{formatPrice(selectedTotal)}</span>
             </div>
             {selected.length > 0 ? (
@@ -309,15 +319,15 @@ export default function CartPage() {
                 href="/odeme"
                 className="block w-full text-center bg-teal-600 text-white font-semibold py-3 rounded-xl hover:bg-teal-700 transition mt-2"
               >
-                Seçili {selectedQty} Ürünle Devam →
+                {t('cart.summary.checkout_btn').replace('{n}', selectedQty.toString())}
               </Link>
             ) : (
               <p className="text-center text-xs text-slate-400 py-3 border border-dashed border-slate-200 rounded-xl">
-                Devam etmek için ürün seçin
+                {t('cart.summary.select_to_continue')}
               </p>
             )}
             <Link href="/urunler" className="block w-full text-center text-sm text-slate-500 hover:text-slate-900 transition">
-              Alışverişe Devam Et
+              {t('cart.summary.continue_shopping')}
             </Link>
           </div>
         </div>

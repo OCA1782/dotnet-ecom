@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const INPUT = "acct-input";
 
@@ -23,17 +24,18 @@ interface UserProfile {
   phoneConfirmed?: boolean;
 }
 
-const NAV_LINKS = [
-  { href: "/hesabim", label: "Hesap Bilgileri", icon: "👤" },
-  { href: "/hesabim/siparisler", label: "Siparişlerim", icon: "📦" },
-  { href: "/hesabim/adresler", label: "Adreslerim", icon: "📍" },
-  { href: "/hesabim/favoriler", label: "Favorilerim", icon: "❤️" },
-];
-
 export default function HesabimPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const NAV_LINKS = [
+    { href: "/hesabim",           label: t("account.nav.profile"),   icon: "👤" },
+    { href: "/hesabim/siparisler", label: t("account.nav.orders"),    icon: "📦" },
+    { href: "/hesabim/adresler",  label: t("account.nav.addresses"), icon: "📍" },
+    { href: "/hesabim/favoriler", label: t("account.nav.favorites"), icon: "❤️" },
+  ];
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [totpUri, setTotpUri] = useState("");
@@ -42,7 +44,6 @@ export default function HesabimPage() {
   const [tfaMsg, setTfaMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [showQr, setShowQr] = useState(false);
 
-  // Doğrulama durumu
   const [emailConfirmed, setEmailConfirmed] = useState(true);
   const [phoneConfirmed, setPhoneConfirmed] = useState(true);
   const [resending, setResending] = useState(false);
@@ -66,7 +67,6 @@ export default function HesabimPage() {
   const [phone, setPhone] = useState("");
   const [commercialConsent, setCommercialConsent] = useState(false);
 
-  // Şifre değiştirme
   const [pwSection, setPwSection] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -101,9 +101,9 @@ export default function HesabimPage() {
       const data = await api.post<{ emailSent: boolean; telegramSent: boolean }>("/api/users/me/resend-verification");
       if (data.emailSent) setShowVerifEmail(true);
       if (data.telegramSent) setShowVerifPhone(true);
-      setVerifMsg({ text: "Doğrulama kodları gönderildi.", ok: true });
+      setVerifMsg({ text: t("account.verify.sent"), ok: true });
     } catch (e: unknown) {
-      setVerifMsg({ text: e instanceof Error ? e.message : "Gönderilemedi", ok: false });
+      setVerifMsg({ text: e instanceof Error ? e.message : t("account.verify.send_fail"), ok: false });
     } finally { setResending(false); }
   }
 
@@ -116,9 +116,9 @@ export default function HesabimPage() {
       setEmailConfirmed(true);
       setShowVerifEmail(false);
       setVerifCodeEmail("");
-      setVerifMsg({ text: "E-posta adresiniz doğrulandı.", ok: true });
+      setVerifMsg({ text: t("account.verify.email_ok"), ok: true });
     } catch (e: unknown) {
-      setVerifMsg({ text: e instanceof Error ? e.message : "Doğrulama başarısız", ok: false });
+      setVerifMsg({ text: e instanceof Error ? e.message : t("account.verify.fail"), ok: false });
     } finally { setVerifyingEmail(false); }
   }
 
@@ -131,9 +131,9 @@ export default function HesabimPage() {
       setPhoneConfirmed(true);
       setShowVerifPhone(false);
       setVerifCodePhone("");
-      setVerifMsg({ text: "Telefon doğrulandı.", ok: true });
+      setVerifMsg({ text: t("account.verify.phone_ok"), ok: true });
     } catch (e: unknown) {
-      setVerifMsg({ text: e instanceof Error ? e.message : "Doğrulama başarısız", ok: false });
+      setVerifMsg({ text: e instanceof Error ? e.message : t("account.verify.fail"), ok: false });
     } finally { setVerifyingPhone(false); }
   }
 
@@ -145,7 +145,7 @@ export default function HesabimPage() {
       setShowQr(true);
       setTfaCode("");
     } catch (e: unknown) {
-      setTfaMsg({ text: e instanceof Error ? e.message : "Kurulum başlatılamadı", ok: false });
+      setTfaMsg({ text: e instanceof Error ? e.message : t("account.2fa.enabled_msg"), ok: false });
     } finally { setTfaLoading(false); }
   }
 
@@ -158,9 +158,9 @@ export default function HesabimPage() {
       setShowQr(false);
       setTotpUri("");
       setTfaCode("");
-      setTfaMsg({ text: "İki faktörlü doğrulama etkinleştirildi.", ok: true });
+      setTfaMsg({ text: t("account.2fa.enabled_msg"), ok: true });
     } catch (e: unknown) {
-      setTfaMsg({ text: e instanceof Error ? e.message : "Etkinleştirme başarısız", ok: false });
+      setTfaMsg({ text: e instanceof Error ? e.message : t("account.verify.fail"), ok: false });
     } finally { setTfaLoading(false); }
   }
 
@@ -171,9 +171,9 @@ export default function HesabimPage() {
       await api.post("/api/users/me/2fa/disable", { code: tfaCode });
       setTwoFactorEnabled(false);
       setTfaCode("");
-      setTfaMsg({ text: "İki faktörlü doğrulama devre dışı bırakıldı.", ok: true });
+      setTfaMsg({ text: t("account.2fa.disabled_msg"), ok: true });
     } catch (e: unknown) {
-      setTfaMsg({ text: e instanceof Error ? e.message : "Devre dışı bırakma başarısız", ok: false });
+      setTfaMsg({ text: e instanceof Error ? e.message : t("account.verify.fail"), ok: false });
     } finally { setTfaLoading(false); }
   }
 
@@ -189,7 +189,7 @@ export default function HesabimPage() {
 
   async function handleSave() {
     if (!name.trim() || !surname.trim()) {
-      setSaveMsg({ text: "Ad ve soyad zorunludur.", ok: false });
+      setSaveMsg({ text: t("account.info.name_required"), ok: false });
       return;
     }
     setSaving(true);
@@ -199,25 +199,25 @@ export default function HesabimPage() {
       setProfile(prev => prev ? { ...prev, name: name.trim(), surname: surname.trim(), phoneNumber: phone.trim() || undefined, commercialConsent } : prev);
       updateUser({ name: name.trim(), surname: surname.trim() });
       setEditing(false);
-      setSaveMsg({ text: "Bilgileriniz güncellendi.", ok: true });
+      setSaveMsg({ text: t("account.info.save_success"), ok: true });
     } catch (e: unknown) {
-      setSaveMsg({ text: e instanceof Error ? e.message : "Güncelleme başarısız.", ok: false });
+      setSaveMsg({ text: e instanceof Error ? e.message : t("account.info.save_fail"), ok: false });
     } finally {
       setSaving(false);
     }
   }
 
   async function handleChangePassword() {
-    if (!newPw || !currentPw) { setPwMsg({ text: "Tüm alanları doldurun.", ok: false }); return; }
-    if (newPw !== confirmPw) { setPwMsg({ text: "Yeni şifreler eşleşmiyor.", ok: false }); return; }
+    if (!newPw || !currentPw) { setPwMsg({ text: t("account.security.all_required"), ok: false }); return; }
+    if (newPw !== confirmPw) { setPwMsg({ text: t("account.security.pw_mismatch"), ok: false }); return; }
     setChangingPw(true);
     setPwMsg(null);
     try {
       await api.patch("/api/users/me/change-password", { currentPassword: currentPw, newPassword: newPw, confirmPassword: confirmPw });
-      setPwMsg({ text: "Şifreniz başarıyla değiştirildi.", ok: true });
+      setPwMsg({ text: t("account.security.pw_success"), ok: true });
       setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwSection(false);
     } catch (e: unknown) {
-      setPwMsg({ text: e instanceof Error ? e.message : "Şifre değiştirilemedi.", ok: false });
+      setPwMsg({ text: e instanceof Error ? e.message : t("account.security.pw_fail"), ok: false });
     } finally { setChangingPw(false); }
   }
 
@@ -231,9 +231,9 @@ export default function HesabimPage() {
       form.append("file", file);
       const res = await api.uploadForm<{ url: string }>("/api/users/me/avatar", form);
       setProfile(prev => prev ? { ...prev, avatarUrl: res.url } : prev);
-      setSaveMsg({ text: "Profil fotoğrafı güncellendi.", ok: true });
+      setSaveMsg({ text: t("account.info.avatar_success"), ok: true });
     } catch (e: unknown) {
-      setSaveMsg({ text: e instanceof Error ? e.message : "Yükleme başarısız.", ok: false });
+      setSaveMsg({ text: e instanceof Error ? e.message : t("account.info.avatar_fail"), ok: false });
     } finally {
       setUploadingAvatar(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -264,7 +264,7 @@ export default function HesabimPage() {
                   onClick={() => fileRef.current?.click()}
                   disabled={uploadingAvatar}
                   className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-300 flex items-center justify-center shadow hover:bg-slate-50 transition text-slate-600 disabled:opacity-50"
-                  title="Fotoğraf değiştir"
+                  title={t("account.profile.photo_title")}
                 >
                   {uploadingAvatar ? (
                     <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
@@ -286,14 +286,14 @@ export default function HesabimPage() {
                 <p className="text-sm text-slate-500 mt-0.5">{profile.email}</p>
                 {profile.lastLoginDate && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Son giriş: {new Date(profile.lastLoginDate).toLocaleString("tr-TR")}
+                    {t("account.profile.last_login")} {new Date(profile.lastLoginDate).toLocaleString("tr-TR")}
                   </p>
                 )}
               </div>
 
               {!editing && (
                 <button onClick={startEdit} className="btn-ghost shrink-0">
-                  Düzenle
+                  {t("account.profile.edit_btn")}
                 </button>
               )}
             </div>
@@ -308,10 +308,10 @@ export default function HesabimPage() {
 
           {/* Bilgi Formu */}
           <div className="acct-card">
-            <h2 className="text-base font-semibold text-slate-800 mb-5">Kişisel Bilgiler</h2>
+            <h2 className="text-base font-semibold text-slate-800 mb-5">{t("account.info.title")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Ad *</label>
+                <label className="block text-xs text-slate-500 mb-1">{t("account.info.name")}</label>
                 {editing ? (
                   <input value={name} onChange={e => setName(e.target.value)} className={INPUT} />
                 ) : (
@@ -319,7 +319,7 @@ export default function HesabimPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Soyad *</label>
+                <label className="block text-xs text-slate-500 mb-1">{t("account.info.surname")}</label>
                 {editing ? (
                   <input value={surname} onChange={e => setSurname(e.target.value)} className={INPUT} />
                 ) : (
@@ -327,41 +327,41 @@ export default function HesabimPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">E-posta</label>
+                <label className="block text-xs text-slate-500 mb-1">{t("account.info.email")}</label>
                 <div className="py-2 space-y-1">
                   <p className="text-sm text-slate-500 break-all">
-                    {profile.email} <span className="text-xs text-slate-400">(değiştirilemez)</span>
+                    {profile.email} <span className="text-xs text-slate-400">{t("account.info.email_no_change")}</span>
                   </p>
                   {emailConfirmed ? (
                     <span className="badge-ok">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
-                      Doğrulandı
+                      {t("account.info.verified")}
                     </span>
                   ) : (
                     <span className="badge-warn">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      Doğrulanmamış
+                      {t("account.info.not_verified")}
                     </span>
                   )}
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Telefon</label>
+                <label className="block text-xs text-slate-500 mb-1">{t("account.info.phone")}</label>
                 {editing ? (
-                  <input value={phone} onChange={e => setPhone(e.target.value)} className={INPUT} placeholder="05XX XXX XX XX" />
+                  <input value={phone} onChange={e => setPhone(e.target.value)} className={INPUT} placeholder={t("account.info.phone_placeholder")} />
                 ) : (
                   <div className="py-2 space-y-1">
-                    <p className="text-sm text-slate-800">{profile.phoneNumber || <span className="text-slate-400 italic">Eklenmemiş</span>}</p>
+                    <p className="text-sm text-slate-800">{profile.phoneNumber || <span className="text-slate-400 italic">{t("account.info.phone_none")}</span>}</p>
                     {profile.phoneNumber && (
                       phoneConfirmed ? (
                         <span className="badge-ok">
                           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
-                          Doğrulandı
+                          {t("account.info.verified")}
                         </span>
                       ) : (
                         <span className="badge-warn">
                           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          Doğrulanmamış
+                          {t("account.info.not_verified")}
                         </span>
                       )
                     )}
@@ -375,7 +375,7 @@ export default function HesabimPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={commercialConsent} onChange={e => setCommercialConsent(e.target.checked)}
                     className="w-4 h-4 rounded text-teal-600 border-slate-300" />
-                  <span className="text-xs text-slate-600">Kampanya ve fırsatlardan haberdar olmak istiyorum</span>
+                  <span className="text-xs text-slate-600">{t("account.info.commercial_consent")}</span>
                 </label>
               </div>
             )}
@@ -384,7 +384,7 @@ export default function HesabimPage() {
               <div className="mt-4">
                 <span className="badge-consent">
                   <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5"/></svg>
-                  Ticari iletişim iznini verdiniz
+                  {t("account.info.commercial_given")}
                 </span>
               </div>
             )}
@@ -392,10 +392,10 @@ export default function HesabimPage() {
             {editing && (
               <div className="flex gap-3 mt-6">
                 <button onClick={handleSave} disabled={saving} className="btn-brand">
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                  {saving ? t("account.info.saving") : t("account.info.save_btn")}
                 </button>
                 <button onClick={cancelEdit} className="btn-ghost">
-                  Vazgeç
+                  {t("account.info.cancel")}
                 </button>
               </div>
             )}
@@ -404,16 +404,16 @@ export default function HesabimPage() {
           {/* Güvenlik Bölümü */}
           <div className="acct-card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-slate-800">Güvenlik</h2>
+              <h2 className="text-base font-semibold text-slate-800">{t("account.security.title")}</h2>
               {!pwSection && (
                 <button onClick={() => { setPwSection(true); setPwMsg(null); }} className="btn-link">
-                  Şifremi Değiştir
+                  {t("account.security.change_pw_link")}
                 </button>
               )}
             </div>
 
             {!pwSection ? (
-              <p className="text-sm text-slate-500">Hesabınızın güvenliği için düzenli aralıklarla şifrenizi değiştirmenizi öneririz.</p>
+              <p className="text-sm text-slate-500">{t("account.security.pw_hint")}</p>
             ) : (
               <div className="space-y-3">
                 {pwMsg && (
@@ -422,26 +422,26 @@ export default function HesabimPage() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Mevcut Şifre *</label>
+                  <label className="block text-xs text-slate-500 mb-1">{t("account.security.current_pw")}</label>
                   <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
                     className={INPUT} placeholder="••••••••" autoComplete="current-password" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Yeni Şifre *</label>
+                  <label className="block text-xs text-slate-500 mb-1">{t("account.security.new_pw")}</label>
                   <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
-                    className={INPUT} placeholder="En az 8 karakter, büyük harf ve rakam" autoComplete="new-password" />
+                    className={INPUT} placeholder={t("account.security.new_pw_placeholder")} autoComplete="new-password" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Yeni Şifre (Tekrar) *</label>
+                  <label className="block text-xs text-slate-500 mb-1">{t("account.security.confirm_pw")}</label>
                   <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
                     className={INPUT} placeholder="••••••••" autoComplete="new-password" />
                 </div>
                 <div className="flex gap-3 pt-1">
                   <button onClick={handleChangePassword} disabled={changingPw} className="btn-brand">
-                    {changingPw ? "Değiştiriliyor..." : "Şifreyi Değiştir"}
+                    {changingPw ? t("account.security.changing") : t("account.security.change_btn")}
                   </button>
                   <button onClick={() => { setPwSection(false); setCurrentPw(""); setNewPw(""); setConfirmPw(""); setPwMsg(null); }} className="btn-ghost">
-                    Vazgeç
+                    {t("account.security.cancel")}
                   </button>
                 </div>
               </div>
@@ -452,12 +452,10 @@ export default function HesabimPage() {
           {(!emailConfirmed || !phoneConfirmed) && (
             <div className="acct-card acct-card-warn">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-semibold text-slate-800">Hesap Doğrulama</h2>
-                <span className="badge-warn">Bekliyor</span>
+                <h2 className="text-base font-semibold text-slate-800">{t("account.verify.title")}</h2>
+                <span className="badge-warn">{t("account.verify.pending")}</span>
               </div>
-              <p className="text-sm text-slate-500 mb-4">
-                Hesabınızın güvenliği için e-posta ve telefon doğrulaması yapmanızı öneririz. Doğrulama, giriş yapmak için zorunlu değildir.
-              </p>
+              <p className="text-sm text-slate-500 mb-4">{t("account.verify.hint")}</p>
 
               {verifMsg && (
                 <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${verifMsg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
@@ -466,46 +464,44 @@ export default function HesabimPage() {
               )}
 
               <div className="space-y-4">
-                {/* E-posta doğrulama */}
                 {!emailConfirmed && (
                   <div className="border border-slate-100 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      <span className="text-sm font-medium text-slate-700">E-posta doğrulanmamış</span>
+                      <span className="text-sm font-medium text-slate-700">{t("account.verify.email_not")}</span>
                     </div>
                     {showVerifEmail && (
                       <div className="flex gap-2">
                         <input
                           type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                           value={verifCodeEmail} onChange={e => setVerifCodeEmail(e.target.value.replace(/\D/g, ""))}
-                          placeholder="6 haneli kod"
+                          placeholder={t("account.verify.code_placeholder")}
                           className="acct-input-otp flex-1"
                         />
                         <button onClick={handleVerifyEmail} disabled={verifyingEmail || verifCodeEmail.length !== 6} className="btn-brand">
-                          {verifyingEmail ? "..." : "Doğrula"}
+                          {verifyingEmail ? "..." : t("account.verify.verify_btn")}
                         </button>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Telefon doğrulama */}
                 {!phoneConfirmed && profile?.phoneNumber && (
                   <div className="border border-slate-100 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      <span className="text-sm font-medium text-slate-700">Telefon doğrulanmamış</span>
+                      <span className="text-sm font-medium text-slate-700">{t("account.verify.phone_not")}</span>
                     </div>
                     {showVerifPhone && (
                       <div className="flex gap-2">
                         <input
                           type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                           value={verifCodePhone} onChange={e => setVerifCodePhone(e.target.value.replace(/\D/g, ""))}
-                          placeholder="6 haneli kod"
+                          placeholder={t("account.verify.code_placeholder")}
                           className="acct-input-otp flex-1"
                         />
                         <button onClick={handleVerifyPhone} disabled={verifyingPhone || verifCodePhone.length !== 6} className="btn-brand">
-                          {verifyingPhone ? "..." : "Doğrula"}
+                          {verifyingPhone ? "..." : t("account.verify.verify_btn")}
                         </button>
                       </div>
                     )}
@@ -514,7 +510,7 @@ export default function HesabimPage() {
               </div>
 
               <button onClick={handleResendVerification} disabled={resending} className="btn-brand mt-4">
-                {resending ? "Gönderiliyor..." : "Doğrulama Kodu Gönder"}
+                {resending ? t("account.verify.sending") : t("account.verify.send_btn")}
               </button>
             </div>
           )}
@@ -522,14 +518,12 @@ export default function HesabimPage() {
           {/* 2FA Bölümü */}
           <div className="acct-card">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base font-semibold text-slate-800">İki Faktörlü Doğrulama</h2>
+              <h2 className="text-base font-semibold text-slate-800">{t("account.2fa.title")}</h2>
               <span className={twoFactorEnabled ? "badge-brand" : "badge-muted"}>
-                {twoFactorEnabled ? "Aktif" : "Pasif"}
+                {twoFactorEnabled ? t("account.2fa.active") : t("account.2fa.inactive")}
               </span>
             </div>
-            <p className="text-sm text-slate-500 mb-4">
-              Google Authenticator veya Authy gibi bir uygulama ile giriş güvenliğinizi artırın.
-            </p>
+            <p className="text-sm text-slate-500 mb-4">{t("account.2fa.hint")}</p>
 
             {tfaMsg && (
               <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${tfaMsg.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
@@ -539,15 +533,13 @@ export default function HesabimPage() {
 
             {!twoFactorEnabled && !showQr && (
               <button onClick={handleSetup2FA} disabled={tfaLoading} className="btn-brand">
-                {tfaLoading ? "Hazırlanıyor..." : "Etkinleştir"}
+                {tfaLoading ? t("account.2fa.preparing") : t("account.2fa.enable_btn")}
               </button>
             )}
 
             {!twoFactorEnabled && showQr && totpUri && (
               <div className="space-y-4">
-                <p className="text-sm text-slate-600">
-                  Authenticator uygulamanızla aşağıdaki QR kodu tarayın, ardından oluşturulan 6 haneli kodu girin.
-                </p>
+                <p className="text-sm text-slate-600">{t("account.2fa.scan_hint")}</p>
                 <div className="flex justify-center">
                   <div className="p-3 border border-slate-200 rounded-2xl bg-white inline-block">
                     <QRCodeSVG value={totpUri} size={180} />
@@ -561,10 +553,10 @@ export default function HesabimPage() {
                 />
                 <div className="flex gap-3">
                   <button onClick={handleEnable2FA} disabled={tfaLoading || tfaCode.length !== 6} className="btn-brand">
-                    {tfaLoading ? "Doğrulanıyor..." : "Etkinleştir"}
+                    {tfaLoading ? t("account.2fa.verifying") : t("account.2fa.confirm_btn")}
                   </button>
                   <button onClick={() => { setShowQr(false); setTotpUri(""); setTfaCode(""); setTfaMsg(null); }} className="btn-ghost">
-                    Vazgeç
+                    {t("account.2fa.cancel")}
                   </button>
                 </div>
               </div>
@@ -572,7 +564,7 @@ export default function HesabimPage() {
 
             {twoFactorEnabled && (
               <div className="space-y-3">
-                <p className="text-sm text-slate-500">Devre dışı bırakmak için authenticator kodunuzu girin.</p>
+                <p className="text-sm text-slate-500">{t("account.2fa.disable_hint")}</p>
                 <input
                   type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                   value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))}
@@ -580,7 +572,7 @@ export default function HesabimPage() {
                   className="acct-input-otp w-full"
                 />
                 <button onClick={handleDisable2FA} disabled={tfaLoading || tfaCode.length !== 6} className="btn-danger">
-                  {tfaLoading ? "İşleniyor..." : "Devre Dışı Bırak"}
+                  {tfaLoading ? t("account.2fa.processing") : t("account.2fa.disable_btn")}
                 </button>
               </div>
             )}

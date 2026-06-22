@@ -39,7 +39,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setFormError("");
     if (form.password !== form.passwordConfirm) {
-      setFormError("Şifreler eşleşmiyor");
+      setFormError(t("auth2.register.password_mismatch"));
       return;
     }
     setFormLoading(true);
@@ -63,7 +63,7 @@ export default function RegisterPage() {
       const result = await verifyEmail(pending.userId, emailCode);
       setEmailConfirmed(result.emailConfirmed);
     } catch (err: unknown) {
-      setEmailError(err instanceof Error ? err.message : "Kod geçersiz");
+      setEmailError(err instanceof Error ? err.message : t("auth2.verify.code_invalid"));
     } finally {
       setEmailLoading(false);
     }
@@ -79,7 +79,7 @@ export default function RegisterPage() {
       setTelegramConfirmed(result.phoneConfirmed);
       if (result.token) router.push("/");
     } catch (err: unknown) {
-      setTelegramError(err instanceof Error ? err.message : "Kod geçersiz");
+      setTelegramError(err instanceof Error ? err.message : t("auth2.verify.code_invalid"));
     } finally {
       setTelegramLoading(false);
     }
@@ -89,7 +89,7 @@ export default function RegisterPage() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("nav.register")}</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">{t("auth2.register.title")}</h1>
           <form onSubmit={handleRegister} className="space-y-4">
             {formError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
@@ -98,28 +98,28 @@ export default function RegisterPage() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ad</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.name_label")}</label>
                 <input name="name" required value={form.name} onChange={handleChange} className={INPUT} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Soyad</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.surname_label")}</label>
                 <input name="surname" required value={form.surname} onChange={handleChange} className={INPUT} />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">E-posta</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.email_label")}</label>
               <input type="text" inputMode="email" name="email" required autoComplete="new-email" value={form.email} onChange={handleChange} className={INPUT} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Cep Telefonu</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.phone_label")}</label>
               <input type="tel" name="phone" value={form.phone} onChange={handleChange} className={INPUT} placeholder="05XX XXX XX XX" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Şifre</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.password_label")}</label>
               <input type="password" name="password" required value={form.password} onChange={handleChange} className={INPUT} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Şifre Tekrar</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth2.register.password_confirm_label")}</label>
               <input type="password" name="passwordConfirm" required value={form.passwordConfirm} onChange={handleChange} className={INPUT} />
             </div>
             <button
@@ -128,11 +128,11 @@ export default function RegisterPage() {
               className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {formLoading && <Loader2 size={16} className="animate-spin" />}
-              {formLoading ? "Kayıt yapılıyor..." : t("nav.register")}
+              {formLoading ? t("auth2.register.submitting") : t("auth2.register.submit")}
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-slate-600">
-            Zaten hesabın var mı?{" "}
+            {t("auth2.register.already_member")}{" "}
             <Link href="/giris" className="text-teal-600 font-medium hover:underline">
               {t("nav.login")}
             </Link>
@@ -146,9 +146,9 @@ export default function RegisterPage() {
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Hesabını Doğrula</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("auth2.verify.title")}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            <span className="font-medium text-slate-700">{pending?.email}</span> adresine ve Telegram&apos;a ayrı kodlar gönderdik.
+            <span className="font-medium text-slate-700">{pending?.email}</span> {t("auth2.verify.desc")}
           </p>
         </div>
 
@@ -158,14 +158,14 @@ export default function RegisterPage() {
               <Mail size={18} className={emailConfirmed ? "text-teal-600" : "text-slate-500"} />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-800 text-sm">E-posta Doğrulama</p>
+              <p className="font-semibold text-slate-800 text-sm">{t("auth2.verify.email_section")}</p>
               <p className="text-xs text-slate-500">{pending?.email}</p>
             </div>
             {emailConfirmed && <CheckCircle size={20} className="text-teal-500 shrink-0" />}
           </div>
 
           {emailConfirmed ? (
-            <p className="text-sm text-teal-600 font-medium text-center py-2">E-posta doğrulandı ✓</p>
+            <p className="text-sm text-teal-600 font-medium text-center py-2">{t("auth2.verify.email_verified")}</p>
           ) : (
             <form onSubmit={handleVerifyEmail} className="space-y-3">
               {emailError && (
@@ -188,7 +188,7 @@ export default function RegisterPage() {
                 className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
               >
                 {emailLoading && <Loader2 size={14} className="animate-spin" />}
-                {emailLoading ? "Doğrulanıyor..." : "E-postayı Doğrula"}
+                {emailLoading ? t("auth2.verify.email_btn_loading") : t("auth2.verify.email_btn")}
               </button>
             </form>
           )}
@@ -200,14 +200,14 @@ export default function RegisterPage() {
               <MessageCircle size={18} className={telegramConfirmed ? "text-teal-600" : "text-slate-500"} />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-800 text-sm">Telegram Doğrulama</p>
-              <p className="text-xs text-slate-500">Telegram hesabınıza gelen kodu girin</p>
+              <p className="font-semibold text-slate-800 text-sm">{t("auth2.verify.telegram_section")}</p>
+              <p className="text-xs text-slate-500">{t("auth2.verify.telegram_label")}</p>
             </div>
             {telegramConfirmed && <CheckCircle size={20} className="text-teal-500 shrink-0" />}
           </div>
 
           {telegramConfirmed ? (
-            <p className="text-sm text-teal-600 font-medium text-center py-2">Telegram doğrulandı ✓</p>
+            <p className="text-sm text-teal-600 font-medium text-center py-2">{t("auth2.verify.telegram_verified")}</p>
           ) : (
             <form onSubmit={handleVerifyTelegram} className="space-y-3">
               {telegramError && (
@@ -230,7 +230,7 @@ export default function RegisterPage() {
                 className="w-full bg-teal-600 text-white font-semibold py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
               >
                 {telegramLoading && <Loader2 size={14} className="animate-spin" />}
-                {telegramLoading ? "Doğrulanıyor..." : "Telegram'ı Doğrula"}
+                {telegramLoading ? t("auth2.verify.telegram_btn_loading") : t("auth2.verify.telegram_btn")}
               </button>
             </form>
           )}
@@ -239,13 +239,13 @@ export default function RegisterPage() {
         {emailConfirmed && !telegramConfirmed && (
           <div className="text-center space-y-3">
             <p className="text-sm text-slate-500">
-              Telegram doğrulaması isteğe bağlıdır. Daha sonra hesabınızdan yapabilirsiniz.
+              {t("auth2.verify.telegram_optional")}
             </p>
             <button
               onClick={() => router.push("/")}
               className="inline-block bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition"
             >
-              Alışverişe Devam Et
+              {t("auth2.verify.continue_shopping")}
             </button>
           </div>
         )}
@@ -255,7 +255,7 @@ export default function RegisterPage() {
               onClick={() => router.push("/")}
               className="inline-block bg-teal-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-teal-700 transition"
             >
-              Alışverişe Devam Et
+              {t("auth2.verify.continue_shopping")}
             </button>
           </div>
         )}

@@ -7,6 +7,8 @@ import { type AnnouncementItem } from "@/components/AnnouncementsSection";
 import HeroSlider from "@/components/HeroSlider";
 import { getSettings } from "@/lib/settings";
 import SparePartsVehicleSelector from "@/components/templates/SparePartsVehicleSelector";
+import { getServerLang } from "@/lib/server-i18n";
+import { t as translate } from "@/lib/i18n";
 
 function parseTrustItem(str: string | undefined, fallback: { abbr: string; title: string; desc: string }) {
   if (!str?.trim()) return fallback;
@@ -19,14 +21,15 @@ function parseList(str: string | undefined, fallback: string[]): string[] {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings();
+  const [settings, lang] = await Promise.all([getSettings(), getServerLang()]);
   const siteName = settings.SiteName || "";
+  const t = (key: string) => translate(lang, key);
   return {
-    title: "Ana Sayfa",
-    description: "Keyifli alışverişin yeni adresi. Binlerce ürün, güvenli ödeme, hızlı teslimat.",
+    title: t("home2.meta.title"),
+    description: t("home2.meta.desc"),
     openGraph: {
-      title: `${siteName} — Keyifli Alışverişin Yeni Adresi`,
-      description: "Sevdiğin ürünleri keşfet, güvenle satın al, hızlı teslimatla kapına gelsin.",
+      title: siteName ? `${siteName} — ${t("home2.meta.og.title")}` : t("home2.meta.og.title"),
+      description: t("home2.meta.og.desc"),
       type: "website",
     },
   };
@@ -102,9 +105,10 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
 ];
 
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(),
+  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(),
   ]);
+  const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
   const campaigns = campaignsRaw.length > 0 ? campaignsRaw : FALLBACK_CAMPAIGNS;
   const template = settings.CustomerTemplate ?? "modern";
@@ -147,7 +151,7 @@ export default async function HomePage() {
         <div className="bg-[#1c1f2e] text-gray-300 text-xs py-1.5">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="bg-orange-500 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0">B2B</span>
+              <span className="bg-orange-500 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0">{t("home2.sp.b2b.badge")}</span>
               <span className="text-gray-400 truncate">{b2bText}</span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -156,7 +160,7 @@ export default async function HomePage() {
               <span className="text-gray-500 text-[10px] hidden sm:inline">📞 {phone}</span>
               <Link href="/iletisim"
                 className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full transition-all duration-150">
-                Başvuru yap
+                {t("home2.sp.b2b.apply")}
               </Link>
             </div>
           </div>
@@ -178,7 +182,7 @@ export default async function HomePage() {
               ))}
               <Link href="/urunler"
                 className="px-3 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-500 border border-transparent hover:bg-orange-50 hover:text-orange-600 transition-all duration-150">
-                +{CAR_BRANDS.length - 12} Daha ›
+                {t("home2.sp.more_brands").replace("{n}", String(CAR_BRANDS.length - 12))}
               </Link>
             </div>
           </div>
@@ -188,7 +192,7 @@ export default async function HomePage() {
         <div className="bg-[#fff7ed] border-b border-orange-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest shrink-0">🔥 En Çok Aranan:</span>
+              <span className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest shrink-0">{t("home2.sp.hot.label")}</span>
               {HOT_PARTS.map(p => (
                 <Link key={p.label} href={p.href}
                   className="text-[11px] font-semibold text-gray-700 hover:text-orange-600 hover:underline transition-colors">
@@ -225,7 +229,7 @@ export default async function HomePage() {
                     className="flex-1 text-xs px-4 py-2 focus:outline-none bg-white min-w-0" />
                   <button type="submit"
                     className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 transition-colors shrink-0">
-                    Ara
+                    {t("home2.sp.hero.search_btn")}
                   </button>
                 </form>
               </div>
@@ -264,7 +268,7 @@ export default async function HomePage() {
                   </div>
                   <Link href="/urunler?s=filtre"
                     className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors">
-                    İncele <span>→</span>
+                    {t("home2.sp.promo.view")}
                   </Link>
                 </div>
 
@@ -352,7 +356,7 @@ export default async function HomePage() {
         {/* ── Güvenilir Markalar şeridi ── */}
         <div className="bg-white border-t border-gray-100 py-4">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-center mb-3">Güvenilir Markalar</p>
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-center mb-3">{t("home2.sp.trusted_brands")}</p>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               {TRUSTED_BRANDS.map(b => (
                 <Link key={b} href={`/urunler?s=${b}`}
@@ -432,7 +436,7 @@ export default async function HomePage() {
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-white font-extrabold text-[12px] hidden md:inline tracking-wide">{siteName}</span>
               <span className="text-white/40 hidden md:inline">|</span>
-              <span className="text-white/80 text-[10px] font-semibold">Kalan süre:</span>
+              <span className="text-white/80 text-[10px] font-semibold">{t("home2.mp.flash.timer")}</span>
               <span className="bg-white/20 text-white text-[11px] font-extrabold px-1.5 py-0.5 rounded tabular-nums">08</span>
               <span className="text-white font-bold text-xs">:</span>
               <span className="bg-white/20 text-white text-[11px] font-extrabold px-1.5 py-0.5 rounded tabular-nums">42</span>
@@ -516,8 +520,8 @@ export default async function HomePage() {
           {/* ── Kategori dairesel grid ── */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-extrabold text-gray-900">Kategoriler</h3>
-              <Link href="/urunler" className="text-xs font-bold text-[#FF6000] hover:underline">Tümünü Gör →</Link>
+              <h3 className="text-sm font-extrabold text-gray-900">{t("home2.mp.cats.title")}</h3>
+              <Link href="/urunler" className="text-xs font-bold text-[#FF6000] hover:underline">{t("home2.mp.cats.all")}</Link>
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
               {MKT_CATS.map(cat => (
@@ -553,7 +557,7 @@ export default async function HomePage() {
                 </div>
               </div>
             ) : (
-              <div className="p-8 text-center text-sm text-gray-400">Aktif fırsat bulunamadı.</div>
+              <div className="p-8 text-center text-sm text-gray-400">{t("home2.no_products")}</div>
             )}
           </div>
 
@@ -739,8 +743,8 @@ export default async function HomePage() {
           {/* ── 6 Kategori kutusu — renk aksan, yuvarlak ── */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-extrabold text-gray-900">Kategoriler</h3>
-              <Link href="/urunler" className="text-xs font-bold text-[#cc0000] hover:underline">Tümünü Gör →</Link>
+              <h3 className="text-sm font-extrabold text-gray-900">{t("home2.mp.cats.title")}</h3>
+              <Link href="/urunler" className="text-xs font-bold text-[#cc0000] hover:underline">{t("home2.mp.cats.all")}</Link>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
               {TECH_CATS.map(cat => (
@@ -763,7 +767,7 @@ export default async function HomePage() {
           {/* ── Güvenilir Markalar ── */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-3.5">
             <div className="flex items-center justify-between mb-2.5">
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-widest">Resmi Yetkili Satıcı</p>
+              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-widest">{t("home2.ts.brands.title")}</p>
               <Link href="/urunler" className="text-xs font-bold text-[#cc0000] hover:underline">Tüm Markalar →</Link>
             </div>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
@@ -801,7 +805,7 @@ export default async function HomePage() {
               <div className="px-5 py-3.5 flex items-center gap-3 border-b border-gray-100 bg-gradient-to-r from-red-50 to-transparent">
                 <span className="text-lg">⚡</span>
                 <h3 className="font-extrabold text-gray-900">Flaş Fırsat Ürünleri</h3>
-                <span className="bg-[#cc0000] text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sınırlı Stok</span>
+                <span className="bg-[#cc0000] text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">{t("home2.ts.limited.badge")}</span>
                 <Link href="/urunler?indirimli=true" className="ml-auto text-xs font-bold text-[#cc0000] hover:underline">
                   Tümünü Gör →
                 </Link>

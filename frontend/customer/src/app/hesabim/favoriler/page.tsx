@@ -6,8 +6,10 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatPrice } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function FavorilerPage() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { items, loading, toggle } = useWishlist(!!user);
@@ -22,24 +24,24 @@ export default function FavorilerPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Favorilerim</h1>
-          <p className="text-sm text-slate-500 mt-1">{items.length} ürün</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t("wishlist.title")}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t("wishlist.count").replace("{n}", String(items.length))}</p>
         </div>
         <Link href="/urunler" className="text-sm text-teal-600 hover:text-teal-800 font-medium">
-          Alışverişe Devam →
+          {t("wishlist.continue_shopping")}
         </Link>
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-slate-400">Yükleniyor...</div>
+        <div className="text-center py-16 text-slate-400">{t("wishlist.loading")}</div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
           <div className="text-5xl mb-4">🤍</div>
-          <p className="text-slate-500 font-medium">Henüz favori ürün eklemediniz.</p>
-          <p className="text-slate-400 text-sm mt-1">Ürün sayfasındaki kalp ikonuna tıklayarak ekleyebilirsiniz.</p>
+          <p className="text-slate-500 font-medium">{t("wishlist.empty_title")}</p>
+          <p className="text-slate-400 text-sm mt-1">{t("wishlist.empty_desc")}</p>
           <Link href="/urunler"
             className="inline-block mt-5 px-5 py-2.5 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition font-semibold">
-            Ürünleri Keşfet
+            {t("wishlist.discover_btn")}
           </Link>
         </div>
       ) : (
@@ -77,7 +79,7 @@ export default function FavorilerPage() {
                   <button
                     onClick={() => toggle(item.productId)}
                     className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition"
-                    title="Favorilerden Çıkar">
+                    title={t("wishlist.remove")}>
                     ❤️
                   </button>
                 </div>
