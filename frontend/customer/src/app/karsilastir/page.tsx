@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import type { ProductDetail } from "@/types";
@@ -43,8 +44,7 @@ export default async function KarsilastirPage({ searchParams }: { searchParams: 
 
   const ROWS: { label: string; render: (p: ProductDetail) => ReactNode }[] = [
     { label: t("compare.col.image"), render: p => p.imageUrl
-      // eslint-disable-next-line @next/next/no-img-element
-      ? <img src={p.imageUrl} alt={p.name} className="w-28 h-28 object-contain mx-auto" />
+      ? <Image src={p.imageUrl} alt={p.name} width={112} height={112} className="w-28 h-28 object-contain mx-auto" />
       : <span className="text-5xl">📦</span>
     },
     { label: t("compare.col.name"), render: p => (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import type { Category, ProductListItem, PaginatedList, Campaign } from "@/types";
 import ProductCard from "@/components/ProductCard";
@@ -903,7 +904,7 @@ export default async function HomePage() {
                 >
                   <div className={`h-28 flex items-center justify-center text-4xl overflow-hidden ${cat.imageUrl ? "" : s.icon}`}>
                     {cat.imageUrl
-                      ? <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> // eslint-disable-line @next/next/no-img-element
+                      ? <Image src={cat.imageUrl} alt={cat.name} width={200} height={112} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       : "📦"}
                   </div>
                   <div className="p-3 text-center">

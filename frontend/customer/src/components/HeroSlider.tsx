@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { AnnouncementItem } from "./AnnouncementsSection";
 
 const CAT_GRADIENTS: Record<string, string> = {
@@ -102,8 +103,7 @@ export default function HeroSlider({ announcements }: Props) {
                   <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-[#FF7A45]/15 rounded-full blur-3xl" />
                 </div>
                 <div className="absolute right-8 bottom-4 w-72 h-72 pointer-events-none hidden lg:block opacity-[0.07]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-icon.svg" alt="" className="w-full h-full object-contain" style={{ filter: "brightness(100)" }} />
+                    <Image src="/logo-icon.svg" alt="" width={288} height={288} className="w-full h-full object-contain" style={{ filter: "brightness(100)" }} />
                 </div>
                 <div className="relative px-8 py-16 lg:px-16 lg:py-20">
                   <span className="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6 backdrop-blur-sm border border-white/20">
@@ -157,8 +157,7 @@ export default function HeroSlider({ announcements }: Props) {
                             autoPlay muted loop playsInline
                           />
                         ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={a.mediaUrl!} alt={a.title} className="w-full h-full object-cover" draggable={false} />
+                          <Image src={a.mediaUrl!} alt={a.title} fill className="object-cover" draggable={false} />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/10" />
                       </div>

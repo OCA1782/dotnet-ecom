@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { X, BarChart2 } from "lucide-react";
+import Image from "next/image";
 import { useCompare } from "@/contexts/CompareContext";
 import { formatPrice } from "@/lib/utils";
 
@@ -22,8 +23,7 @@ export default function CompareBar() {
           {products.map(p => (
             <div key={p.id} className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 min-w-0 flex-shrink-0">
               {p.imageUrl
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={p.imageUrl} alt={p.name} className="w-8 h-8 object-contain rounded" />
+                ? <Image src={p.imageUrl} alt={p.name} width={32} height={32} className="w-8 h-8 object-contain rounded" />
                 : <span className="text-xl">📦</span>
               }
               <div className="min-w-0">

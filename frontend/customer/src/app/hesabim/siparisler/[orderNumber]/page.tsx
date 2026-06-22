@@ -9,6 +9,7 @@ import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderDetail, Address } from "@/types";
 import { orderStatusStyle, paymentStatusStyle } from "@/types";
 import { useI18n } from "@/contexts/I18nContext";
+import Image from "next/image";
 
 // ─── Progress stepper ─────────────────────────────────────────────────────────
 function OrderStepper({ status }: { status: number }) {
@@ -734,8 +735,7 @@ export default function OrderDetailPage() {
             <div key={item.id} className="flex gap-3 p-4">
               <div className="w-14 h-14 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                 {item.imageUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-contain p-1" />
+                  ? <Image src={item.imageUrl} alt={item.productName} width={56} height={56} className="w-full h-full object-contain p-1" />
                   : <span className="text-xl">📦</span>}
               </div>
               <div className="flex-1 min-w-0">

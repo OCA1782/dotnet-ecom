@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
@@ -253,7 +254,7 @@ export default function HesabimPage() {
               {/* Avatar */}
               <div className="relative shrink-0">
                 {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt={profile.name}
+                  <Image src={profile.avatarUrl} alt={profile.name} width={80} height={80}
                     className="w-20 h-20 rounded-full object-cover border-2 border-teal-200 shadow" />
                 ) : (
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-2xl font-bold text-white shadow">

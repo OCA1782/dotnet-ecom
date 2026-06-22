@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, X, Maximize2 } from "lucide-react";
 import type { ProductImage } from "@/types";
+import Image from "next/image";
 
 interface Props {
   images: ProductImage[];
@@ -125,8 +126,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
                   i === current ? "border-teal-500 shadow-md" : "border-transparent hover:border-slate-300"
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumb.imageUrl} alt={thumb.altText ?? ""} className="object-contain w-full h-full p-1" />
+                <Image src={thumb.imageUrl} alt={thumb.altText ?? ""} width={80} height={80} className="object-contain w-full h-full p-1" />
               </button>
             ))}
           </div>
@@ -186,8 +186,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
                     i === current ? "border-teal-400" : "border-white/20 hover:border-white/50"
                   }`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={thumb.imageUrl} alt={thumb.altText ?? ""} className="object-contain w-full h-full p-0.5" />
+                  <Image src={thumb.imageUrl} alt={thumb.altText ?? ""} width={56} height={56} className="object-contain w-full h-full p-0.5" />
                 </button>
               ))}
             </div>

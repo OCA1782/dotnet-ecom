@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ShoppingCart, User, Search, Loader2, Tag, Layers } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -270,8 +271,7 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
                                 className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}
                               >
                                 {item.imageUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
+                                  <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
                                 ) : (
                                   <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
                                     <Search size={14} className="text-slate-300" />

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatPrice } from "@/lib/utils";
@@ -51,8 +52,7 @@ export default function FavorilerPage() {
               <Link href={`/urun/${item.slug}`} className="block">
                 <div className="aspect-square bg-slate-50 overflow-hidden">
                   {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.name}
+                    <Image src={item.imageUrl} alt={item.name} width={200} height={200}
                       className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>

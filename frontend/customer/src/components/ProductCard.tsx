@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -98,8 +99,7 @@ export default function ProductCard({ product, initialLiked = false }: {
         </button>
         <div className="h-44 bg-gradient-to-b from-[#F0FBFA] to-white flex items-center justify-center overflow-hidden">
           {product.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.imageUrl} alt={product.name} className="object-contain w-full h-full p-4" />
+            <Image src={product.imageUrl} alt={product.name} width={200} height={176} className="object-contain w-full h-full p-4" />
           ) : (
             <span className="text-5xl">📦</span>
           )}

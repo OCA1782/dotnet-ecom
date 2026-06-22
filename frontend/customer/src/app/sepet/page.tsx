@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/hooks/useCart";
 import { formatPrice } from "@/lib/utils";
 import { Minus, Plus, Trash2, Heart, ShoppingBag, Tag, X } from "lucide-react";
@@ -32,8 +33,7 @@ function DeleteModal({
         <div className="flex gap-3 mb-4">
           <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
             {item.imageUrl
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-contain p-1" />
+              ? <Image src={item.imageUrl} alt={item.productName} width={48} height={48} className="w-full h-full object-contain p-1" />
               : <span>📦</span>}
           </div>
           <div>
@@ -89,8 +89,7 @@ function CartItemRow({
       </div>
       <div className="w-16 h-16 bg-slate-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
         {item.imageUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={item.imageUrl} alt={item.productName} className="object-contain w-full h-full p-1" />
+          ? <Image src={item.imageUrl} alt={item.productName} width={64} height={64} className="object-contain w-full h-full p-1" />
           : <span className="text-2xl">📦</span>}
       </div>
       <div className="flex-1 min-w-0">

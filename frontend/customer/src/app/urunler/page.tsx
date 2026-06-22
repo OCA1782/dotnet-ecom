@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
 import { formatPrice } from "@/lib/utils";
@@ -238,8 +239,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                       </span>
                     )}
                     {product.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={product.imageUrl} alt={product.name} className="object-contain w-full h-full p-4" />
+                      <Image src={product.imageUrl} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" />
                     ) : (
                       <span className="text-4xl">📦</span>
                     )}

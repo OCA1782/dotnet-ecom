@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { formatPrice, formatDate } from "@/lib/utils";
 import { orderStatusStyle } from "@/types";
 import { useI18n } from "@/contexts/I18nContext";
@@ -140,8 +141,7 @@ export default function SiparisSorgulaPage() {
               {order.items.map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
                   {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.productName} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
+                    <Image src={item.imageUrl} alt={item.productName} width={48} height={48} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
                   ) : (
                     <div className="w-12 h-12 rounded-xl bg-slate-100 shrink-0" />
                   )}
