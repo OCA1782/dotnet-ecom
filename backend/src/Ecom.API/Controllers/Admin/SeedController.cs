@@ -756,4 +756,99 @@ public class SeedController(IApplicationDbContext db, IPasswordService passwordS
             guestEmail,
         });
     }
+
+    /// <summary>
+    /// CatalogIQ dışı tüm ürün/marka/kategori verilerini temizle.
+    /// dryRun=true (varsayılan) ile önce sayıları görün, dryRun=false ile uygulayın.
+    /// </summary>
+    [HttpPost("cleanup-non-catalogiq")]
+    public async Task<IActionResult> CleanupNonCatalogIq(
+        [FromQuery] bool dryRun = true,
+        CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+
+        // Silinecek ürünler: DataSource null veya catalogiq değil
+        var productIdsToDelete = await db.Products
+            .Where(p => !p.IsDeleted && (p.DataSource == null || p.DataSource != "catalogiq"))
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        var productIdSet = productIdsToDelete.ToHashSet();
+
+        // Kalan (silinmeyecek) catalogiq ürünlerin brand ve kategori ID'leri
+        var remainingBrandIds = await db.Products
+            .Where(p => !p.IsDeleted && !productIdSet.Contains(p.Id) && p.BrandId.HasValue)
+            .Select(p => p.BrandId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        var remainingBrandSet = new HashSet<Guid>(remainingBrandIds);
+
+        var remainingCatIds = await db.Products
+            .Where(p => !p.IsDeleted && !productIdSet.Contains(p.Id))
+            .Select(p => p.CategoryId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        // Kategori atalarını da koru (hierarchy)
+        var allCats = await db.Categories.Where(c => !c.IsDeleted).Select(c => new { c.Id, c.ParentCategoryId }).ToListAsync(ct);
+        var keptCatSet = new HashSet<Guid>(remainingCatIds);
+        bool changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (var c in allCats)
+            {
+                if (keptCatSet.Contains(c.Id) && c.ParentCategoryId.HasValue && keptCatSet.Add(c.ParentCategoryId.Value))
+                    changed = true;
+            }
+        }
+
+        var brandIdsToDelete = await db.Brands
+            .Where(b => !b.IsDeleted && !remainingBrandSet.Contains(b.Id))
+            .Select(b => b.Id)
+            .ToListAsync(ct);
+
+        var catIdsToDelete = allCats
+            .Where(c => !keptCatSet.Contains(c.Id))
+            .Select(c => c.Id)
+            .ToList();
+
+        if (dryRun)
+        {
+            var sampleProducts = await db.Products
+                .Where(p => productIdSet.Contains(p.Id))
+                .Select(p => new { p.Name, p.DataSource })
+                .Take(10)
+                .ToListAsync(ct);
+            return Ok(new
+            {
+                dryRun = true,
+                products = new { count = productIdsToDelete.Count, sample = sampleProducts },
+                brands = new { count = brandIdsToDelete.Count },
+                categories = new { count = catIdsToDelete.Count },
+                message = "dryRun=false ile uygulayın.",
+            });
+        }
+
+        // Uygula
+        var products = await db.Products.Where(p => productIdSet.Contains(p.Id)).ToListAsync(ct);
+        foreach (var p in products) { p.IsDeleted = true; p.IsActive = false; p.IsPublished = false; p.UpdatedDate = now; }
+
+        var brands = await db.Brands.Where(b => brandIdsToDelete.Contains(b.Id)).ToListAsync(ct);
+        foreach (var b in brands) { b.IsDeleted = true; b.UpdatedDate = now; }
+
+        var cats = await db.Categories.Where(c => catIdsToDelete.Contains(c.Id)).ToListAsync(ct);
+        foreach (var c in cats) { c.IsDeleted = true; c.IsActive = false; c.UpdatedDate = now; }
+
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            dryRun = false,
+            productsDeleted = products.Count,
+            brandsDeleted = brands.Count,
+            categoriesDeleted = cats.Count,
+        });
+    }
 }

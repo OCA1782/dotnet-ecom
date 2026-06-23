@@ -105,6 +105,7 @@ export default function MarkalarPage() {
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -152,6 +153,18 @@ export default function MarkalarPage() {
   }
   function toggleSelect(id: string) {
     setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/brands/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = ids.length - ok;
+    setMsg({ text: `${ok} marka silindi${fail > 0 ? ` (${fail} hata)` : ""}`, ok: ok > 0 });
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    void fetch();
   }
 
   async function handleBulkToggle(targetActive: boolean) {
@@ -298,9 +311,41 @@ export default function MarkalarPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50">
               <ToggleLeft size={13} /> Pasife Al
             </button>
+            <button onClick={() => setBulkDeleteModal(true)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50">
+              <Trash2 size={12} /> {t("action.delete", "Sil")}
+            </button>
             <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
               <X size={14} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">{t("auto.topluIslem", "Toplu İşlem")}</h2>
+                <p className="text-xs text-slate-500">{selectedIds.size} marka seçili</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-700">{t("msg.confirmDelete", "Silmek istediğinizden emin misiniz?")} (<span className="font-semibold">{selectedIds.size} Marka</span>)</p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setBulkDeleteModal(false)} disabled={bulkLoading}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">
+                {t("action.cancel", "Vazgeç")}
+              </button>
+              <button onClick={async () => { setBulkDeleteModal(false); await handleBulkDelete(); }} disabled={bulkLoading}
+                className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                {bulkLoading ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -340,6 +385,7 @@ export default function MarkalarPage() {
           <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
           <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
           <option value="catalogiq">CatalogIQ</option>
+          <option value="test">Test</option>
         </select>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">

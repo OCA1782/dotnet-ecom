@@ -296,8 +296,11 @@ export default function AdminProductsPage() {
       if (pricePercent !== undefined) body.priceAdjustPercent = pricePercent;
       const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
       const verb = action === "delete" ? t("auto.silindi", "silindi") : t("auto.guncellendi", "güncellendi");
-      const msg = `${r.affected} ${t("auto.urun", "ürün")} ${verb}${r.errors.length ? ` (${r.errors.length} ${t("auto.atlandı", "atlandı")})` : ""}`;
-      setMsg({ text: msg, ok: true });
+      const allSkipped = r.affected === 0 && r.errors.length > 0;
+      const msg = allSkipped
+        ? `${t("auto.hicbirUrunSilmedi", "Hiçbir ürün silinemedi")} — ${r.errors[0] ?? t("auto.aktifSiparisliAtlanir", "aktif siparişi var")}`
+        : `${r.affected} ${t("auto.urun", "ürün")} ${verb}${r.errors.length ? ` (${r.errors.length} ${t("auto.atlandı", "atlandı")})` : ""}`;
+      setMsg({ text: msg, ok: !allSkipped });
       setSelected(new Set());
       await fetchProducts();
     } catch (e: unknown) {
@@ -731,6 +734,7 @@ export default function AdminProductsPage() {
             <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
             <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
             <option value="catalogiq">CatalogIQ</option>
+            <option value="test">Test</option>
           </select>
 
           {/* Page size */}

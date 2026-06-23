@@ -190,19 +190,23 @@ public class ProductsController(IMediator mediator) : ControllerBase
             Guid? parentId = null;
             foreach (var level in levels)
             {
-                var nameLower = level.ToLowerInvariant();
+                var levelSlug = Slugify(level);
+                // IgnoreQueryFilters bypasses soft-delete; slug lookup is reliable (unique index)
                 var category = await db.Categories
-                    .FirstOrDefaultAsync(c =>
-                        c.Name.ToLower() == nameLower &&
-                        c.ParentCategoryId == parentId, ct);
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.Slug == levelSlug && c.ParentCategoryId == parentId, ct)
+                    ?? await db.Categories
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.Name == level && c.ParentCategoryId == parentId, ct);
 
                 if (category is null)
                 {
                     category = new Ecom.Domain.Entities.Category
                     {
                         Name = level,
-                        Slug = await EnsureUniqueCategorySlug(db, Slugify(level), ct),
+                        Slug = await EnsureUniqueCategorySlug(db, levelSlug, ct),
                         ParentCategoryId = parentId,
+                        DataSource = "catalogiq",
                     };
                     db.Categories.Add(category);
                     await db.SaveChangesAsync(ct);
@@ -225,6 +229,7 @@ public class ProductsController(IMediator mediator) : ControllerBase
                 {
                     Name = dto.BrandName,
                     Slug = Slugify(dto.BrandName),
+                    DataSource = "catalogiq",
                 };
                 db.Brands.Add(brand);
                 await db.SaveChangesAsync(ct);

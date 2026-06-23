@@ -50,10 +50,9 @@ export function useAdminAuth() {
 
   useEffect(() => {
     if (!initialUserRef.current) return;
-    // Token yoksa arka plan çağrısı yapma
+    // Token yoksa arka plan çağrısı yapma — useState initializer zaten null döndürdü
     if (!localStorage.getItem(TOKEN_KEY)) {
       localStorage.removeItem(USER_KEY);
-      setUser(null);
       return;
     }
     // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
