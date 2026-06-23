@@ -69,10 +69,11 @@ async function request<T>(path: string, options: RequestInit = {}, isRetry = fal
   if (res.status === 401 && !isRetry) {
     const refreshed = await tryRefreshToken();
     if (refreshed) return request<T>(path, options, true);
-    // Refresh başarısız — oturumu temizle ve giriş sayfasına yönlendir
+    // Refresh başarısız — TÜM oturum verilerini temizle ve yönlendir
     if (typeof window !== "undefined") {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem("admin_user");
       window.location.href = "/giris";
     }
   }

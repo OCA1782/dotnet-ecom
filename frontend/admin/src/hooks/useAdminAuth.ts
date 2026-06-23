@@ -25,6 +25,11 @@ export function useAdminAuth() {
     if (typeof window === "undefined") return null;
     const stored = localStorage.getItem(USER_KEY);
     if (stored) {
+      // Token yoksa user kaydı geçersiz — döngüyü önlemek için temizle
+      if (!localStorage.getItem(TOKEN_KEY)) {
+        localStorage.removeItem(USER_KEY);
+        return null;
+      }
       try {
         const parsed = JSON.parse(stored) as AuthUser;
         const normalized = { ...parsed, roles: normalizeAdminRoles(parsed.roles) };
@@ -45,6 +50,12 @@ export function useAdminAuth() {
 
   useEffect(() => {
     if (!initialUserRef.current) return;
+    // Token yoksa arka plan çağrısı yapma
+    if (!localStorage.getItem(TOKEN_KEY)) {
+      localStorage.removeItem(USER_KEY);
+      setUser(null);
+      return;
+    }
     // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
     api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
       .then(data => {

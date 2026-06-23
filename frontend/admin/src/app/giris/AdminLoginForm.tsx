@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -37,6 +37,15 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
   const [loading, setLoading] = useState(false);
   const { login } = useAdminAuth();
   const router = useRouter();
+
+  // Login sayfası açıldığında eski/geçersiz oturum verilerini temizle
+  useEffect(() => {
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      localStorage.removeItem("admin_user");
+      localStorage.removeItem("admin_refresh_token");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
