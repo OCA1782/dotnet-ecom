@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Brands.Queries;
 
-public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null, string? SortBy = null)
+public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null, string? SortBy = null, string? DataSource = null)
     : IRequest<PaginatedList<BrandDto>>;
 
 public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null, DateTime CreatedDate = default, string? DataSource = null, string? CreatedByAdminEmail = null);
@@ -25,6 +25,14 @@ public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService
             query = query.Where(b => b.IsActive);
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(b => b.Name.Contains(request.Search));
+
+        if (!string.IsNullOrWhiteSpace(request.DataSource))
+        {
+            if (request.DataSource == "__manual__")
+                query = query.Where(b => b.DataSource == null || b.DataSource == "");
+            else
+                query = query.Where(b => b.DataSource == request.DataSource);
+        }
 
         var total = await query.CountAsync(cancellationToken);
         var orderedQuery = request.SortBy switch

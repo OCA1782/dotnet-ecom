@@ -143,6 +143,7 @@ export default function KategorilerPage() {
   const [filterText, setFilterText] = useState("");
   const [menuFilter, setMenuFilter] = useState<"" | "true" | "false">("");
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
+  const [dataSourceFilter, setDataSourceFilter] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
@@ -308,13 +309,18 @@ export default function KategorilerPage() {
   }
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const isSearching = !!(filterText || menuFilter || activeFilter);
+  const isSearching = !!(filterText || menuFilter || activeFilter || dataSourceFilter);
 
   const filteredCats = categories.filter(c => {
     const matchText = !filterText || c.name.toLowerCase().includes(filterText.toLowerCase());
     const matchMenu = !menuFilter || String(c.showInMenu) === menuFilter;
     const matchActive = !activeFilter || String(c.isActive) === activeFilter;
-    return matchText && matchMenu && matchActive;
+    const matchSource = !dataSourceFilter || (
+      dataSourceFilter === "__manual__"
+        ? !c.dataSource && !c.importedFromSourceName
+        : (c.dataSource === dataSourceFilter || c.importedFromSourceName === dataSourceFilter)
+    );
+    return matchText && matchMenu && matchActive && matchSource;
   });
 
   const sortedCats = sortField
@@ -407,8 +413,14 @@ export default function KategorilerPage() {
           <option value="true">{t("status.active", "Aktif")}</option>
           <option value="false">{t("status.passive", "Pasif")}</option>
         </select>
+        <select value={dataSourceFilter} onChange={e => { setDataSourceFilter(e.target.value); setPage(1); }}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[140px]">
+          <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
+          <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
+          <option value="catalogiq">CatalogIQ</option>
+        </select>
         {isSearching && (
-          <button onClick={() => { setFilterText(""); setMenuFilter(""); setActiveFilter(""); }}
+          <button onClick={() => { setFilterText(""); setMenuFilter(""); setActiveFilter(""); setDataSourceFilter(""); }}
             className="px-3 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">
             {t("action.clear", "Temizle")}
           </button>

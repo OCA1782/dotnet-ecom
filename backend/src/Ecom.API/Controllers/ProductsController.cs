@@ -31,11 +31,12 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] int? minRating = null,
         [FromQuery] string? attributes = null,
         [FromQuery] bool? onlyActive = null,
+        [FromQuery] string? dataSource = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive), ct);
+            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive, dataSource), ct);
         return Ok(result);
     }
 
@@ -176,28 +177,39 @@ public class ProductsController(IMediator mediator) : ControllerBase
             stockQty = lower is "in_stock" or "instock" or "stokta" or "stokta var" or "var" or "mevcut" or "available" ? 99 : 0;
         }
 
-        // Resolve or auto-create category by name (use deepest level of path)
+        // Resolve or auto-create category hierarchy (e.g. "Otomotiv > Fren Sistemi > Balata")
         Guid? categoryId = null;
         if (!string.IsNullOrWhiteSpace(dto.CategoryName))
         {
-            var leafCat = dto.CategoryName.Contains('>')
-                ? dto.CategoryName.Split('>').Last().Trim()
-                : dto.CategoryName.Trim();
+            var levels = dto.CategoryName
+                .Split('>')
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
 
-            var category = await db.Categories
-                .FirstOrDefaultAsync(c => c.Name.ToLower() == leafCat.ToLower(), ct);
-
-            if (category is null)
+            Guid? parentId = null;
+            foreach (var level in levels)
             {
-                category = new Ecom.Domain.Entities.Category
+                var nameLower = level.ToLowerInvariant();
+                var category = await db.Categories
+                    .FirstOrDefaultAsync(c =>
+                        c.Name.ToLower() == nameLower &&
+                        c.ParentCategoryId == parentId, ct);
+
+                if (category is null)
                 {
-                    Name = leafCat,
-                    Slug = Slugify(leafCat),
-                };
-                db.Categories.Add(category);
-                await db.SaveChangesAsync(ct);
+                    category = new Ecom.Domain.Entities.Category
+                    {
+                        Name = level,
+                        Slug = await EnsureUniqueCategorySlug(db, Slugify(level), ct),
+                        ParentCategoryId = parentId,
+                    };
+                    db.Categories.Add(category);
+                    await db.SaveChangesAsync(ct);
+                }
+                parentId = category.Id;
             }
-            categoryId = category.Id;
+            categoryId = parentId;
         }
 
         // Resolve or auto-create brand by name
@@ -318,6 +330,15 @@ public class ProductsController(IMediator mediator) : ControllerBase
         var slug = baseSlug;
         var counter = 1;
         while (await db.Products.AnyAsync(p => p.Slug == slug, ct))
+            slug = $"{baseSlug}-{counter++}";
+        return slug;
+    }
+
+    private static async Task<string> EnsureUniqueCategorySlug(IApplicationDbContext db, string baseSlug, CancellationToken ct)
+    {
+        var slug = baseSlug;
+        var counter = 1;
+        while (await db.Categories.AnyAsync(c => c.Slug == slug, ct))
             slug = $"{baseSlug}-{counter++}";
         return slug;
     }

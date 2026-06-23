@@ -155,6 +155,7 @@ export default function AdminProductsPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterBrandId, setFilterBrandId] = useState("");
+  const [filterDataSource, setFilterDataSource] = useState("");
 
   // Sort
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -208,8 +209,8 @@ export default function AdminProductsPage() {
 
   // Computed: how many active filters
   const activeFilterCount = useMemo(() =>
-    [search, filterCategoryId, filterBrandId, showInactive ? "1" : ""].filter(Boolean).length,
-    [search, filterCategoryId, filterBrandId, showInactive]
+    [search, filterCategoryId, filterBrandId, filterDataSource, showInactive ? "1" : ""].filter(Boolean).length,
+    [search, filterCategoryId, filterBrandId, filterDataSource, showInactive]
   );
 
   const fetchProducts = useCallback(async () => {
@@ -220,6 +221,7 @@ export default function AdminProductsPage() {
       if (!showInactive) qs.set("onlyActive", "true");
       if (filterCategoryId) qs.set("categoryId", filterCategoryId);
       if (filterBrandId) qs.set("brandId", filterBrandId);
+      if (filterDataSource) qs.set("dataSource", filterDataSource);
       if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<PaginatedList<AdminProduct>>(`/api/products?${qs}`);
       setProducts(data.items);
@@ -227,7 +229,7 @@ export default function AdminProductsPage() {
       setTotalCount(data.totalCount);
     } catch { setProducts([]); }
     finally { setLoading(false); }
-  }, [page, pageSize, search, showInactive, filterCategoryId, filterBrandId, sortField, sortDir]);
+  }, [page, pageSize, search, showInactive, filterCategoryId, filterBrandId, filterDataSource, sortField, sortDir]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -261,7 +263,7 @@ export default function AdminProductsPage() {
 
   function clearAllFilters() {
     setSearchInput(""); setSearch(""); setFilterCategoryId(""); setFilterBrandId("");
-    setShowInactive(false); setSortField(null); setPage(1);
+    setFilterDataSource(""); setShowInactive(false); setSortField(null); setPage(1);
   }
 
   // Bulk selection helpers
@@ -718,6 +720,17 @@ export default function AdminProductsPage() {
           >
             <option value="">{t("filter.allBrands", "Tüm Markalar")}</option>
             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+
+          {/* DataSource filter */}
+          <select
+            value={filterDataSource}
+            onChange={e => { setFilterDataSource(e.target.value); setPage(1); }}
+            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[140px]"
+          >
+            <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
+            <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
+            <option value="catalogiq">CatalogIQ</option>
           </select>
 
           {/* Page size */}

@@ -91,6 +91,7 @@ export default function MarkalarPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "true" | "false">("");
+  const [filterDataSource, setFilterDataSource] = useState("");
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [form, setForm] = useState<BrandForm>(EMPTY);
@@ -119,6 +120,7 @@ export default function MarkalarPage() {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize), onlyActive: "false" });
       if (search) qs.set("search", search);
       if (statusFilter) qs.set("isActive", statusFilter);
+      if (filterDataSource) qs.set("dataSource", filterDataSource);
       if (sortField) qs.set("sortBy", buildSortKey(sortField, sortDir));
       const data = await api.get<{ items: Brand[]; totalPages: number; totalCount: number }>(`/api/brands?${qs}`);
       setBrands(data.items);
@@ -126,7 +128,7 @@ export default function MarkalarPage() {
       setTotalCount(data.totalCount ?? data.items.length);
     } catch { setBrands([]); }
     finally { setLoading(false); }
-  }, [page, pageSize, search, statusFilter, sortField, sortDir]);
+  }, [page, pageSize, search, statusFilter, filterDataSource, sortField, sortDir]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void fetch(); }, 0);
@@ -329,6 +331,15 @@ export default function MarkalarPage() {
           <option value="">{t("filter.allStatus", "Tüm Durumlar")}</option>
           <option value="true">{t("status.active", "Aktif")}</option>
           <option value="false">{t("status.passive", "Pasif")}</option>
+        </select>
+        <select
+          value={filterDataSource}
+          onChange={e => { setFilterDataSource(e.target.value); setPage(1); }}
+          className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[140px]"
+        >
+          <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
+          <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
+          <option value="catalogiq">CatalogIQ</option>
         </select>
         <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
           className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">

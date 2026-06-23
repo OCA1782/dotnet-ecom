@@ -22,7 +22,8 @@ public record GetProductsQuery(
     string? BrandIds = null,     // comma-separated brand IDs for multi-brand filter
     int? MinRating = null,       // minimum average rating (1-5)
     string? Attributes = null,   // comma-separated key:value pairs, e.g. "Renk:Kırmızı,Beden:M"
-    bool? OnlyActive = null      // admin view: explicitly restrict to active-only
+    bool? OnlyActive = null,     // admin view: explicitly restrict to active-only
+    string? DataSource = null    // "__manual__" = null datasource, otherwise exact match
 ) : IRequest<PaginatedList<ProductListItemDto>>;
 
 public record ProductListItemDto(
@@ -81,6 +82,15 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
 
         if (request.BrandId.HasValue)
             query = query.Where(p => p.BrandId == request.BrandId);
+
+        // DataSource filter: "__manual__" = null/empty datasource
+        if (!string.IsNullOrWhiteSpace(request.DataSource))
+        {
+            if (request.DataSource == "__manual__")
+                query = query.Where(p => p.DataSource == null || p.DataSource == "");
+            else
+                query = query.Where(p => p.DataSource == request.DataSource);
+        }
 
         // Multi-brand filter (comma-separated brand IDs)
         if (!string.IsNullOrWhiteSpace(request.BrandIds))
