@@ -235,6 +235,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var catName = Map(row, fm, "Category");
             var brandName = Map(row, fm, "Brand");
             var desc = Map(row, fm, "Description") ?? string.Empty;
+            var imageUrl = Map(row, fm, "ImageUrl");
             // Hierarchical paths like "Otomotiv > Süspansiyon" are resolved/created automatically
             Guid? categoryId = catName != null ? ResolveCategoryId(catName, categories, categorySlugs, sourceId, toReactivate) : null;
             Guid? brandId = brandName != null && brands.TryGetValue(brandName.ToLower(), out var br) ? br.Id : null;
@@ -261,6 +262,15 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         attached.Description = desc;
                         if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
                         if (brandId.HasValue) attached.BrandId = brandId.Value;
+
+                        // Add main image if mapped and not already present
+                        if (!string.IsNullOrWhiteSpace(imageUrl))
+                        {
+                            bool hasImage = await db.ProductImages
+                                .AnyAsync(pi => pi.ProductId == attached.Id && pi.IsMain, ct);
+                            if (!hasImage)
+                                db.ProductImages.Add(new ProductImage { ProductId = attached.Id, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
+                        }
                         upd++;
                     }
                 }
@@ -288,6 +298,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     ImportedFromSourceId = sourceId,
                 };
                 db.Products.Add(entity);
+                if (!string.IsNullOrWhiteSpace(imageUrl))
+                    db.ProductImages.Add(new ProductImage { Product = entity, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
                 if (!string.IsNullOrWhiteSpace(sku)) seenSku[sku] = entity;
                 ins++;
             }
