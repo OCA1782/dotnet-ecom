@@ -818,7 +818,11 @@ export const translations: Record<Lang, Translations> = {
     'faq.subtitle': 'En çok sorulan soruları ve cevaplarını aşağıda bulabilirsiniz.',
     'privacy.subtitle': 'Verilerinizi nasıl işlediğimiz ve koruduğumuz hakkında detaylı bilgi.',
     'kvkk.subtitle': 'Kişisel Verilerin Korunması Kanunu kapsamında bilgilendirme.',
-    'common.currency': '₺'
+    'common.currency': '₺',
+    'location.title': 'Konumunuzu Paylaşın',
+    'location.desc': 'Size daha yakın ürünler ve fırsatlar sunabilmek için konumunuza ihtiyaç duyuyoruz.',
+    'location.allow': 'İzin Ver',
+    'location.deny': 'Hayır, Teşekkürler',
   },
   en: {
     'nav.home': 'Home',
@@ -1616,7 +1620,11 @@ export const translations: Record<Lang, Translations> = {
     'faq.subtitle': 'Find answers to the most frequently asked questions below.',
     'privacy.subtitle': 'Detailed information about how we process and protect your data.',
     'kvkk.subtitle': 'Information under the Personal Data Protection Law.',
-    'common.currency': '₺'
+    'common.currency': '₺',
+    'location.title': 'Share Your Location',
+    'location.desc': 'We need your location to show you nearby products and better deals.',
+    'location.allow': 'Allow',
+    'location.deny': 'No, Thanks',
   },
   de: {
     'nav.home': 'Startseite',
@@ -2414,7 +2422,11 @@ export const translations: Record<Lang, Translations> = {
     'faq.subtitle': 'Finden Sie unten Antworten auf die am häufigsten gestellten Fragen.',
     'privacy.subtitle': 'Detaillierte Informationen darüber, wie wir Ihre Daten verarbeiten und schützen.',
     'kvkk.subtitle': 'Informationen gemäß dem Datenschutzgesetz.',
-    'common.currency': '₺'
+    'common.currency': '₺',
+    'location.title': 'Standort teilen',
+    'location.desc': 'Wir benötigen Ihren Standort, um Ihnen nahegelegene Produkte und bessere Angebote zu zeigen.',
+    'location.allow': 'Erlauben',
+    'location.deny': 'Nein, Danke',
   },
   es: {
     'nav.home': 'Inicio',
@@ -3212,7 +3224,11 @@ export const translations: Record<Lang, Translations> = {
     'faq.subtitle': 'Encuentra respuestas a las preguntas más frecuentes a continuación.',
     'privacy.subtitle': 'Información detallada sobre cómo procesamos y protegemos tus datos.',
     'kvkk.subtitle': 'Información en virtud de la Ley de Protección de Datos Personales.',
-    'common.currency': '₺'
+    'common.currency': '₺',
+    'location.title': 'Compartir Ubicación',
+    'location.desc': 'Necesitamos tu ubicación para mostrarte productos y ofertas cercanas.',
+    'location.allow': 'Permitir',
+    'location.deny': 'No, Gracias',
   },
 };
 

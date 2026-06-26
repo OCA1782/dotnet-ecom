@@ -347,6 +347,9 @@ export default function DisKaynaklarPage() {
   async function loadServerPreview(source: ExternalSource) {
     if (previewMap[source.id]) return; // already in memory
     if (!source.lastFetchedAt) return; // never had data
+    // RestApi sources: don't auto-fetch on expand — re-fetching is slow and the
+    // live service may be offline. User must explicitly click "Veri Çek".
+    if (source.type === "RestApi") return;
     setFetching(source.id);
     try {
       const data = await api.get<PreviewData>(`/api/admin/external-sources/${source.id}/preview`);
