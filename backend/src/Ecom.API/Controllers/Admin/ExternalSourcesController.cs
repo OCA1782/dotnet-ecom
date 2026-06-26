@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Web;
 
 namespace Ecom.API.Controllers.Admin;
 
@@ -173,15 +174,30 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         try { _ = new Uri(req.Url); } catch { return BadRequest(new { error = "Geçersiz URL." }); }
 
         var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(15);
         if (req.Headers != null)
             foreach (var kv in req.Headers)
                 client.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value);
 
+        // Build URL with page=1 when pagination is configured (preview shows first page only)
+        var fetchUrl = req.Url;
+        if (req.Paginate)
+        {
+            var ub = new UriBuilder(req.Url);
+            var qs = System.Web.HttpUtility.ParseQueryString(ub.Query);
+            qs[req.PageParam ?? "page"] = "1";
+            if (req.PageSize.HasValue)
+                qs[req.PageSizeParam ?? "pageSize"] = req.PageSize.Value.ToString();
+            ub.Query = qs.ToString();
+            fetchUrl = ub.ToString();
+        }
+
         System.Text.Json.JsonElement root;
         try
         {
-            var response = await client.GetAsync(req.Url, ct);
-            response.EnsureSuccessStatusCode();
+            var response = await client.GetAsync(fetchUrl, ct);
+            if (!response.IsSuccessStatusCode)
+                return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}" });
             var json = await response.Content.ReadAsStringAsync(ct);
             var doc = System.Text.Json.JsonDocument.Parse(json);
             root = doc.RootElement;
@@ -195,7 +211,7 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         }
 
         if (root.ValueKind != System.Text.Json.JsonValueKind.Array)
-            return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = "Yanıt bir JSON dizisi değil. DataPath ayarlayın." });
+            return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = "Yanıt bir JSON dizisi değil. DataPath ayarlayın (örn: \"items\", \"data\")." });
 
         var columns = new List<string>();
         var rows = new List<Dictionary<string, string>>();
@@ -211,7 +227,8 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
             rows.Add(row);
         }
 
-        return Ok(new { columns, rows, error = (string?)null });
+        var note = req.Paginate ? " (sayfa 1 önizleme — tüm sayfalar gerçek çekimde alınır)" : null;
+        return Ok(new { columns, rows, error = (string?)null, note });
     }
 
     public record CreateSourceRequest(string Name, string Type, string? Description, string? Config,
@@ -224,5 +241,13 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         Dictionary<string, string> FieldMapping,
         string ConflictStrategy
     );
-    public record TestFetchRequest(string Url, Dictionary<string, string>? Headers, string? DataPath);
+    public record TestFetchRequest(
+        string Url,
+        Dictionary<string, string>? Headers,
+        string? DataPath,
+        bool Paginate = false,
+        string? PageParam = null,
+        string? PageSizeParam = null,
+        int? PageSize = null
+    );
 }

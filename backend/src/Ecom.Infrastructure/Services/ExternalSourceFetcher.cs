@@ -4,11 +4,14 @@ using Ecom.Application.Features.Admin.Commands;
 using Ecom.Domain.Entities;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Web;
 
 namespace Ecom.Infrastructure.Services;
 
 public class ExternalSourceFetcher(IHttpClientFactory httpClientFactory) : IExternalSourceFetcher
 {
+    private const int MaxPages = 200;
+
     public async Task<FetchExternalSourceResult> FetchAsync(ExternalSource source, CancellationToken cancellationToken = default)
     {
         return source.Type switch
@@ -29,42 +32,93 @@ public class ExternalSourceFetcher(IHttpClientFactory httpClientFactory) : IExte
             return new FetchExternalSourceResult([], [], "Config'de 'url' alanı bulunamadı.");
 
         var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(30);
         if (config.Headers != null)
             foreach (var kv in config.Headers)
                 client.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value);
 
-        var response = await client.GetAsync(config.Url, ct);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var doc = JsonDocument.Parse(json);
-
-        var root = doc.RootElement;
-        if (!string.IsNullOrWhiteSpace(config.DataPath))
-        {
-            foreach (var part in config.DataPath.Split('.'))
-                root = root.GetProperty(part);
-        }
-
-        if (root.ValueKind != JsonValueKind.Array)
-            return new FetchExternalSourceResult([], [], "Yanıt bir JSON dizisi değil. DataPath ayarlayın.");
-
-        var rows = new List<Dictionary<string, string>>();
+        var allRows = new List<Dictionary<string, string>>();
         var columns = new HashSet<string>();
+        var page = 1;
 
-        foreach (var item in root.EnumerateArray())
+        while (true)
         {
-            if (item.ValueKind != JsonValueKind.Object) continue;
-            var row = new Dictionary<string, string>();
-            foreach (var prop in item.EnumerateObject())
+            var url = BuildUrl(config.Url, config.Paginate, config.PageSizeParam, config.PageSize, config.PageParam, page);
+
+            HttpResponseMessage response;
+            try { response = await client.GetAsync(url, ct); }
+            catch (Exception ex) { return new FetchExternalSourceResult([], [], $"Bağlantı hatası: {ex.Message}"); }
+
+            if (!response.IsSuccessStatusCode)
+                return new FetchExternalSourceResult([], [], $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}");
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            JsonDocument doc;
+            try { doc = JsonDocument.Parse(json); }
+            catch { return new FetchExternalSourceResult([], [], "Yanıt geçerli bir JSON değil."); }
+
+            var rootFull = doc.RootElement;
+
+            // Check hasNextPage at root level BEFORE applying dataPath
+            bool hasNextPage = false;
+            if (config.Paginate && rootFull.ValueKind == JsonValueKind.Object &&
+                rootFull.TryGetProperty("hasNextPage", out var hnp) &&
+                hnp.ValueKind == JsonValueKind.True)
+                hasNextPage = true;
+
+            // Navigate to dataPath
+            var dataRoot = rootFull;
+            if (!string.IsNullOrWhiteSpace(config.DataPath))
             {
-                columns.Add(prop.Name);
-                row[prop.Name] = prop.Value.ValueKind == JsonValueKind.Null ? "" : prop.Value.ToString();
+                try
+                {
+                    foreach (var part in config.DataPath.Split('.'))
+                        dataRoot = dataRoot.GetProperty(part);
+                }
+                catch
+                {
+                    return new FetchExternalSourceResult([], [], $"DataPath '{config.DataPath}' yanıtta bulunamadı.");
+                }
             }
-            rows.Add(row);
+
+            if (dataRoot.ValueKind != JsonValueKind.Array)
+                return new FetchExternalSourceResult([], [], "Yanıt bir JSON dizisi değil. DataPath ayarlayın (örn: \"items\", \"data\", \"products\").");
+
+            foreach (var item in dataRoot.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                var row = new Dictionary<string, string>();
+                foreach (var prop in item.EnumerateObject())
+                {
+                    columns.Add(prop.Name);
+                    row[prop.Name] = prop.Value.ValueKind == JsonValueKind.Null ? "" : prop.Value.ToString();
+                }
+                allRows.Add(row);
+            }
+
+            if (!config.Paginate || !hasNextPage || page >= MaxPages) break;
+            page++;
         }
 
-        return new FetchExternalSourceResult(columns.ToList(), rows);
+        return new FetchExternalSourceResult(columns.ToList(), allRows);
+    }
+
+    private static string BuildUrl(string baseUrl, bool paginate, string? pageSizeParam, int? pageSize, string? pageParam, int page)
+    {
+        if (!paginate && page == 1) return baseUrl;
+
+        var uriBuilder = new UriBuilder(baseUrl);
+        var qs = HttpUtility.ParseQueryString(uriBuilder.Query);
+
+        if (paginate)
+        {
+            qs[pageParam ?? "page"] = page.ToString();
+            if (pageSize.HasValue)
+                qs[pageSizeParam ?? "pageSize"] = pageSize.Value.ToString();
+        }
+
+        uriBuilder.Query = qs.ToString();
+        return uriBuilder.ToString();
     }
 
     public static FetchExternalSourceResult ParseExcel(Stream stream)
@@ -96,5 +150,13 @@ public class ExternalSourceFetcher(IHttpClientFactory httpClientFactory) : IExte
         return new FetchExternalSourceResult(columns, rows);
     }
 
-    private record RestApiConfig(string? Url, Dictionary<string, string>? Headers, string? DataPath);
+    private record RestApiConfig(
+        string? Url,
+        Dictionary<string, string>? Headers,
+        string? DataPath,
+        bool Paginate = false,
+        string? PageParam = null,
+        string? PageSizeParam = null,
+        int? PageSize = null
+    );
 }

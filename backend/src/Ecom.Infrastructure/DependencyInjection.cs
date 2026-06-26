@@ -138,6 +138,7 @@ public static class DependencyInjection
         services.AddSingleton<IJobRunner, ErrorLogRetentionJob>();
         services.AddSingleton<IJobRunner, AuditLogRetentionJob>();
         services.AddSingleton<IJobRunner, VisitorLogRetentionJob>();
+        services.AddSingleton<IJobRunner, JobLogRetentionJob>();
         services.AddSingleton<IJobRunner, ChangelogDocsJob>();
         services.AddSingleton<IJobRunner, WorkNotesDocsJob>();
         services.AddSingleton<IJobRunner, BusinessProcessDocsJob>();

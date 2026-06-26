@@ -1583,11 +1583,15 @@ function SourceModal({
       ? JSON.stringify(parsedConfig.headers, null, 2)
       : "{}"
   );
+  const [paginate, setPaginate] = useState<boolean>(parsedConfig.paginate ?? false);
+  const [pageParam, setPageParam] = useState<string>(parsedConfig.pageParam ?? "");
+  const [pageSizeParam, setPageSizeParam] = useState<string>(parsedConfig.pageSizeParam ?? "");
+  const [pageSize, setPageSize] = useState<string>(parsedConfig.pageSize?.toString() ?? "");
   const [fetchSchedule, setFetchSchedule] = useState(source?.fetchSchedule ?? "None");
   const [autoImportTarget, setAutoImportTarget] = useState(source?.autoImportTarget ?? "");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [restFetching, setRestFetching] = useState(false);
-  const [restPreview, setRestPreview] = useState<PreviewData | null>(null);
+  const [restPreview, setRestPreview] = useState<(PreviewData & { note?: string }) | null>(null);
 
   // Excel upload (new source only)
   const [file, setFile] = useState<File | null>(null);
@@ -1622,8 +1626,11 @@ function SourceModal({
 
     setSaving(true); setError("");
     try {
+      const paginationConfig = paginate
+        ? { paginate: true, pageParam: pageParam || undefined, pageSizeParam: pageSizeParam || undefined, pageSize: pageSize ? parseInt(pageSize) : undefined }
+        : {};
       const config = isRestApi
-        ? JSON.stringify({ url, headers: JSON.parse(headersJson || "{}"), dataPath })
+        ? JSON.stringify({ url, headers: JSON.parse(headersJson || "{}"), dataPath, ...paginationConfig })
         : null;
       const body = { name, type, description, config, isActive, fetchSchedule, autoImportTarget: autoImportTarget || null };
 
@@ -1668,8 +1675,10 @@ function SourceModal({
     setRestFetching(true);
     setRestPreview(null);
     try {
-      const data = await api.post<PreviewData>("/api/admin/external-sources/test-fetch", {
+      const data = await api.post<PreviewData & { note?: string }>("/api/admin/external-sources/test-fetch", {
         url, headers, dataPath: dataPath || null,
+        paginate, pageParam: pageParam || null, pageSizeParam: pageSizeParam || null,
+        pageSize: pageSize ? parseInt(pageSize) : null,
       });
       setRestPreview(data);
     } catch (e: unknown) {
@@ -1875,6 +1884,35 @@ function SourceModal({
                   placeholder={'{ "Authorization": "Bearer TOKEN", "X-Api-Key": "..." }'} />
               </div>
 
+              {/* Sayfalama */}
+              <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={paginate} onChange={e => setPaginate(e.target.checked)}
+                    className="w-4 h-4 rounded accent-violet-600" />
+                  <span className="text-xs font-semibold text-slate-700">Sayfalama Etkin</span>
+                  <span className="text-xs text-slate-400 font-normal">— birden fazla sayfa otomatik çekilir</span>
+                </label>
+                {paginate && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Sayfa Parametresi</label>
+                      <input value={pageParam} onChange={e => setPageParam(e.target.value)}
+                        className={inp} placeholder="page" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Boyut Parametresi</label>
+                      <input value={pageSizeParam} onChange={e => setPageSizeParam(e.target.value)}
+                        className={inp} placeholder="pageSize" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Sayfa Boyutu</label>
+                      <input type="number" min={1} max={500} value={pageSize} onChange={e => setPageSize(e.target.value)}
+                        className={inp} placeholder="100" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Veri Çek & Önizle */}
               <div>
                 <button type="button" onClick={testFetch} disabled={restFetching || !url.trim()}
@@ -1917,9 +1955,10 @@ function SourceModal({
                             </tbody>
                           </table>
                         </div>
-                        {restPreview.rows.length > 5 && (
+                        {(restPreview.rows.length > 5 || restPreview.note) && (
                           <div className="px-4 py-2 text-[10px] text-slate-400 bg-slate-50 border-t border-slate-100">
-                            İlk 5 satır gösteriliyor · toplam {restPreview.rows.length.toLocaleString("tr-TR")} satır
+                            {restPreview.rows.length > 5 && <>İlk 5 satır gösteriliyor · toplam {restPreview.rows.length.toLocaleString("tr-TR")} satır</>}
+                            {restPreview.note && <span className="ml-2 text-violet-500">{restPreview.note}</span>}
                           </div>
                         )}
                       </>
