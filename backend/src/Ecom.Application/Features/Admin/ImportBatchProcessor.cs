@@ -54,17 +54,23 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
     // --- Category hierarchy resolver ---
     // Handles plain names ("Süspansiyon") and hierarchical paths ("Otomotiv > Süspansiyon > Amortisör").
-    // Missing segments are auto-created and added to the EF change tracker (saved with the batch).
+    // Soft-deleted categories are included (IgnoreQueryFilters) to avoid slug duplicate errors;
+    // they are collected in `toReactivate` and re-enabled before SaveChangesAsync.
     private Guid? ResolveCategoryId(
         string catName,
         Dictionary<string, Category> seen,
         HashSet<string> slugsSeen,
-        Guid? sourceId)
+        Guid? sourceId,
+        HashSet<Guid> toReactivate)
     {
         if (string.IsNullOrWhiteSpace(catName)) return null;
 
         if (!catName.Contains('>'))
-            return seen.TryGetValue(catName.ToLower(), out var direct) ? direct.Id : null;
+        {
+            if (!seen.TryGetValue(catName.ToLower(), out var direct)) return null;
+            if (direct.IsDeleted) toReactivate.Add(direct.Id);
+            return direct.Id;
+        }
 
         var parts = catName.Split('>').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToArray();
         if (parts.Length == 0) return null;
@@ -77,6 +83,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var key = part.ToLower();
             if (seen.TryGetValue(key, out var existing))
             {
+                if (existing.IsDeleted) toReactivate.Add(existing.Id);
                 parentId = existing.Id;
                 leaf = existing;
             }
@@ -111,7 +118,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     {
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
-        var seen = (await db.Categories.ToListAsync(ct))
+        var seen = (await db.Categories.IgnoreQueryFilters().ToListAsync(ct))
             .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
         foreach (var row in rows)
@@ -190,25 +197,28 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToHashSet();
 
-        // Always load full entity data for batch SKUs — needed for idempotency comparison
-        // AsNoTracking for read-only check; for update we re-attach below
+        // IgnoreQueryFilters: soft-deleted products must be included to avoid SKU/Slug unique index violations
         var seenSku = batchSkus.Count > 0
             ? await db.Products
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Where(p => batchSkus.Contains(p.SKU))
                 .ToDictionaryAsync(p => p.SKU, ct)
             : [];
 
         var seenSlug = await db.Products
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Select(p => p.Slug)
             .ToHashSetAsync(ct);
 
-        var categories = (await db.Categories.AsNoTracking().ToListAsync(ct))
+        // IgnoreQueryFilters: soft-deleted categories/brands must be visible to avoid slug duplicate errors
+        var categories = (await db.Categories.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
             .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
-        var categorySlugs = await db.Categories.AsNoTracking().Select(c => c.Slug).ToHashSetAsync(ct);
+        var categorySlugs = await db.Categories.IgnoreQueryFilters().AsNoTracking().Select(c => c.Slug).ToHashSetAsync(ct);
         var brands = (await db.Brands.AsNoTracking().ToListAsync(ct))
             .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
+        var toReactivate = new HashSet<Guid>();
 
         foreach (var row in rows)
         {
@@ -226,7 +236,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var brandName = Map(row, fm, "Brand");
             var desc = Map(row, fm, "Description") ?? string.Empty;
             // Hierarchical paths like "Otomotiv > Süspansiyon" are resolved/created automatically
-            Guid? categoryId = catName != null ? ResolveCategoryId(catName, categories, categorySlugs, sourceId) : null;
+            Guid? categoryId = catName != null ? ResolveCategoryId(catName, categories, categorySlugs, sourceId, toReactivate) : null;
             Guid? brandId = brandName != null && brands.TryGetValue(brandName.ToLower(), out var br) ? br.Id : null;
 
             if (!string.IsNullOrWhiteSpace(sku) && seenSku.TryGetValue(sku, out var existing))
@@ -282,6 +292,16 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 ins++;
             }
         }
+        // Reactivate any soft-deleted categories that are referenced by this batch
+        if (toReactivate.Count > 0)
+        {
+            var softDeleted = await db.Categories
+                .IgnoreQueryFilters()
+                .Where(c => toReactivate.Contains(c.Id))
+                .ToListAsync(ct);
+            foreach (var c in softDeleted) c.IsDeleted = false;
+        }
+
         await db.SaveChangesAsync(ct);
         db.ClearChangeTracker();
         return (ins, upd, skip, reasons);
