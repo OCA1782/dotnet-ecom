@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { Campaign } from "@/types";

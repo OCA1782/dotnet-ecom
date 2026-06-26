@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+export const dynamic = "force-dynamic";
 import { getSettings } from "@/lib/settings";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
