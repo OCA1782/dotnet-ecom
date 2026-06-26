@@ -52,6 +52,58 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
     private static bool SameDecimal(decimal a, decimal b) => Math.Abs(a - b) < 0.005m;
 
+    // --- Category hierarchy resolver ---
+    // Handles plain names ("Süspansiyon") and hierarchical paths ("Otomotiv > Süspansiyon > Amortisör").
+    // Missing segments are auto-created and added to the EF change tracker (saved with the batch).
+    private Guid? ResolveCategoryId(
+        string catName,
+        Dictionary<string, Category> seen,
+        HashSet<string> slugsSeen,
+        Guid? sourceId)
+    {
+        if (string.IsNullOrWhiteSpace(catName)) return null;
+
+        if (!catName.Contains('>'))
+            return seen.TryGetValue(catName.ToLower(), out var direct) ? direct.Id : null;
+
+        var parts = catName.Split('>').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToArray();
+        if (parts.Length == 0) return null;
+
+        Guid? parentId = null;
+        Category? leaf = null;
+
+        foreach (var part in parts)
+        {
+            var key = part.ToLower();
+            if (seen.TryGetValue(key, out var existing))
+            {
+                parentId = existing.Id;
+                leaf = existing;
+            }
+            else
+            {
+                var slug = Slugify(part);
+                var baseSlug = slug;
+                for (int n = 2; slugsSeen.Contains(slug); n++) slug = $"{baseSlug}-{n}";
+                slugsSeen.Add(slug);
+
+                var cat = new Category
+                {
+                    Name = part,
+                    Slug = slug,
+                    ParentCategoryId = parentId,
+                    ImportedFromSourceId = sourceId,
+                };
+                db.Categories.Add(cat);
+                seen[key] = cat;
+                parentId = cat.Id;
+                leaf = cat;
+            }
+        }
+
+        return leaf?.Id;
+    }
+
     // ---
 
     private async Task<(int, int, int, Dictionary<string, int>)> ImportCategoriesAsync(
@@ -154,6 +206,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         var categories = (await db.Categories.AsNoTracking().ToListAsync(ct))
             .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
+        var categorySlugs = await db.Categories.AsNoTracking().Select(c => c.Slug).ToHashSetAsync(ct);
         var brands = (await db.Brands.AsNoTracking().ToListAsync(ct))
             .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
@@ -172,7 +225,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var catName = Map(row, fm, "Category");
             var brandName = Map(row, fm, "Brand");
             var desc = Map(row, fm, "Description") ?? string.Empty;
-            Guid? categoryId = catName != null && categories.TryGetValue(catName.ToLower(), out var cat) ? cat.Id : null;
+            // Hierarchical paths like "Otomotiv > Süspansiyon" are resolved/created automatically
+            Guid? categoryId = catName != null ? ResolveCategoryId(catName, categories, categorySlugs, sourceId) : null;
             Guid? brandId = brandName != null && brands.TryGetValue(brandName.ToLower(), out var br) ? br.Id : null;
 
             if (!string.IsNullOrWhiteSpace(sku) && seenSku.TryGetValue(sku, out var existing))
@@ -207,9 +261,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 if (!categoryId.HasValue)
                 {
                     skip++;
-                    Bump(reasons, string.IsNullOrWhiteSpace(catName)
-                        ? "Kategori alanı eşlenmemiş"
-                        : $"Kategori bulunamadı: {catName}");
+                    Bump(reasons, "Kategori alanı eşlenmemiş veya boş");
                     continue;
                 }
 
