@@ -286,6 +286,12 @@ export default function DisKaynaklarPage() {
   const [tablePage, setTablePage] = useState<Record<string, number>>({});
   const [filterText, setFilterText] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<Record<string, "preview" | "history">>({});
+  // import status: importedSet[sourceId] = Set of identifier values that exist in DB
+  const [importedSet, setImportedSet] = useState<Record<string, Set<string>>>({});
+  const [checkingImport, setCheckingImport] = useState<string | null>(null);
+  const [importFilter, setImportFilter] = useState<Record<string, "all" | "imported" | "not">>({});
+  // source total available count from quick metadata call
+  const [totalAvailable, setTotalAvailable] = useState<Record<string, number | null>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -395,6 +401,46 @@ export default function DisKaynaklarPage() {
       applyPreview(source.id, { columns: [], rows: [], error: e instanceof Error ? e.message : "Hata oluştu" });
     }
     setFetching(null);
+  }
+
+  async function handleGetCount(sourceId: string) {
+    try {
+      const res = await api.get<{ totalAvailable?: number; error?: string; note?: string }>(
+        `/api/admin/external-sources/${sourceId}/count`
+      );
+      setTotalAvailable(prev => ({ ...prev, [sourceId]: res.totalAvailable ?? null }));
+      if (res.error) toast(false, res.error);
+    } catch { toast(false, "Sayım alınamadı."); }
+  }
+
+  async function handleCheckImported(sourceId: string) {
+    const preview = previewMap[sourceId];
+    if (!preview?.rows.length) return;
+    const target = targetMap[sourceId] || "Product";
+    const mapping = mappingState[sourceId] || {};
+
+    // Determine the identifier column
+    let identifierSourceCol: string | undefined;
+    if (target === "Product" || target === "Stock") {
+      identifierSourceCol = mapping["SKU"];
+    } else if (target === "Brand" || target === "Category") {
+      identifierSourceCol = mapping["Name"];
+    }
+    if (!identifierSourceCol) { toast(false, "Alan eşlemesinde tanımlayıcı alan (SKU / Ad) bulunamadı."); return; }
+
+    const identifiers = [...new Set(preview.rows.map(r => r[identifierSourceCol!] ?? "").filter(Boolean))];
+    if (!identifiers.length) { toast(false, "Tanımlayıcı değer bulunamadı."); return; }
+
+    setCheckingImport(sourceId);
+    try {
+      const res = await api.post<{ imported: string[] }>(
+        `/api/admin/external-sources/${sourceId}/check-imported`,
+        { targetEntity: target, identifiers }
+      );
+      setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
+      toast(true, `${res.imported.length} / ${identifiers.length} kayıt daha önce aktarılmış.`);
+    } catch { toast(false, "Aktarım durumu kontrol edilemedi."); }
+    setCheckingImport(null);
   }
 
   async function handleImport(sourceId: string, importAll = false) {
@@ -777,16 +823,26 @@ export default function DisKaynaklarPage() {
             const selRowSet = selectedRows[source.id];
             const selColSet = selectedCols[source.id];
             const filterTxt = (filterText[source.id] ?? "").toLowerCase().trim();
+            const impFilter = importFilter[source.id] ?? "all";
+            const impSet = importedSet[source.id];
+            const impIdentCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
 
             // Compute filtered indices (absolute indices into preview.rows)
             const filteredIdxs: number[] = preview
               ? preview.rows.reduce<number[]>((acc, row, i) => {
-                  if (!filterTxt || Object.values(row).some(v => v.toLowerCase().includes(filterTxt)))
-                    acc.push(i);
+                  if (filterTxt && !Object.values(row).some(v => v.toLowerCase().includes(filterTxt)))
+                    return acc;
+                  if (impFilter !== "all" && impSet && impIdentCol) {
+                    const val = row[impIdentCol] ?? "";
+                    const isImp = impSet.has(val);
+                    if (impFilter === "imported" && !isImp) return acc;
+                    if (impFilter === "not" && isImp) return acc;
+                  }
+                  acc.push(i);
                   return acc;
                 }, [])
               : [];
-            const isFiltered = filterTxt.length > 0;
+            const isFiltered = filterTxt.length > 0 || impFilter !== "all";
             const filteredCount = filteredIdxs.length;
             const totalPages = preview ? Math.ceil(filteredCount / PAGE_SIZE) : 0;
             const curPage = Math.min(tablePage[source.id] ?? 0, Math.max(0, totalPages - 1));
@@ -832,6 +888,12 @@ export default function DisKaynaklarPage() {
                             Son çekim: {formatDate(source.lastFetchedAt)} ({source.lastFetchedCount ?? 0} satır)
                           </span>
                         )}
+                        {/* Total available count badge */}
+                        {totalAvailable[source.id] != null && (
+                          <span className="text-xs text-violet-600 font-medium">
+                            Kaynakta toplam: {totalAvailable[source.id]!.toLocaleString("tr-TR")} kayıt
+                          </span>
+                        )}
                         {hasSchedule && nextFetch && (
                           <span className="text-xs text-teal-600 flex items-center gap-1">
                             <Zap size={10} /> Sonraki: {nextFetch}
@@ -842,6 +904,16 @@ export default function DisKaynaklarPage() {
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Quick count button (REST API only) */}
+                    {source.type === "RestApi" && (
+                      <button
+                        onClick={() => handleGetCount(source.id)}
+                        title="Kaynaktaki toplam kayıt sayısını sorgula"
+                        className="p-2 text-violet-600 hover:bg-violet-50 rounded-xl transition"
+                      >
+                        <Database size={15} />
+                      </button>
+                    )}
                     <button onClick={() => { setEditSource(source); setShowModal(true); }} title={t("action.edit", "Düzenle")}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition">
                       <Pencil size={15} />
@@ -922,6 +994,49 @@ export default function DisKaynaklarPage() {
                       <>
                         {/* Grid toolbar */}
                         <div className="space-y-2">
+                          {/* Import status filter + text filter row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Import status filter buttons */}
+                            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-0.5">
+                              {(["all", "not", "imported"] as const).map(f => (
+                                <button
+                                  key={f}
+                                  onClick={() => {
+                                    setImportFilter(prev => ({ ...prev, [source.id]: f }));
+                                    setTablePage(prev => ({ ...prev, [source.id]: 0 }));
+                                  }}
+                                  className={`text-xs px-2.5 py-1 rounded-lg transition font-medium ${
+                                    impFilter === f
+                                      ? f === "not" ? "bg-violet-600 text-white shadow-sm"
+                                        : f === "imported" ? "bg-teal-600 text-white shadow-sm"
+                                        : "bg-white text-slate-700 shadow-sm"
+                                      : "text-slate-500 hover:text-slate-700"
+                                  }`}
+                                >
+                                  {f === "all" ? "Tümü" : f === "not" ? "Aktarılmamış" : "Aktarılmış"}
+                                </button>
+                              ))}
+                            </div>
+                            {/* Check imported button */}
+                            <button
+                              onClick={() => handleCheckImported(source.id)}
+                              disabled={checkingImport === source.id || !impIdentCol}
+                              title={!impIdentCol ? "Önce alan eşlemesinde SKU / Ad seçin" : "Aktarım durumunu kontrol et"}
+                              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:border-violet-300 hover:text-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {checkingImport === source.id
+                                ? <RefreshCw size={11} className="animate-spin" />
+                                : <CheckCircle size={11} />}
+                              Durumu Kontrol Et
+                            </button>
+                            {impSet && (
+                              <span className="text-xs text-slate-400">
+                                <span className="text-teal-600 font-medium">{impSet.size.toLocaleString("tr-TR")}</span> aktarılmış ·{" "}
+                                <span className="text-violet-600 font-medium">{(preview.rows.length - impSet.size).toLocaleString("tr-TR")}</span> aktarılmamış
+                              </span>
+                            )}
+                          </div>
+
                           {/* Filter input */}
                           <div className="relative">
                             <svg viewBox="0 0 16 16" className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 fill-current text-slate-400 pointer-events-none">
@@ -1061,6 +1176,8 @@ export default function DisKaynaklarPage() {
                               {pageRowsData.map((row, pageIdx) => {
                                 const absIdx = pageFilteredIdxs[pageIdx];
                                 const isRowSel = selRowSet ? selRowSet.has(absIdx) : true;
+                                const rowIdentifier = impIdentCol ? row[impIdentCol] : undefined;
+                                const isImported = impSet && rowIdentifier ? impSet.has(rowIdentifier) : null;
                                 return (
                                   <tr
                                     key={absIdx}
@@ -1077,8 +1194,14 @@ export default function DisKaynaklarPage() {
                                         className="accent-teal-600 cursor-pointer"
                                       />
                                     </td>
-                                    <td className="px-2 py-1.5 text-slate-300 text-center border-r border-slate-100 tabular-nums select-none">
-                                      {absIdx + 1}
+                                    <td className="px-2 py-1.5 text-center border-r border-slate-100 tabular-nums select-none">
+                                      <span className="text-slate-300 text-xs">{absIdx + 1}</span>
+                                      {isImported !== null && (
+                                        <span
+                                          title={isImported ? "Daha önce aktarılmış" : "Henüz aktarılmamış"}
+                                          className={`ml-1 inline-block w-1.5 h-1.5 rounded-full ${isImported ? "bg-teal-500" : "bg-violet-400"}`}
+                                        />
+                                      )}
                                     </td>
                                     {preview.columns.map(col => {
                                       const isColSel = selColSet ? selColSet.has(col) : true;

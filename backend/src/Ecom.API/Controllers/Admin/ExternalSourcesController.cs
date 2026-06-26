@@ -8,7 +8,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Web;
 
 namespace Ecom.API.Controllers.Admin;
@@ -164,6 +166,110 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return ok ? Ok() : NotFound();
     }
 
+    // Quick count: fetches page=1 to extract totalCount metadata — no full pagination
+    [HttpGet("{id:guid}/count")]
+    public async Task<IActionResult> GetSourceCount(Guid id,
+        [FromServices] IApplicationDbContext db,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        CancellationToken ct)
+    {
+        var source = await db.ExternalSources.FindAsync([id], ct);
+        if (source is null) return NotFound();
+
+        if (source.Type == "Excel")
+            return Ok(new { totalAvailable = source.LastFetchedCount, source = "cache" });
+
+        if (string.IsNullOrWhiteSpace(source.Config))
+            return Ok(new { totalAvailable = (int?)null, error = "Config eksik." });
+
+        JsonElement cfg;
+        try { cfg = JsonDocument.Parse(source.Config).RootElement; }
+        catch { return Ok(new { totalAvailable = (int?)null, error = "Config geçersiz JSON." }); }
+
+        if (!cfg.TryGetProperty("url", out var urlEl))
+            return Ok(new { totalAvailable = (int?)null, error = "URL bulunamadı." });
+
+        var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+        if (cfg.TryGetProperty("headers", out var hdrs) && hdrs.ValueKind == JsonValueKind.Object)
+            foreach (var kv in hdrs.EnumerateObject())
+                client.DefaultRequestHeaders.TryAddWithoutValidation(kv.Name, kv.Value.GetString());
+
+        var ub = new UriBuilder(urlEl.GetString()!);
+        var qs = HttpUtility.ParseQueryString(ub.Query);
+        var pageParam = cfg.TryGetProperty("pageParam", out var pp) ? pp.GetString() ?? "page" : "page";
+        var pageSizeParam = cfg.TryGetProperty("pageSizeParam", out var psp) ? psp.GetString() ?? "pageSize" : "pageSize";
+        qs[pageParam] = "1";
+        qs[pageSizeParam] = "1";
+        ub.Query = qs.ToString();
+
+        try
+        {
+            var resp = await client.GetAsync(ub.ToString(), ct);
+            if (!resp.IsSuccessStatusCode)
+                return Ok(new { totalAvailable = (int?)null, error = $"HTTP {(int)resp.StatusCode}" });
+
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("totalCount", out var tc) && tc.ValueKind == JsonValueKind.Number)
+                return Ok(new { totalAvailable = tc.GetInt32(), source = "live" });
+
+            // Fallback: count items in response
+            var dataPath = cfg.TryGetProperty("dataPath", out var dp) ? dp.GetString() : null;
+            if (!string.IsNullOrWhiteSpace(dataPath))
+            {
+                foreach (var part in dataPath!.Split('.'))
+                    if (root.TryGetProperty(part, out var child)) root = child; else break;
+            }
+            if (root.ValueKind == JsonValueKind.Array)
+                return Ok(new { totalAvailable = (int?)null, note = "totalCount metadata bulunamadı — tam çekim yapın." });
+
+            return Ok(new { totalAvailable = (int?)null, note = "totalCount metadata bulunamadı." });
+        }
+        catch (Exception ex) { return Ok(new { totalAvailable = (int?)null, error = ex.Message }); }
+    }
+
+    // Check which identifiers (SKU, Name etc.) are already imported into the target entity
+    [HttpPost("{id:guid}/check-imported")]
+    public async Task<IActionResult> CheckImported(Guid id,
+        [FromBody] CheckImportedRequest req,
+        [FromServices] IApplicationDbContext db,
+        CancellationToken ct)
+    {
+        if (req.Identifiers is not { Count: > 0 }) return Ok(new { imported = Array.Empty<string>() });
+
+        HashSet<string> imported;
+        if (req.TargetEntity == "Product" || req.TargetEntity == "Stock")
+        {
+            var set = await db.Products
+                .Where(p => !p.IsDeleted && req.Identifiers.Contains(p.SKU))
+                .Select(p => p.SKU)
+                .ToListAsync(ct);
+            imported = [.. set];
+        }
+        else if (req.TargetEntity == "Brand")
+        {
+            var set = await db.Brands
+                .Where(b => !b.IsDeleted && req.Identifiers.Contains(b.Name))
+                .Select(b => b.Name)
+                .ToListAsync(ct);
+            imported = [.. set];
+        }
+        else if (req.TargetEntity == "Category")
+        {
+            var set = await db.Categories
+                .Where(c => !c.IsDeleted && req.Identifiers.Contains(c.Name))
+                .Select(c => c.Name)
+                .ToListAsync(ct);
+            imported = [.. set];
+        }
+        else return BadRequest("Geçersiz TargetEntity.");
+
+        return Ok(new { imported = imported.ToArray() });
+    }
+
     // Ad-hoc REST fetch without a saved source — used in the add/edit modal
     [HttpPost("test-fetch")]
     public async Task<IActionResult> TestFetch(
@@ -275,5 +381,9 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         string? PageParam = null,
         string? PageSizeParam = null,
         int? PageSize = null
+    );
+    public record CheckImportedRequest(
+        string TargetEntity,
+        List<string> Identifiers
     );
 }
