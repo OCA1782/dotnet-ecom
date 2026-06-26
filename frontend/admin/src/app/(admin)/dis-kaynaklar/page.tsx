@@ -80,7 +80,15 @@ const SCHEDULE_LABELS: Record<string, string> = {
 };
 
 const FIELD_SYNONYMS: Record<string, Record<string, string[]>> = {
-  Product:  { Name: ["name","ad","urun adi","urun adı","ürün adi","ürün adı","urun"], SKU: ["sku","kod","barkod","urun kodu","ürün kodu","urun kod","ürün kod"], Price: ["price","fiyat","tutar","birim fiyat"], Description: ["description","açıklama"], Category: ["category","kategori"], Brand: ["brand","marka"] },
+  Product:  {
+    Name: ["name","ad","urun adi","urun adı","ürün adi","ürün adı","urun","title","baslik","başlık"],
+    SKU: ["sku","kod","barkod","urun kodu","ürün kodu","urun kod","ürün kod"],
+    Price: ["price","fiyat","tutar","birim fiyat","pricecurrent","price_current","current_price","fiyat_guncel"],
+    Description: ["description","açıklama","shortdescription","short_description","kisa_aciklama","kisaaciklama"],
+    Category: ["category","kategori","categorypath","category_path","kategori_yolu"],
+    Brand: ["brand","marka"],
+    ImageUrl: ["imageurl","image_url","firstimageurl","first_image_url","gorsel","resim"],
+  },
   Category: { Name: ["name","ad","kategori"], Slug: ["slug"], Description: ["description","açıklama"] },
   Brand:    { Name: ["name","ad","marka"], Description: ["description","açıklama"] },
   Stock:    { SKU: ["sku","kod","barkod","urun kodu","ürün kodu"], Quantity: ["quantity","adet","stok","miktar"] },

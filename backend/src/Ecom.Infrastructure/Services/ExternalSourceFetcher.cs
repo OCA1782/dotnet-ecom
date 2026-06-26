@@ -11,6 +11,7 @@ namespace Ecom.Infrastructure.Services;
 public class ExternalSourceFetcher(IHttpClientFactory httpClientFactory) : IExternalSourceFetcher
 {
     private const int MaxPages = 200;
+    private static readonly string[] ArrayCandidates = ["items", "data", "products", "results", "content", "records", "list", "rows", "entries"];
 
     public async Task<FetchExternalSourceResult> FetchAsync(ExternalSource source, CancellationToken cancellationToken = default)
     {
@@ -81,8 +82,29 @@ public class ExternalSourceFetcher(IHttpClientFactory httpClientFactory) : IExte
                 }
             }
 
+            // Auto-detect common array container keys when DataPath is not set
+            if (dataRoot.ValueKind == JsonValueKind.Object && string.IsNullOrWhiteSpace(config.DataPath))
+            {
+                foreach (var candidate in ArrayCandidates)
+                {
+                    if (dataRoot.TryGetProperty(candidate, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                    {
+                        dataRoot = arr;
+                        break;
+                    }
+                }
+            }
+
             if (dataRoot.ValueKind != JsonValueKind.Array)
-                return new FetchExternalSourceResult([], [], "Yanıt bir JSON dizisi değil. DataPath ayarlayın (örn: \"items\", \"data\", \"products\").");
+            {
+                var availableKeys = dataRoot.ValueKind == JsonValueKind.Object
+                    ? string.Join(", ", dataRoot.EnumerateObject().Select(p => $"\"{p.Name}\"").Take(6))
+                    : "";
+                var hint = string.IsNullOrEmpty(availableKeys)
+                    ? "Yanıt bir JSON dizisi değil. DataPath ayarlayın (örn: \"items\", \"data\")."
+                    : $"Yanıt bir JSON dizisi değil. Yanıttaki anahtarlar: {availableKeys}. DataPath alanına uygun anahtarı girin.";
+                return new FetchExternalSourceResult([], [], hint);
+            }
 
             foreach (var item in dataRoot.EnumerateArray())
             {

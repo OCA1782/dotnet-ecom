@@ -210,8 +210,31 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
             catch { return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = $"DataPath '{req.DataPath}' bulunamadı." }); }
         }
 
+        // Auto-detect common array container keys when DataPath is not set
+        string? detectedPath = null;
+        if (root.ValueKind == System.Text.Json.JsonValueKind.Object && string.IsNullOrWhiteSpace(req.DataPath))
+        {
+            foreach (var candidate in new[] { "items", "data", "products", "results", "content", "records", "list", "rows", "entries" })
+            {
+                if (root.TryGetProperty(candidate, out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    detectedPath = candidate;
+                    root = arr;
+                    break;
+                }
+            }
+        }
+
         if (root.ValueKind != System.Text.Json.JsonValueKind.Array)
-            return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = "Yanıt bir JSON dizisi değil. DataPath ayarlayın (örn: \"items\", \"data\")." });
+        {
+            var availableKeys = root.ValueKind == System.Text.Json.JsonValueKind.Object
+                ? string.Join(", ", root.EnumerateObject().Select(p => $"\"{p.Name}\"").Take(6))
+                : "";
+            var hint = string.IsNullOrEmpty(availableKeys)
+                ? "Yanıt bir JSON dizisi değil. DataPath ayarlayın."
+                : $"Yanıt bir JSON dizisi değil. Yanıttaki anahtarlar: {availableKeys}. DataPath alanına uygun anahtarı girin.";
+            return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = hint });
+        }
 
         var columns = new List<string>();
         var rows = new List<Dictionary<string, string>>();
@@ -227,7 +250,10 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
             rows.Add(row);
         }
 
-        var note = req.Paginate ? " (sayfa 1 önizleme — tüm sayfalar gerçek çekimde alınır)" : null;
+        var notes = new List<string>();
+        if (req.Paginate) notes.Add("sayfa 1 önizleme — tüm sayfalar gerçek çekimde alınır");
+        if (detectedPath != null) notes.Add($"DataPath otomatik algılandı: \"{detectedPath}\" — kaydetmek için Veri Yolu alanına yazın");
+        var note = notes.Count > 0 ? string.Join("; ", notes) : null;
         return Ok(new { columns, rows, error = (string?)null, note });
     }
 
