@@ -917,6 +917,20 @@ export default function DisKaynaklarPage() {
                         <Database size={15} />
                       </button>
                     )}
+                    {/* Row-level fetch button — triggers full paginated fetch and expands to preview */}
+                    {source.type === "RestApi" && (
+                      <button
+                        onClick={() => handleFetch(source)}
+                        disabled={fetching === source.id}
+                        title="Tüm verileri çek (sayfalı tam çekim)"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {fetching === source.id
+                          ? <RefreshCw size={12} className="animate-spin" />
+                          : <RefreshCw size={12} />}
+                        Veri Çek
+                      </button>
+                    )}
                     <button onClick={() => { setEditSource(source); setShowModal(true); }} title={t("action.edit", "Düzenle")}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition">
                       <Pencil size={15} />
@@ -984,7 +998,7 @@ export default function DisKaynaklarPage() {
                             <p className="text-sm font-medium">{t("dis-kaynaklar.noDataYet", "Henüz veri çekilmedi")}</p>
                             <p className="text-xs">
                               {source.type === "RestApi"
-                                ? 'Düzenle modalını açıp "Veri Çek & Önizle" butonuyla API\'den veri alın'
+                                ? 'Satır üzerindeki "Veri Çek" butonuna tıklayın veya Düzenle modalında önizleyin'
                                 : 'Düzenle modalını açıp yeni bir Excel dosyası yükleyin'}
                             </p>
                           </div>
@@ -1792,6 +1806,10 @@ function SourceModal({
         preview = localPreview ?? undefined;
       } else if (!isRestApi && localPreview) {
         preview = localPreview;
+      } else if (isRestApi && restPreview && !restPreview.error && restPreview.rows.length > 0) {
+        // Transfer the modal preview to the main panel so data is visible immediately after save.
+        // This is page-1 only — user can click "Veri Çek" on the row for all pages.
+        preview = { columns: restPreview.columns, rows: restPreview.rows };
       }
 
       onSaved(sourceId, preview);
