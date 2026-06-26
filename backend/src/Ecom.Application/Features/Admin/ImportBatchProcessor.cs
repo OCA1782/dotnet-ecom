@@ -45,27 +45,42 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     private static void Bump(Dictionary<string, int> d, string key)
         => d[key] = d.TryGetValue(key, out var v) ? v + 1 : 1;
 
+    // --- Idempotency helpers ---
+
+    private static bool SameStr(string? a, string? b)
+        => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static bool SameDecimal(decimal a, decimal b) => Math.Abs(a - b) < 0.005m;
+
+    // ---
+
     private async Task<(int, int, int, Dictionary<string, int>)> ImportCategoriesAsync(
         List<Dictionary<string, string>> rows, Dictionary<string, string> fm, string conflict, CancellationToken ct, Guid? sourceId)
     {
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
-        var seen = await db.Categories.ToDictionaryAsync(c => c.Name.ToLower(), ct);
+        var seen = (await db.Categories.ToListAsync(ct))
+            .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
         foreach (var row in rows)
         {
             var name = Map(row, fm, "Name");
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
             var slug = Map(row, fm, "Slug") ?? Slugify(name);
+            var desc = Map(row, fm, "Description");
 
             if (seen.TryGetValue(name.ToLower(), out var cat))
             {
-                if (conflict == "update") { cat.Slug = slug; upd++; }
+                // Idempotency: skip if nothing changed
+                if (SameStr(cat.Description, desc))
+                { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
+
+                if (conflict == "update") { cat.Slug = slug; cat.Description = desc; upd++; }
                 else { skip++; Bump(reasons, "Çakışma (mevcut kayıt atlandı)"); }
             }
             else
             {
-                var entity = new Category { Name = name, Slug = slug, Description = Map(row, fm, "Description"), ImportedFromSourceId = sourceId };
+                var entity = new Category { Name = name, Slug = slug, Description = desc, ImportedFromSourceId = sourceId };
                 db.Categories.Add(entity);
                 seen[name.ToLower()] = entity;
                 ins++;
@@ -81,21 +96,27 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     {
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
-        var seen = await db.Brands.ToDictionaryAsync(b => b.Name.ToLower(), ct);
+        var seen = (await db.Brands.ToListAsync(ct))
+            .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
         foreach (var row in rows)
         {
             var name = Map(row, fm, "Name");
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
+            var desc = Map(row, fm, "Description");
 
             if (seen.TryGetValue(name.ToLower(), out var brand))
             {
-                if (conflict == "update") { brand.Description = Map(row, fm, "Description") ?? brand.Description; upd++; }
+                // Idempotency: skip if nothing changed
+                if (SameStr(brand.Description, desc))
+                { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
+
+                if (conflict == "update") { brand.Description = desc ?? brand.Description; upd++; }
                 else { skip++; Bump(reasons, "Çakışma (mevcut kayıt atlandı)"); }
             }
             else
             {
-                var entity = new Brand { Name = name, Slug = Slugify(name), Description = Map(row, fm, "Description"), ImportedFromSourceId = sourceId };
+                var entity = new Brand { Name = name, Slug = Slugify(name), Description = desc, ImportedFromSourceId = sourceId };
                 db.Brands.Add(entity);
                 seen[name.ToLower()] = entity;
                 ins++;
@@ -112,38 +133,29 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
 
-        // Per-batch optimized lookup: only load SKUs that appear in this batch
         var batchSkus = rows
             .Select(r => Map(r, fm, "SKU") ?? Map(r, fm, "Sku") ?? "")
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToHashSet();
 
-        Dictionary<string, Product> seenSku;
-        if (conflict == "update" && batchSkus.Count > 0)
-        {
-            // Load full entities only for batch-relevant SKUs
-            seenSku = await db.Products
-                .Where(p => batchSkus.Contains(p.SKU))
-                .ToDictionaryAsync(p => p.SKU, ct);
-        }
-        else
-        {
-            // Skip strategy: only existence check — load keys only, no tracking
-            var existingSkus = await db.Products
+        // Always load full entity data for batch SKUs — needed for idempotency comparison
+        // AsNoTracking for read-only check; for update we re-attach below
+        var seenSku = batchSkus.Count > 0
+            ? await db.Products
                 .AsNoTracking()
-                .Select(p => p.SKU)
-                .ToHashSetAsync(ct);
-            seenSku = existingSkus.ToDictionary(s => s, _ => (Product)null!);
-        }
+                .Where(p => batchSkus.Contains(p.SKU))
+                .ToDictionaryAsync(p => p.SKU, ct)
+            : [];
 
-        // For slug uniqueness: load only string slugs (no entity tracking)
         var seenSlug = await db.Products
             .AsNoTracking()
             .Select(p => p.Slug)
             .ToHashSetAsync(ct);
 
-        var categories = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Name.ToLower(), ct);
-        var brands = await db.Brands.AsNoTracking().ToDictionaryAsync(b => b.Name.ToLower(), ct);
+        var categories = (await db.Categories.AsNoTracking().ToListAsync(ct))
+            .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
+        var brands = (await db.Brands.AsNoTracking().ToListAsync(ct))
+            .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
         foreach (var row in rows)
         {
@@ -159,32 +171,32 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
             var catName = Map(row, fm, "Category");
             var brandName = Map(row, fm, "Brand");
+            var desc = Map(row, fm, "Description") ?? string.Empty;
             Guid? categoryId = catName != null && categories.TryGetValue(catName.ToLower(), out var cat) ? cat.Id : null;
             Guid? brandId = brandName != null && brands.TryGetValue(brandName.ToLower(), out var br) ? br.Id : null;
 
-            if (!string.IsNullOrWhiteSpace(sku) && seenSku.TryGetValue(sku, out var prod))
+            if (!string.IsNullOrWhiteSpace(sku) && seenSku.TryGetValue(sku, out var existing))
             {
-                if (conflict == "update" && prod != null)
+                // Idempotency check: compare all mapped fields
+                bool nameMatch  = SameStr(existing.Name, name);
+                bool priceMatch = SameDecimal(existing.Price, price);
+                bool descMatch  = SameStr(existing.Description, desc);
+                bool catMatch   = !categoryId.HasValue || existing.CategoryId == categoryId.Value;
+                bool brandMatch = brandId == existing.BrandId;
+
+                if (nameMatch && priceMatch && descMatch && catMatch && brandMatch)
+                { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
+
+                if (conflict == "update")
                 {
-                    // Re-attach for update if needed
-                    var tracked = db.Products.Local.FindEntry(prod.Id);
-                    if (tracked == null)
+                    var attached = await db.Products.FindAsync([existing.Id], ct);
+                    if (attached != null)
                     {
-                        var attached = await db.Products.FindAsync([prod.Id], ct);
-                        if (attached != null)
-                        {
-                            attached.Name = name;
-                            attached.Price = price;
-                            if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
-                            if (brandId.HasValue) attached.BrandId = brandId.Value;
-                            upd++;
-                        }
-                    }
-                    else
-                    {
-                        prod.Name = name; prod.Price = price;
-                        if (categoryId.HasValue) prod.CategoryId = categoryId.Value;
-                        if (brandId.HasValue) prod.BrandId = brandId.Value;
+                        attached.Name = name;
+                        attached.Price = price;
+                        attached.Description = desc;
+                        if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
+                        if (brandId.HasValue) attached.BrandId = brandId.Value;
                         upd++;
                     }
                 }
@@ -210,7 +222,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 {
                     Name = name, Slug = slug, SKU = sku, Price = price,
                     CategoryId = categoryId.Value, BrandId = brandId,
-                    Description = Map(row, fm, "Description") ?? string.Empty,
+                    Description = desc,
                     ImportedFromSourceId = sourceId,
                 };
                 db.Products.Add(entity);
@@ -229,7 +241,6 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
 
-        // Load only SKUs present in this batch
         var batchKeys = rows
             .Select(r => Map(r, fm, "SKU") ?? Map(r, fm, "Sku") ?? Map(r, fm, "ProductName") ?? "")
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -255,6 +266,9 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
             if (stocks.TryGetValue(product.Id, out var stock))
             {
+                // Idempotency: skip if quantity unchanged
+                if (stock.Quantity == qty)
+                { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
                 stock.Quantity = qty; upd++;
             }
             else
