@@ -51,10 +51,150 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:guid}/fetch")]
-    public async Task<IActionResult> Fetch(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Fetch(Guid id,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken ct)
     {
         var result = await mediator.Send(new FetchExternalSourceCommand(id), ct);
+        if (result.Error is null && result.Rows.Count > 0)
+        {
+            var uploadDir = Path.Combine(env.ContentRootPath, "uploads", "external-sources");
+            Directory.CreateDirectory(uploadDir);
+            var previewPath = Path.Combine(uploadDir, $"{id}-preview.json");
+            var json = JsonSerializer.Serialize(new { columns = result.Columns, rows = result.Rows });
+            await System.IO.File.WriteAllTextAsync(previewPath, json, ct);
+        }
         return Ok(result);
+    }
+
+    // Fetch a single page from a paginated REST API source — used for progressive loading
+    [HttpGet("{id:guid}/fetch-page")]
+    public async Task<IActionResult> FetchPage(Guid id,
+        [FromServices] IApplicationDbContext db,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        CancellationToken ct,
+        int page = 1)
+    {
+        var source = await db.ExternalSources.FindAsync([id], ct);
+        if (source is null) return NotFound();
+        if (source.Type != "RestApi")
+            return Ok(new { error = "Sayfalı çekim yalnızca REST API kaynakları için geçerlidir." });
+        if (string.IsNullOrWhiteSpace(source.Config))
+            return Ok(new { error = "Config eksik." });
+
+        JsonElement cfg;
+        try { cfg = JsonDocument.Parse(source.Config).RootElement; }
+        catch { return Ok(new { error = "Config geçersiz JSON." }); }
+
+        if (!cfg.TryGetProperty("url", out var urlEl))
+            return Ok(new { error = "URL bulunamadı." });
+
+        var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(30);
+        if (cfg.TryGetProperty("headers", out var hdrs) && hdrs.ValueKind == JsonValueKind.Object)
+            foreach (var kv in hdrs.EnumerateObject())
+                client.DefaultRequestHeaders.TryAddWithoutValidation(kv.Name, kv.Value.GetString());
+
+        var paginate  = cfg.TryGetProperty("paginate",      out var pgv)  && pgv.ValueKind == JsonValueKind.True;
+        var pageParam = cfg.TryGetProperty("pageParam",      out var ppar) ? ppar.GetString() ?? "page"     : "page";
+        var psParam   = cfg.TryGetProperty("pageSizeParam",  out var psp)  ? psp.GetString()  ?? "pageSize" : "pageSize";
+        var pageSize  = cfg.TryGetProperty("pageSize",       out var psv)  && psv.ValueKind == JsonValueKind.Number ? psv.GetInt32() : (int?)null;
+        var dataPath  = cfg.TryGetProperty("dataPath",       out var dp)   ? dp.GetString()                 : null;
+
+        var ub = new UriBuilder(urlEl.GetString()!);
+        var qs = HttpUtility.ParseQueryString(ub.Query);
+        if (paginate)
+        {
+            qs[pageParam] = page.ToString();
+            if (pageSize.HasValue) qs[psParam] = pageSize.Value.ToString();
+        }
+        ub.Query = qs.ToString();
+
+        HttpResponseMessage response;
+        try { response = await client.GetAsync(ub.ToString(), ct); }
+        catch (Exception ex) { return Ok(new { error = $"Bağlantı hatası: {ex.Message}" }); }
+
+        if (!response.IsSuccessStatusCode)
+            return Ok(new { error = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}" });
+
+        var jsonStr = await response.Content.ReadAsStringAsync(ct);
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(jsonStr); }
+        catch { return Ok(new { error = "Yanıt geçerli bir JSON değil." }); }
+
+        var rootFull = doc.RootElement;
+
+        // Extract pagination metadata before navigating dataPath
+        bool hasNextPage = false;
+        int? totalCount = null;
+        int? totalPages = null;
+        if (rootFull.ValueKind == JsonValueKind.Object)
+        {
+            if (rootFull.TryGetProperty("hasNextPage", out var hnp) && hnp.ValueKind == JsonValueKind.True)
+                hasNextPage = true;
+            if (rootFull.TryGetProperty("totalCount", out var tc) && tc.ValueKind == JsonValueKind.Number)
+                totalCount = tc.GetInt32();
+            if (rootFull.TryGetProperty("totalPages", out var tp) && tp.ValueKind == JsonValueKind.Number)
+                totalPages = tp.GetInt32();
+        }
+
+        var dataRoot = rootFull;
+        if (!string.IsNullOrWhiteSpace(dataPath))
+        {
+            try { foreach (var part in dataPath!.Split('.')) dataRoot = dataRoot.GetProperty(part); }
+            catch { return Ok(new { error = $"DataPath '{dataPath}' yanıtta bulunamadı." }); }
+        }
+
+        string[] arrayCandidates = ["items", "data", "products", "results", "content", "records", "list", "rows", "entries"];
+        if (dataRoot.ValueKind == JsonValueKind.Object && string.IsNullOrWhiteSpace(dataPath))
+        {
+            foreach (var candidate in arrayCandidates)
+                if (dataRoot.TryGetProperty(candidate, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                { dataRoot = arr; break; }
+        }
+
+        if (dataRoot.ValueKind != JsonValueKind.Array)
+            return Ok(new { error = "Veri dizisi bulunamadı. DataPath ayarlayın." });
+
+        var columns = new List<string>();
+        var rows = new List<Dictionary<string, string>>();
+        foreach (var item in dataRoot.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            var row = new Dictionary<string, string>();
+            foreach (var prop in item.EnumerateObject())
+            {
+                if (!columns.Contains(prop.Name)) columns.Add(prop.Name);
+                row[prop.Name] = prop.Value.ValueKind == JsonValueKind.Null ? "" : prop.Value.ToString();
+            }
+            rows.Add(row);
+        }
+
+        // Derive totalPages from totalCount + pageSize if not returned directly
+        if (!totalPages.HasValue && totalCount.HasValue && pageSize.HasValue && pageSize.Value > 0)
+            totalPages = (int)Math.Ceiling((double)totalCount.Value / pageSize.Value);
+
+        // hasNextPage fallback: full page received → more likely exists
+        if (!hasNextPage && rows.Count > 0 && pageSize.HasValue && rows.Count >= pageSize.Value)
+            hasNextPage = true;
+
+        return Ok(new { columns, rows, page, totalPages, totalCount, hasNextPage });
+    }
+
+    // Save accumulated preview rows to file cache (called by frontend after progressive fetch)
+    [HttpPost("{id:guid}/save-preview")]
+    [RequestSizeLimit(52_428_800)]
+    public async Task<IActionResult> SavePreview(Guid id,
+        [FromBody] SavePreviewRequest data,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken ct)
+    {
+        var uploadDir = Path.Combine(env.ContentRootPath, "uploads", "external-sources");
+        Directory.CreateDirectory(uploadDir);
+        var previewPath = Path.Combine(uploadDir, $"{id}-preview.json");
+        var json = JsonSerializer.Serialize(new { columns = data.Columns, rows = data.Rows });
+        await System.IO.File.WriteAllTextAsync(previewPath, json, ct);
+        return Ok();
     }
 
     [HttpPost("{id:guid}/upload-excel")]
@@ -103,12 +243,11 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
-    // Re-parse or re-fetch preview after browser refresh
+    // Re-parse preview after browser refresh — Excel: re-parses saved file; RestApi: returns file cache
     [HttpGet("{id:guid}/preview")]
     public async Task<IActionResult> GetPreview(Guid id,
         [FromServices] IApplicationDbContext db,
         [FromServices] IWebHostEnvironment env,
-        [FromServices] IExternalSourceFetcher fetcher,
         CancellationToken ct)
     {
         var source = await db.ExternalSources.FindAsync([id], ct);
@@ -123,9 +262,14 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
             return Ok(ExternalSourceFetcher.ParseExcel(stream));
         }
 
-        // REST API — re-fetch live
-        var result = await fetcher.FetchAsync(source, ct);
-        return Ok(result);
+        // REST API — return file cache saved after last fetch
+        var previewPath = Path.Combine(env.ContentRootPath, "uploads", "external-sources", $"{id}-preview.json");
+        if (System.IO.File.Exists(previewPath))
+        {
+            var cached = await System.IO.File.ReadAllTextAsync(previewPath, ct);
+            return Content(cached, "application/json");
+        }
+        return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), error = "Önce 'Veri Çek' butonuna tıklayın." });
     }
 
     [HttpPost("{id:guid}/import")]
@@ -385,5 +529,9 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
     public record CheckImportedRequest(
         string TargetEntity,
         List<string> Identifiers
+    );
+    public record SavePreviewRequest(
+        List<string> Columns,
+        List<Dictionary<string, string>> Rows
     );
 }

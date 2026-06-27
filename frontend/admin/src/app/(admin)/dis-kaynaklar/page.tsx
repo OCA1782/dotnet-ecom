@@ -273,6 +273,10 @@ export default function DisKaynaklarPage() {
   const [logsMap, setLogsMap] = useState<Record<string, ImportLog[]>>({});
   const [previewMap, setPreviewMap] = useState<Record<string, PreviewData>>({});
   const [fetching, setFetching] = useState<string | null>(null);
+  // Progressive fetch: data visible while more pages load in background
+  const [fetchingMore, setFetchingMore] = useState<Record<string, { loaded: number; total: number; page: number; totalPages: number } | null>>({});
+  // Auto-check import status after preview loads from server cache
+  const [pendingAutoCheck, setPendingAutoCheck] = useState<string | null>(null);
   const [importing, setImporting] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState<Record<string, ImportProgress>>({});
   const [cancellingJob, setCancellingJob] = useState<string | null>(null);
@@ -344,17 +348,41 @@ export default function DisKaynaklarPage() {
     };
   }, [load]);
 
+  // Auto-check import status when preview is restored from server cache on expand/refresh
+  useEffect(() => {
+    if (!pendingAutoCheck) return;
+    const preview = previewMap[pendingAutoCheck];
+    if (!preview?.rows?.length) return;
+    const target = targetMap[pendingAutoCheck] || "Product";
+    const mapping = mappingState[pendingAutoCheck] || {};
+    const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
+    if (!identCol) { setPendingAutoCheck(null); return; }
+    const sourceId = pendingAutoCheck;
+    setPendingAutoCheck(null);
+    const identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
+    if (!identifiers.length) return;
+    api.post<{ imported: string[] }>(
+      `/api/admin/external-sources/${sourceId}/check-imported`,
+      { targetEntity: target, identifiers }
+    ).then(res => {
+      setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
+    }).catch(() => { /* silent auto-check failure */ });
+  }, [pendingAutoCheck, previewMap, targetMap, mappingState]);
+
   async function loadServerPreview(source: ExternalSource) {
     if (previewMap[source.id]) return; // already in memory
     if (!source.lastFetchedAt) return; // never had data
-    // RestApi sources: don't auto-fetch on expand — re-fetching is slow and the
-    // live service may be offline. User must explicitly click "Veri Çek".
-    if (source.type === "RestApi") return;
+    // For all source types: /preview returns file cache (Excel → parses saved .xlsx, RestApi → reads saved .json)
     setFetching(source.id);
     try {
       const data = await api.get<PreviewData>(`/api/admin/external-sources/${source.id}/preview`);
-      if (data && !data.error) applyPreview(source.id, data, targetMap[source.id] || "Product");
-      else if (data?.error) setPreviewMap(prev => ({ ...prev, [source.id]: data }));
+      if (data && !data.error) {
+        applyPreview(source.id, data, targetMap[source.id] || "Product");
+        // Trigger auto import-status check after state settles
+        setPendingAutoCheck(source.id);
+      } else if (data?.error) {
+        setPreviewMap(prev => ({ ...prev, [source.id]: data }));
+      }
     } catch { /* silent — user will see empty state */ }
     setFetching(null);
   }
@@ -397,13 +425,73 @@ export default function DisKaynaklarPage() {
   async function handleFetch(source: ExternalSource) {
     setFetching(source.id);
     try {
-      const data = await api.post<PreviewData>(`/api/admin/external-sources/${source.id}/fetch`, {});
-      applyPreview(source.id, data);
-      if (!data.error) toast(true, `${data.rows.length} satır çekildi.`);
+      // Fetch page 1 — show data immediately before remaining pages arrive
+      const page1 = await api.get<{
+        columns: string[];
+        rows: Record<string, string>[];
+        page: number;
+        totalPages?: number;
+        totalCount?: number;
+        hasNextPage: boolean;
+        error?: string;
+      }>(`/api/admin/external-sources/${source.id}/fetch-page?page=1`);
+
+      if (page1.error) {
+        applyPreview(source.id, { columns: [], rows: [], error: page1.error });
+        setFetching(null);
+        return;
+      }
+
+      const allColumns = page1.columns;
+      const allRows = [...page1.rows];
+      const totalCount = page1.totalCount ?? page1.rows.length;
+      const totalPages = page1.totalPages ?? 1;
+
+      applyPreview(source.id, { columns: allColumns, rows: [...allRows] });
+      setFetching(null); // data is visible; switch to fetchingMore for subsequent pages
+
+      if (page1.hasNextPage && totalPages > 1) {
+        setFetchingMore(prev => ({
+          ...prev,
+          [source.id]: { loaded: allRows.length, total: totalCount, page: 1, totalPages },
+        }));
+
+        for (let p = 2; p <= Math.min(totalPages, 200); p++) {
+          try {
+            const pageData = await api.get<{
+              columns: string[];
+              rows: Record<string, string>[];
+              hasNextPage: boolean;
+              error?: string;
+            }>(`/api/admin/external-sources/${source.id}/fetch-page?page=${p}`);
+            if (pageData.error || !pageData.rows?.length) break;
+            allRows.push(...pageData.rows);
+            setPreviewMap(prev => ({
+              ...prev,
+              [source.id]: { columns: allColumns, rows: [...allRows] },
+            }));
+            setFetchingMore(prev => ({
+              ...prev,
+              [source.id]: { loaded: allRows.length, total: totalCount, page: p, totalPages },
+            }));
+            if (!pageData.hasNextPage) break;
+          } catch { break; }
+        }
+
+        setFetchingMore(prev => { const n = { ...prev }; delete n[source.id]; return n; });
+      }
+
+      // Save complete preview to server so it survives page refresh (non-blocking)
+      api.post(`/api/admin/external-sources/${source.id}/save-preview`, {
+        columns: allColumns, rows: allRows,
+      }).catch(() => { /* non-critical */ });
+
+      toast(true, `${allRows.length.toLocaleString("tr-TR")} satır çekildi.`);
     } catch (e: unknown) {
       applyPreview(source.id, { columns: [], rows: [], error: e instanceof Error ? e.message : "Hata oluştu" });
+      setFetching(null);
+      setFetchingMore(prev => { const n = { ...prev }; delete n[source.id]; return n; });
     }
-    setFetching(null);
   }
 
   async function handleGetCount(sourceId: string) {
@@ -917,15 +1005,15 @@ export default function DisKaynaklarPage() {
                         <Database size={15} />
                       </button>
                     )}
-                    {/* Row-level fetch button — triggers full paginated fetch and expands to preview */}
+                    {/* Row-level fetch button — triggers progressive page-by-page fetch */}
                     {source.type === "RestApi" && (
                       <button
                         onClick={() => handleFetch(source)}
-                        disabled={fetching === source.id}
+                        disabled={fetching === source.id || !!fetchingMore[source.id]}
                         title="Tüm verileri çek (sayfalı tam çekim)"
                         className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {fetching === source.id
+                        {(fetching === source.id || fetchingMore[source.id])
                           ? <RefreshCw size={12} className="animate-spin" />
                           : <RefreshCw size={12} />}
                         Veri Çek
@@ -1009,6 +1097,16 @@ export default function DisKaynaklarPage() {
                           </div>
                         ) : (
                       <>
+                        {/* Progressive fetch progress banner */}
+                        {fetchingMore[source.id] && (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-200 text-xs text-violet-700">
+                            <RefreshCw size={12} className="animate-spin shrink-0" />
+                            <span>
+                              {fetchingMore[source.id]!.loaded.toLocaleString("tr-TR")} / {fetchingMore[source.id]!.total.toLocaleString("tr-TR")} satır yüklendi
+                              {" · "}Sayfa {fetchingMore[source.id]!.page} / {fetchingMore[source.id]!.totalPages}
+                            </span>
+                          </div>
+                        )}
                         {/* Grid toolbar */}
                         <div className="space-y-2">
                           {/* Import status filter + text filter row */}
