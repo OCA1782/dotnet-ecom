@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -799,6 +799,20 @@ export default function AdminProductsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
             >
               <ToggleLeft size={14} /> {t("action.deactivate", "Deaktive Et")}
+            </button>
+            <button
+              onClick={() => handleBulkAction("publish")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <Eye size={13} /> Yayınla
+            </button>
+            <button
+              onClick={() => handleBulkAction("unpublish")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <EyeOff size={13} /> Yayından Kaldır
             </button>
             <button
               onClick={() => setPriceAdjustModal(true)}

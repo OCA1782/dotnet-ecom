@@ -86,6 +86,24 @@ public class BulkProductsHandler(IApplicationDbContext db, IAuditService audit)
                 }
                 break;
 
+            case "publish":
+                foreach (var p in products)
+                {
+                    p.IsPublished = true;
+                    affected++;
+                    await audit.LogAsync("ProductBulkPublished", "Product", p.Id.ToString(), cancellationToken: ct);
+                }
+                break;
+
+            case "unpublish":
+                foreach (var p in products)
+                {
+                    p.IsPublished = false;
+                    affected++;
+                    await audit.LogAsync("ProductBulkUnpublished", "Product", p.Id.ToString(), cancellationToken: ct);
+                }
+                break;
+
             case "delete":
                 var blockingStatuses = BlockingStatuses.ToList();
                 var blockingOrderIds = await (

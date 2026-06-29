@@ -357,6 +357,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     CategoryId = categoryId.Value, BrandId = brandId,
                     Description = desc,
                     ImportedFromSourceId = sourceId,
+                    IsActive = true,
+                    IsPublished = true,
                 };
                 db.Products.Add(entity);
                 if (!string.IsNullOrWhiteSpace(imageUrl))
