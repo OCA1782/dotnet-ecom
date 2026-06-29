@@ -25,7 +25,7 @@ function flattenCategories(cats: Category[]): Category[] {
 interface Brand { id: string; name: string; }
 interface ProductImage { id: string; imageUrl: string; altText?: string; isMain: boolean; sortOrder: number; }
 interface ProductDetail {
-  id: string; name: string; slug: string; sku: string;
+  id: string; name: string; slug: string; sku: string | null;
   description?: string; shortDescription?: string;
   price: number; discountPrice?: number; taxRate: number;
   categoryId: string; brandId?: string;
@@ -414,7 +414,7 @@ export default function AdminProductsPage() {
 
   async function openEdit(p: AdminProduct) {
     setForm({
-      id: p.id, name: p.name, slug: p.slug, sku: p.sku,
+      id: p.id, name: p.name, slug: p.slug, sku: p.sku ?? "",
       description: "", shortDescription: "",
       price: String(p.price), discountPrice: p.discountPrice ? String(p.discountPrice) : "",
       taxRate: String(p.taxRate), categoryId: "", brandId: "",
@@ -576,7 +576,8 @@ export default function AdminProductsPage() {
     try {
       const detail = await api.get<ProductDetail>(`/api/products/${p.id}`);
       const newName = `${p.name} (Kopya)`;
-      const newSku = p.sku.length > 20 ? p.sku.substring(0, 18) + "-K" : `${p.sku}-K`;
+      const baseSku = p.sku ?? "";
+      const newSku = baseSku.length > 20 ? baseSku.substring(0, 18) + "-K" : baseSku ? `${baseSku}-K` : "";
       const created = await api.post<{ id: string }>("/api/products", {
         name: newName,
         slug: slugify(newName),

@@ -195,6 +195,9 @@ function analyzeSkipReasons(json: string | undefined): SkipDiagnosticEntry[] {
   try { reasons = JSON.parse(json); } catch { return []; }
   return Object.entries(reasons).map(([reason, count]) => {
     const r = reason.toLowerCase();
+    if (r.includes("kategori değeri boş"))
+      return { reason, count, severity: "warn",
+        suggestion: "Bu satırlarda kaynak verideki kategori sütunu boş. Kaynakta kategori bilgisi doldurun veya bu satırları atlayın." };
     if (r.includes("kategori bulunamadı") || r.includes("kategori eksik") || r.includes("kategori alanı"))
       return { reason, count, severity: "warn",
         suggestion: "Önce Kategoriler hedefiyle bir aktarım yapın, ardından ürünleri tekrar aktarın." };
@@ -356,17 +359,21 @@ export default function DisKaynaklarPage() {
     const target = targetMap[pendingAutoCheck] || "Product";
     const mapping = mappingState[pendingAutoCheck] || {};
     const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
-    if (!identCol) { setPendingAutoCheck(null); return; }
     const sourceId = pendingAutoCheck;
-    setPendingAutoCheck(null);
-    const identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
-    if (!identifiers.length) return;
-    api.post<{ imported: string[] }>(
-      `/api/admin/external-sources/${sourceId}/check-imported`,
-      { targetEntity: target, identifiers }
-    ).then(res => {
-      setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
-    }).catch(() => { /* silent auto-check failure */ });
+    const identifiers = identCol
+      ? [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))]
+      : [];
+    const p = identifiers.length > 0
+      ? api.post<{ imported: string[] }>(
+          `/api/admin/external-sources/${sourceId}/check-imported`,
+          { targetEntity: target, identifiers }
+        ).then(res => {
+          setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
+        }).catch(() => {})
+      : Promise.resolve();
+    p.finally(() => {
+      setPendingAutoCheck(prev => prev === sourceId ? null : prev);
+    });
   }, [pendingAutoCheck, previewMap, targetMap, mappingState]);
 
   async function loadServerPreview(source: ExternalSource) {

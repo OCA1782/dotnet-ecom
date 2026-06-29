@@ -161,7 +161,7 @@ export interface AdminProduct {
   id: string;
   name: string;
   slug: string;
-  sku: string;
+  sku: string | null;
   price: number;
   discountPrice?: number;
   taxRate: number;

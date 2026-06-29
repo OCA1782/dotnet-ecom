@@ -31,7 +31,7 @@ public record ProductListItemDto(
     string Name,
     string Slug,
     string? ShortDescription,
-    string SKU,
+    string? SKU,
     string? CategoryName,
     string? BrandName,
     decimal Price,
@@ -69,7 +69,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             query = query.Where(p => p.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
-            query = query.Where(p => p.Name.Contains(request.Search) || p.SKU.Contains(request.Search) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
+            query = query.Where(p => p.Name.Contains(request.Search) || (p.SKU != null && p.SKU.Contains(request.Search)) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
         if (request.CategoryId.HasValue)
             query = query.Where(p => p.CategoryId == request.CategoryId);

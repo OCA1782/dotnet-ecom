@@ -67,9 +67,21 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         if (!catName.Contains('>'))
         {
-            if (!seen.TryGetValue(catName.ToLower(), out var direct)) return null;
-            if (direct.IsDeleted) toReactivate.Add(direct.Id);
-            return direct.Id;
+            var key = catName.ToLower();
+            if (seen.TryGetValue(key, out var direct))
+            {
+                if (direct.IsDeleted) toReactivate.Add(direct.Id);
+                return direct.Id;
+            }
+            // Auto-create single-level category (same policy as hierarchical leaves)
+            var slug = Slugify(catName);
+            var baseSlug = slug;
+            for (int n = 2; slugsSeen.Contains(slug); n++) slug = $"{baseSlug}-{n}";
+            slugsSeen.Add(slug);
+            var cat = new Category { Name = catName, Slug = slug, ImportedFromSourceId = sourceId };
+            db.Categories.Add(cat);
+            seen[key] = cat;
+            return cat.Id;
         }
 
         var parts = catName.Split('>').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToArray();
@@ -193,8 +205,9 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         var reasons = new Dictionary<string, int>();
 
         var batchSkus = rows
-            .Select(r => Map(r, fm, "SKU") ?? Map(r, fm, "Sku") ?? "")
+            .Select(r => Map(r, fm, "SKU") ?? Map(r, fm, "Sku"))
             .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
             .ToHashSet();
 
         // IgnoreQueryFilters: soft-deleted products must be included to avoid SKU/Slug unique index violations
@@ -202,8 +215,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             ? await db.Products
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(p => batchSkus.Contains(p.SKU))
-                .ToDictionaryAsync(p => p.SKU, ct)
+                .Where(p => p.SKU != null && batchSkus.Contains(p.SKU))
+                .ToDictionaryAsync(p => p.SKU!, ct)
             : [];
 
         var seenSlug = await db.Products
@@ -216,14 +229,17 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         var categories = (await db.Categories.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
             .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
         var categorySlugs = await db.Categories.IgnoreQueryFilters().AsNoTracking().Select(c => c.Slug).ToHashSetAsync(ct);
-        var brands = (await db.Brands.AsNoTracking().ToListAsync(ct))
+        var brands = (await db.Brands.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
             .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
+        var brandSlugs = await db.Brands.IgnoreQueryFilters().AsNoTracking().Select(b => b.Slug).ToHashSetAsync(ct);
         var toReactivate = new HashSet<Guid>();
+        var toReactivateBrands = new HashSet<Guid>();
 
         foreach (var row in rows)
         {
             var name = Map(row, fm, "Name");
-            var sku = Map(row, fm, "SKU") ?? Map(row, fm, "Sku") ?? "";
+            var sku = Map(row, fm, "SKU") ?? Map(row, fm, "Sku");
+            if (string.IsNullOrWhiteSpace(sku)) sku = null;
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
 
             var priceStr = Map(row, fm, "Price") ?? Map(row, fm, "BasePrice");
@@ -236,11 +252,56 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var brandName = Map(row, fm, "Brand");
             var desc = Map(row, fm, "Description") ?? string.Empty;
             var imageUrl = Map(row, fm, "ImageUrl");
-            // Hierarchical paths like "Otomotiv > Süspansiyon" are resolved/created automatically
-            Guid? categoryId = catName != null ? ResolveCategoryId(catName, categories, categorySlugs, sourceId, toReactivate) : null;
-            Guid? brandId = brandName != null && brands.TryGetValue(brandName.ToLower(), out var br) ? br.Id : null;
 
-            if (!string.IsNullOrWhiteSpace(sku) && seenSku.TryGetValue(sku, out var existing))
+            // Category: auto-resolve/create. Empty/unmapped → fall back to default "Genel" category.
+            Guid? categoryId;
+            if (!string.IsNullOrWhiteSpace(catName))
+            {
+                categoryId = ResolveCategoryId(catName!, categories, categorySlugs, sourceId, toReactivate);
+            }
+            else
+            {
+                const string defaultCat = "Genel";
+                if (!categories.TryGetValue(defaultCat.ToLower(), out var defCat))
+                {
+                    var defSlug = "genel";
+                    for (int n = 2; categorySlugs.Contains(defSlug); n++) defSlug = $"genel-{n}";
+                    categorySlugs.Add(defSlug);
+                    defCat = new Category { Name = defaultCat, Slug = defSlug, ImportedFromSourceId = sourceId };
+                    db.Categories.Add(defCat);
+                    categories[defaultCat.ToLower()] = defCat;
+                }
+                else if (defCat.IsDeleted)
+                {
+                    toReactivate.Add(defCat.Id);
+                }
+                categoryId = defCat.Id;
+            }
+
+            // Brand: auto-resolve/create when name is given but not found.
+            Guid? brandId = null;
+            if (!string.IsNullOrWhiteSpace(brandName))
+            {
+                var bKey = brandName!.ToLower();
+                if (brands.TryGetValue(bKey, out var br))
+                {
+                    if (br.IsDeleted) toReactivateBrands.Add(br.Id);
+                    brandId = br.Id;
+                }
+                else
+                {
+                    var bSlug = Slugify(brandName!);
+                    var bBase = bSlug;
+                    for (int n = 2; brandSlugs.Contains(bSlug); n++) bSlug = $"{bBase}-{n}";
+                    brandSlugs.Add(bSlug);
+                    var newBrand = new Brand { Name = brandName!, Slug = bSlug, ImportedFromSourceId = sourceId };
+                    db.Brands.Add(newBrand);
+                    brands[bKey] = newBrand;
+                    brandId = newBrand.Id;
+                }
+            }
+
+            if (sku != null && seenSku.TryGetValue(sku, out var existing))
             {
                 // Idempotency check: compare all mapped fields
                 bool nameMatch  = SameStr(existing.Name, name);
@@ -281,7 +342,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 if (!categoryId.HasValue)
                 {
                     skip++;
-                    Bump(reasons, "Kategori alanı eşlenmemiş veya boş");
+                    Bump(reasons, catName == null ? "Kategori alanı eşlenmemiş" : "Kategori değeri boş");
                     continue;
                 }
 
@@ -300,11 +361,11 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 db.Products.Add(entity);
                 if (!string.IsNullOrWhiteSpace(imageUrl))
                     db.ProductImages.Add(new ProductImage { Product = entity, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
-                if (!string.IsNullOrWhiteSpace(sku)) seenSku[sku] = entity;
+                if (sku != null) seenSku[sku] = entity;
                 ins++;
             }
         }
-        // Reactivate any soft-deleted categories that are referenced by this batch
+        // Reactivate any soft-deleted categories/brands referenced by this batch
         if (toReactivate.Count > 0)
         {
             var softDeleted = await db.Categories
@@ -312,6 +373,14 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 .Where(c => toReactivate.Contains(c.Id))
                 .ToListAsync(ct);
             foreach (var c in softDeleted) c.IsDeleted = false;
+        }
+        if (toReactivateBrands.Count > 0)
+        {
+            var softDeletedBrands = await db.Brands
+                .IgnoreQueryFilters()
+                .Where(b => toReactivateBrands.Contains(b.Id))
+                .ToListAsync(ct);
+            foreach (var b in softDeletedBrands) b.IsDeleted = false;
         }
 
         await db.SaveChangesAsync(ct);
@@ -332,8 +401,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         var products = await db.Products
             .AsNoTracking()
-            .Where(p => batchKeys.Contains(p.SKU))
-            .ToDictionaryAsync(p => p.SKU, ct);
+            .Where(p => p.SKU != null && batchKeys.Contains(p.SKU))
+            .ToDictionaryAsync(p => p.SKU!, ct);
 
         var productIds = products.Values.Select(p => p.Id).ToHashSet();
         var stocks = await db.Stocks

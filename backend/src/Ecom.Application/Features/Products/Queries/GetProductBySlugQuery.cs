@@ -12,7 +12,7 @@ public record ProductDetailDto(
     string Slug,
     string? Description,
     string? ShortDescription,
-    string SKU,
+    string? SKU,
     string? Barcode,
     string ProductType,
     Guid CategoryId,
