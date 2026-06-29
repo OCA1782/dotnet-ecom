@@ -47,7 +47,7 @@ public class GetStocksQueryHandler(IApplicationDbContext db, ICurrentUserService
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(s =>
                 (s.Product != null && s.Product.Name.Contains(request.Search)) ||
-                (s.Product != null && s.Product.SKU.Contains(request.Search)) ||
+                (s.Product != null && s.Product.SKU != null && s.Product.SKU.Contains(request.Search)) ||
                 (s.ProductVariant != null && s.ProductVariant.SKU.Contains(request.Search)));
 
         if (request.OnlyCritical)
@@ -79,7 +79,7 @@ public class GetStocksQueryHandler(IApplicationDbContext db, ICurrentUserService
                     : (s.ProductVariant != null ? s.ProductVariant.VariantName
                     : (s.ProductId != null ? "[Silinmiş Ürün]" : "[Bilinmeyen]")),
                 s.ProductVariant != null ? s.ProductVariant.VariantName : null,
-                s.Product != null ? s.Product.SKU
+                s.Product != null ? (s.Product.SKU ?? "")
                     : (s.ProductVariant != null ? s.ProductVariant.SKU : ""),
                 s.Quantity,
                 s.ReservedQuantity,

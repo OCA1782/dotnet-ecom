@@ -388,8 +388,8 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         if (req.TargetEntity == "Product" || req.TargetEntity == "Stock")
         {
             var set = await db.Products
-                .Where(p => !p.IsDeleted && req.Identifiers.Contains(p.SKU))
-                .Select(p => p.SKU)
+                .Where(p => !p.IsDeleted && p.SKU != null && req.Identifiers.Contains(p.SKU))
+                .Select(p => p.SKU!)
                 .ToListAsync(ct);
             imported = [.. set];
         }

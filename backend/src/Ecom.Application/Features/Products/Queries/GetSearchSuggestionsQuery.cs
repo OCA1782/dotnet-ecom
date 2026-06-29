@@ -57,7 +57,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
             .Include(p => p.Brand)
             .Include(p => p.Images.Where(i => i.IsMain))
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (p.Name.Contains(q) || p.SKU.Contains(q)
+                && (p.Name.Contains(q) || (p.SKU != null && p.SKU.Contains(q))
                     || (p.Brand != null && p.Brand.Name.Contains(q))))
             .OrderByDescending(p => p.Name.StartsWith(q))
             .ThenBy(p => p.Name)
@@ -76,7 +76,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         // Toplam eşleşen ürün sayısı (dropdown "X sonuç" için)
         int totalProducts = await db.Products
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (p.Name.Contains(q) || p.SKU.Contains(q)
+                && (p.Name.Contains(q) || (p.SKU != null && p.SKU.Contains(q))
                     || (p.Brand != null && p.Brand.Name.Contains(q))))
             .CountAsync(cancellationToken);
 

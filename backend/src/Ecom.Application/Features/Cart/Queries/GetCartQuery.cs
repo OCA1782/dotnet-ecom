@@ -71,7 +71,7 @@ public class GetCartQueryHandler(IApplicationDbContext db, ICacheService cache) 
                 i.Id, i.ProductId, i.ProductVariantId,
                 i.Product.Name,
                 i.ProductVariant?.VariantName,
-                i.ProductVariant?.SKU ?? i.Product.SKU,
+                i.ProductVariant?.SKU ?? i.Product.SKU ?? "",
                 image, i.Quantity, i.UnitPrice, i.Product.TaxRate,
                 i.UnitPrice * i.Quantity, availableStock, i.IsSelected);
         }).ToList();

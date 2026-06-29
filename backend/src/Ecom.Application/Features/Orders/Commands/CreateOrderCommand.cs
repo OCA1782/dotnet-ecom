@@ -206,7 +206,7 @@ public class CreateOrderHandler(
                 ProductId = cartItem.ProductId,
                 ProductVariantId = cartItem.ProductVariantId,
                 ProductName = product.Name,
-                SKU = variant?.SKU ?? product.SKU,
+                SKU = variant?.SKU ?? product.SKU ?? "",
                 VariantName = variantName,
                 Quantity = cartItem.Quantity,
                 UnitPrice = cartItem.UnitPrice,

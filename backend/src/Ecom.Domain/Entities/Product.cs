@@ -9,7 +9,7 @@ public class Product : BaseEntity
     public string Slug { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? ShortDescription { get; set; }
-    public string SKU { get; set; } = string.Empty;
+    public string? SKU { get; set; }
     public string? Barcode { get; set; }
     public ProductType ProductType { get; set; } = ProductType.Simple;
     public Guid? BrandId { get; set; }

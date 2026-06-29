@@ -13,7 +13,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(x => x.SKU).IsUnique();
         builder.Property(x => x.Name).HasMaxLength(300).IsRequired();
         builder.Property(x => x.Slug).HasMaxLength(300).IsRequired();
-        builder.Property(x => x.SKU).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.SKU).HasMaxLength(100).IsRequired(false);
         builder.Property(x => x.Price).HasColumnType("decimal(18,2)");
         builder.Property(x => x.DiscountPrice).HasColumnType("decimal(18,2)");
         builder.Property(x => x.TaxRate).HasColumnType("decimal(5,2)");
