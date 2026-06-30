@@ -312,9 +312,14 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             }
             catch (Exception ex)
             {
-                finalError = $"Aktarım hatası (sayfa {currentPage}): {ex.Message}";
-                logger.LogError(ex, "FetchAndImportJob {JobId} failed processing page {Page}", job.Id, currentPage);
-                break;
+                // Record first page error but continue — one bad page must not abort the full import.
+                var pageErr = $"Sayfa {currentPage} atlandı: {ex.Message}";
+                finalError ??= pageErr;
+                logger.LogWarning(ex, "FetchAndImportJob {JobId} failed at page {Page}, continuing", job.Id, currentPage);
+                if (totalPages > 0 && currentPage >= totalPages) break;
+                if (rows.Count < BulkPageSize) break;
+                currentPage++;
+                continue;
             }
 
             // Update progress
@@ -389,7 +394,7 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             DeletedCount = totalDel,
             ErrorMessage = finalError,
             ImportedByUserId = job.RequestedByUserId,
-            TotalRows = totalIns + totalUpd + totalSkip,
+            TotalRows = finalJob?.TotalRows > 0 ? finalJob.TotalRows : totalIns + totalUpd + totalSkip,
             ConflictStrategy = job.ConflictStrategy,
             SkipDiagnosticsJson = skipReasons.Count > 0 ? JsonSerializer.Serialize(skipReasons) : null,
         });

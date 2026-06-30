@@ -290,6 +290,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         var toReactivate = new HashSet<Guid>();
         var toReactivateBrands = new HashSet<Guid>();
         var seenProductIdsWithImage = new HashSet<Guid>(); // tracks products already staged with an image in this batch
+        var addedProductEntities = new List<Product>();
+        var addedImageEntities = new List<ProductImage>();
 
         foreach (var row in rows)
         {
@@ -435,9 +437,12 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     IsPublished = true,
                 };
                 db.Products.Add(entity);
+                addedProductEntities.Add(entity);
                 if (!string.IsNullOrWhiteSpace(imageUrl))
                 {
-                    db.ProductImages.Add(new ProductImage { Product = entity, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
+                    var img = new ProductImage { Product = entity, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 };
+                    db.ProductImages.Add(img);
+                    addedImageEntities.Add(img);
                     seenProductIdsWithImage.Add(entity.Id);
                 }
                 touchedProductIds?.Add(entity.Id);
@@ -469,9 +474,55 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException batchEx)
         {
-            // Surface the real SQL error instead of the generic EF wrapper
             var inner = batchEx.InnerException?.Message ?? batchEx.Message;
-            throw new InvalidOperationException($"DB save failed: {inner}", batchEx);
+            bool isDupKey = inner.Contains("duplicate key", StringComparison.OrdinalIgnoreCase)
+                         || inner.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)
+                         || inner.Contains("UNIQUE constraint", StringComparison.OrdinalIgnoreCase);
+            if (!isDupKey)
+                throw new InvalidOperationException($"DB save failed: {inner}", batchEx);
+
+            // Duplicate key: retry entity-by-entity using locally-tracked lists (IApplicationDbContext has no ChangeTracker).
+            db.ClearChangeTracker();
+
+            // Re-save category/brand reactivations (safe — no unique constraint on these)
+            if (toReactivate.Count > 0)
+            {
+                var cats = await db.Categories.IgnoreQueryFilters()
+                    .Where(c => toReactivate.Contains(c.Id)).ToListAsync(ct);
+                foreach (var c in cats) c.IsDeleted = false;
+            }
+            if (toReactivateBrands.Count > 0)
+            {
+                var brnds = await db.Brands.IgnoreQueryFilters()
+                    .Where(b => toReactivateBrands.Contains(b.Id)).ToListAsync(ct);
+                foreach (var b in brnds) b.IsDeleted = false;
+            }
+            if (toReactivate.Count > 0 || toReactivateBrands.Count > 0)
+            { await db.SaveChangesAsync(ct); db.ClearChangeTracker(); }
+
+            // Products: one-by-one to skip only the conflicting product
+            foreach (var prod in addedProductEntities)
+            {
+                try
+                {
+                    db.Products.Add(prod);
+                    foreach (var img in addedImageEntities.Where(i => i.ProductId == prod.Id || ReferenceEquals(i.Product, prod)))
+                        db.ProductImages.Add(img);
+                    await db.SaveChangesAsync(ct);
+                    db.ClearChangeTracker();
+                }
+                catch (Microsoft.EntityFrameworkCore.DbUpdateException e2)
+                    when ((e2.InnerException?.Message ?? e2.Message).Contains("duplicate key", StringComparison.OrdinalIgnoreCase)
+                       || (e2.InnerException?.Message ?? e2.Message).Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)
+                       || (e2.InnerException?.Message ?? e2.Message).Contains("UNIQUE constraint", StringComparison.OrdinalIgnoreCase))
+                {
+                    db.ClearChangeTracker();
+                    ins = Math.Max(0, ins - 1);
+                    skip++;
+                    Bump(reasons, "SKU/Slug çakışması atlandı");
+                }
+            }
+            return (ins, upd, skip, reasons);
         }
         db.ClearChangeTracker();
         return (ins, upd, skip, reasons);

@@ -497,6 +497,9 @@ export default function DisKaynaklarPage() {
         columns: allColumns, rows: allRows,
       }).catch(() => { /* non-critical */ });
 
+      // Auto-check import status so aktarılan/aktarılmayan filter works immediately
+      setPendingAutoCheck(source.id);
+
       toast(true, `${allRows.length.toLocaleString("tr-TR")} satır çekildi.`);
     } catch (e: unknown) {
       applyPreview(source.id, { columns: [], rows: [], error: e instanceof Error ? e.message : "Hata oluştu" });
@@ -1090,46 +1093,52 @@ export default function DisKaynaklarPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Quick count button (REST API only) */}
-                    {source.type === "RestApi" && (
-                      <button
-                        onClick={() => handleGetCount(source.id)}
-                        title="Kaynaktaki toplam kayıt sayısını sorgula"
-                        className="p-2 text-violet-600 hover:bg-violet-50 rounded-xl transition"
-                      >
-                        <Database size={15} />
-                      </button>
-                    )}
-                    {/* Row-level fetch button — triggers progressive page-by-page fetch */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* REST API: Fetch data button */}
                     {source.type === "RestApi" && (
                       <button
                         onClick={() => handleFetch(source)}
                         disabled={fetching === source.id || !!fetchingMore[source.id]}
-                        title="Tüm verileri çek (sayfalı tam çekim)"
-                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Önizleme için kaynak verilerini çek (sayfalı tam çekim)"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {(fetching === source.id || fetchingMore[source.id])
-                          ? <RefreshCw size={12} className="animate-spin" />
-                          : <RefreshCw size={12} />}
-                        Veri Çek
+                          ? <><RefreshCw size={12} className="animate-spin" /> Çekiliyor...</>
+                          : <><RefreshCw size={12} /> Veri Çek</>}
+                        {fetchingMore[source.id] && (
+                          <span className="text-[10px] text-teal-500 tabular-nums">
+                            {fetchingMore[source.id]!.loaded.toLocaleString("tr-TR")}
+                          </span>
+                        )}
                       </button>
                     )}
-                    <button onClick={() => { setEditSource(source); setShowModal(true); }} title={t("action.edit", "Düzenle")}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition">
-                      <Pencil size={15} />
+                    {/* REST API: quick count */}
+                    {source.type === "RestApi" && (
+                      <button
+                        onClick={() => handleGetCount(source.id)}
+                        title="Kaynaktaki toplam kayıt sayısını sorgula"
+                        className="p-1.5 text-violet-500 hover:bg-violet-50 hover:text-violet-700 rounded-xl transition"
+                      >
+                        <Database size={14} />
+                      </button>
+                    )}
+                    <button onClick={() => { setEditSource(source); setShowModal(true); }}
+                      title={t("action.edit", "Kaynağı Düzenle")}
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition">
+                      <Pencil size={14} />
                     </button>
-                    <button onClick={() => setDeleteTarget(source)} title={t("action.delete", "Sil")}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition">
-                      <Trash2 size={15} />
+                    <button onClick={() => setDeleteTarget(source)}
+                      title={t("action.delete", "Kaynağı Sil")}
+                      className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition">
+                      <Trash2 size={14} />
                     </button>
-                    <button onClick={() => toggleExpand(source.id)} title={isExpanded ? t("action.close", "Kapat") : t("action.details", "Detaylar")}
-                      className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition relative">
-                      {/* Red dot if there are error logs */}
+                    <button onClick={() => toggleExpand(source.id)}
+                      title={isExpanded ? "Kapat" : "Önizleme & Aktarma"}
+                      className="flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:bg-slate-100 rounded-xl transition relative text-xs font-medium">
                       {!isExpanded && logsMap[source.id]?.some(l => l.errorMessage) && (
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-400" />
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-400" />
                       )}
-                      {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                   </div>
                 </div>
@@ -1207,45 +1216,56 @@ export default function DisKaynaklarPage() {
                         <div className="space-y-2">
                           {/* Import status filter + text filter row */}
                           <div className="flex items-center gap-2 flex-wrap">
-                            {/* Import status filter buttons */}
-                            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-0.5">
-                              {(["all", "not", "imported"] as const).map(f => (
-                                <button
-                                  key={f}
-                                  onClick={() => {
-                                    setImportFilter(prev => ({ ...prev, [source.id]: f }));
-                                    setTablePage(prev => ({ ...prev, [source.id]: 0 }));
-                                  }}
-                                  className={`text-xs px-2.5 py-1 rounded-lg transition font-medium ${
-                                    impFilter === f
-                                      ? f === "not" ? "bg-violet-600 text-white shadow-sm"
-                                        : f === "imported" ? "bg-teal-600 text-white shadow-sm"
-                                        : "bg-white text-slate-700 shadow-sm"
-                                      : "text-slate-500 hover:text-slate-700"
-                                  }`}
-                                >
-                                  {f === "all" ? "Tümü" : f === "not" ? "Aktarılmamış" : "Aktarılmış"}
-                                </button>
-                              ))}
+                            {/* Import status filter tabs */}
+                            <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5">
+                              {(["all", "not", "imported"] as const).map(f => {
+                                const tabCount = f === "all"
+                                  ? preview.rows.length
+                                  : f === "imported" ? (impSet?.size ?? null)
+                                  : impSet ? (preview.rows.length - impSet.size) : null;
+                                return (
+                                  <button
+                                    key={f}
+                                    onClick={() => {
+                                      setImportFilter(prev => ({ ...prev, [source.id]: f }));
+                                      setTablePage(prev => ({ ...prev, [source.id]: 0 }));
+                                    }}
+                                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition font-medium ${
+                                      impFilter === f
+                                        ? f === "not" ? "bg-violet-600 text-white shadow-sm"
+                                          : f === "imported" ? "bg-teal-600 text-white shadow-sm"
+                                          : "bg-white text-slate-700 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                  >
+                                    {f === "all" ? "Tümü" : f === "not" ? "Aktarılmamış" : "Aktarılmış"}
+                                    {tabCount !== null && (
+                                      <span className={`text-[10px] px-1 py-0 rounded-full font-bold leading-4 ${
+                                        impFilter === f
+                                          ? "bg-white/20 text-white"
+                                          : f === "not" ? "bg-violet-100 text-violet-600"
+                                          : f === "imported" ? "bg-teal-100 text-teal-600"
+                                          : "bg-slate-200 text-slate-500"
+                                      }`}>
+                                        {tabCount.toLocaleString("tr-TR")}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
-                            {/* Check imported button */}
+                            {/* Check import status button — auto-triggers after fetch, manual fallback */}
                             <button
                               onClick={() => handleCheckImported(source.id)}
                               disabled={checkingImport === source.id || !impIdentCol}
-                              title={!impIdentCol ? "Önce alan eşlemesinde SKU / Ad seçin" : "Aktarım durumunu kontrol et"}
+                              title={!impIdentCol ? "Önce alan eşlemesinde SKU / Ad alanını eşleyin" : "Hangi satırların sisteme aktarıldığını kontrol et"}
                               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:border-violet-300 hover:text-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               {checkingImport === source.id
                                 ? <RefreshCw size={11} className="animate-spin" />
                                 : <CheckCircle size={11} />}
-                              Durumu Kontrol Et
+                              {impSet ? "Durumu Yenile" : "Aktarım Durumunu Göster"}
                             </button>
-                            {impSet && (
-                              <span className="text-xs text-slate-400">
-                                <span className="text-teal-600 font-medium">{impSet.size.toLocaleString("tr-TR")}</span> aktarılmış ·{" "}
-                                <span className="text-violet-600 font-medium">{(preview.rows.length - impSet.size).toLocaleString("tr-TR")}</span> aktarılmamış
-                              </span>
-                            )}
                           </div>
 
                           {/* Filter input */}
@@ -1541,76 +1561,103 @@ export default function DisKaynaklarPage() {
                         )}
 
                         {/* Import action buttons */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {/* Import selected — only active when rows are checked */}
-                          <button
-                            onClick={() => handleImport(source.id, false)}
-                            disabled={importing === source.id || selRowCount === 0}
-                            title={selRowCount === 0 ? "Önce tabloda satır seçin" : undefined}
-                            className="flex items-center gap-2 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow bg-teal-600 hover:bg-teal-700 disabled:cursor-not-allowed"
-                          >
-                            {importing === source.id ? (
-                              <><RefreshCw size={15} className="animate-spin" /> İşleniyor...</>
-                            ) : (
-                              <><Download size={15} /> {selRowCount > 0 ? `${selRowCount.toLocaleString("tr-TR")} Seçiliyi Aktar` : "Seçili Satırları Aktar"}</>
-                            )}
-                          </button>
+                        <div className="space-y-3">
+                          {/* Primary actions row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Import selected */}
+                            <button
+                              onClick={() => handleImport(source.id, false)}
+                              disabled={importing === source.id || selRowCount === 0}
+                              title={selRowCount === 0 ? "Tabloda satır işaretleyin, ardından aktarın" : `${selRowCount.toLocaleString("tr-TR")} seçili satırı aktar`}
+                              className="flex items-center gap-2 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow bg-teal-600 hover:bg-teal-700 disabled:cursor-not-allowed"
+                            >
+                              {importing === source.id ? (
+                                <><RefreshCw size={15} className="animate-spin" /> İşleniyor...</>
+                              ) : (
+                                <><Download size={15} />
+                                  {selRowCount > 0
+                                    ? `${selRowCount.toLocaleString("tr-TR")} Seçiliyi Aktar`
+                                    : "Seçili Satırları Aktar"}
+                                </>
+                              )}
+                            </button>
 
-                          {/* Import all — bypasses selection, always available */}
-                          {(() => {
-                            const allCount = preview?.rows.length ?? 0;
-                            const allAsync = allCount > ASYNC_THRESHOLD;
-                            return (
-                              <button
-                                onClick={() => handleImport(source.id, true)}
-                                disabled={importing === source.id || allCount === 0}
-                                className={`flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow border ${
-                                  allAsync
-                                    ? "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100"
-                                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                                }`}
-                              >
-                                {allAsync ? <Zap size={15} /> : <Download size={15} />}
-                                Tümünü Aktar ({allCount.toLocaleString("tr-TR")})
-                              </button>
-                            );
-                          })()}
+                            {/* Import all visible rows */}
+                            {(() => {
+                              const allCount = preview?.rows.length ?? 0;
+                              const allAsync = allCount > ASYNC_THRESHOLD;
+                              return (
+                                <button
+                                  onClick={() => handleImport(source.id, true)}
+                                  disabled={importing === source.id || allCount === 0}
+                                  title={allAsync ? `${allCount.toLocaleString("tr-TR")} satır arka planda (RabbitMQ) işlenir` : `${allCount.toLocaleString("tr-TR")} satırın tamamını aktar`}
+                                  className={`flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow border ${
+                                    allAsync
+                                      ? "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100"
+                                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {allAsync ? <Zap size={15} /> : <Download size={15} />}
+                                  Tümünü Aktar
+                                  <span className="text-[11px] opacity-70">({allCount.toLocaleString("tr-TR")})</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
 
-                          {/* Fetch-and-import: server fetches all pages — no browser size limit */}
+                          {/* Fetch-and-import section (REST only) — for 100K+ sources */}
                           {source.type === "RestApi" && (
-                            <div className="flex items-center gap-2">
-                              <label className="flex items-center gap-1.5 text-[10px] text-slate-500 cursor-pointer select-none"
-                                title="Kaynakta artık bulunmayan ürünler silinir (arşivlenir)">
-                                <input
-                                  type="checkbox"
-                                  checked={syncDeleteMap[source.id] ?? false}
-                                  onChange={e => setSyncDeleteMap(prev => ({ ...prev, [source.id]: e.target.checked }))}
-                                  className="rounded"
-                                />
-                                Kayıt silmeyi senkronize et
-                              </label>
-                              <button
-                                onClick={() => handleFetchAndImport(source.id)}
-                                disabled={importing === source.id}
-                                title="Sunucu tarafında tüm sayfaları çekip aktar — 100K+ kayıt için"
-                                className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow bg-indigo-600 hover:bg-indigo-700 text-white"
-                              >
-                                <Zap size={15} />
-                                {totalAvailable[source.id]
-                                  ? `Tümünü Çek ve Aktar (${totalAvailable[source.id]!.toLocaleString("tr-TR")})`
-                                  : "Tümünü Çek ve Aktar"}
-                              </button>
+                            <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 px-4 py-3 space-y-2.5">
+                              <div className="flex items-center gap-2">
+                                <Zap size={13} className="text-indigo-500 shrink-0" />
+                                <span className="text-xs font-semibold text-indigo-800">Sunucu Taraflı Toplu Aktarım</span>
+                                <span className="text-[10px] text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">Büyük veri setleri için — 100K+ kayıt</span>
+                              </div>
+                              <p className="text-[11px] text-indigo-700 leading-relaxed">
+                                Tarayıcı belleği yerine sunucu tüm sayfaları sırayla çeker ve aktar. Tarayıcıyı kapatabilirsiniz.
+                              </p>
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <label className="flex items-center gap-2 text-xs text-indigo-700 cursor-pointer select-none bg-white border border-indigo-200 rounded-lg px-3 py-1.5"
+                                  title="Kaynakta artık bulunmayan ürünler arşivlenir (soft-delete)">
+                                  <input
+                                    type="checkbox"
+                                    checked={syncDeleteMap[source.id] ?? false}
+                                    onChange={e => setSyncDeleteMap(prev => ({ ...prev, [source.id]: e.target.checked }))}
+                                    className="accent-indigo-600 rounded"
+                                  />
+                                  <span>Silinenleri senkronize et</span>
+                                  {syncDeleteMap[source.id] && (
+                                    <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">⚠ Aktif</span>
+                                  )}
+                                </label>
+                                <button
+                                  onClick={() => handleFetchAndImport(source.id)}
+                                  disabled={importing === source.id}
+                                  title={`Sunucu tüm sayfaları çekip aktarır${totalAvailable[source.id] ? ` (≈${totalAvailable[source.id]!.toLocaleString("tr-TR")} kayıt)` : ""}`}
+                                  className="flex items-center gap-2 text-sm font-semibold px-5 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white"
+                                >
+                                  <Zap size={15} />
+                                  {totalAvailable[source.id]
+                                    ? `Tümünü Çek ve Aktar (${totalAvailable[source.id]!.toLocaleString("tr-TR")})`
+                                    : "Tümünü Çek ve Aktar"}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
-                        {selRowCount === 0 && (
-                          <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                            Tabloda satır seçerek yalnızca seçilileri aktarabilir, ya da &quot;Tümünü Aktar&quot; ile tüm listeyi gönderebilirsiniz.
+                        {selRowCount === 0 && !preview?.rows.length && (
+                          <p className="text-[10px] text-slate-400">
+                            Önce veri çekin, ardından satırları seçerek ya da tümünü aktarın.
+                          </p>
+                        )}
+                        {selRowCount === 0 && !!preview?.rows.length && (
+                          <p className="text-[10px] text-slate-400">
+                            Tabloda satır işaretleyip seçilileri aktarabilir, ya da &quot;Tümünü Aktar&quot; ile tamamını gönderebilirsiniz.
                           </p>
                         )}
                         {preview && preview.rows.length > ASYNC_THRESHOLD && (
                           <p className="text-[10px] text-violet-500 flex items-center gap-1">
-                            <Zap size={9} /> {preview.rows.length.toLocaleString("tr-TR")} satır eşiği aşıyor — RabbitMQ kuyruğuna gönderilecek, tarayıcıyı kapatabilirsiniz
+                            <Zap size={9} /> {preview.rows.length.toLocaleString("tr-TR")} satır — tarayıcıdan aktarırken RabbitMQ kuyruğuna gönderilecek. Tarayıcıyı kapatabilirsiniz.
                           </p>
                         )}
                       </>
