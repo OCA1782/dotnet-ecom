@@ -183,6 +183,28 @@ export default async function Footer() {
           </div>
         </div>
 
+        {/* Spareparts: araç markası hızlı linkler */}
+        {settings.CustomerTemplate === "spareparts" && (
+          <div className="border-t border-white/10 pt-6 mb-6">
+            <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-4">
+              Araç Markasına Göre Yedek Parça
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-x-4 gap-y-2">
+              {[
+                "OPEL","CHEVROLET","BMW","MERCEDES-BENZ","VOLKSWAGEN",
+                "AUDI","SEAT","SKODA","RENAULT","PEUGEOT",
+                "CİTROEN","FORD","FIAT","TOYOTA","KIA",
+                "HYUNDAI","HONDA","VOLVO","MAZDA","SUBARU",
+              ].map(brand => (
+                <Link key={brand} href={`/urunler?s=${encodeURIComponent(brand)}`}
+                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-400 transition-colors duration-150 py-0.5 truncate">
+                  {brand}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-slate-500">
             {copyrightLabel.replace("{year}", String(year)).replace("{siteName}", siteName)}
