@@ -796,6 +796,7 @@ export default function AdminProductsPage() {
                         >
                           {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
                         </button>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         {p.imageUrl && <img src={p.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" />}
                         <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
                         <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
