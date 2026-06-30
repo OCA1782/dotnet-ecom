@@ -306,6 +306,23 @@ export default function DisKaynaklarPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
+  // Batched check-imported: splits large identifier lists into chunks to avoid SQL IN clause limits
+  async function checkImportedBatched(sourceId: string, targetEntity: string, identifiers: string[]): Promise<Set<string>> {
+    const BATCH = 2000;
+    const imported = new Set<string>();
+    for (let i = 0; i < identifiers.length; i += BATCH) {
+      const chunk = identifiers.slice(i, i + BATCH);
+      try {
+        const res = await api.post<{ imported: string[] }>(
+          `/api/admin/external-sources/${sourceId}/check-imported`,
+          { targetEntity, identifiers: chunk }
+        );
+        res.imported.forEach(v => imported.add(v));
+      } catch { break; }
+    }
+    return imported;
+  }
+
   const toast = useCallback((ok: boolean, text: string) => {
     const id = ++toastId.current;
     setToasts(prev => [...prev, { id, ok, text }]);
@@ -368,16 +385,15 @@ export default function DisKaynaklarPage() {
       ? [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))]
       : [];
     const p = identifiers.length > 0
-      ? api.post<{ imported: string[] }>(
-          `/api/admin/external-sources/${sourceId}/check-imported`,
-          { targetEntity: target, identifiers }
-        ).then(res => {
-          setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
-        }).catch(() => {})
+      ? checkImportedBatched(sourceId, target, identifiers).then(imported => {
+          setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
+        })
       : Promise.resolve();
     p.finally(() => {
       setPendingAutoCheck(prev => prev === sourceId ? null : prev);
     });
+  // checkImportedBatched is stable (no deps), intentionally omitted from array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAutoCheck, previewMap, targetMap, mappingState]);
 
   async function loadServerPreview(source: ExternalSource) {
@@ -538,12 +554,9 @@ export default function DisKaynaklarPage() {
 
     setCheckingImport(sourceId);
     try {
-      const res = await api.post<{ imported: string[] }>(
-        `/api/admin/external-sources/${sourceId}/check-imported`,
-        { targetEntity: target, identifiers }
-      );
-      setImportedSet(prev => ({ ...prev, [sourceId]: new Set(res.imported) }));
-      toast(true, `${res.imported.length} / ${identifiers.length} kayıt daha önce aktarılmış.`);
+      const imported = await checkImportedBatched(sourceId, target, identifiers);
+      setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
+      toast(true, `${imported.size} / ${identifiers.length} kayıt daha önce aktarılmış.`);
     } catch { toast(false, "Aktarım durumu kontrol edilemedi."); }
     setCheckingImport(null);
   }
