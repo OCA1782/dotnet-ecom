@@ -8,6 +8,7 @@ namespace Ecom.Application.Features.Admin.Commands;
 public record UpdateExternalSourceCommand(
     Guid Id,
     string Name,
+    string? Code,
     string Type,
     string? Description,
     string? Config,
@@ -25,6 +26,9 @@ public class UpdateExternalSourceCommandHandler(IApplicationDbContext db)
         if (source is null) return false;
 
         source.Name = request.Name;
+        var code = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim().ToUpperInvariant();
+        if (code?.Length > 50) code = code[..50];
+        source.Code = code;
         source.Type = request.Type;
         source.Description = request.Description;
         source.Config = request.Config;

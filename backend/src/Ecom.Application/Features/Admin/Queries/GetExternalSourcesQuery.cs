@@ -10,6 +10,7 @@ public record GetExternalSourcesQuery : IRequest<List<ExternalSourceDto>>;
 public record ExternalSourceDto(
     Guid Id,
     string Name,
+    string? Code,
     string Type,
     string? Description,
     string? Config,
@@ -33,7 +34,7 @@ public class GetExternalSourcesQueryHandler(IApplicationDbContext db)
         return await db.ExternalSources
             .OrderByDescending(x => x.CreatedDate)
             .Select(x => new ExternalSourceDto(
-                x.Id, x.Name, x.Type, x.Description, x.Config,
+                x.Id, x.Name, x.Code, x.Type, x.Description, x.Config,
                 x.IsActive, x.LastFetchedAt, x.LastFetchedCount,
                 x.FetchSchedule, x.AutoImportTarget,
                 x.NextScheduledFetchAt, x.LastAutoImportAt,

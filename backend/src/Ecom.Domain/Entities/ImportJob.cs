@@ -22,4 +22,6 @@ public class ImportJob : BaseEntity
     public string? ErrorMessage { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    // When true: products previously imported from this source but absent in this run are soft-deleted
+    public bool SyncDelete { get; set; } = false;
 }

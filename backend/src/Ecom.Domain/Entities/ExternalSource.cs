@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Ecom.Domain.Common;
 
 namespace Ecom.Domain.Entities;
@@ -5,6 +6,8 @@ namespace Ecom.Domain.Entities;
 public class ExternalSource : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
+    [MaxLength(50)]
+    public string? Code { get; set; } // Short display ID, e.g. "CIQNP", "EXCEL1"
     public string Type { get; set; } = "Excel"; // Excel | RestApi
     public string? Description { get; set; }
     public string? Config { get; set; } // JSON: { url, headers, fieldMapping }
@@ -37,4 +40,6 @@ public class ExternalSourceImportLog : BaseEntity
     public string ConflictStrategy { get; set; } = "skip";
     // JSON: {"Kategori bulunamadı: Elektronik": 5, "Fiyat geçersiz": 2}
     public string? SkipDiagnosticsJson { get; set; }
+    // Populated when SyncDelete was active: count of products soft-deleted because they were absent from the source
+    public int DeletedCount { get; set; }
 }

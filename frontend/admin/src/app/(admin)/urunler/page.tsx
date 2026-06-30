@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -65,6 +65,13 @@ const EMPTY_FORM: ProductForm = {
   price: "", discountPrice: "", taxRate: "18", categoryId: "",
   brandId: "", isPublished: true, isActive: true, isFeatured: false, initialStock: "0",
 };
+
+interface DupProduct {
+  id: string; name: string; price: number; discountPrice?: number; sku: string | null;
+  isActive: boolean; isPublished: boolean; createdDate: string;
+  imageUrl?: string; stock: number;
+}
+interface DupGroup { name: string; price: number; count: number; products: DupProduct[]; }
 
 const TR: Record<string, string> = {
   "ğ":"g","Ğ":"g", // ğ Ğ
@@ -199,6 +206,13 @@ export default function AdminProductsPage() {
   const [bpPreviewCount, setBpPreviewCount] = useState<number | null>(null);
   const [bpPreviewLoading, setBpPreviewLoading] = useState(false);
   const [bpApplying, setBpApplying] = useState(false);
+
+  // Duplicate products panel
+  const [dupGroups, setDupGroups] = useState<DupGroup[] | null>(null);
+  const [loadingDups, setLoadingDups] = useState(false);
+  const [showDupPanel, setShowDupPanel] = useState(false);
+  const [selectedDups, setSelectedDups] = useState<Set<string>>(new Set());
+  const [deletingDups, setDeletingDups] = useState(false);
 
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -400,6 +414,33 @@ export default function AdminProductsPage() {
       await fetchProducts();
     } catch { setImportResult(t("auto.dosyaOkunamadi", "Dosya okunamadı.")); }
     finally { setImporting(false); e.target.value = ""; }
+  }
+
+  async function loadDuplicates() {
+    setLoadingDups(true);
+    try {
+      const data = await api.get<DupGroup[]>("/api/products/duplicates");
+      setDupGroups(data);
+      setShowDupPanel(true);
+      setSelectedDups(new Set());
+    } catch { setMsg({ text: "Mükerrer ürünler yüklenemedi.", ok: false }); }
+    finally { setLoadingDups(false); }
+  }
+
+  async function handleDeleteDups() {
+    if (selectedDups.size === 0) return;
+    setDeletingDups(true);
+    try {
+      const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", {
+        productIds: [...selectedDups], action: "delete",
+      });
+      setMsg({ text: `${r.affected} mükerrer ürün silindi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}.`, ok: true });
+      setSelectedDups(new Set());
+      await loadDuplicates();
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silme başarısız", ok: false });
+    } finally { setDeletingDups(false); }
   }
 
   function openCreate() {
@@ -672,6 +713,103 @@ export default function AdminProductsPage() {
           {importResult} <button onClick={() => setImportResult(null)}><X size={14} /></button>
         </div>
       )}
+
+      {/* Mükerrer Ürünler Kartı */}
+      <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 gap-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+            <span className="text-sm font-semibold text-slate-800">Mükerrer Ürünler</span>
+            {dupGroups !== null && (
+              <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
+                {dupGroups.length} grup · {dupGroups.reduce((s, g) => s + g.count, 0)} ürün
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedDups.size > 0 && (
+              <button
+                onClick={handleDeleteDups}
+                disabled={deletingDups}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500 hover:bg-red-600 text-white rounded-xl transition disabled:opacity-50"
+              >
+                {deletingDups ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {selectedDups.size} seçiliyi sil
+              </button>
+            )}
+            <button
+              onClick={() => { if (dupGroups === null) loadDuplicates(); else setShowDupPanel(p => !p); }}
+              disabled={loadingDups}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl transition disabled:opacity-50"
+            >
+              {loadingDups ? <Loader2 size={12} className="animate-spin" /> : null}
+              {dupGroups === null ? "Tara" : showDupPanel ? "Gizle" : "Göster"}
+            </button>
+            {dupGroups !== null && (
+              <button onClick={loadDuplicates} disabled={loadingDups} title="Yenile"
+                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition disabled:opacity-50">
+                <ChevronDown size={14} className={loadingDups ? "animate-spin" : ""} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {showDupPanel && dupGroups !== null && dupGroups.length === 0 && (
+          <div className="px-5 pb-4 text-xs text-slate-400">Mükerrer ürün bulunamadı.</div>
+        )}
+
+        {showDupPanel && dupGroups !== null && dupGroups.length > 0 && (
+          <div className="border-t border-amber-100 divide-y divide-amber-50 max-h-96 overflow-y-auto">
+            {dupGroups.map((group, gi) => {
+              const groupSelected = group.products.every(p => selectedDups.has(p.id));
+              const groupSome = group.products.some(p => selectedDups.has(p.id));
+              return (
+                <div key={gi} className="px-5 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => {
+                        setSelectedDups(prev => {
+                          const next = new Set(prev);
+                          if (groupSelected) group.products.forEach(p => next.delete(p.id));
+                          else group.products.forEach(p => next.add(p.id));
+                          return next;
+                        });
+                      }}
+                      className="text-slate-400 hover:text-amber-600 transition shrink-0"
+                    >
+                      {groupSelected ? <CheckSquare size={14} className="text-amber-500" /> : groupSome ? <CheckSquare size={14} className="text-slate-300" /> : <Square size={14} />}
+                    </button>
+                    <span className="text-xs font-semibold text-slate-700 truncate flex-1">{group.name}</span>
+                    <span className="text-xs text-slate-500 shrink-0">{group.price.toLocaleString("tr-TR")} ₺</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full shrink-0">{group.count}x</span>
+                  </div>
+                  <div className="space-y-1 pl-5">
+                    {group.products.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 text-xs text-slate-600">
+                        <button
+                          onClick={() => setSelectedDups(prev => {
+                            const next = new Set(prev);
+                            if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                            return next;
+                          })}
+                          className="shrink-0 text-slate-300 hover:text-amber-500 transition"
+                        >
+                          {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
+                        </button>
+                        {p.imageUrl && <img src={p.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" />}
+                        <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
+                        <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
+                        <span className={`shrink-0 ${p.isActive ? "text-green-600" : "text-slate-400"}`}>{p.isActive ? "Aktif" : "Pasif"}</span>
+                        <span className="text-slate-400 shrink-0">{new Date(p.createdDate).toLocaleDateString("tr-TR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="sticky top-0 z-10 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">

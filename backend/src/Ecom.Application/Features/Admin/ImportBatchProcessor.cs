@@ -27,17 +27,19 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     }
 
     // Returns (inserted, updated, skipped, skipReasons)
+    // touchedProductIds: optional accumulator — populated with the DB IDs of every product seen (insert, update, or no-change skip)
     public Task<(int inserted, int updated, int skipped, Dictionary<string, int> skipReasons)> ProcessAsync(
         string targetEntity,
         List<Dictionary<string, string>> rows,
         Dictionary<string, string> fieldMapping,
         string conflictStrategy,
         CancellationToken ct,
-        Guid? sourceId = null) => targetEntity switch
+        Guid? sourceId = null,
+        HashSet<Guid>? touchedProductIds = null) => targetEntity switch
     {
         "Category" => ImportCategoriesAsync(rows, fieldMapping, conflictStrategy, ct, sourceId),
         "Brand"    => ImportBrandsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId),
-        "Product"  => ImportProductsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId),
+        "Product"  => ImportProductsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId, touchedProductIds),
         "Stock"    => ImportStocksAsync(rows, fieldMapping, conflictStrategy, ct),
         _          => throw new InvalidOperationException($"Desteklenmeyen hedef: {targetEntity}"),
     };
@@ -199,25 +201,35 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     }
 
     private async Task<(int, int, int, Dictionary<string, int>)> ImportProductsAsync(
-        List<Dictionary<string, string>> rows, Dictionary<string, string> fm, string conflict, CancellationToken ct, Guid? sourceId)
+        List<Dictionary<string, string>> rows, Dictionary<string, string> fm, string conflict, CancellationToken ct, Guid? sourceId,
+        HashSet<Guid>? touchedProductIds = null)
     {
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
 
         var batchSkus = rows
-            .Select(r => Map(r, fm, "SKU") ?? Map(r, fm, "Sku"))
+            .Select(r =>
+            {
+                var s = Map(r, fm, "SKU") ?? Map(r, fm, "Sku");
+                if (string.IsNullOrWhiteSpace(s)) s = Map(r, fm, "FallbackSku");
+                return s;
+            })
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s!)
-            .ToHashSet();
+            .ToHashSet(StringComparer.OrdinalIgnoreCase); // CI: SQL Server unique index is case-insensitive
 
         // IgnoreQueryFilters: soft-deleted products must be included to avoid SKU/Slug unique index violations
-        var seenSku = batchSkus.Count > 0
-            ? await db.Products
+        // OrdinalIgnoreCase: SQL Server CI collation means 'ABC' and 'abc' are the same SKU in the unique index
+        var seenSku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
+        if (batchSkus.Count > 0)
+        {
+            var dbProds = await db.Products
                 .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Where(p => p.SKU != null && batchSkus.Contains(p.SKU))
-                .ToDictionaryAsync(p => p.SKU!, ct)
-            : [];
+                .ToListAsync(ct);
+            foreach (var p in dbProds) seenSku.TryAdd(p.SKU!, p);
+        }
 
         var seenSlug = await db.Products
             .IgnoreQueryFilters()
@@ -234,13 +246,23 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         var brandSlugs = await db.Brands.IgnoreQueryFilters().AsNoTracking().Select(b => b.Slug).ToHashSetAsync(ct);
         var toReactivate = new HashSet<Guid>();
         var toReactivateBrands = new HashSet<Guid>();
+        var seenProductIdsWithImage = new HashSet<Guid>(); // tracks products already staged with an image in this batch
 
         foreach (var row in rows)
         {
             var name = Map(row, fm, "Name");
             var sku = Map(row, fm, "SKU") ?? Map(row, fm, "Sku");
+            if (string.IsNullOrWhiteSpace(sku))
+            {
+                // FallbackSku: use external record id when supplier SKU is absent (prevents re-import duplicates)
+                var fallback = Map(row, fm, "FallbackSku");
+                if (!string.IsNullOrWhiteSpace(fallback)) sku = fallback;
+            }
             if (string.IsNullOrWhiteSpace(sku)) sku = null;
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
+            // Truncate to DB column limits
+            if (name!.Length > 300) name = name[..300];
+            if (sku != null && sku.Length > 100) sku = sku[..100];
 
             var priceStr = Map(row, fm, "Price") ?? Map(row, fm, "BasePrice");
             if (!decimal.TryParse(priceStr?.Replace(",", "."),
@@ -311,7 +333,11 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 bool brandMatch = brandId == existing.BrandId;
 
                 if (nameMatch && priceMatch && descMatch && catMatch && brandMatch)
-                { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
+                {
+                    skip++; Bump(reasons, "Zaten güncel (değişiklik yok)");
+                    touchedProductIds?.Add(existing.Id); // still "seen" — must not be sync-deleted
+                    continue;
+                }
 
                 if (conflict == "update")
                 {
@@ -323,14 +349,18 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         attached.Description = desc;
                         if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
                         if (brandId.HasValue) attached.BrandId = brandId.Value;
+                        touchedProductIds?.Add(attached.Id);
 
-                        // Add main image if mapped and not already present
-                        if (!string.IsNullOrWhiteSpace(imageUrl))
+                        // Add main image if mapped and not already present (check both DB and change-tracker staged images)
+                        if (!string.IsNullOrWhiteSpace(imageUrl) && !seenProductIdsWithImage.Contains(attached.Id))
                         {
                             bool hasImage = await db.ProductImages
                                 .AnyAsync(pi => pi.ProductId == attached.Id && pi.IsMain, ct);
                             if (!hasImage)
+                            {
                                 db.ProductImages.Add(new ProductImage { ProductId = attached.Id, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
+                                seenProductIdsWithImage.Add(attached.Id);
+                            }
                         }
                         upd++;
                     }
@@ -347,6 +377,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 }
 
                 var slug = Slugify(name);
+                if (slug.Length > 300) slug = slug[..300];
                 var baseSlug = slug;
                 for (int n = 2; seenSlug.Contains(slug); n++) slug = $"{baseSlug}-{n}";
                 seenSlug.Add(slug);
@@ -362,7 +393,11 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 };
                 db.Products.Add(entity);
                 if (!string.IsNullOrWhiteSpace(imageUrl))
+                {
                     db.ProductImages.Add(new ProductImage { Product = entity, ImageUrl = imageUrl, IsMain = true, SortOrder = 0 });
+                    seenProductIdsWithImage.Add(entity.Id);
+                }
+                touchedProductIds?.Add(entity.Id);
                 if (sku != null) seenSku[sku] = entity;
                 ins++;
             }
@@ -385,7 +420,16 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             foreach (var b in softDeletedBrands) b.IsDeleted = false;
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException batchEx)
+        {
+            // Surface the real SQL error instead of the generic EF wrapper
+            var inner = batchEx.InnerException?.Message ?? batchEx.Message;
+            throw new InvalidOperationException($"DB save failed: {inner}", batchEx);
+        }
         db.ClearChangeTracker();
         return (ins, upd, skip, reasons);
     }

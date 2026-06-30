@@ -100,6 +100,57 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("duplicates")]
+    [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
+    public async Task<IActionResult> GetDuplicates(
+        [FromServices] IApplicationDbContext db,
+        CancellationToken ct)
+    {
+        // Find (Name, Price) pairs with more than 1 non-deleted product
+        var dupKeys = await db.Products
+            .Where(p => !p.IsDeleted)
+            .GroupBy(p => new { p.Name, p.Price })
+            .Where(g => g.Count() > 1)
+            .OrderByDescending(g => g.Count())
+            .Take(300)
+            .Select(g => new { g.Key.Name, g.Key.Price, Count = g.Count() })
+            .ToListAsync(ct);
+
+        if (!dupKeys.Any())
+            return Ok(Array.Empty<object>());
+
+        var names = dupKeys.Select(k => k.Name).Distinct().ToList();
+
+        var allProds = await db.Products
+            .Where(p => !p.IsDeleted && names.Contains(p.Name))
+            .Include(p => p.Images.Where(i => i.IsMain))
+            .Include(p => p.Stock)
+            .OrderBy(p => p.Name).ThenBy(p => p.Price).ThenBy(p => p.CreatedDate)
+            .Select(p => new {
+                p.Id, p.Name, p.Price, p.DiscountPrice, p.SKU,
+                p.IsActive, p.IsPublished, p.CreatedDate,
+                ImageUrl = p.Images.Any() ? p.Images.First().ImageUrl : (string?)null,
+                Stock = p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
+            })
+            .ToListAsync(ct);
+
+        var dupKeySet = dupKeys.Select(k => (k.Name, k.Price)).ToHashSet();
+
+        var result = allProds
+            .Where(p => dupKeySet.Contains((p.Name, p.Price)))
+            .GroupBy(p => new { p.Name, p.Price })
+            .Select(g => new {
+                g.Key.Name,
+                g.Key.Price,
+                Count = g.Count(),
+                Products = g.ToList(),
+            })
+            .OrderByDescending(g => g.Count)
+            .ToList();
+
+        return Ok(result);
+    }
+
     [HttpGet("{id:guid}/history")]
     [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
     public async Task<IActionResult> GetHistory(Guid id, CancellationToken ct)

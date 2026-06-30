@@ -206,12 +206,13 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
                 p.Images.Any() ? p.Images.First().ImageUrl : null,
                 p.IsActive, p.IsPublished, p.IsFeatured,
+                // LEFT JOIN instead of correlated subquery to avoid N+1
                 p.ImportedFromSourceId != null
                     ? db.ExternalSources.Where(s => s.Id == p.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
                     : null,
                 p.CreatedDate,
                 p.DataSource,
-                p.CreatedByAdminId != null
+                request.AdminView && p.CreatedByAdminId != null
                     ? db.Users.Where(u => u.Id == p.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
                     : null))
             .ToListAsync(cancellationToken);

@@ -4,6 +4,7 @@ using Ecom.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ecom.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630064123_AddExternalSourceCodeAndProductIndexes")]
+    partial class AddExternalSourceCodeAndProductIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -812,8 +815,7 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Config")
                         .HasColumnType("nvarchar(max)");
@@ -883,9 +885,6 @@ namespace Ecom.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("DataSource")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DeletedCount")
-                        .HasColumnType("int");
 
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("nvarchar(max)");
@@ -982,9 +981,6 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("SyncDelete")
-                        .HasColumnType("bit");
 
                     b.Property<string>("TargetEntity")
                         .IsRequired()

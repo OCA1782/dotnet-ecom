@@ -13,6 +13,7 @@ import { exportToExcel, readExcelFile } from "@/lib/excel";
 interface ExternalSource {
   id: string;
   name: string;
+  code?: string;
   type: string;
   description?: string;
   config?: string;
@@ -34,6 +35,7 @@ interface ImportLog {
   insertedCount: number;
   updatedCount: number;
   skippedCount: number;
+  deletedCount: number;
   errorMessage?: string;
   importedByUserEmail?: string;
   createdDate: string;
@@ -295,6 +297,8 @@ export default function DisKaynaklarPage() {
   const [activeTab, setActiveTab] = useState<Record<string, "preview" | "history">>({});
   // import status: importedSet[sourceId] = Set of identifier values that exist in DB
   const [importedSet, setImportedSet] = useState<Record<string, Set<string>>>({});
+  // sync-delete: per-source flag — when true, products absent from source are soft-deleted after fetch-and-import
+  const [syncDeleteMap, setSyncDeleteMap] = useState<Record<string, boolean>>({});
   const [checkingImport, setCheckingImport] = useState<string | null>(null);
   const [importFilter, setImportFilter] = useState<Record<string, "all" | "imported" | "not">>({});
   // source total available count from quick metadata call
@@ -645,6 +649,86 @@ export default function DisKaynaklarPage() {
     }
   }
 
+  async function handleFetchAndImport(sourceId: string) {
+    const target = targetMap[sourceId] || "Product";
+    const mapping = mappingState[sourceId] || {};
+    const conflict = conflictMap[sourceId] || "skip";
+    const syncDelete = syncDeleteMap[sourceId] ?? false;
+
+    if (Object.keys(mapping).length === 0) {
+      toast(false, "Önce veri çekin ve alan eşlemesini yapılandırın.");
+      return;
+    }
+
+    const estimated = totalAvailable[sourceId];
+    const syncMsg = syncDelete ? "\n\n⚠️ Kaynakta bulunmayan ürünler silinecek (Sync Delete aktif)." : "";
+    const confirmed = window.confirm(
+      `Sunucu tarafında tüm kayıtlar çekilip aktarılacak${estimated ? ` (yaklaşık ${estimated.toLocaleString("tr-TR")} kayıt)` : ""}.${syncMsg}\nDevam edilsin mi?`
+    );
+    if (!confirmed) return;
+
+    setImporting(sourceId);
+    try {
+      const { jobId } = await api.post<{ jobId: string }>(
+        `/api/admin/external-sources/${sourceId}/fetch-and-import`,
+        { targetEntity: target, fieldMapping: mapping, conflictStrategy: conflict, syncDelete }
+      );
+
+      setImportProgress(prev => ({
+        ...prev,
+        [sourceId]: {
+          processed: 0,
+          total: estimated ?? 0,
+          inserted: 0, updated: 0, skipped: 0,
+          mode: "async", jobId, jobStatus: "Queued",
+        },
+      }));
+      toast(true, `Tümünü çek ve aktar kuyruğa alındı. Arka planda işleniyor...`);
+
+      const timer = setInterval(async () => {
+        try {
+          const status = await api.get<{
+            status: string; totalRows: number; processedRows: number;
+            insertedCount: number; updatedCount: number; skippedCount: number; errorMessage?: string;
+          }>(`/api/admin/external-sources/import-jobs/${jobId}`);
+
+          setImportProgress(prev => ({
+            ...prev,
+            [sourceId]: {
+              processed: status.processedRows,
+              total: status.totalRows || (estimated ?? 0),
+              inserted: status.insertedCount,
+              updated: status.updatedCount,
+              skipped: status.skippedCount,
+              mode: "async",
+              jobId,
+              jobStatus: status.status,
+            },
+          }));
+
+          if (status.status === "Completed" || status.status === "Failed") {
+            clearInterval(timer);
+            delete pollTimers.current[sourceId];
+            if (status.status === "Completed") {
+              toast(true, `Tamamlandı — +${status.insertedCount} eklendi, ~${status.updatedCount} güncellendi, ⊘${status.skippedCount} atlandı`);
+            } else {
+              toast(false, `Hata: ${status.errorMessage ?? "Bilinmeyen hata"}`);
+            }
+            setImportProgress(prev => { const n = { ...prev }; delete n[sourceId]; return n; });
+            loadLogs(sourceId);
+            load();
+          }
+        } catch { /* polling failure — keep trying */ }
+      }, 2000);
+
+      pollTimers.current[sourceId] = timer;
+    } catch (e: unknown) {
+      toast(false, e instanceof Error ? e.message : "Kuyruğa alma hatası");
+      setImportProgress(prev => { const n = { ...prev }; delete n[sourceId]; return n; });
+    }
+    setImporting(null);
+  }
+
   async function handleAsyncImport(
     sourceId: string,
     rows: Record<string, string>[],
@@ -960,6 +1044,11 @@ export default function DisKaynaklarPage() {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${
                       source.type === "RestApi" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"
                     }`}>{source.type === "RestApi" ? "REST" : "Excel"}</span>
+                    {source.code && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                        #{source.code}
+                      </span>
+                    )}
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1486,6 +1575,33 @@ export default function DisKaynaklarPage() {
                               </button>
                             );
                           })()}
+
+                          {/* Fetch-and-import: server fetches all pages — no browser size limit */}
+                          {source.type === "RestApi" && (
+                            <div className="flex items-center gap-2">
+                              <label className="flex items-center gap-1.5 text-[10px] text-slate-500 cursor-pointer select-none"
+                                title="Kaynakta artık bulunmayan ürünler silinir (arşivlenir)">
+                                <input
+                                  type="checkbox"
+                                  checked={syncDeleteMap[source.id] ?? false}
+                                  onChange={e => setSyncDeleteMap(prev => ({ ...prev, [source.id]: e.target.checked }))}
+                                  className="rounded"
+                                />
+                                Kayıt silmeyi senkronize et
+                              </label>
+                              <button
+                                onClick={() => handleFetchAndImport(source.id)}
+                                disabled={importing === source.id}
+                                title="Sunucu tarafında tüm sayfaları çekip aktar — 100K+ kayıt için"
+                                className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-40 shadow bg-indigo-600 hover:bg-indigo-700 text-white"
+                              >
+                                <Zap size={15} />
+                                {totalAvailable[source.id]
+                                  ? `Tümünü Çek ve Aktar (${totalAvailable[source.id]!.toLocaleString("tr-TR")})`
+                                  : "Tümünü Çek ve Aktar"}
+                              </button>
+                            </div>
+                          )}
                         </div>
                         {selRowCount === 0 && (
                           <p className="text-[10px] text-slate-400 flex items-center gap-1">
@@ -1632,6 +1748,12 @@ export default function DisKaynaklarPage() {
                                         <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
                                         ⊘{log.skippedCount} atlandı
                                       </span>
+                                      {log.deletedCount > 0 && (
+                                        <span className="flex items-center gap-1 font-semibold text-red-500">
+                                          <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                                          🗑 {log.deletedCount} silindi
+                                        </span>
+                                      )}
                                       {total > 0 && (
                                         <span className="text-slate-400 ml-auto">{processed}/{total} satır</span>
                                       )}
@@ -1823,6 +1945,7 @@ function SourceModal({
 
   // Basic fields
   const [name, setName] = useState(source?.name ?? "");
+  const [code, setCode] = useState(source?.code ?? "");
   const [type, setType] = useState(source?.type ?? "Excel");
   const [description, setDescription] = useState(source?.description ?? "");
   const [isActive, setIsActive] = useState(source?.isActive ?? true);
@@ -1885,7 +2008,7 @@ function SourceModal({
       const config = isRestApi
         ? JSON.stringify({ url, headers: JSON.parse(headersJson || "{}"), dataPath, ...paginationConfig })
         : null;
-      const body = { name, type, description, config, isActive, fetchSchedule, autoImportTarget: autoImportTarget || null };
+      const body = { name, code: code.trim().toUpperCase() || null, type, description, config, isActive, fetchSchedule, autoImportTarget: autoImportTarget || null };
 
       let sourceId: string;
       if (isEdit) {
@@ -1988,10 +2111,17 @@ function SourceModal({
 
           {/* Temel bilgiler */}
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Ad <span className="text-red-500">*</span></label>
-              <input value={name} onChange={e => setName(e.target.value)} className={inp}
-                placeholder={isRestApi ? "örn: Ürün Kataloğu API" : "örn: Tedarikçi A Kataloğu"} />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Ad <span className="text-red-500">*</span></label>
+                <input value={name} onChange={e => setName(e.target.value)} className={inp}
+                  placeholder={isRestApi ? "örn: Ürün Kataloğu API" : "örn: Tedarikçi A Kataloğu"} />
+              </div>
+              <div className="w-28">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Kısa Kod</label>
+                <input value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                  className={inp + " font-mono tracking-wider"} placeholder="örn: CIQNP" maxLength={10} />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Açıklama</label>

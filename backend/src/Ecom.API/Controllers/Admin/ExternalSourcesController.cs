@@ -32,14 +32,14 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateSourceRequest req, CancellationToken ct)
     {
-        var id = await mediator.Send(new CreateExternalSourceCommand(req.Name, req.Type, req.Description, req.Config, req.FetchSchedule, req.AutoImportTarget), ct);
+        var id = await mediator.Send(new CreateExternalSourceCommand(req.Name, req.Code, req.Type, req.Description, req.Config, req.FetchSchedule, req.AutoImportTarget), ct);
         return Ok(new { id });
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSourceRequest req, CancellationToken ct)
     {
-        var ok = await mediator.Send(new UpdateExternalSourceCommand(id, req.Name, req.Type, req.Description, req.Config, req.IsActive, req.FetchSchedule, req.AutoImportTarget), ct);
+        var ok = await mediator.Send(new UpdateExternalSourceCommand(id, req.Name, req.Code, req.Type, req.Description, req.Config, req.IsActive, req.FetchSchedule, req.AutoImportTarget), ct);
         return ok ? Ok() : NotFound();
     }
 
@@ -296,6 +296,17 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return Ok(new { jobId });
     }
 
+    // Large source fetch-and-import: consumer fetches all pages from source server-side — no payload size limit
+    [HttpPost("{id:guid}/fetch-and-import")]
+    public async Task<IActionResult> FetchAndImport(Guid id, [FromBody] FetchAndImportRequest req, CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userGuid = userId != null ? Guid.Parse(userId) : null;
+        var jobId = await mediator.Send(new QueueFetchAndImportJobCommand(
+            id, req.TargetEntity, req.FieldMapping, req.ConflictStrategy, userGuid, req.SyncDelete), ct);
+        return Ok(new { jobId });
+    }
+
     [HttpGet("import-jobs/{jobId:guid}")]
     public async Task<IActionResult> GetImportJobStatus(Guid jobId, CancellationToken ct)
     {
@@ -507,9 +518,9 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return Ok(new { columns, rows, error = (string?)null, note });
     }
 
-    public record CreateSourceRequest(string Name, string Type, string? Description, string? Config,
+    public record CreateSourceRequest(string Name, string? Code, string Type, string? Description, string? Config,
         string FetchSchedule = "None", string? AutoImportTarget = null);
-    public record UpdateSourceRequest(string Name, string Type, string? Description, string? Config, bool IsActive,
+    public record UpdateSourceRequest(string Name, string? Code, string Type, string? Description, string? Config, bool IsActive,
         string FetchSchedule = "None", string? AutoImportTarget = null);
     public record ImportRequest(
         string TargetEntity,
@@ -529,6 +540,12 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
     public record CheckImportedRequest(
         string TargetEntity,
         List<string> Identifiers
+    );
+    public record FetchAndImportRequest(
+        string TargetEntity,
+        Dictionary<string, string> FieldMapping,
+        string ConflictStrategy,
+        bool SyncDelete = false
     );
     public record SavePreviewRequest(
         List<string> Columns,

@@ -6,6 +6,7 @@ namespace Ecom.Application.Features.Admin.Commands;
 
 public record CreateExternalSourceCommand(
     string Name,
+    string? Code,
     string Type,
     string? Description,
     string? Config,
@@ -18,9 +19,12 @@ public class CreateExternalSourceCommandHandler(IApplicationDbContext db)
 {
     public async Task<Guid> Handle(CreateExternalSourceCommand request, CancellationToken cancellationToken)
     {
+        var code = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim().ToUpperInvariant();
+        if (code?.Length > 50) code = code[..50];
         var source = new ExternalSource
         {
             Name = request.Name,
+            Code = code,
             Type = request.Type,
             Description = request.Description,
             Config = request.Config,

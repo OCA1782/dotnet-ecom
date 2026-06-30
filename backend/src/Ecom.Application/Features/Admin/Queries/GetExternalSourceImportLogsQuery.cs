@@ -12,6 +12,7 @@ public record ImportLogDto(
     int InsertedCount,
     int UpdatedCount,
     int SkippedCount,
+    int DeletedCount,
     string? ErrorMessage,
     string? ImportedByUserEmail,
     DateTime CreatedDate,
@@ -37,7 +38,7 @@ public class GetExternalSourceImportLogsQueryHandler(IApplicationDbContext db)
             .Take(10)
             .Select(j => new ImportLogDto(
                 j.Id, j.TargetEntity,
-                j.InsertedCount, j.UpdatedCount, j.SkippedCount,
+                j.InsertedCount, j.UpdatedCount, j.SkippedCount, 0,
                 j.ErrorMessage, null,
                 j.CreatedDate, j.TotalRows, j.ConflictStrategy,
                 true, j.Status, j.ProcessedRows, null))
@@ -50,7 +51,7 @@ public class GetExternalSourceImportLogsQueryHandler(IApplicationDbContext db)
             .Take(50)
             .Select(l => new ImportLogDto(
                 l.Id, l.TargetEntity,
-                l.InsertedCount, l.UpdatedCount, l.SkippedCount,
+                l.InsertedCount, l.UpdatedCount, l.SkippedCount, l.DeletedCount,
                 l.ErrorMessage,
                 l.ImportedByUserId != null
                     ? db.Users.Where(u => u.Id == l.ImportedByUserId).Select(u => u.Email).FirstOrDefault()
