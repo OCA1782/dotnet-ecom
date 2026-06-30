@@ -89,8 +89,9 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [categories, brands, products, lang] = await Promise.all([getCategories(), getBrands(), getProducts(params), getServerLang()]);
+  const [categories, brands, products, lang, settings] = await Promise.all([getCategories(), getBrands(), getProducts(params), getServerLang(), getSettings()]);
   const t = (key: string) => translate(lang, key);
+  const isSP = settings.CustomerTemplate === "spareparts";
 
   const currentPage = Number(params.sayfa ?? 1);
 
@@ -153,7 +154,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm text-teal-400 font-medium">
+              <p className={`text-sm font-medium ${isSP ? "text-orange-500" : "text-teal-400"}`}>
                 {t("prod2.list.count").replace("{n}", String(products.totalCount))}
               </p>
               {params.s && (
@@ -231,13 +232,24 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 <Link
                   key={product.id}
                   href={`/urun/${product.slug}`}
-                  className="bg-white rounded-2xl border border-teal-100 overflow-hidden hover:shadow-xl hover:shadow-teal-100/50 hover:-translate-y-1 transition-all duration-200 group"
+                  className={`bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-all duration-200 group ${
+                    isSP
+                      ? "border border-gray-100 hover:shadow-lg hover:shadow-orange-100/50 shadow-sm"
+                      : "border border-teal-100 hover:shadow-xl hover:shadow-teal-100/50"
+                  }`}
                 >
-                  <div className="aspect-square bg-gradient-to-br from-teal-50 to-cyan-50 flex items-center justify-center relative">
+                  <div className={`aspect-square flex items-center justify-center relative ${
+                    isSP ? "bg-white" : "bg-gradient-to-br from-teal-50 to-cyan-50"
+                  }`}>
                     {product.discountPrice && (
-                      <span className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                      <span className={`absolute top-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow ${
+                        isSP ? "bg-orange-500" : "bg-gradient-to-r from-orange-400 to-pink-500"
+                      }`}>
                         {t("prod2.list.on_sale")}
                       </span>
+                    )}
+                    {isSP && product.availableStock > 0 && (
+                      <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Stokta</span>
                     )}
                     {product.imageUrl ? (
                       <Image src={product.imageUrl} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" />
@@ -246,18 +258,22 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="text-xs text-teal-400 font-medium mb-0.5">{product.brandName}</p>
-                    <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm group-hover:text-teal-700 transition-colors">
+                    {product.brandName && (
+                      <p className={`text-xs font-medium mb-0.5 ${isSP ? "text-orange-500" : "text-teal-400"}`}>{product.brandName}</p>
+                    )}
+                    <h3 className={`font-semibold text-slate-800 line-clamp-2 text-sm transition-colors ${
+                      isSP ? "group-hover:text-orange-600" : "group-hover:text-teal-700"
+                    }`}>
                       {product.name}
                     </h3>
                     <div className="mt-2 flex items-center gap-2">
                       {product.discountPrice ? (
                         <>
-                          <span className="font-bold text-teal-700">{formatPrice(product.discountPrice)}</span>
+                          <span className={`font-bold ${isSP ? "text-orange-600" : "text-teal-700"}`}>{formatPrice(product.discountPrice)}</span>
                           <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
                         </>
                       ) : (
-                        <span className="font-bold text-teal-700">{formatPrice(product.price)}</span>
+                        <span className={`font-bold ${isSP ? "text-orange-600" : "text-teal-700"}`}>{formatPrice(product.price)}</span>
                       )}
                     </div>
                     {product.availableStock === 0 && (
@@ -273,7 +289,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           {products.totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-10">
               {products.hasPreviousPage && (
-                <Link href={buildUrl({ sayfa: String(currentPage - 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
+                <Link href={buildUrl({ sayfa: String(currentPage - 1) })} className={`px-4 py-2 rounded-xl border text-sm transition font-medium ${isSP ? "border-orange-200 text-orange-600 hover:bg-orange-50" : "border-teal-200 text-teal-600 hover:bg-teal-50"}`}>
                   {t("prod2.page.prev")}
                 </Link>
               )}
@@ -285,15 +301,19 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     href={buildUrl({ sayfa: String(p) })}
                     className={`px-4 py-2 rounded-xl border text-sm font-medium transition ${
                       p === currentPage
-                        ? "bg-gradient-to-r from-teal-500 to-teal-700 text-white border-transparent shadow"
-                        : "border-teal-200 text-teal-600 hover:bg-teal-50"
+                        ? isSP
+                          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-transparent shadow"
+                          : "bg-gradient-to-r from-teal-500 to-teal-700 text-white border-transparent shadow"
+                        : isSP
+                          ? "border-orange-200 text-orange-600 hover:bg-orange-50"
+                          : "border-teal-200 text-teal-600 hover:bg-teal-50"
                     }`}
                   >
                     {p}
                   </Link>
                 ))}
               {products.hasNextPage && (
-                <Link href={buildUrl({ sayfa: String(currentPage + 1) })} className="px-4 py-2 rounded-xl border border-teal-200 text-sm text-teal-600 hover:bg-teal-50 transition font-medium">
+                <Link href={buildUrl({ sayfa: String(currentPage + 1) })} className={`px-4 py-2 rounded-xl border text-sm transition font-medium ${isSP ? "border-orange-200 text-orange-600 hover:bg-orange-50" : "border-teal-200 text-teal-600 hover:bg-teal-50"}`}>
                   {t("prod2.page.next")}
                 </Link>
               )}
