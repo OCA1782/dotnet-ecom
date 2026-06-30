@@ -258,57 +258,55 @@ export default async function HomePage() {
             {/* ── Sağ içerik ── */}
             <div className="flex-1 min-w-0 flex flex-col gap-4">
 
-              {/* ── Promo alanı — 4 kolon ── */}
-              <div className="grid grid-cols-4 gap-3">
-
-                {/* Sol küçük promo */}
-                <div className="col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col justify-between min-h-[180px] hover:shadow-md hover:-translate-y-0.5 transition-all duration-150">
-                  <div>
-                    <span className="inline-block bg-orange-100 text-orange-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full mb-2 uppercase tracking-wider">Özel Fırsat</span>
-                    <h3 className="font-extrabold text-gray-800 text-sm leading-tight mb-2">{promo1Title}</h3>
-                    <p className="text-xs text-gray-400 leading-snug">{promo1Desc}</p>
-                  </div>
-                  <Link href="/urunler?s=filtre"
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors">
-                    {t("home2.sp.promo.view")}
-                  </Link>
-                </div>
-
-                {/* Orta büyük hero */}
-                <div className="col-span-2 rounded-2xl overflow-hidden relative flex items-center p-6 min-h-[180px] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-150"
-                  style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)" }}>
-                  <div className="relative z-10">
-                    <span className="inline-block bg-orange-500/20 text-orange-400 text-[9px] font-extrabold px-2 py-0.5 rounded-full mb-2 uppercase tracking-wider">Stokta Hazır</span>
-                    <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-orange-500 text-4xl font-black">{heroCount}</span>
-                      <span className="text-white text-xl font-black">{heroCountUnit}</span>
+              {/* ── Hero Banner (onlineyedekparca.com stili) ── */}
+              <div className="rounded-2xl overflow-hidden shadow-sm"
+                style={{ background: "linear-gradient(135deg, #0d1b2a 0%, #1a2744 55%, #0f3460 100%)" }}>
+                <div className="flex items-center justify-between px-6 py-7 lg:px-8 lg:py-8 relative">
+                  {/* Sol: count + slogan + CTA */}
+                  <div className="relative z-10 max-w-sm">
+                    <span className="inline-block bg-orange-500/20 text-orange-400 text-[10px] font-extrabold px-3 py-0.5 rounded-full mb-3 uppercase tracking-widest">
+                      Stokta Hazır
+                    </span>
+                    <div className="flex items-baseline gap-2 mb-1.5">
+                      <span className="text-orange-500 text-6xl font-black leading-none">{heroCount}</span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-white text-2xl font-black">{heroCountUnit}</span>
+                        <span className="text-orange-300 text-xs font-bold tracking-wide">İLE</span>
+                      </div>
                     </div>
-                    <p className="text-gray-300 text-xs font-semibold leading-snug mb-4">
-                      {siteName.toUpperCase()}<br/>{heroSlogan}
-                    </p>
-                    <Link href="/urunler"
-                      className="inline-block bg-orange-500 hover:bg-orange-400 text-white text-xs font-extrabold px-5 py-2 rounded-full transition-all duration-150 shadow-lg hover:shadow-orange-500/40">
-                      Hemen Ara
-                    </Link>
+                    <p className="text-white text-sm font-extrabold leading-snug mb-1">{siteName.toUpperCase()}</p>
+                    <p className="text-gray-400 text-xs leading-relaxed mb-5">{heroSlogan}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href="/urunler"
+                        className="inline-block bg-orange-500 hover:bg-orange-400 text-white text-xs font-extrabold px-5 py-2.5 rounded-full transition-all duration-150 shadow-lg hover:shadow-orange-500/30">
+                        {t("home2.sp.hero.search_btn")}
+                      </Link>
+                      <Link href="/urunler?indirimli=true"
+                        className="inline-block bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-full border border-white/10 transition-all duration-150">
+                        Fırsatları Gör
+                      </Link>
+                    </div>
                   </div>
-                  <div className="absolute right-4 bottom-2 text-[100px] opacity-5 select-none leading-none text-white font-black">&#9881;</div>
+                  {/* Sağ: dekoratif */}
+                  <div className="hidden md:flex items-center justify-end w-48 h-36 shrink-0 select-none pointer-events-none opacity-[0.04]">
+                    <span className="text-[180px] text-white font-black leading-none">⚙</span>
+                  </div>
+                  {/* İndirim rozeti */}
+                  <div className="absolute top-5 right-5 w-16 h-16 rounded-full flex flex-col items-center justify-center text-center shadow-lg"
+                    style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
+                    <span className="text-white text-lg font-black leading-none">{promo2Discount.replace(/[^0-9%]/g,"")}</span>
+                    <span className="text-orange-100 text-[8px] font-bold leading-tight">İNDİRİM</span>
+                  </div>
                 </div>
-
-                {/* Sağ indirim promo */}
-                <div className="col-span-1 rounded-2xl overflow-hidden relative flex flex-col justify-between p-4 min-h-[180px] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-150"
-                  style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)" }}>
-                  <div>
-                    <span className="inline-block bg-white/20 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full mb-2 uppercase tracking-wider">Kampanya</span>
-                    <h3 className="text-white font-extrabold text-sm leading-tight">BÜYÜK<br/>İNDİRİM</h3>
-                  </div>
-                  <div>
-                    <p className="text-orange-100 text-xs mb-3 leading-snug">Seçili ürünlerde {promo2Discount}</p>
-                    <Link href="/urunler?indirimli=true"
-                      className="inline-block bg-white text-orange-600 text-xs font-extrabold px-4 py-1.5 rounded-full hover:bg-orange-50 transition-all duration-150 shadow">
-                      Fırsatları Gör
+                {/* OEM Partner şeridi */}
+                <div className="bg-black/30 px-6 py-2.5 flex items-center gap-4 flex-wrap border-t border-white/5">
+                  <span className="text-[9px] font-extrabold text-gray-600 uppercase tracking-widest shrink-0">OEM Partner</span>
+                  {["STELLANTIS","PSA","FCA","LANCIA","JEEP","BOSCH","VALEO","MANN+HUMMEL"].map(brand => (
+                    <Link key={brand} href={`/urunler?s=${encodeURIComponent(brand)}`}
+                      className="text-[11px] font-extrabold text-white/50 hover:text-orange-400 transition-colors duration-150">
+                      {brand}
                     </Link>
-                  </div>
-                  <div className="absolute right-2 bottom-2 text-7xl opacity-10 select-none leading-none text-white font-black">%</div>
+                  ))}
                 </div>
               </div>
 
@@ -332,13 +330,47 @@ export default async function HomePage() {
                 </div>
               )}
 
-              {/* ── Fırsat Ürünleri ── */}
+              {/* ── Marka & Kampanya Bannerleri ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Stok / ürün promo */}
+                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center gap-4 px-5 py-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 min-h-[110px]">
+                  <div className="w-14 h-14 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+                    <span className="text-2xl">🔧</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[9px] font-extrabold text-orange-500 uppercase tracking-widest">Stokta Hazır</span>
+                    <h4 className="font-extrabold text-gray-900 text-sm leading-tight mt-0.5 mb-1.5">{promo1Title} Stoklarda!</h4>
+                    <p className="text-[11px] text-gray-400 leading-snug mb-2">{promo1Desc}</p>
+                    <Link href="/urunler?s=filtre" className="inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors">
+                      Ürünleri İncele <span aria-hidden>›</span>
+                    </Link>
+                  </div>
+                </div>
+                {/* Garaj kampanyası */}
+                <div className="rounded-2xl overflow-hidden flex items-center gap-4 px-5 py-5 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-150 min-h-[110px]"
+                  style={{ background: "linear-gradient(135deg,#1c5ea8 0%,#0f3f80 100%)" }}>
+                  <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center shrink-0 text-3xl">
+                    🚗
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[9px] font-extrabold text-blue-200 uppercase tracking-widest">Kampanya</span>
+                    <h4 className="font-extrabold text-white text-sm leading-tight mt-0.5 mb-1.5">Araçını Garaja Kaydet Kazan!</h4>
+                    <p className="text-[11px] text-blue-200/70 leading-snug mb-2">Kayıtlı araçlar için özel fiyatlar</p>
+                    <Link href="/hesabim"
+                      className="inline-block bg-white text-blue-700 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full hover:bg-blue-50 transition-all duration-150 shadow-sm">
+                      Hemen Başla
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Haftanın Fırsatları ── */}
               {discountProducts.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
                     <h3 className="font-extrabold text-gray-900 text-sm flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"/>
-                      Fırsat Ürünleri
+                      Haftanın Fırsatları
                     </h3>
                     <Link href="/urunler?indirimli=true" className="text-xs text-orange-600 font-bold hover:underline">
                       Tümünü Gör →
@@ -370,21 +402,24 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* ── Güvence şeridi ── */}
-        <div className="bg-[#1c1f2e] py-4">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {spTrustItems.map(item => (
-                <div key={item.abbr} className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[10px] font-extrabold shrink-0">
-                    {item.abbr}
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-white leading-snug">{item.title}</p>
-                    <p className="text-[10px] text-gray-500">{item.desc}</p>
+        {/* ── Güvence şeridi (referans: onlineyedekparca trust bar) ── */}
+        <div className="bg-[#1c1f2e] border-t border-white/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+              {spTrustItems.map((item, i) => {
+                const ICONS = ["🔒","🚚","↩","📞"];
+                return (
+                  <div key={item.abbr} className="flex items-center gap-3.5 group">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/15 text-xl flex items-center justify-center shrink-0 group-hover:bg-orange-500/25 transition-colors duration-150">
+                      {ICONS[i] || item.abbr}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-extrabold text-white leading-snug">{item.title}</p>
+                      <p className="text-[10px] text-gray-500 leading-snug">{item.desc}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
