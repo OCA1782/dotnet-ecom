@@ -70,12 +70,55 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         if (!catName.Contains('>'))
         {
             var key = catName.ToLower();
-            if (seen.TryGetValue(key, out var direct))
-            {
-                if (direct.IsDeleted) toReactivate.Add(direct.Id);
+            if (seen.TryGetValue(key, out var direct) && !direct.IsDeleted)
                 return direct.Id;
+
+            // "Otomotiv Filtre" → detect "Otomotiv" root prefix → create "Filtre" under Otomotiv.
+            // Tries longest prefix first (e.g. "A B C" checks "A B" before "A").
+            var words = catName.Split(' ');
+            if (words.Length > 1)
+            {
+                for (int i = words.Length - 1; i >= 1; i--)
+                {
+                    var prefix = string.Join(" ", words.Take(i));
+                    if (seen.TryGetValue(prefix.ToLower(), out var parentCat)
+                        && !parentCat.IsDeleted
+                        && parentCat.ParentCategoryId == null)
+                    {
+                        var subName = string.Join(" ", words.Skip(i));
+                        var existingSub = seen.Values.FirstOrDefault(c =>
+                            c.Name.Equals(subName, StringComparison.OrdinalIgnoreCase)
+                            && c.ParentCategoryId == parentCat.Id
+                            && !c.IsDeleted);
+                        if (existingSub != null)
+                            return existingSub.Id;
+
+                        var subSlug = Slugify(subName);
+                        var baseSubSlug = subSlug;
+                        for (int n = 2; slugsSeen.Contains(subSlug); n++) subSlug = $"{baseSubSlug}-{n}";
+                        slugsSeen.Add(subSlug);
+                        var sub = new Category
+                        {
+                            Name = subName,
+                            Slug = subSlug,
+                            ParentCategoryId = parentCat.Id,
+                            ImportedFromSourceId = sourceId,
+                        };
+                        db.Categories.Add(sub);
+                        seen[subName.ToLower()] = sub;
+                        return sub.Id;
+                    }
+                }
             }
-            // Auto-create single-level category (same policy as hierarchical leaves)
+
+            // Reactivate soft-deleted category if no prefix match
+            if (seen.TryGetValue(key, out var softDel) && softDel.IsDeleted)
+            {
+                toReactivate.Add(softDel.Id);
+                return softDel.Id;
+            }
+
+            // Auto-create root-level category
             var slug = Slugify(catName);
             var baseSlug = slug;
             for (int n = 2; slugsSeen.Contains(slug); n++) slug = $"{baseSlug}-{n}";
