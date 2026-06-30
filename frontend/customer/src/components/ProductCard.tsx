@@ -12,9 +12,10 @@ import { formatPrice } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 import type { ProductListItem } from "@/types";
 
-export default function ProductCard({ product, initialLiked = false }: {
+export default function ProductCard({ product, initialLiked = false, variant = "default" }: {
   product: ProductListItem;
   initialLiked?: boolean;
+  variant?: "default" | "spareparts";
 }) {
   const { t } = useI18n();
   const { addToCart } = useCart();
@@ -63,13 +64,37 @@ export default function ProductCard({ product, initialLiked = false }: {
     }
   }
 
+  const isSP = variant === "spareparts";
+  const discountPct = isSP && product.discountPrice && product.price > 0
+    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+    : null;
+
   return (
-    <div className="product-card bg-white rounded-2xl border border-[#E3EFEE] overflow-hidden hover:shadow-xl hover:shadow-[#12304A]/10 hover:-translate-y-1 transition-all duration-200 group flex flex-col">
+    <div className={`product-card bg-white rounded-2xl overflow-hidden transition-all duration-200 group flex flex-col ${
+      isSP
+        ? "border border-gray-100 hover:shadow-lg hover:-translate-y-0.5 shadow-sm"
+        : "border border-[#E3EFEE] hover:shadow-xl hover:shadow-[#12304A]/10 hover:-translate-y-1"
+    }`}>
       <Link href={`/urun/${product.slug}`} className="block relative">
-        {product.discountPrice && (
-          <span className="absolute top-2 left-2 z-10 bg-[#FF7A45] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-            {t("product.sale_badge")}
-          </span>
+        {isSP ? (
+          <>
+            {product.availableStock > 0 && (
+              <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                Taze Stok
+              </span>
+            )}
+            {discountPct !== null && (
+              <span className="absolute top-2 right-10 z-10 bg-green-500 text-white text-[10px] font-extrabold w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+                -{discountPct}%
+              </span>
+            )}
+          </>
+        ) : (
+          product.discountPrice && (
+            <span className="absolute top-2 left-2 z-10 bg-[#FF7A45] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+              {t("product.sale_badge")}
+            </span>
+          )
         )}
         <button
           onClick={e => {
@@ -108,7 +133,7 @@ export default function ProductCard({ product, initialLiked = false }: {
 
       <div className="p-4 flex flex-col flex-1">
         {product.brandName && (
-          <p className="text-xs text-teal-500 font-semibold mb-1">{product.brandName}</p>
+          <p className={`text-xs font-semibold mb-1 ${isSP ? "text-orange-500" : "text-teal-500"}`}>{product.brandName}</p>
         )}
         <Link href={`/urun/${product.slug}`} className="flex-1">
           <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm group-hover:text-teal-700 transition-colors leading-snug">
@@ -119,11 +144,11 @@ export default function ProductCard({ product, initialLiked = false }: {
         <div className="mt-2 flex items-center gap-2">
           {product.discountPrice ? (
             <>
-              <span className="font-bold text-[#008F86] text-base">{formatPrice(product.discountPrice)}</span>
+              <span className={`font-bold text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.discountPrice)}</span>
               <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
             </>
           ) : (
-            <span className="font-bold text-[#008F86] text-base">{formatPrice(product.price)}</span>
+            <span className={`font-bold text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.price)}</span>
           )}
         </div>
 
@@ -144,6 +169,8 @@ export default function ProductCard({ product, initialLiked = false }: {
                 ? "bg-green-600 hover:bg-green-700"
                 : cartError
                 ? "bg-red-500 hover:bg-red-600"
+                : isSP
+                ? "bg-orange-500 hover:bg-orange-600"
                 : "bg-[#12304A] hover:bg-[#FF7A45]"
             } disabled:opacity-60`}
           >

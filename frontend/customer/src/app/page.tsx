@@ -324,7 +324,7 @@ export default async function HomePage() {
                   </div>
                   <div className="p-4">
                     <div data-product-grid className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {products.slice(0, 6).map(p => <ProductCard key={p.id} product={p} />)}
+                      {products.slice(0, 6).map(p => <ProductCard key={p.id} product={p} variant="spareparts" />)}
                     </div>
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export default async function HomePage() {
                   </div>
                   <div className="p-4">
                     <div data-product-grid className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {discountProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                      {discountProducts.map(p => <ProductCard key={p.id} product={p} variant="spareparts" />)}
                     </div>
                   </div>
                 </div>
