@@ -3,6 +3,17 @@ import { getSettings } from "@/lib/settings";
 import { st } from "@/lib/server-i18n";
 import FooterLogoImg from "./FooterLogoImg";
 
+const API_BASE = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
+
+async function getBrandNameToId(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${API_BASE}/api/brands?pageSize=500`, { cache: "no-store" });
+    if (!res.ok) return {};
+    const data = await res.json() as { items: { id: string; name: string }[] };
+    return Object.fromEntries((data.items ?? []).map(b => [b.name.toUpperCase(), b.id]));
+  } catch { return {}; }
+}
+
 function IconInstagram() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,7 +67,7 @@ function FooterBrandName({ name }: { name: string }) {
 }
 
 export default async function Footer() {
-  const settings = await getSettings();
+  const [settings, brandNameToId] = await Promise.all([getSettings(), getBrandNameToId()]);
   const [
     accountTitle,
     helpTitle,
@@ -195,12 +206,18 @@ export default async function Footer() {
                 "AUDI","SEAT","SKODA","RENAULT","PEUGEOT",
                 "CİTROEN","FORD","FIAT","TOYOTA","KIA",
                 "HYUNDAI","HONDA","VOLVO","MAZDA","SUBARU",
-              ].map(brand => (
-                <Link key={brand} href={`/urunler?s=${encodeURIComponent(brand)}`}
-                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-400 transition-colors duration-150 py-0.5 truncate">
-                  {brand}
-                </Link>
-              ))}
+              ].map(brand => {
+                const brandId = brandNameToId[brand.toUpperCase()];
+                const href = brandId
+                  ? `/urunler?markalar=${brandId}`
+                  : `/urunler?s=${encodeURIComponent(brand)}`;
+                return (
+                  <Link key={brand} href={href}
+                    className="text-[11px] font-semibold text-slate-500 hover:text-orange-400 transition-colors duration-150 py-0.5 truncate">
+                    {brand}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

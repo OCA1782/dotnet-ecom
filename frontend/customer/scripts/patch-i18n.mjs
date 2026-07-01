@@ -22,13 +22,8 @@ let content = readFileSync(i18nFile, 'utf-8');
 for (const lang of langs) {
   const anchor = anchors[lang];
   const newKeys = readFileSync(join(__dirname, `i18n-merge-${lang}.txt`), 'utf-8');
-  const replacement = anchor.replace(
-    `'auth.error': '`,
-    `'auth.error': '`
-  );
   // Insert new keys before the closing },
   // anchor: "    'auth.error': '...',\n  },"
-  // replacement: "    'auth.error': '...',\n" + newKeys + "\n  },"
   const closingBrace = `${CRLF}  },`;
   const anchorWithoutBrace = anchor.slice(0, anchor.length - closingBrace.length);
   // newKeys file uses LF — convert to CRLF to match the file

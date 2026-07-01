@@ -392,8 +392,6 @@ export default function DisKaynaklarPage() {
     p.finally(() => {
       setPendingAutoCheck(prev => prev === sourceId ? null : prev);
     });
-  // checkImportedBatched is stable (no deps), intentionally omitted from array
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAutoCheck, previewMap, targetMap, mappingState]);
 
   async function loadServerPreview(source: ExternalSource) {
