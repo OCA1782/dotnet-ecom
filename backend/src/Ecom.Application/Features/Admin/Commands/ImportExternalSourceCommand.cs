@@ -39,7 +39,7 @@ public class ImportExternalSourceCommandHandler(IApplicationDbContext db, Import
 
         try
         {
-            (inserted, updated, skipped, skipReasons) = await processor.ProcessAsync(
+            (inserted, updated, skipped, _, skipReasons) = await processor.ProcessAsync(
                 request.TargetEntity, request.Rows, request.FieldMapping, request.ConflictStrategy, cancellationToken, request.SourceId);
         }
         catch (Exception ex)

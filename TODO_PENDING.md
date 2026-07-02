@@ -1,24 +1,20 @@
 ﻿# TODO Pending
 
-> Son güncelleme: 30.06.2026 22:00 UTC (AdminLintAuditJob)
+> Son güncelleme: 02.07.2026 17:34 UTC (AdminLintAuditJob)
 
 ## Özet
 
 | Alan | Değer |
 | --- | ---: |
-| Toplam uyarı | 1 |
+| Toplam uyarı | 0 |
 | Toplam hata | 0 |
-| Etkilenen dosya | 1 |
+| Etkilenen dosya | 0 |
 | Komut | `frontend/admin/node_modules/.bin/eslint src --format json` |
 
 ## Öncelikli Aksiyonlar
 
-1. `src/app/(admin)/urunler/page.tsx`
-   - [ ] `src/app/(admin)/urunler/page.tsx` içinde `<img>` kullanımını `next/image` ile değiştir veya gerekçeyi açıkla
-
 ## İlk Çalışma Sırası
 
-- [ ] `src/app/(admin)/urunler/page.tsx`
 
 ## Not
 

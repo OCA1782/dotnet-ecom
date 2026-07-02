@@ -3,12 +3,13 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
-import type { Category, ProductListItem, PaginatedList, Campaign } from "@/types";
+import type { Category, ProductListItem, PaginatedList, Campaign, Brand } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import { type AnnouncementItem } from "@/components/AnnouncementsSection";
 import HeroSlider from "@/components/HeroSlider";
 import { getSettings } from "@/lib/settings";
 import SparePartsVehicleSelector from "@/components/templates/SparePartsVehicleSelector";
+import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
 
@@ -88,6 +89,13 @@ async function getFeaturedCampaigns(): Promise<Campaign[]> {
   catch { return []; }
 }
 
+async function getBrands(): Promise<Brand[]> {
+  try {
+    const data = await api.get<{ items: Brand[]; totalCount: number }>("/api/brands?pageSize=200&onlyActive=true&sortBy=name");
+    return data.items ?? [];
+  } catch { return []; }
+}
+
 const SCHEME_GRADIENT: Record<string, string> = {
   orange: "from-[#FF7A45] to-[#d95f28]",
   teal:   "from-[#19B7B1] to-[#0c8f8a]",
@@ -107,8 +115,8 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
 ];
 
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(),
+  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang, brands] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getBrands(),
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
@@ -138,10 +146,6 @@ export default async function HomePage() {
       parseTrustItem(settings.Spareparts_Trust3, { abbr: "30G",  title: "30 Gün İade",        desc: "Koşulsuz iade garantisi"     }),
       parseTrustItem(settings.Spareparts_Trust4, { abbr: "7/24", title: "Teknik Destek",      desc: "Uzman ekip her an hazır"     }),
     ];
-    const CAR_BRANDS = [
-      "OPEL","CHEVROLET","BMW","MERCEDES-BENZ","VOLKSWAGEN","AUDI","FORD",
-      "SEAT","SKODA","RENAULT","PEUGEOT","CİTROEN","FIAT","TOYOTA","KIA","HYUNDAI",
-    ];
     const HOT_PARTS = parseList(
       settings.Spareparts_HotParts,
       ["Fren Diski","Motor Yağı","Hava Filtresi","Akü","Buji Seti","Amortisör","Debriyaj","Radyatör"]
@@ -168,27 +172,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* ── Araç markası pill nav ── */}
-        <div className="bg-white border-b border-gray-100 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
-            <div className="flex flex-wrap gap-1.5">
-              {CAR_BRANDS.slice(0, 12).map((b, i) => (
-                <Link key={b} href={`/urunler?s=${b}`}
-                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all duration-150 border ${
-                    i === 0
-                      ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50"
-                  }`}>
-                  {b}
-                </Link>
-              ))}
-              <Link href="/urunler"
-                className="px-3 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-500 border border-transparent hover:bg-orange-50 hover:text-orange-600 transition-all duration-150">
-                {t("home2.sp.more_brands").replace("{n}", String(CAR_BRANDS.length - 12))}
-              </Link>
-            </div>
-          </div>
-        </div>
+        {/* ── Araç markası pill nav (API'den gelen tüm markalar + model dropdown) ── */}
+        <SparePartsBrandNav brands={brands} />
 
         {/* ── En Çok Aranan Parçalar şeridi ── */}
         <div className="bg-[#fff7ed] border-b border-orange-100">

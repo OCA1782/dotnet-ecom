@@ -36,6 +36,7 @@ interface ImportLog {
   updatedCount: number;
   skippedCount: number;
   deletedCount: number;
+  restoredCount: number;
   errorMessage?: string;
   importedByUserEmail?: string;
   createdDate: string;
@@ -1806,6 +1807,12 @@ export default function DisKaynaklarPage() {
                                         <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
                                         ⊘{log.skippedCount} atlandı
                                       </span>
+                                      {log.restoredCount > 0 && (
+                                        <span className="flex items-center gap-1 font-semibold text-amber-600">
+                                          <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                                          ↺{log.restoredCount} geri yüklendi
+                                        </span>
+                                      )}
                                       {log.deletedCount > 0 && (
                                         <span className="flex items-center gap-1 font-semibold text-red-500">
                                           <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />

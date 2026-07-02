@@ -26,9 +26,9 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         return null;
     }
 
-    // Returns (inserted, updated, skipped, skipReasons)
+    // Returns (inserted, updated, skipped, restored, skipReasons)
     // touchedProductIds: optional accumulator — populated with the DB IDs of every product seen (insert, update, or no-change skip)
-    public Task<(int inserted, int updated, int skipped, Dictionary<string, int> skipReasons)> ProcessAsync(
+    public Task<(int inserted, int updated, int skipped, int restored, Dictionary<string, int> skipReasons)> ProcessAsync(
         string targetEntity,
         List<Dictionary<string, string>> rows,
         Dictionary<string, string> fieldMapping,
@@ -37,12 +37,19 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         Guid? sourceId = null,
         HashSet<Guid>? touchedProductIds = null) => targetEntity switch
     {
-        "Category" => ImportCategoriesAsync(rows, fieldMapping, conflictStrategy, ct, sourceId),
-        "Brand"    => ImportBrandsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId),
+        "Category" => WrapWithZeroRestored(ImportCategoriesAsync(rows, fieldMapping, conflictStrategy, ct, sourceId)),
+        "Brand"    => WrapWithZeroRestored(ImportBrandsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId)),
         "Product"  => ImportProductsAsync(rows, fieldMapping, conflictStrategy, ct, sourceId, touchedProductIds),
-        "Stock"    => ImportStocksAsync(rows, fieldMapping, conflictStrategy, ct),
+        "Stock"    => WrapWithZeroRestored(ImportStocksAsync(rows, fieldMapping, conflictStrategy, ct)),
         _          => throw new InvalidOperationException($"Desteklenmeyen hedef: {targetEntity}"),
     };
+
+    private static async Task<(int, int, int, int, Dictionary<string, int>)> WrapWithZeroRestored(
+        Task<(int ins, int upd, int skip, Dictionary<string, int> reasons)> inner)
+    {
+        var (ins, upd, skip, reasons) = await inner;
+        return (ins, upd, skip, 0, reasons);
+    }
 
     private static void Bump(Dictionary<string, int> d, string key)
         => d[key] = d.TryGetValue(key, out var v) ? v + 1 : 1;
@@ -243,11 +250,11 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         return (ins, upd, skip, reasons);
     }
 
-    private async Task<(int, int, int, Dictionary<string, int>)> ImportProductsAsync(
+    private async Task<(int, int, int, int, Dictionary<string, int>)> ImportProductsAsync(
         List<Dictionary<string, string>> rows, Dictionary<string, string> fm, string conflict, CancellationToken ct, Guid? sourceId,
         HashSet<Guid>? touchedProductIds = null)
     {
-        int ins = 0, upd = 0, skip = 0;
+        int ins = 0, upd = 0, skip = 0, rst = 0;
         var reasons = new Dictionary<string, int>();
 
         var batchSkus = rows
@@ -383,7 +390,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     {
                         // Soft-deleted product has same data — just restore it
                         var restoredAttached = await db.Products.FindAsync([existing.Id], ct);
-                        if (restoredAttached != null) { restoredAttached.IsDeleted = false; upd++; }
+                        if (restoredAttached != null) { restoredAttached.IsDeleted = false; rst++; }
                     }
                     else
                     {
@@ -532,10 +539,10 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     Bump(reasons, "SKU/Slug çakışması atlandı");
                 }
             }
-            return (ins, upd, skip, reasons);
+            return (ins, upd, skip, rst, reasons);
         }
         db.ClearChangeTracker();
-        return (ins, upd, skip, reasons);
+        return (ins, upd, skip, rst, reasons);
     }
 
     private async Task<(int, int, int, Dictionary<string, int>)> ImportStocksAsync(

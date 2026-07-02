@@ -71,7 +71,7 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             return;
         }
 
-        int totalIns = 0, totalUpd = 0, totalSkip = 0;
+        int totalIns = 0, totalUpd = 0, totalSkip = 0, totalRst = 0;
         var totalSkipReasons = new Dictionary<string, int>();
         string? finalError = null;
         var chunks = Enumerable
@@ -100,11 +100,11 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
                 using var chunkScope = scopeFactory.CreateScope();
                 var chunkProcessor = chunkScope.ServiceProvider.GetRequiredService<ImportBatchProcessor>();
 
-                var (ins, upd, skip, skipReasons) = await chunkProcessor.ProcessAsync(
+                var (ins, upd, skip, rst, skipReasons) = await chunkProcessor.ProcessAsync(
                     job.TargetEntity, chunks[i], fieldMapping, job.ConflictStrategy,
                     context.CancellationToken, job.ExternalSourceId);
 
-                totalIns += ins; totalUpd += upd; totalSkip += skip;
+                totalIns += ins; totalUpd += upd; totalSkip += skip; totalRst += rst;
                 foreach (var (k, v) in skipReasons)
                     totalSkipReasons[k] = totalSkipReasons.TryGetValue(k, out var ex) ? ex + v : v;
 
@@ -154,6 +154,7 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             InsertedCount = totalIns,
             UpdatedCount = totalUpd,
             SkippedCount = totalSkip,
+            RestoredCount = totalRst,
             ErrorMessage = finalError,
             ImportedByUserId = job.RequestedByUserId,
             TotalRows = allRows.Count,
@@ -164,8 +165,8 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
 
         await finalDb.SaveChangesAsync(context.CancellationToken);
 
-        logger.LogInformation("ImportJob {JobId} {Status}: +{Ins} ~{Upd} ⊘{Skip}",
-            jobId, finalError is null ? "Completed" : "Failed", totalIns, totalUpd, totalSkip);
+        logger.LogInformation("ImportJob {JobId} {Status}: +{Ins} ~{Upd} ⊘{Skip} ↺{Rst}",
+            jobId, finalError is null ? "Completed" : "Failed", totalIns, totalUpd, totalSkip, totalRst);
     }
 
     private static async Task FetchAndImportAsync(
@@ -213,7 +214,7 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
 
         int totalPages = 0;
         int currentPage = 1;
-        int totalIns = 0, totalUpd = 0, totalSkip = 0, totalDel = 0;
+        int totalIns = 0, totalUpd = 0, totalSkip = 0, totalDel = 0, totalRst = 0;
         var skipReasons = new Dictionary<string, int>();
         string? finalError = null;
         // Accumulate product IDs seen across all pages (for sync-delete pass after import)
@@ -303,10 +304,10 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             {
                 using var chunkScope = scopeFactory.CreateScope();
                 var processor = chunkScope.ServiceProvider.GetRequiredService<ImportBatchProcessor>();
-                var (ins, upd, skip, sr) = await processor.ProcessAsync(
+                var (ins, upd, skip, rst, sr) = await processor.ProcessAsync(
                     job.TargetEntity, rows, fieldMapping, job.ConflictStrategy, ct, job.ExternalSourceId, allTouchedProductIds);
 
-                totalIns += ins; totalUpd += upd; totalSkip += skip;
+                totalIns += ins; totalUpd += upd; totalSkip += skip; totalRst += rst;
                 foreach (var (k, v) in sr)
                     skipReasons[k] = skipReasons.TryGetValue(k, out var existing) ? existing + v : v;
             }
@@ -355,14 +356,28 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
                                 && !allTouchedProductIds.Contains(p.Id))
                     .ToListAsync(ct);
 
-                foreach (var p in staleProducts)
-                    p.IsDeleted = true;
+                // Safety threshold: abort sync-delete if >20% of source's active products would be deleted.
+                // This guards against a partial import (network interruption, early-stop) wiping the catalog.
+                int activeInSource = await syncDb.Products
+                    .CountAsync(p => p.ImportedFromSourceId == job.ExternalSourceId && !p.IsDeleted, ct);
+                int pctToDelete = activeInSource > 0 ? staleProducts.Count * 100 / activeInSource : 0;
+                if (pctToDelete > 20)
+                {
+                    logger.LogWarning(
+                        "FetchAndImportJob {JobId} sync-delete ABORTED: {StaleCount}/{ActiveCount} ({Pct}%) would be deleted — exceeds 20% safety threshold",
+                        job.Id, staleProducts.Count, activeInSource, pctToDelete);
+                }
+                else
+                {
+                    foreach (var p in staleProducts)
+                        p.IsDeleted = true;
 
-                if (staleProducts.Count > 0)
-                    await syncDb.SaveChangesAsync(ct);
+                    if (staleProducts.Count > 0)
+                        await syncDb.SaveChangesAsync(ct);
 
-                totalDel = staleProducts.Count;
-                logger.LogInformation("FetchAndImportJob {JobId} sync-delete: {Count} stale products soft-deleted", job.Id, totalDel);
+                    totalDel = staleProducts.Count;
+                    logger.LogInformation("FetchAndImportJob {JobId} sync-delete: {Count} stale products soft-deleted", job.Id, totalDel);
+                }
             }
             catch (Exception ex)
             {
@@ -391,6 +406,7 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
             InsertedCount = totalIns,
             UpdatedCount = totalUpd,
             SkippedCount = totalSkip,
+            RestoredCount = totalRst,
             DeletedCount = totalDel,
             ErrorMessage = finalError,
             ImportedByUserId = job.RequestedByUserId,
@@ -400,8 +416,8 @@ public class ImportJobConsumer(IServiceScopeFactory scopeFactory, ILogger<Import
         });
 
         await finalDb.SaveChangesAsync(ct);
-        logger.LogInformation("FetchAndImportJob {JobId} {Status}: +{Ins} ~{Upd} ⊘{Skip} 🗑{Del}",
-            job.Id, finalError is null ? "Completed" : "Failed", totalIns, totalUpd, totalSkip, totalDel);
+        logger.LogInformation("FetchAndImportJob {JobId} {Status}: +{Ins} ~{Upd} ⊘{Skip} ↺{Rst} 🗑{Del}",
+            job.Id, finalError is null ? "Completed" : "Failed", totalIns, totalUpd, totalSkip, totalRst, totalDel);
     }
 
     private static async Task FailJob(ApplicationDbContext db, ImportJob job, string error, CancellationToken ct)

@@ -429,10 +429,14 @@ export default function AdminProductsPage() {
 
   async function handleDeleteDups() {
     if (selectedDups.size === 0) return;
+    // Safety: never delete the canonical (first) product in each group
+    const canonicalIds = new Set(dupGroups?.map(g => g.products[0]?.id).filter(Boolean) ?? []);
+    const toDelete = [...selectedDups].filter(id => !canonicalIds.has(id));
+    if (toDelete.length === 0) { setMsg({ text: "Silinecek fazla kopya seçilmedi.", ok: false }); return; }
     setDeletingDups(true);
     try {
       const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", {
-        productIds: [...selectedDups], action: "delete",
+        productIds: toDelete, action: "delete",
       });
       setMsg({ text: `${r.affected} mükerrer ürün silindi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}.`, ok: true });
       setSelectedDups(new Set());
@@ -761,8 +765,9 @@ export default function AdminProductsPage() {
         {showDupPanel && dupGroups !== null && dupGroups.length > 0 && (
           <div className="border-t border-amber-100 divide-y divide-amber-50 max-h-96 overflow-y-auto">
             {dupGroups.map((group, gi) => {
-              const groupSelected = group.products.every(p => selectedDups.has(p.id));
-              const groupSome = group.products.some(p => selectedDups.has(p.id));
+              const extras = group.products.slice(1); // all except canonical (first)
+              const groupSelected = extras.length > 0 && extras.every(p => selectedDups.has(p.id));
+              const groupSome = extras.some(p => selectedDups.has(p.id));
               return (
                 <div key={gi} className="px-5 py-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -770,8 +775,8 @@ export default function AdminProductsPage() {
                       onClick={() => {
                         setSelectedDups(prev => {
                           const next = new Set(prev);
-                          if (groupSelected) group.products.forEach(p => next.delete(p.id));
-                          else group.products.forEach(p => next.add(p.id));
+                          if (groupSelected) extras.forEach(p => next.delete(p.id));
+                          else extras.forEach(p => next.add(p.id));
                           return next;
                         });
                       }}
@@ -784,26 +789,36 @@ export default function AdminProductsPage() {
                     <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full shrink-0">{group.count}x</span>
                   </div>
                   <div className="space-y-1 pl-5">
-                    {group.products.map(p => (
-                      <div key={p.id} className="flex items-center gap-2 text-xs text-slate-600">
-                        <button
-                          onClick={() => setSelectedDups(prev => {
-                            const next = new Set(prev);
-                            if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                            return next;
-                          })}
-                          className="shrink-0 text-slate-300 hover:text-amber-500 transition"
-                        >
-                          {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
-                        </button>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {p.imageUrl && <img src={p.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" />}
-                        <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
-                        <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
-                        <span className={`shrink-0 ${p.isActive ? "text-green-600" : "text-slate-400"}`}>{p.isActive ? "Aktif" : "Pasif"}</span>
-                        <span className="text-slate-400 shrink-0">{new Date(p.createdDate).toLocaleDateString("tr-TR")}</span>
-                      </div>
-                    ))}
+                    {group.products.map((p, pi) => {
+                      const isCanonical = pi === 0;
+                      return (
+                        <div key={p.id} className="flex items-center gap-2 text-xs text-slate-600">
+                          {isCanonical ? (
+                            <span className="shrink-0 w-[13px]" title="Bu ürün tutulacak">
+                              <Square size={13} className="text-slate-200" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setSelectedDups(prev => {
+                                const next = new Set(prev);
+                                if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                                return next;
+                              })}
+                              className="shrink-0 text-slate-300 hover:text-amber-500 transition"
+                            >
+                              {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
+                            </button>
+                          )}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          {p.imageUrl && <img src={p.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" />}
+                          <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
+                          {isCanonical && <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded shrink-0">Tut</span>}
+                          <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
+                          <span className={`shrink-0 ${p.isActive ? "text-green-600" : "text-slate-400"}`}>{p.isActive ? "Aktif" : "Pasif"}</span>
+                          <span className="text-slate-400 shrink-0">{new Date(p.createdDate).toLocaleDateString("tr-TR")}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

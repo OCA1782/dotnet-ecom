@@ -42,4 +42,6 @@ public class ExternalSourceImportLog : BaseEntity
     public string? SkipDiagnosticsJson { get; set; }
     // Populated when SyncDelete was active: count of products soft-deleted because they were absent from the source
     public int DeletedCount { get; set; }
+    // Count of previously soft-deleted products that were restored during this import
+    public int RestoredCount { get; set; }
 }
