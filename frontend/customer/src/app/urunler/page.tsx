@@ -9,6 +9,7 @@ import ProductFilters from "./ProductFilters";
 import { getSettings } from "@/lib/settings";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
+import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 
 type SearchParams = Promise<{
   s?: string;
@@ -30,8 +31,10 @@ async function getCategories(): Promise<Category[]> {
 }
 
 async function getBrands(): Promise<Brand[]> {
-  try { return await api.get<Brand[]>("/api/brands"); }
-  catch { return []; }
+  try {
+    const data = await api.get<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=true&sortBy=name");
+    return data.items ?? [];
+  } catch { return []; }
 }
 
 async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList<ProductListItem>> {
@@ -129,8 +132,39 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const hasFilters = !!(params.s || params.kategori || params.ozellik || params.indirimli
     || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
 
+  // Active brand for brand nav highlight
+  const activeBrandIdForNav = activeBrandIds.length === 1 ? activeBrandIds[0] : undefined;
+
   return (
+    <div>
+    {/* Brand nav — spareparts template only */}
+    {isSP && <SparePartsBrandNav brands={brands} activeBrandSlug={activeBrandIdForNav} />}
+
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Brand + model heading for spareparts */}
+      {isSP && (activeBrandNames.length > 0 || params.s) && (
+        <div className="mb-5">
+          <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
+            <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
+            {activeBrandNames.map(n => (
+              <span key={n} className="flex items-center gap-1">
+                <span>/</span>
+                <Link href={`/urunler?markalar=${activeBrandIds[activeBrandNames.indexOf(n)]}`} className="hover:text-orange-500 transition-colors uppercase font-semibold">{n}</Link>
+              </span>
+            ))}
+            {params.s && (
+              <>
+                <span>/</span>
+                <span className="text-gray-600 font-semibold">{params.s}</span>
+              </>
+            )}
+          </nav>
+          {params.s && (
+            <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.s}</h1>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-8">
         {/* Sidebar Filters */}
         <aside className="hidden lg:block w-64 shrink-0">
@@ -321,6 +355,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

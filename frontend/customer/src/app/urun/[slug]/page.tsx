@@ -1,13 +1,16 @@
 ﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import type { ProductDetail } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import AddToCartButton from "./AddToCartButton";
 import ReviewSection from "./ReviewSection";
 import ProductImageGallery from "./ProductImageGallery";
+import ProductTabs from "./ProductTabs";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
+import { getSettings } from "@/lib/settings";
 
 async function getProduct(slug: string): Promise<ProductDetail | null> {
   try {
@@ -59,15 +62,38 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [product, lang] = await Promise.all([getProduct(slug), getServerLang()]);
+  const [product, lang, settings] = await Promise.all([getProduct(slug), getServerLang(), getSettings()]);
   const t = (key: string) => translate(lang, key);
 
   if (!product) notFound();
 
   const displayPrice = product.discountPrice ?? product.price;
+  const isSP = settings.CustomerTemplate === "spareparts";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+      {/* Breadcrumb — spareparts template */}
+      {isSP && (
+        <nav className="text-[11px] text-gray-400 mb-5 flex items-center gap-1 flex-wrap">
+          <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
+          {product.brandName && (
+            <>
+              <span>/</span>
+              <Link href={`/urunler?markalar=${product.brandName}`} className="hover:text-orange-500 transition-colors uppercase font-semibold">{product.brandName}</Link>
+            </>
+          )}
+          {product.categoryName && (
+            <>
+              <span>/</span>
+              <span className="text-gray-500">{product.categoryName}</span>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-gray-700 font-medium line-clamp-1 max-w-xs">{product.name}</span>
+        </nav>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Images */}
         <div>
@@ -77,13 +103,13 @@ export default async function ProductDetailPage({
         {/* Info */}
         <div className="space-y-6">
           {product.brandName && (
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{product.brandName}</p>
+            <p className={`text-sm font-medium uppercase tracking-wide ${isSP ? "text-orange-500" : "text-slate-500"}`}>{product.brandName}</p>
           )}
           <h1 className="text-2xl font-bold text-slate-900">{product.name}</h1>
 
           {/* Price */}
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-slate-900">{formatPrice(displayPrice)}</span>
+            <span className={`text-3xl font-bold ${isSP ? "text-orange-600" : "text-slate-900"}`}>{formatPrice(displayPrice)}</span>
             {product.discountPrice && (
               <span className="text-lg text-slate-400 line-through">{formatPrice(product.price)}</span>
             )}
@@ -107,8 +133,8 @@ export default async function ProductDetailPage({
             availableStock={product.availableStock}
           />
 
-          {/* Description */}
-          {product.description && (
+          {/* Inline description — non-spareparts only */}
+          {!isSP && product.description && (
             <div className="border-t border-slate-200 pt-6">
               <h2 className="text-sm font-semibold text-slate-800 mb-3">{t("prod2.detail.description")}</h2>
               <div
@@ -120,8 +146,12 @@ export default async function ProductDetailPage({
         </div>
       </div>
 
-      {/* Reviews */}
-      <ReviewSection productId={product.id} />
+      {/* Tabs — spareparts template */}
+      {isSP ? (
+        <ProductTabs product={product} reviewCount={0} />
+      ) : (
+        <ReviewSection productId={product.id} />
+      )}
     </div>
   );
 }

@@ -52,21 +52,71 @@ function getModels(brandName: string): string[] {
   return partialKey ? MODEL_MAP[partialKey] : [];
 }
 
-// Simple car silhouette SVG (changes style by index for variety)
-function CarIcon({ index }: { index: number }) {
-  const colors = ["#94a3b8","#64748b","#475569","#6b7280","#9ca3af"];
-  const c = colors[index % colors.length];
+// Fallback car silhouette SVG
+function CarIcon() {
   return (
     <svg viewBox="0 0 120 60" className="w-full h-full" fill="none">
-      <rect x="8" y="30" width="104" height="16" rx="4" fill={c} opacity="0.3"/>
-      <path d="M14 30 L28 14 L85 14 L104 30" stroke={c} strokeWidth="2.5" fill={c} fillOpacity="0.15"/>
-      <circle cx="30" cy="48" r="9" fill={c} opacity="0.8"/>
+      <rect x="8" y="30" width="104" height="16" rx="4" fill="#94a3b8" opacity="0.3"/>
+      <path d="M14 30 L28 14 L85 14 L104 30" stroke="#94a3b8" strokeWidth="2.5" fill="#94a3b8" fillOpacity="0.15"/>
+      <circle cx="30" cy="48" r="9" fill="#94a3b8" opacity="0.8"/>
       <circle cx="30" cy="48" r="5" fill="white" opacity="0.6"/>
-      <circle cx="88" cy="48" r="9" fill={c} opacity="0.8"/>
+      <circle cx="88" cy="48" r="9" fill="#94a3b8" opacity="0.8"/>
       <circle cx="88" cy="48" r="5" fill="white" opacity="0.6"/>
-      <rect x="55" y="16" width="20" height="12" rx="2" fill={c} opacity="0.15"/>
-      <rect x="35" y="16" width="18" height="12" rx="2" fill={c} opacity="0.15"/>
     </svg>
+  );
+}
+
+// Brand name → imagin.studio make slug
+const MAKE_SLUG_MAP: Record<string, string> = {
+  "mercedes-benz": "mercedes-benz",
+  "mercedes": "mercedes-benz",
+  "citroën": "citroen",
+  "citroen": "citroen",
+  "tofaş": "fiat",
+  "tofa": "fiat",
+  "land rover": "land-rover",
+  "alfa romeo": "alfa-romeo",
+};
+
+// Turkish model name → English slug for imagin.studio
+const MODEL_SLUG_MAP: Record<string, string> = {
+  "1 serisi": "1-series", "2 serisi": "2-series", "3 serisi": "3-series",
+  "4 serisi": "4-series", "5 serisi": "5-series", "6 serisi": "6-series",
+  "7 serisi": "7-series", "8 serisi": "8-series",
+  "a serisi": "a-class", "b serisi": "b-class", "c serisi": "c-class",
+  "e serisi": "e-class", "s serisi": "s-class",
+  "crossland x": "crossland-x", "grandland x": "grandland-x",
+  "c3 aircross": "c3-aircross", "c4 cactus": "c4-cactus", "c5 aircross": "c5-aircross",
+  "grand cherokee": "grand-cherokee", "range rover": "range-rover",
+  "range rover sport": "range-rover-sport", "range rover evoque": "range-rover-evoque",
+  "space star": "space-star", "eclipse cross": "eclipse-cross",
+  "land cruiser": "land-cruiser", "grand vitara": "grand-vitara",
+};
+
+function getModelImageUrl(brandName: string, modelName: string): string {
+  const bn = brandName.toLowerCase().trim();
+  const make = MAKE_SLUG_MAP[bn] ?? bn.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+  const mn = modelName.toLowerCase().trim();
+  const modelSlug = MODEL_SLUG_MAP[mn] ?? mn
+    .replace(/\s+/g, "-")
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
+    .replace(/[^a-z0-9-]/g, "");
+
+  return `https://cdn.imagin.studio/getimage?customer=img&make=${make}&modelFamily=${modelSlug}&angle=29&width=300&zoomType=fullscreen&paintId=color-black`;
+}
+
+function ModelImage({ brandName, modelName }: { brandName: string; modelName: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <CarIcon />;
+  return (
+    <img
+      src={getModelImageUrl(brandName, modelName)}
+      alt={modelName}
+      className="w-full h-full object-contain"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -177,14 +227,14 @@ export default function SparePartsBrandNav({ brands, activeBrandSlug }: Props) {
               </div>
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-              {models.map((model, i) => (
+              {models.map((model) => (
                 <button
                   key={model}
                   onClick={() => handleModelClick(openBrand, model)}
                   className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all duration-150 group text-center"
                 >
-                  <div className="w-full h-10 flex items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity">
-                    <CarIcon index={i} />
+                  <div className="w-full h-10 flex items-center justify-center group-hover:opacity-100 transition-opacity">
+                    <ModelImage brandName={openBrand.name} modelName={model} />
                   </div>
                   <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2">{model}</span>
                 </button>
