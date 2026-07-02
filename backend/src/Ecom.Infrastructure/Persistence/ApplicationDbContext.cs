@@ -57,6 +57,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<LicenseAssignment> LicenseAssignments => Set<LicenseAssignment>();
     public DbSet<MailLog> MailLogs => Set<MailLog>();
     public DbSet<MailTemplate> MailTemplates => Set<MailTemplate>();
+    public DbSet<AiTask> AiTasks => Set<AiTask>();
+    public DbSet<AiTaskImage> AiTaskImages => Set<AiTaskImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -379,8 +379,17 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
                 if (nameMatch && priceMatch && descMatch && catMatch && brandMatch)
                 {
-                    skip++; Bump(reasons, "Zaten güncel (değişiklik yok)");
-                    touchedProductIds?.Add(existing.Id); // still "seen" — must not be sync-deleted
+                    if (existing.IsDeleted)
+                    {
+                        // Soft-deleted product has same data — just restore it
+                        var restoredAttached = await db.Products.FindAsync([existing.Id], ct);
+                        if (restoredAttached != null) { restoredAttached.IsDeleted = false; upd++; }
+                    }
+                    else
+                    {
+                        skip++; Bump(reasons, "Zaten güncel (değişiklik yok)");
+                    }
+                    touchedProductIds?.Add(existing.Id);
                     continue;
                 }
 
@@ -392,6 +401,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         attached.Name = name;
                         attached.Price = price;
                         attached.Description = desc;
+                        attached.IsDeleted = false;
                         if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
                         if (brandId.HasValue) attached.BrandId = brandId.Value;
                         touchedProductIds?.Add(attached.Id);

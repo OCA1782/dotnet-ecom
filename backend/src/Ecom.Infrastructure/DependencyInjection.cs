@@ -156,6 +156,10 @@ public static class DependencyInjection
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
 
+        services.AddSingleton<AiTaskRunnerService>();
+        services.AddSingleton<Ecom.Application.Common.Interfaces.IAiTaskQueue>(sp => sp.GetRequiredService<AiTaskRunnerService>());
+        services.AddHostedService(sp => sp.GetRequiredService<AiTaskRunnerService>());
+
         return services;
     }
 }
