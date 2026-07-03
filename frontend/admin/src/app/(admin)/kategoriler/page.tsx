@@ -43,6 +43,7 @@ interface Category {
   imageUrl?: string;
   sortOrder: number;
   showInMenu: boolean;
+  showInVehicleNav?: boolean;
   isActive: boolean;
   productCount?: number;
   subCategories?: Category[];
@@ -60,11 +61,12 @@ interface CatForm {
   description: string;
   sortOrder: string;
   showInMenu: boolean;
+  showInVehicleNav: boolean;
   imageUrl: string;
   isActive: boolean;
 }
 
-const EMPTY: CatForm = { name: "", slug: "", parentCategoryId: "", description: "", sortOrder: "0", showInMenu: true, imageUrl: "", isActive: true };
+const EMPTY: CatForm = { name: "", slug: "", parentCategoryId: "", description: "", sortOrder: "0", showInMenu: true, showInVehicleNav: false, imageUrl: "", isActive: true };
 
 function flattenCategories(cats: Category[]): Category[] {
   const result: Category[] = [];
@@ -170,6 +172,7 @@ export default function KategorilerPage() {
         parentCategoryId: cat.parentCategoryId ?? null,
         description: null, imageUrl: cat.imageUrl ?? null,
         sortOrder: cat.sortOrder, showInMenu: cat.showInMenu,
+        showInVehicleNav: cat.showInVehicleNav ?? false,
         isActive: !cat.isActive, metaTitle: null, metaDescription: null,
       });
       setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !cat.isActive } : c));
@@ -200,6 +203,7 @@ export default function KategorilerPage() {
         parentCategoryId: cat.parentCategoryId ?? null,
         description: null, imageUrl: cat.imageUrl ?? null,
         sortOrder: cat.sortOrder, showInMenu: cat.showInMenu,
+        showInVehicleNav: cat.showInVehicleNav ?? false,
         isActive: targetActive, metaTitle: null, metaDescription: null,
       })
     ));
@@ -249,7 +253,7 @@ export default function KategorilerPage() {
 
   function openCreate() { setForm(EMPTY); setError(""); setModal("create"); }
   function openEdit(c: Category) {
-    setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu, imageUrl: c.imageUrl ?? "", isActive: c.isActive });
+    setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu, showInVehicleNav: c.showInVehicleNav ?? false, imageUrl: c.imageUrl ?? "", isActive: c.isActive });
     setError(""); setModal("edit");
   }
 
@@ -257,7 +261,7 @@ export default function KategorilerPage() {
     if (!form.name) { setError(t("form.nameRequired", "Ad zorunludur.")); return; }
     setSaving(true); setError("");
     try {
-      const body = { name: form.name, slug: form.slug || slugify(form.name), parentCategoryId: form.parentCategoryId || null, description: form.description || null, imageUrl: form.imageUrl || null, sortOrder: parseInt(form.sortOrder) || 0, showInMenu: form.showInMenu, metaTitle: null, metaDescription: null };
+      const body = { name: form.name, slug: form.slug || slugify(form.name), parentCategoryId: form.parentCategoryId || null, description: form.description || null, imageUrl: form.imageUrl || null, sortOrder: parseInt(form.sortOrder) || 0, showInMenu: form.showInMenu, showInVehicleNav: form.showInVehicleNav, metaTitle: null, metaDescription: null };
       if (modal === "create") {
         await api.post("/api/categories", body);
         setMsg({ text: t("msg.created", "Başarıyla oluşturuldu"), ok: true });
@@ -606,6 +610,9 @@ export default function KategorilerPage() {
                               : <Folder size={18} className="text-teal-400 shrink-0" />)
                           }
                           <span className="text-slate-800">{cat.name}</span>
+                          {cat.showInVehicleNav && (
+                            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold shrink-0" title="Araç Menüsünde Göster (Yedek Parça şablonu)">🚗 Araç Menüsü</span>
+                          )}
                           {visibleKids.length > 0 && (
                             <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold shrink-0">
                               {visibleKids.length} {t("ui.sub", "alt")}
@@ -916,6 +923,13 @@ export default function KategorilerPage() {
                     <input type="checkbox" checked={form.showInMenu} onChange={e => setForm(f => ({ ...f, showInMenu: e.target.checked }))} />
                     {t("ui.showInMenu", "Menüde Göster")}
                   </label>
+                  {!form.parentCategoryId && (
+                    <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer font-medium" title="Yalnızca yedek parça şablonuna özel — bu ana kategori araç markası olarak üst menüde görünür, alt kategorileri model olarak listelenir.">
+                      <input type="checkbox" checked={form.showInVehicleNav} onChange={e => setForm(f => ({ ...f, showInVehicleNav: e.target.checked }))} />
+                      Araç Menüsünde Göster
+                      <span className="text-[10px] bg-orange-100 text-orange-500 px-1.5 py-0.5 rounded font-semibold">Yedek Parça</span>
+                    </label>
+                  )}
                   {modal === "edit" && (
                     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                       <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />

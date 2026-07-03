@@ -410,15 +410,9 @@ function ModelImage({ brandKey, modelName, idx }: { brandKey: string; modelName:
   );
 }
 
-interface ApiBrand { id: string; name: string; slug: string; showInVehicleNav: boolean; vehicleModelsJson?: string | null; }
-interface NavBrand { key: string; label: string; models: string[]; }
-
-function parseModels(vehicleModelsJson: string | null | undefined, slug: string): string[] {
-  if (vehicleModelsJson && vehicleModelsJson.trim()) {
-    return vehicleModelsJson.split("\n").map(s => s.trim()).filter(Boolean);
-  }
-  return MODEL_MAP[slug] ?? [];
-}
+interface ApiCategory { id: string; name: string; slug: string; showInVehicleNav: boolean; subCategories: ApiCategory[]; }
+interface NavModel { name: string; id: string; }
+interface NavBrand { key: string; label: string; id: string; models: NavModel[]; }
 
 // brands prop: geriye dönük uyumluluk için tutuldu, kullanılmıyor
 interface Props { brands?: unknown[]; activeBrandSlug?: string; }
@@ -436,24 +430,30 @@ export default function SparePartsBrandNav({}: Props) {
   const pillRef    = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // ── API'den araç markalarını çek; fallback: hardcoded CAR_BRANDS ──────────
+  // ── API'den araç kategorilerini çek; fallback: hardcoded CAR_BRANDS ─────
   useEffect(() => {
     async function loadBrands() {
       try {
-        const res = await fetch(`${API_BASE}/api/brands?showInVehicleNav=true&pageSize=100&onlyActive=true`);
+        const res = await fetch(`${API_BASE}/api/categories?onlyActive=true&showInVehicleNav=true`);
         if (!res.ok) throw new Error("api error");
-        const data: { items: ApiBrand[] } = await res.json();
-        if (data.items.length > 0) {
-          setNavBrands(data.items.map(b => ({
-            key: b.slug,
-            label: b.name,
-            models: parseModels(b.vehicleModelsJson, b.slug),
+        const data: ApiCategory[] = await res.json();
+        // Sadece ana kategoriler (parentCategoryId yok) araç markası olarak kullanılır
+        const roots = data.filter(c => c.showInVehicleNav);
+        if (roots.length > 0) {
+          setNavBrands(roots.map(c => ({
+            key: c.slug,
+            label: c.name,
+            id: c.id,
+            models: c.subCategories.map(s => ({ name: s.name, id: s.id })),
           })));
           return;
         }
       } catch { /* fallback below */ }
-      // Fallback: hardcoded CAR_BRANDS
-      setNavBrands(CAR_BRANDS.map(b => ({ key: b.key, label: b.label, models: MODEL_MAP[b.key] ?? [] })));
+      // Fallback: hardcoded CAR_BRANDS (no real IDs — search-based navigation)
+      setNavBrands(CAR_BRANDS.map(b => ({
+        key: b.key, label: b.label, id: "",
+        models: (MODEL_MAP[b.key] ?? []).map(name => ({ name, id: "" })),
+      })));
     }
     void loadBrands();
   }, []);
@@ -495,12 +495,14 @@ export default function SparePartsBrandNav({}: Props) {
   }
 
   function handleBrandClick(brand: NavBrand) {
-    router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+    if (brand.id) router.push(`/urunler?kategoriler=${encodeURIComponent(brand.id)}`);
+    else router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
   }
 
-  function handleModelClick(brand: NavBrand, model: string) {
+  function handleModelClick(brand: NavBrand, model: NavModel) {
     setOpenBrand(null);
-    router.push(`/urunler?s=${encodeURIComponent(brand.label + " " + model)}`);
+    if (model.id) router.push(`/urunler?kategoriler=${encodeURIComponent(model.id)}`);
+    else router.push(`/urunler?s=${encodeURIComponent(brand.label + " " + model.name)}`);
   }
 
   const openBrandObj = openBrand ? navBrands.find(b => b.key === openBrand) ?? null : null;
@@ -588,7 +590,8 @@ export default function SparePartsBrandNav({}: Props) {
                 <button
                   onClick={() => {
                     setOpenBrand(null);
-                    router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
+                    if (openBrandObj.id) router.push(`/urunler?kategoriler=${encodeURIComponent(openBrandObj.id)}`);
+                    else router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
                   }}
                   className="text-[11px] text-orange-600 font-bold hover:underline"
                 >
@@ -608,14 +611,14 @@ export default function SparePartsBrandNav({}: Props) {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-2">
               {models.map((model, idx) => (
                 <button
-                  key={model}
+                  key={model.id || model.name}
                   onClick={() => handleModelClick(openBrandObj, model)}
                   className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all duration-150 group text-center bg-gray-50/60 hover:bg-orange-50/60"
                 >
                   <div className="w-full h-20 flex items-center justify-center">
-                    <ModelImage brandKey={openBrandObj.key} modelName={model} idx={idx} />
+                    <ModelImage brandKey={openBrandObj.key} modelName={model.name} idx={idx} />
                   </div>
-                  <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model}</span>
+                  <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model.name}</span>
                 </button>
               ))}
             </div>

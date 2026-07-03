@@ -13,6 +13,7 @@ public class Category : BaseEntity
     public int SortOrder { get; set; } = 0;
     public bool IsActive { get; set; } = true;
     public bool ShowInMenu { get; set; } = true;
+    public bool ShowInVehicleNav { get; set; } = false;
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
     public string? Icon { get; set; }

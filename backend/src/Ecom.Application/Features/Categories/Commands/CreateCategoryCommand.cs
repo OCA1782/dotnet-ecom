@@ -16,7 +16,8 @@ public record CreateCategoryCommand(
     int SortOrder,
     bool ShowInMenu,
     string? MetaTitle,
-    string? MetaDescription
+    string? MetaDescription,
+    bool ShowInVehicleNav = false
 ) : IRequest<Result<Guid>>;
 
 public class CreateCategoryValidator : AbstractValidator<CreateCategoryCommand>
@@ -54,6 +55,7 @@ public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit
             ImageUrl = request.ImageUrl,
             SortOrder = request.SortOrder,
             ShowInMenu = request.ShowInMenu,
+            ShowInVehicleNav = request.ShowInVehicleNav,
             MetaTitle = request.MetaTitle,
             MetaDescription = request.MetaDescription,
             CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Categories.Queries;
 
-public record GetCategoriesQuery(bool OnlyActive = true, bool OnlyMenu = false) : IRequest<List<CategoryDto>>;
+public record GetCategoriesQuery(bool OnlyActive = true, bool OnlyMenu = false, bool? ShowInVehicleNav = null) : IRequest<List<CategoryDto>>;
 
 public record CategoryDto(
     Guid Id,
@@ -21,7 +21,8 @@ public record CategoryDto(
     string? ImportedFromSourceName = null,
     DateTime CreatedDate = default,
     string? DataSource = null,
-    string? CreatedByAdminEmail = null
+    string? CreatedByAdminEmail = null,
+    bool ShowInVehicleNav = false
 );
 
 public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService cache, ICurrentUserService currentUser) : IRequestHandler<GetCategoriesQuery, List<CategoryDto>>
@@ -29,7 +30,7 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
     public async Task<List<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
         var tenantId = (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId : null;
-        var cacheKey = $"categories:{request.OnlyActive}:{request.OnlyMenu}:{tenantId}";
+        var cacheKey = $"categories:{request.OnlyActive}:{request.OnlyMenu}:{request.ShowInVehicleNav}:{tenantId}";
         var cached = await cache.GetAsync<List<CategoryDto>>(cacheKey, cancellationToken);
         if (cached is not null) return cached;
 
@@ -39,6 +40,8 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             query = query.Where(c => c.IsActive);
         if (request.OnlyMenu)
             query = query.Where(c => c.ShowInMenu);
+        if (request.ShowInVehicleNav.HasValue)
+            query = query.Where(c => c.ShowInVehicleNav == request.ShowInVehicleNav.Value);
         if (tenantId.HasValue)
             query = query.Where(c => c.CreatedByAdminId == tenantId.Value);
 
@@ -73,6 +76,7 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
                 c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
                 c.CreatedDate,
                 c.DataSource,
-                c.CreatedByAdminId.HasValue && adminEmails.TryGetValue(c.CreatedByAdminId.Value, out var e) ? e : null))
+                c.CreatedByAdminId.HasValue && adminEmails.TryGetValue(c.CreatedByAdminId.Value, out var e) ? e : null,
+                c.ShowInVehicleNav))
             .ToList();
 }

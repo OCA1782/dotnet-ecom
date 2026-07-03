@@ -17,7 +17,8 @@ public record UpdateCategoryCommand(
     bool IsActive,
     bool ShowInMenu,
     string? MetaTitle,
-    string? MetaDescription
+    string? MetaDescription,
+    bool ShowInVehicleNav = false
 ) : IRequest<Result>;
 
 public class UpdateCategoryValidator : AbstractValidator<UpdateCategoryCommand>
@@ -63,6 +64,7 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         category.SortOrder = request.SortOrder;
         category.IsActive = request.IsActive;
         category.ShowInMenu = request.ShowInMenu;
+        category.ShowInVehicleNav = request.ShowInVehicleNav;
         category.MetaTitle = request.MetaTitle;
         category.MetaDescription = request.MetaDescription;
 
