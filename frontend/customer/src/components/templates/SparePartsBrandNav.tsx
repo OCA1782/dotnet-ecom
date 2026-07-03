@@ -335,57 +335,60 @@ const CAR_BRANDS: { key: string; label: string }[] = [
   { key: "tofas",         label: "Tofaş"         },
 ];
 
-// ─── imagin.studio CDN ───────────────────────────────────────────────────────
-const MAKE_SLUG_MAP: Record<string, string> = {
+// ─── imagin.studio — generation kodunu soyarak base model slug üret ──────────
+const MAKE_SLUG: Record<string, string> = {
   "mercedes-benz": "mercedes-benz",
   "land rover":    "land-rover",
   "alfa romeo":    "alfa-romeo",
   "tofas":         "fiat",
 };
 
-const MODEL_SLUG_MAP: Record<string, string> = {
-  // BMW serisi
-  "1 serisi e81":"1-series","1 serisi e87":"1-series","1 serisi f20":"1-series","1 serisi f40":"1-series",
-  "3 serisi e30":"3-series","3 serisi e36":"3-series","3 serisi e46":"3-series","3 serisi e90":"3-series","3 serisi f30":"3-series","3 serisi g20":"3-series",
-  "5 serisi e34":"5-series","5 serisi e39":"5-series","5 serisi e60":"5-series","5 serisi f10":"5-series","5 serisi g30":"5-series",
-  "7 serisi e38":"7-series","7 serisi e65":"7-series","7 serisi f01":"7-series","7 serisi g11":"7-series",
-  // Mercedes serisi
-  "a serisi w168":"a-class","a serisi w169":"a-class","a serisi w176":"a-class","a serisi w177":"a-class",
-  "b serisi w245":"b-class","b serisi w246":"b-class","b serisi w247":"b-class",
-  "c serisi w202":"c-class","c serisi w203":"c-class","c serisi w204":"c-class","c serisi w205":"c-class","c serisi w206":"c-class",
-  "e serisi w210":"e-class","e serisi w211":"e-class","e serisi w212":"e-class","e serisi w213":"e-class",
-  "s serisi w220":"s-class","s serisi w221":"s-class","s serisi w222":"s-class",
-  // Genel
-  "crossland x":"crossland-x","grandland x":"grandland-x",
-  "c3 aircross":"c3-aircross","c4 cactus":"c4-cactus","c5 aircross":"c5-aircross",
-  "grand cherokee":"grand-cherokee","range rover":"range-rover",
-  "space star ii":"space-star","eclipse cross":"eclipse-cross",
-  "land cruiser j100":"land-cruiser","land cruiser j150":"land-cruiser",
-};
+function getModelFamily(brandKey: string, modelName: string): string {
+  const m = modelName.trim();
+  const lower = m.toLowerCase();
+
+  // BMW: "3 Serisi E30" / "3 Serisi G20" → "3-series"
+  const bmwS = lower.match(/^(\d)\s+serisi?/);
+  if (bmwS) return `${bmwS[1]}-series`;
+  // Mercedes: "C Serisi W204" → "c-class"
+  const mbC = lower.match(/^([a-z])\s+serisi?/);
+  if (mbC && brandKey === "mercedes-benz") return `${mbC[1]}-class`;
+
+  // Chassis/generation kodu soy: "Astra H", "Golf VI", "Passat B8", "X5 E53"
+  // Sona gelen: tek harf | Romen | alfanümerik kod (E30, F30, G20, B8, W204, MkN)
+  const stripped = m
+    .replace(/\s+Mk\s*\d+\s*$/i, "")              // Mk1, Mk2
+    .replace(/\s+[A-Z]\d+[A-Za-z]?\s*$/g, "")     // E30, F30, W204, B8, G20, U11, J300
+    .replace(/\s+[A-Z]{2,4}\s*$/g, "")             // YS3D, GE, BJ
+    .replace(/\s+[IVXLC]{1,4}\s*$/g, "")           // VI, III, IV, IX
+    .replace(/\s+[A-Z]\s*$/g, "")                   // trailing single letter: Astra H
+    .trim()
+    .toLowerCase()
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
+    .replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+  return stripped || lower.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
 
 const PAINT_CYCLE = [
-  "color-white","color-silver","color-red","color-blue",
-  "color-midnight-blue","color-forest-green","color-grey","color-orange",
+  "color-red","color-blue","color-midnight-blue","color-silver",
+  "color-forest-green","color-white","color-grey","color-orange",
 ];
 
 function getModelImageUrl(brandKey: string, modelName: string, idx: number): string {
-  const make = MAKE_SLUG_MAP[brandKey] ?? brandKey.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  const mn = modelName.toLowerCase().trim();
-  const modelSlug = MODEL_SLUG_MAP[mn] ?? mn
-    .replace(/\s+/g, "-")
-    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
-    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9-]/g, "");
+  const make = MAKE_SLUG[brandKey] ?? brandKey.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const family = getModelFamily(brandKey, modelName);
   const paint = PAINT_CYCLE[idx % PAINT_CYCLE.length];
-  // angle=23 → pure side/profile view; zoomType=fullscreen crops tightly
-  return `https://cdn.imagin.studio/getimage?customer=img&make=${make}&modelFamily=${modelSlug}&angle=23&width=400&zoomType=fullscreen&paintId=${paint}`;
+  // angle=23 → yan/profil görünümü
+  return `https://cdn.imagin.studio/getimage?customer=img&make=${make}&modelFamily=${family}&angle=23&width=500&zoomType=fullscreen&paintId=${paint}`;
 }
 
-function CarIcon() {
+function FallbackIcon() {
   return (
     <svg viewBox="0 0 120 60" className="w-full h-full" fill="none">
-      <rect x="8" y="30" width="104" height="16" rx="4" fill="#94a3b8" opacity="0.3"/>
-      <path d="M14 30 L28 14 L85 14 L104 30" stroke="#94a3b8" strokeWidth="2.5" fill="#94a3b8" fillOpacity="0.15"/>
+      <rect x="8" y="30" width="104" height="16" rx="4" fill="#cbd5e1" opacity="0.5"/>
+      <path d="M14 30 L28 14 L85 14 L104 30" fill="#cbd5e1" fillOpacity="0.3"/>
       <circle cx="30" cy="48" r="9" fill="#94a3b8" opacity="0.8"/>
       <circle cx="30" cy="48" r="5" fill="white" opacity="0.6"/>
       <circle cx="88" cy="48" r="9" fill="#94a3b8" opacity="0.8"/>
@@ -396,7 +399,7 @@ function CarIcon() {
 
 function ModelImage({ brandKey, modelName, idx }: { brandKey: string; modelName: string; idx: number }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <CarIcon />;
+  if (failed) return <FallbackIcon />;
   return (
     <img
       src={getModelImageUrl(brandKey, modelName, idx)}
@@ -601,15 +604,15 @@ export default function SparePartsBrandNav({}: Props) {
                 </button>
               </div>
             </div>
-            {/* Model grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+            {/* Model grid — yandan görünüm, farklı renkler, büyük kart */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-2">
               {models.map((model, idx) => (
                 <button
                   key={model}
                   onClick={() => handleModelClick(openBrandObj, model)}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all duration-150 group text-center"
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all duration-150 group text-center bg-gray-50/60 hover:bg-orange-50/60"
                 >
-                  <div className="w-full h-14 flex items-center justify-center">
+                  <div className="w-full h-20 flex items-center justify-center">
                     <ModelImage brandKey={openBrandObj.key} modelName={model} idx={idx} />
                   </div>
                   <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model}</span>
