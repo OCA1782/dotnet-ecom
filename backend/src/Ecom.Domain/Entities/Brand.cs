@@ -14,6 +14,9 @@ public class Brand : BaseEntity
     public string? Icon { get; set; }
     public string? StylesJson { get; set; }
 
+    public bool ShowInVehicleNav { get; set; } = false;
+    public string? VehicleModelsJson { get; set; }
+
     public Guid? ImportedFromSourceId { get; set; }
     public Guid? CreatedByAdminId { get; set; }
 

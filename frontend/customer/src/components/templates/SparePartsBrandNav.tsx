@@ -1,79 +1,341 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-// Araç modelleri — key ile MODEL_MAP'e bakılır
+// ─── Detaylı araç modelleri ──────────────────────────────────────────────────
 const MODEL_MAP: Record<string, string[]> = {
-  "opel":          ["Astra","Corsa","Zafira","Combo","Insignia","Mokka","Crossland X","Grandland X","Adam","Agila","Meriva","Vectra","Omega","Kadett","Signum","Antara","Cascada"],
-  "chevrolet":     ["Aveo","Cruze","Spark","Captiva","Lacetti","Epica","Trax","Orlando","Malibu"],
-  "bmw":           ["1 Serisi","2 Serisi","3 Serisi","4 Serisi","5 Serisi","6 Serisi","7 Serisi","8 Serisi","X1","X2","X3","X4","X5","X6","X7","M2","M3","M4","M5","Z4"],
-  "mercedes-benz": ["A Serisi","B Serisi","C Serisi","E Serisi","S Serisi","GLA","GLB","GLC","GLE","GLS","CLA","CLS","AMG GT","Sprinter","Vito"],
-  "volkswagen":    ["Golf","Passat","Polo","Tiguan","Touareg","T-Roc","T-Cross","Arteon","ID.3","ID.4","Caddy","Transporter","Amarok","Sharan"],
-  "audi":          ["A1","A2","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","R8","RS3","RS6","S3","S4"],
-  "ford":          ["Focus","Fiesta","Mondeo","Kuga","EcoSport","Puma","Mustang","Galaxy","S-MAX","Transit","Tourneo","Ranger","Explorer"],
-  "seat":          ["Ibiza","Leon","Toledo","Ateca","Arona","Tarraco","Altea","Exeo","Alhambra"],
-  "skoda":         ["Fabia","Octavia","Superb","Kamiq","Karoq","Kodiaq","Rapid","Yeti","Scala","Enyaq"],
-  "renault":       ["Clio","Megane","Laguna","Scenic","Kadjar","Captur","Koleos","Sandero","Duster","Talisman","Fluence","Symbol","Kangoo","Master","Trafic"],
-  "peugeot":       ["108","206","207","208","308","408","508","2008","3008","5008","Partner","Expert","Boxer"],
-  "citroen":       ["C1","C2","C3","C4","C5","C6","C3 Aircross","C4 Cactus","C5 Aircross","Berlingo","Jumpy","Jumper"],
-  "fiat":          ["500","Punto","Doblo","Fiorino","Stilo","Bravo","Tipo","Linea","Egea","500X","Panda"],
-  "toyota":        ["Corolla","Yaris","Auris","Avensis","RAV4","Land Cruiser","Hilux","Prius","C-HR","Camry","Aygo"],
-  "hyundai":       ["i10","i20","i30","i40","Accent","Elantra","Sonata","Tucson","Santa Fe","ix35","Kona","Ioniq","H-1"],
-  "kia":           ["Picanto","Rio","Ceed","Sportage","Sorento","Stinger","Soul","Niro","Stonic","EV6"],
-  "honda":         ["Civic","Jazz","CR-V","HR-V","Accord","Legend","FR-V"],
-  "nissan":        ["Micra","Note","Juke","Qashqai","X-Trail","Navara","Leaf","Pulsar"],
-  "mazda":         ["2","3","6","CX-3","CX-5","CX-9","MX-5","626","323"],
-  "volvo":         ["V40","V60","V70","V90","S40","S60","S80","S90","XC40","XC60","XC90"],
-  "mitsubishi":    ["Colt","Galant","Outlander","Eclipse Cross","ASX","L200","Pajero","Space Star"],
-  "suzuki":        ["Swift","Vitara","Baleno","Jimny","Ignis","S-Cross","Grand Vitara"],
-  "jeep":          ["Wrangler","Cherokee","Grand Cherokee","Renegade","Compass","Commander"],
-  "land rover":    ["Defender","Discovery","Range Rover","Freelander","Range Rover Sport","Range Rover Evoque"],
-  "alfa romeo":    ["Giulia","Stelvio","Giulietta","MiTo","147","156","159"],
-  "dacia":         ["Sandero","Logan","Duster","Lodgy","Dokker","Spring"],
-  "porsche":       ["911","Cayenne","Macan","Panamera","Boxster","Cayman"],
-  "subaru":        ["Impreza","Legacy","Outback","Forester","XV","BRZ"],
-  "saab":          ["9-3","9-5","9000"],
-  "lexus":         ["IS","ES","GS","LS","UX","NX","RX","LX"],
-  "tofas":         ["Doğan","Şahin","Kartal","Tempra","Fiorino"],
+  "opel": [
+    "Astra F","Astra G","Astra H","Astra J","Astra K",
+    "Corsa A","Corsa B","Corsa C","Corsa D","Corsa E","Corsa F",
+    "Zafira A","Zafira B","Zafira C",
+    "Combo B","Combo C","Combo D","Combo E",
+    "Insignia A","Insignia B",
+    "Vectra A","Vectra B","Vectra C",
+    "Omega A","Omega B",
+    "Meriva A","Meriva B",
+    "Mokka","Mokka X",
+    "Crossland X","Grandland X",
+    "Kadett E","Antara","Adam","Agila B","Signum","Cascada",
+  ],
+  "chevrolet": [
+    "Aveo T200","Aveo T250","Aveo T300",
+    "Cruze J300","Cruze J400",
+    "Spark M200","Spark M300",
+    "Captiva C100","Captiva C140",
+    "Lacetti","Epica","Trax","Orlando","Malibu",
+  ],
+  "bmw": [
+    "1 Serisi E81","1 Serisi E87","1 Serisi F20","1 Serisi F40",
+    "2 Serisi F22","2 Serisi F45","2 Serisi G42",
+    "3 Serisi E30","3 Serisi E36","3 Serisi E46","3 Serisi E90","3 Serisi F30","3 Serisi G20",
+    "4 Serisi F32","4 Serisi G22",
+    "5 Serisi E34","5 Serisi E39","5 Serisi E60","5 Serisi F10","5 Serisi G30",
+    "6 Serisi E63","6 Serisi F12",
+    "7 Serisi E38","7 Serisi E65","7 Serisi F01","7 Serisi G11",
+    "X1 E84","X1 F48","X1 U11",
+    "X3 E83","X3 F25","X3 G01",
+    "X5 E53","X5 E70","X5 F15","X5 G05",
+    "X6 E71","X6 F16",
+    "M3 E36","M3 E46","M3 E90","M3 F80",
+    "M5 E39","M5 E60","M5 F10",
+    "Z4 E85","Z4 E89",
+  ],
+  "mercedes-benz": [
+    "A Serisi W168","A Serisi W169","A Serisi W176","A Serisi W177",
+    "B Serisi W245","B Serisi W246","B Serisi W247",
+    "C Serisi W202","C Serisi W203","C Serisi W204","C Serisi W205","C Serisi W206",
+    "E Serisi W210","E Serisi W211","E Serisi W212","E Serisi W213",
+    "S Serisi W220","S Serisi W221","S Serisi W222",
+    "GLA X156","GLA X247",
+    "GLC X253","GLE W166","GLE W167","GLS X166",
+    "CLA C117","CLA C118","CLS C218","CLS C257",
+    "Sprinter W901","Sprinter W906","Sprinter W907",
+    "Vito W638","Vito W639","Vito W447",
+  ],
+  "volkswagen": [
+    "Golf I","Golf II","Golf III","Golf IV","Golf V","Golf VI","Golf VII","Golf VIII",
+    "Passat B3","Passat B4","Passat B5","Passat B6","Passat B7","Passat B8",
+    "Polo 6N","Polo 6N2","Polo 9N","Polo 6R","Polo AW",
+    "Tiguan I","Tiguan II",
+    "Touareg I","Touareg II","Touareg III",
+    "T-Roc","T-Cross","Arteon",
+    "Caddy I","Caddy II","Caddy III","Caddy IV",
+    "Transporter T4","Transporter T5","Transporter T6",
+    "Amarok I","Amarok II","Sharan I","Sharan II",
+    "ID.3","ID.4",
+  ],
+  "audi": [
+    "A1 8X","A1 GB",
+    "A3 8L","A3 8P","A3 8V","A3 8Y",
+    "A4 B5","A4 B6","A4 B7","A4 B8","A4 B9",
+    "A5 8T","A5 F5",
+    "A6 C4","A6 C5","A6 C6","A6 C7","A6 C8",
+    "A7 4G","A7 4K",
+    "A8 D2","A8 D3","A8 D4","A8 D5",
+    "Q2","Q3 8U","Q3 F3",
+    "Q5 8R","Q5 FY",
+    "Q7 4L","Q7 4M","Q8 4M",
+    "TT 8N","TT 8J","TT 8S",
+    "RS3","RS4 B5","RS4 B7","RS4 B8","RS6 C5","RS6 C7",
+    "S3 8L","S3 8P","S4 B5","S4 B6","S4 B8",
+  ],
+  "ford": [
+    "Focus I","Focus II","Focus III","Focus IV",
+    "Fiesta III","Fiesta IV","Fiesta V","Fiesta VI","Fiesta VII",
+    "Mondeo I","Mondeo II","Mondeo III","Mondeo IV","Mondeo V",
+    "Kuga I","Kuga II","Kuga III",
+    "EcoSport","Puma II",
+    "Galaxy I","Galaxy II","Galaxy III",
+    "S-MAX I","S-MAX II",
+    "Transit V184","Transit V347","Transit V363",
+    "Tourneo Connect","Tourneo Custom",
+    "Ranger III","Ranger IV",
+    "Mustang V","Mustang VI",
+  ],
+  "seat": [
+    "Ibiza I","Ibiza II","Ibiza III","Ibiza IV","Ibiza V",
+    "Leon I","Leon II","Leon III","Leon IV",
+    "Toledo I","Toledo II","Toledo III","Toledo IV",
+    "Ateca","Arona","Tarraco","Altea","Alhambra II",
+  ],
+  "skoda": [
+    "Fabia I","Fabia II","Fabia III",
+    "Octavia I","Octavia II","Octavia III","Octavia IV",
+    "Superb I","Superb II","Superb III",
+    "Yeti","Kamiq","Karoq","Kodiaq",
+    "Rapid","Scala","Enyaq",
+  ],
+  "renault": [
+    "Clio I","Clio II","Clio III","Clio IV","Clio V",
+    "Megane I","Megane II","Megane III","Megane IV",
+    "Laguna I","Laguna II","Laguna III",
+    "Scenic I","Scenic II","Scenic III",
+    "Kadjar","Captur I","Captur II",
+    "Koleos I","Koleos II",
+    "Sandero I","Sandero II","Sandero III",
+    "Symbol I","Symbol II","Symbol III",
+    "Fluence","Talisman",
+    "Kangoo I","Kangoo II","Kangoo III",
+    "Master II","Master III","Trafic II","Trafic III",
+  ],
+  "peugeot": [
+    "106","107","108",
+    "206","207","208 I","208 II",
+    "306","307","308 I","308 II",
+    "407","408","508 I","508 II",
+    "2008 I","2008 II","3008 I","3008 II","5008 I","5008 II",
+    "Partner I","Partner II","Partner III",
+    "Expert I","Expert II","Boxer II","Boxer III",
+  ],
+  "citroen": [
+    "C1 I","C1 II",
+    "C2","C3 I","C3 II","C3 III",
+    "C4 I","C4 II","C4 III",
+    "C5 I","C5 II","C5 X",
+    "C3 Aircross","C4 Cactus","C5 Aircross",
+    "Berlingo I","Berlingo II","Berlingo III",
+    "Jumpy I","Jumpy II","Jumpy III",
+    "Jumper I","Jumper II",
+    "C6",
+  ],
+  "fiat": [
+    "500 312","500 334",
+    "Punto I","Punto II","Punto III",
+    "Doblo I","Doblo II","Doblo III",
+    "Fiorino III","Fiorino IV",
+    "Tipo I","Tipo II",
+    "Bravo II","Stilo",
+    "Linea","Egea","500X","Panda II","Panda III",
+    "Uno II",
+  ],
+  "toyota": [
+    "Corolla E10","Corolla E11","Corolla E12","Corolla E15","Corolla E16","Corolla E21",
+    "Yaris P1","Yaris P2","Yaris P3","Yaris P4",
+    "Auris I","Auris II",
+    "Avensis I","Avensis II","Avensis III",
+    "RAV4 I","RAV4 II","RAV4 III","RAV4 IV","RAV4 V",
+    "Land Cruiser J100","Land Cruiser J150","Land Cruiser J200","Land Cruiser J300",
+    "Hilux VII","Hilux VIII",
+    "Prius II","Prius III","Prius IV",
+    "C-HR","Camry VII","Camry VIII",
+    "Aygo I","Aygo II",
+  ],
+  "hyundai": [
+    "i10 I","i10 II","i10 III",
+    "i20 I","i20 II","i20 III",
+    "i30 I","i30 II","i30 III",
+    "i40 I",
+    "Accent III","Accent IV",
+    "Elantra IV","Elantra V","Elantra VI",
+    "Sonata IV","Sonata V",
+    "Tucson I","Tucson II","Tucson III","Tucson IV",
+    "Santa Fe I","Santa Fe II","Santa Fe III","Santa Fe IV",
+    "ix35","Kona","Ioniq","H-1 II",
+  ],
+  "kia": [
+    "Picanto I","Picanto II","Picanto III",
+    "Rio I","Rio II","Rio III","Rio IV",
+    "Ceed I","Ceed II","Ceed III",
+    "Sportage I","Sportage II","Sportage III","Sportage IV","Sportage V",
+    "Sorento I","Sorento II","Sorento III","Sorento IV",
+    "Soul I","Soul II","Soul III",
+    "Niro I","Stonic","ProCeed","EV6",
+  ],
+  "honda": [
+    "Civic IV","Civic V","Civic VI","Civic VII","Civic VIII","Civic IX","Civic X","Civic XI",
+    "Jazz I","Jazz II","Jazz III","Jazz IV",
+    "CR-V I","CR-V II","CR-V III","CR-V IV","CR-V V",
+    "HR-V I","HR-V II","HR-V III",
+    "Accord V","Accord VI","Accord VII","Accord VIII",
+    "FR-V",
+  ],
+  "nissan": [
+    "Micra K11","Micra K12","Micra K13","Micra K14",
+    "Note E11","Note E12",
+    "Juke F15","Juke F16",
+    "Qashqai J10","Qashqai J11","Qashqai J12",
+    "X-Trail T30","X-Trail T31","X-Trail T32",
+    "Navara D22","Navara D40","Navara D23",
+    "Leaf ZE0","Leaf ZE1","Pulsar C13",
+  ],
+  "mazda": [
+    "Mazda 2 DJ","Mazda 2 DY",
+    "Mazda 3 BK","Mazda 3 BL","Mazda 3 BM","Mazda 3 BP",
+    "Mazda 6 GG","Mazda 6 GH","Mazda 6 GJ","Mazda 6 GL",
+    "CX-3","CX-5 KE","CX-5 KF","CX-9",
+    "MX-5 NA","MX-5 NB","MX-5 NC","MX-5 ND",
+    "626 GE","323 BJ",
+  ],
+  "volvo": [
+    "V40 I","V40 II",
+    "V60 I","V60 II",
+    "V70 I","V70 II","V70 III",
+    "V90 I","V90 II",
+    "S40 I","S40 II",
+    "S60 I","S60 II","S60 III",
+    "S80 I","S80 II",
+    "S90 II",
+    "XC40","XC60 I","XC60 II","XC90 I","XC90 II",
+  ],
+  "mitsubishi": [
+    "Colt VI","Colt VII",
+    "Galant VIII","Galant IX",
+    "Outlander I","Outlander II","Outlander III",
+    "Eclipse Cross","ASX",
+    "L200 III","L200 IV","L200 V",
+    "Pajero III","Pajero IV",
+    "Space Star II",
+  ],
+  "suzuki": [
+    "Swift I","Swift II","Swift III","Swift IV","Swift V",
+    "Vitara I","Vitara II","Vitara III",
+    "Baleno I","Baleno II",
+    "Jimny III","Jimny IV",
+    "Ignis I","Ignis II",
+    "S-Cross I","S-Cross II",
+    "Grand Vitara II","Grand Vitara III",
+  ],
+  "jeep": [
+    "Wrangler TJ","Wrangler JK","Wrangler JL",
+    "Cherokee XJ","Cherokee KJ","Cherokee KL",
+    "Grand Cherokee WJ","Grand Cherokee WK","Grand Cherokee WK2","Grand Cherokee WL",
+    "Renegade BU","Compass MK49","Compass MP52",
+    "Commander XK","Gladiator JT",
+  ],
+  "land rover": [
+    "Defender 90","Defender 110","Defender L663",
+    "Discovery I","Discovery II","Discovery III","Discovery IV","Discovery V",
+    "Freelander I","Freelander II",
+    "Range Rover I","Range Rover II","Range Rover III","Range Rover IV","Range Rover V",
+    "Range Rover Sport I","Range Rover Sport II",
+    "Range Rover Evoque I","Range Rover Evoque II",
+    "Velar",
+  ],
+  "alfa romeo": [
+    "Giulia 952","Stelvio 949",
+    "Giulietta 940","MiTo 955",
+    "147 937","156 932","159 939",
+    "Brera 939",
+  ],
+  "dacia": [
+    "Sandero I","Sandero II","Sandero III",
+    "Logan I","Logan II","Logan III",
+    "Duster I","Duster II","Duster III",
+    "Lodgy","Dokker","Spring",
+  ],
+  "porsche": [
+    "911 996","911 997","911 991","911 992",
+    "Cayenne 9PA","Cayenne 92A","Cayenne E3",
+    "Macan 95B","Panamera 970","Panamera 971",
+    "Boxster 986","Boxster 987","Boxster 981","Boxster 982",
+    "Cayman 987","Cayman 981","Taycan",
+  ],
+  "subaru": [
+    "Impreza GC","Impreza GD","Impreza GE","Impreza GP","Impreza GJ","Impreza GT",
+    "Legacy III","Legacy IV","Legacy V",
+    "Outback II","Outback III","Outback IV","Outback V",
+    "Forester I","Forester II","Forester III","Forester IV","Forester V",
+    "XV I","XV II","BRZ I","BRZ II",
+  ],
+  "saab": [
+    "9-3 YS3D","9-3 YS3F",
+    "9-5 YS3E","9-5 YS3G",
+    "9000",
+  ],
+  "lexus": [
+    "IS200","IS220","IS250","IS300h","IS350",
+    "ES300h","ES350",
+    "GS300","GS430","GS450h",
+    "LS400","LS430","LS460","LS500h",
+    "UX250h","NX200t","NX300h","NX350h",
+    "RX300","RX330","RX350","RX450h",
+    "LX470","LX570","CT200h",
+  ],
+  "tofas": [
+    "Doğan","Doğan SLX",
+    "Şahin","Şahin S",
+    "Kartal","Kartal SLX",
+    "Tempra","Fiorino","Brava","Uno",
+  ],
 };
 
-// Pill nav'da gösterilecek araç markaları (sıralı, dedupe)
+// ─── Pill nav araç markaları ─────────────────────────────────────────────────
 const CAR_BRANDS: { key: string; label: string }[] = [
-  { key: "opel",        label: "Opel"         },
-  { key: "chevrolet",   label: "Chevrolet"    },
-  { key: "bmw",         label: "BMW"          },
+  { key: "opel",          label: "Opel"          },
+  { key: "chevrolet",     label: "Chevrolet"     },
+  { key: "bmw",           label: "BMW"           },
   { key: "mercedes-benz", label: "Mercedes-Benz" },
-  { key: "volkswagen",  label: "Volkswagen"   },
-  { key: "audi",        label: "Audi"         },
-  { key: "ford",        label: "Ford"         },
-  { key: "seat",        label: "Seat"         },
-  { key: "skoda",       label: "Skoda"        },
-  { key: "renault",     label: "Renault"      },
-  { key: "peugeot",     label: "Peugeot"      },
-  { key: "citroen",     label: "Citroën"      },
-  { key: "fiat",        label: "Fiat"         },
-  { key: "toyota",      label: "Toyota"       },
-  { key: "hyundai",     label: "Hyundai"      },
-  { key: "kia",         label: "Kia"          },
-  { key: "honda",       label: "Honda"        },
-  { key: "nissan",      label: "Nissan"       },
-  { key: "mazda",       label: "Mazda"        },
-  { key: "volvo",       label: "Volvo"        },
-  { key: "mitsubishi",  label: "Mitsubishi"   },
-  { key: "suzuki",      label: "Suzuki"       },
-  { key: "jeep",        label: "Jeep"         },
-  { key: "land rover",  label: "Land Rover"   },
-  { key: "alfa romeo",  label: "Alfa Romeo"   },
-  { key: "dacia",       label: "Dacia"        },
-  { key: "porsche",     label: "Porsche"      },
-  { key: "subaru",      label: "Subaru"       },
-  { key: "saab",        label: "Saab"         },
-  { key: "lexus",       label: "Lexus"        },
-  { key: "tofas",       label: "Tofaş"        },
+  { key: "volkswagen",    label: "Volkswagen"    },
+  { key: "audi",          label: "Audi"          },
+  { key: "ford",          label: "Ford"          },
+  { key: "seat",          label: "Seat"          },
+  { key: "skoda",         label: "Skoda"         },
+  { key: "renault",       label: "Renault"       },
+  { key: "peugeot",       label: "Peugeot"       },
+  { key: "citroen",       label: "Citroën"       },
+  { key: "fiat",          label: "Fiat"          },
+  { key: "toyota",        label: "Toyota"        },
+  { key: "hyundai",       label: "Hyundai"       },
+  { key: "kia",           label: "Kia"           },
+  { key: "honda",         label: "Honda"         },
+  { key: "nissan",        label: "Nissan"        },
+  { key: "mazda",         label: "Mazda"         },
+  { key: "volvo",         label: "Volvo"         },
+  { key: "mitsubishi",    label: "Mitsubishi"    },
+  { key: "suzuki",        label: "Suzuki"        },
+  { key: "jeep",          label: "Jeep"          },
+  { key: "land rover",    label: "Land Rover"    },
+  { key: "alfa romeo",    label: "Alfa Romeo"    },
+  { key: "dacia",         label: "Dacia"         },
+  { key: "porsche",       label: "Porsche"       },
+  { key: "subaru",        label: "Subaru"        },
+  { key: "saab",          label: "Saab"          },
+  { key: "lexus",         label: "Lexus"         },
+  { key: "tofas",         label: "Tofaş"         },
 ];
 
-// imagin.studio make slug mapping
+// ─── imagin.studio CDN ───────────────────────────────────────────────────────
 const MAKE_SLUG_MAP: Record<string, string> = {
   "mercedes-benz": "mercedes-benz",
   "land rover":    "land-rover",
@@ -81,22 +343,32 @@ const MAKE_SLUG_MAP: Record<string, string> = {
   "tofas":         "fiat",
 };
 
-// Turkish model name → imagin.studio slug
 const MODEL_SLUG_MAP: Record<string, string> = {
-  "1 serisi": "1-series", "2 serisi": "2-series", "3 serisi": "3-series",
-  "4 serisi": "4-series", "5 serisi": "5-series", "6 serisi": "6-series",
-  "7 serisi": "7-series", "8 serisi": "8-series",
-  "a serisi": "a-class",  "b serisi": "b-class",  "c serisi": "c-class",
-  "e serisi": "e-class",  "s serisi": "s-class",
-  "crossland x": "crossland-x", "grandland x": "grandland-x",
-  "c3 aircross": "c3-aircross", "c4 cactus": "c4-cactus", "c5 aircross": "c5-aircross",
-  "grand cherokee": "grand-cherokee", "range rover": "range-rover",
-  "range rover sport": "range-rover-sport", "range rover evoque": "range-rover-evoque",
-  "space star": "space-star", "eclipse cross": "eclipse-cross",
-  "land cruiser": "land-cruiser", "grand vitara": "grand-vitara",
+  // BMW serisi
+  "1 serisi e81":"1-series","1 serisi e87":"1-series","1 serisi f20":"1-series","1 serisi f40":"1-series",
+  "3 serisi e30":"3-series","3 serisi e36":"3-series","3 serisi e46":"3-series","3 serisi e90":"3-series","3 serisi f30":"3-series","3 serisi g20":"3-series",
+  "5 serisi e34":"5-series","5 serisi e39":"5-series","5 serisi e60":"5-series","5 serisi f10":"5-series","5 serisi g30":"5-series",
+  "7 serisi e38":"7-series","7 serisi e65":"7-series","7 serisi f01":"7-series","7 serisi g11":"7-series",
+  // Mercedes serisi
+  "a serisi w168":"a-class","a serisi w169":"a-class","a serisi w176":"a-class","a serisi w177":"a-class",
+  "b serisi w245":"b-class","b serisi w246":"b-class","b serisi w247":"b-class",
+  "c serisi w202":"c-class","c serisi w203":"c-class","c serisi w204":"c-class","c serisi w205":"c-class","c serisi w206":"c-class",
+  "e serisi w210":"e-class","e serisi w211":"e-class","e serisi w212":"e-class","e serisi w213":"e-class",
+  "s serisi w220":"s-class","s serisi w221":"s-class","s serisi w222":"s-class",
+  // Genel
+  "crossland x":"crossland-x","grandland x":"grandland-x",
+  "c3 aircross":"c3-aircross","c4 cactus":"c4-cactus","c5 aircross":"c5-aircross",
+  "grand cherokee":"grand-cherokee","range rover":"range-rover",
+  "space star ii":"space-star","eclipse cross":"eclipse-cross",
+  "land cruiser j100":"land-cruiser","land cruiser j150":"land-cruiser",
 };
 
-function getModelImageUrl(brandKey: string, modelName: string): string {
+const PAINT_CYCLE = [
+  "color-white","color-silver","color-red","color-blue",
+  "color-midnight-blue","color-forest-green","color-grey","color-orange",
+];
+
+function getModelImageUrl(brandKey: string, modelName: string, idx: number): string {
   const make = MAKE_SLUG_MAP[brandKey] ?? brandKey.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const mn = modelName.toLowerCase().trim();
   const modelSlug = MODEL_SLUG_MAP[mn] ?? mn
@@ -104,7 +376,9 @@ function getModelImageUrl(brandKey: string, modelName: string): string {
     .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
     .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
     .replace(/[^a-z0-9-]/g, "");
-  return `https://cdn.imagin.studio/getimage?customer=img&make=${make}&modelFamily=${modelSlug}&angle=29&width=300&zoomType=fullscreen&paintId=color-black`;
+  const paint = PAINT_CYCLE[idx % PAINT_CYCLE.length];
+  // angle=23 → pure side/profile view; zoomType=fullscreen crops tightly
+  return `https://cdn.imagin.studio/getimage?customer=img&make=${make}&modelFamily=${modelSlug}&angle=23&width=400&zoomType=fullscreen&paintId=${paint}`;
 }
 
 function CarIcon() {
@@ -120,12 +394,12 @@ function CarIcon() {
   );
 }
 
-function ModelImage({ brandKey, modelName }: { brandKey: string; modelName: string }) {
+function ModelImage({ brandKey, modelName, idx }: { brandKey: string; modelName: string; idx: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <CarIcon />;
   return (
     <img
-      src={getModelImageUrl(brandKey, modelName)}
+      src={getModelImageUrl(brandKey, modelName, idx)}
       alt={modelName}
       className="w-full h-full object-contain"
       onError={() => setFailed(true)}
@@ -133,66 +407,140 @@ function ModelImage({ brandKey, modelName }: { brandKey: string; modelName: stri
   );
 }
 
-// brands prop artık kullanılmıyor ama geriye dönük uyumluluk için tutuldu
-interface Props {
-  brands?: unknown[];
-  activeBrandSlug?: string;
+interface ApiBrand { id: string; name: string; slug: string; showInVehicleNav: boolean; vehicleModelsJson?: string | null; }
+interface NavBrand { key: string; label: string; models: string[]; }
+
+function parseModels(vehicleModelsJson: string | null | undefined, slug: string): string[] {
+  if (vehicleModelsJson && vehicleModelsJson.trim()) {
+    return vehicleModelsJson.split("\n").map(s => s.trim()).filter(Boolean);
+  }
+  return MODEL_MAP[slug] ?? [];
 }
 
-export default function SparePartsBrandNav({ }: Props) {
+// brands prop: geriye dönük uyumluluk için tutuldu, kullanılmıyor
+interface Props { brands?: unknown[]; activeBrandSlug?: string; }
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5181";
+
+export default function SparePartsBrandNav({}: Props) {
   const router = useRouter();
-  const [openBrand, setOpenBrand] = useState<string | null>(null); // CAR_BRANDS key
+  const [navBrands, setNavBrands] = useState<NavBrand[]>([]);
+  const [openBrand, setOpenBrand]   = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft]   = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (overlayRef.current && !overlayRef.current.contains(e.target as Node)) {
-        setOpenBrand(null);
-      }
-    }
-    if (openBrand) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [openBrand]);
+  const pillRef    = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // ── API'den araç markalarını çek; fallback: hardcoded CAR_BRANDS ──────────
   useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenBrand(null);
+    async function loadBrands() {
+      try {
+        const res = await fetch(`${API_BASE}/api/brands?showInVehicleNav=true&pageSize=100&onlyActive=true`);
+        if (!res.ok) throw new Error("api error");
+        const data: { items: ApiBrand[] } = await res.json();
+        if (data.items.length > 0) {
+          setNavBrands(data.items.map(b => ({
+            key: b.slug,
+            label: b.name,
+            models: parseModels(b.vehicleModelsJson, b.slug),
+          })));
+          return;
+        }
+      } catch { /* fallback below */ }
+      // Fallback: hardcoded CAR_BRANDS
+      setNavBrands(CAR_BRANDS.map(b => ({ key: b.key, label: b.label, models: MODEL_MAP[b.key] ?? [] })));
     }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
+    void loadBrands();
   }, []);
 
-  function handleBrandClick(brand: { key: string; label: string }) {
-    const models = MODEL_MAP[brand.key] ?? [];
-    if (models.length > 0) {
-      setOpenBrand(prev => prev === brand.key ? null : brand.key);
-    } else {
-      setActiveBrand(brand.key);
-      setOpenBrand(null);
-      router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
-    }
+
+  // ── Scroll durumunu güncelle ─────────────────────────────────────────────
+  const updateScroll = useCallback(() => {
+    const el = pillRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateScroll();
+    const el = pillRef.current;
+    el?.addEventListener("scroll", updateScroll, { passive: true });
+    window.addEventListener("resize", updateScroll);
+    return () => {
+      el?.removeEventListener("scroll", updateScroll);
+      window.removeEventListener("resize", updateScroll);
+    };
+  }, [updateScroll]);
+
+  function scrollPills(dir: "left" | "right") {
+    if (!pillRef.current) return;
+    pillRef.current.scrollBy({ left: dir === "left" ? -240 : 240, behavior: "smooth" });
   }
 
-  function handleModelClick(brand: { key: string; label: string }, model: string) {
+  // ── Hover açma / kapatma mantığı — timer yok, anlık ────────────────────
+  function handleBrandEnter(brand: NavBrand) {
+    if (brand.models.length > 0) setOpenBrand(brand.key);
     setActiveBrand(brand.key);
+  }
+
+  // Wrapper'dan (pill + dropdown) tamamen çıkınca anında kapat
+  function handleWrapperLeave() {
+    setOpenBrand(null);
+  }
+
+  function handleBrandClick(brand: NavBrand) {
+    router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+  }
+
+  function handleModelClick(brand: NavBrand, model: string) {
     setOpenBrand(null);
     router.push(`/urunler?s=${encodeURIComponent(brand.label + " " + model)}`);
   }
 
-  const openBrandObj = openBrand ? CAR_BRANDS.find(b => b.key === openBrand) : null;
-  const models = openBrandObj ? (MODEL_MAP[openBrandObj.key] ?? []) : [];
+  const openBrandObj = openBrand ? navBrands.find(b => b.key === openBrand) ?? null : null;
+  const models       = openBrandObj?.models ?? [];
 
   return (
-    <div className="relative bg-white border-b border-gray-100 shadow-sm" ref={overlayRef}>
-      {/* Marka pill şeridi */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none py-1">
-          {CAR_BRANDS.map(brand => (
+    <div
+      ref={wrapperRef}
+      className="relative bg-white border-b border-gray-100 shadow-sm"
+      onMouseLeave={handleWrapperLeave}
+    >
+      {/* ── Pill şeridi + ok butonları ──────────────────────────────────── */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Sol ok */}
+        {canScrollLeft && (
+          <button
+            onClick={() => scrollPills("left")}
+            className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-1 pr-3"
+            style={{ background: "linear-gradient(to right, white 60%, transparent)" }}
+            aria-label="Sola kaydır"
+          >
+            <span className="w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600 transition-all">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </span>
+          </button>
+        )}
+
+        {/* Pill container — scrollbar gizli, ok butonlarıyla kaydırılır */}
+        <div
+          ref={pillRef}
+          className="flex items-center gap-0 py-1"
+          style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          <style>{`.no-scrollbar::-webkit-scrollbar{display:none}`}</style>
+          {navBrands.map(brand => (
             <button
               key={brand.key}
+              onMouseEnter={() => handleBrandEnter(brand)}
               onClick={() => handleBrandClick(brand)}
-              className={`flex-shrink-0 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide transition-all duration-150 border-b-2 whitespace-nowrap ${
+              className={`flex-shrink-0 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide transition-all duration-150 border-b-2 whitespace-nowrap select-none ${
                 activeBrand === brand.key || openBrand === brand.key
                   ? "border-orange-500 text-orange-600 bg-orange-50"
                   : "border-transparent text-gray-600 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50/50"
@@ -202,21 +550,40 @@ export default function SparePartsBrandNav({ }: Props) {
             </button>
           ))}
         </div>
+
+        {/* Sağ ok */}
+        {canScrollRight && (
+          <button
+            onClick={() => scrollPills("right")}
+            className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-1 pl-3"
+            style={{ background: "linear-gradient(to left, white 60%, transparent)" }}
+            aria-label="Sağa kaydır"
+          >
+            <span className="w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600 transition-all">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* Model dropdown */}
+      {/* ── Model dropdown ──────────────────────────────────────────────── */}
       {openBrandObj && models.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-xl">
+        <div
+          className="absolute left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-2xl"
+        >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            {/* Başlık */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">{openBrandObj.label}</span>
                 <span className="text-[10px] text-gray-400 font-semibold">— Model Seçin</span>
+                <span className="text-[10px] bg-orange-100 text-orange-600 font-bold px-2 py-0.5 rounded-full">{models.length} model</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    setActiveBrand(openBrandObj.key);
                     setOpenBrand(null);
                     router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
                   }}
@@ -224,24 +591,28 @@ export default function SparePartsBrandNav({ }: Props) {
                 >
                   Tüm {openBrandObj.label} Ürünlerini Gör →
                 </button>
-                <button onClick={() => setOpenBrand(null)} className="text-gray-400 hover:text-gray-600 ml-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <button
+                  onClick={() => setOpenBrand(null)}
+                  className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-              {models.map((model) => (
+            {/* Model grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+              {models.map((model, idx) => (
                 <button
                   key={model}
                   onClick={() => handleModelClick(openBrandObj, model)}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all duration-150 group text-center"
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all duration-150 group text-center"
                 >
-                  <div className="w-full h-10 flex items-center justify-center group-hover:opacity-100 transition-opacity">
-                    <ModelImage brandKey={openBrandObj.key} modelName={model} />
+                  <div className="w-full h-14 flex items-center justify-center">
+                    <ModelImage brandKey={openBrandObj.key} modelName={model} idx={idx} />
                   </div>
-                  <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2">{model}</span>
+                  <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model}</span>
                 </button>
               ))}
             </div>

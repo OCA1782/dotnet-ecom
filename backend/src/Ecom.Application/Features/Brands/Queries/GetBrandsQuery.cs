@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Brands.Queries;
 
-public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null, string? SortBy = null, string? DataSource = null)
+public record GetBrandsQuery(int Page = 1, int PageSize = 20, string? Search = null, bool OnlyActive = true, bool? IsActive = null, string? SortBy = null, string? DataSource = null, bool? ShowInVehicleNav = null)
     : IRequest<PaginatedList<BrandDto>>;
 
-public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null, DateTime CreatedDate = default, string? DataSource = null, string? CreatedByAdminEmail = null);
+public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, string? Description, bool IsActive, string? ImportedFromSourceName = null, DateTime CreatedDate = default, string? DataSource = null, string? CreatedByAdminEmail = null, bool ShowInVehicleNav = false, string? VehicleModelsJson = null);
 
 public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetBrandsQuery, PaginatedList<BrandDto>>
 {
@@ -34,6 +34,9 @@ public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService
                 query = query.Where(b => b.DataSource == request.DataSource);
         }
 
+        if (request.ShowInVehicleNav.HasValue)
+            query = query.Where(b => b.ShowInVehicleNav == request.ShowInVehicleNav.Value);
+
         var total = await query.CountAsync(cancellationToken);
         var orderedQuery = request.SortBy switch
         {
@@ -56,7 +59,9 @@ public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService
                 b.DataSource,
                 b.CreatedByAdminId != null
                     ? db.Users.Where(u => u.Id == b.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
-                    : null))
+                    : null,
+                b.ShowInVehicleNav,
+                b.VehicleModelsJson))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<BrandDto>.Create(items, total, request.Page, request.PageSize);

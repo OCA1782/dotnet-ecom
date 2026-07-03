@@ -9,7 +9,8 @@ namespace Ecom.Application.Features.Brands.Commands;
 public record UpdateBrandCommand(
     Guid Id, string Name, string Slug,
     string? LogoUrl, string? Description,
-    bool IsActive, string? MetaTitle, string? MetaDescription
+    bool IsActive, string? MetaTitle, string? MetaDescription,
+    bool ShowInVehicleNav = false, string? VehicleModelsJson = null
 ) : IRequest<Result>;
 
 public class UpdateBrandValidator : AbstractValidator<UpdateBrandCommand>
@@ -46,6 +47,8 @@ public class UpdateBrandHandler(IApplicationDbContext db, IAuditService audit)
         brand.IsActive = request.IsActive;
         brand.MetaTitle = request.MetaTitle;
         brand.MetaDescription = request.MetaDescription;
+        brand.ShowInVehicleNav = request.ShowInVehicleNav;
+        brand.VehicleModelsJson = request.VehicleModelsJson;
 
         // Cascade: logo siliniyorsa UploadedFiles'tan da kaldır
         if (string.IsNullOrEmpty(request.LogoUrl) && !string.IsNullOrEmpty(oldLogoUrl))

@@ -13,7 +13,9 @@ public record CreateBrandCommand(
     string? LogoUrl,
     string? Description,
     string? MetaTitle,
-    string? MetaDescription
+    string? MetaDescription,
+    bool ShowInVehicleNav = false,
+    string? VehicleModelsJson = null
 ) : IRequest<Result<Guid>>;
 
 public class CreateBrandValidator : AbstractValidator<CreateBrandCommand>
@@ -43,6 +45,8 @@ public class CreateBrandHandler(IApplicationDbContext db, IAuditService audit, I
             Description = request.Description,
             MetaTitle = request.MetaTitle,
             MetaDescription = request.MetaDescription,
+            ShowInVehicleNav = request.ShowInVehicleNav,
+            VehicleModelsJson = request.VehicleModelsJson,
             CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 

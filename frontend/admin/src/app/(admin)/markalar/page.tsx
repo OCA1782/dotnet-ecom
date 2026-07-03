@@ -29,10 +29,10 @@ const BRAND_ACTION_COLORS: Record<string, string> = {
   "Silindi — Marka": "bg-red-100 text-red-700",
 };
 
-interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; createdDate?: string; dataSource?: string; createdByAdminEmail?: string; }
-interface BrandForm { id?: string; name: string; slug: string; logoUrl: string; description: string; isActive: boolean; }
+interface Brand { id: string; name: string; slug: string; logoUrl?: string; isActive: boolean; importedFromSourceName?: string; createdDate?: string; dataSource?: string; createdByAdminEmail?: string; showInVehicleNav?: boolean; vehicleModelsJson?: string; }
+interface BrandForm { id?: string; name: string; slug: string; logoUrl: string; description: string; isActive: boolean; showInVehicleNav: boolean; vehicleModelsJson: string; }
 
-const EMPTY: BrandForm = { name: "", slug: "", logoUrl: "", description: "", isActive: true };
+const EMPTY: BrandForm = { name: "", slug: "", logoUrl: "", description: "", isActive: true, showInVehicleNav: false, vehicleModelsJson: "" };
 
 const TR: Record<string, string> = {
   "ğ":"g","Ğ":"g",
@@ -173,7 +173,7 @@ export default function MarkalarPage() {
     const results = await Promise.allSettled(ids.map(id => {
       const b = brands.find(b => b.id === id);
       if (!b || b.isActive === targetActive) return Promise.resolve();
-      return api.put(`/api/brands/${id}`, { id, name: b.name, slug: b.slug, logoUrl: b.logoUrl || null, description: null, metaTitle: null, metaDescription: null, isActive: targetActive });
+      return api.put(`/api/brands/${id}`, { id, name: b.name, slug: b.slug, logoUrl: b.logoUrl || null, description: null, metaTitle: null, metaDescription: null, isActive: targetActive, showInVehicleNav: b.showInVehicleNav ?? false, vehicleModelsJson: b.vehicleModelsJson ?? null });
     }));
     const ok = results.filter(r => r.status === "fulfilled").length;
     setMsg({ text: `${ok} marka ${targetActive ? "aktif" : "pasif"} yapıldı.`, ok: true });
@@ -224,7 +224,7 @@ export default function MarkalarPage() {
 
   function openCreate() { setForm(EMPTY); setError(""); setModal("create"); }
   function openEdit(b: Brand) {
-    setForm({ id: b.id, name: b.name, slug: b.slug, logoUrl: b.logoUrl ?? "", description: "", isActive: b.isActive });
+    setForm({ id: b.id, name: b.name, slug: b.slug, logoUrl: b.logoUrl ?? "", description: "", isActive: b.isActive, showInVehicleNav: b.showInVehicleNav ?? false, vehicleModelsJson: b.vehicleModelsJson ?? "" });
     setError(""); setModal("edit");
   }
 
@@ -233,6 +233,7 @@ export default function MarkalarPage() {
       await api.put(`/api/brands/${b.id}`, {
         id: b.id, name: b.name, slug: b.slug, logoUrl: b.logoUrl || null,
         description: null, metaTitle: null, metaDescription: null, isActive: !b.isActive,
+        showInVehicleNav: b.showInVehicleNav ?? false, vehicleModelsJson: b.vehicleModelsJson ?? null,
       });
       setMsg({ text: `${t("ui.brand", "Marka")} ${!b.isActive ? t("ui.madeActive", "aktif") : t("ui.madePassive", "pasif")} ${t("ui.madeStatus", "yapıldı.")}.`, ok: true });
       await fetch();
@@ -260,7 +261,7 @@ export default function MarkalarPage() {
     if (!form.name) { setError(t("form.nameRequired", "Ad zorunludur.")); return; }
     setSaving(true); setError("");
     try {
-      const body = { name: form.name, slug: form.slug || slugify(form.name), logoUrl: form.logoUrl || null, description: form.description || null, metaTitle: null, metaDescription: null };
+      const body = { name: form.name, slug: form.slug || slugify(form.name), logoUrl: form.logoUrl || null, description: form.description || null, metaTitle: null, metaDescription: null, showInVehicleNav: form.showInVehicleNav, vehicleModelsJson: form.vehicleModelsJson || null };
       if (modal === "create") {
         await api.post("/api/brands", body);
         setMsg({ text: t("msg.created", "Başarıyla oluşturuldu"), ok: true });
@@ -453,9 +454,14 @@ export default function MarkalarPage() {
                   <td className="px-5 py-3 text-slate-400 text-xs font-mono">{b.slug}</td>
                   <td className="px-5 py-3 text-xs text-slate-400">{b.logoUrl ? t("ui.exists", "Var") : "—"}</td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                      {b.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold w-fit ${b.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                        {b.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
+                      </span>
+                      {b.showInVehicleNav && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-600 w-fit whitespace-nowrap">🚗 Araç Menüsü</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-xs text-slate-500">
                     {b.createdDate ? new Date(b.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -635,6 +641,33 @@ export default function MarkalarPage() {
                   {t("status.active", "Aktif")}
                 </label>
               )}
+
+              {/* Araç navigasyonu alanları */}
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Customer Araç Menüsü</p>
+                <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.showInVehicleNav}
+                    onChange={e => setForm(f => ({ ...f, showInVehicleNav: e.target.checked }))}
+                    className="w-4 h-4 accent-teal-600"
+                  />
+                  <span>Customer üst menüsünde <strong>Araç Markası</strong> olarak göster</span>
+                </label>
+                {form.showInVehicleNav && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Araç Modelleri <span className="text-slate-400 font-normal">(her satıra bir model — boşsa varsayılan liste kullanılır)</span>
+                    </label>
+                    <textarea
+                      className={`${INPUT} min-h-[160px] font-mono text-xs`}
+                      value={form.vehicleModelsJson}
+                      onChange={e => setForm(f => ({ ...f, vehicleModelsJson: e.target.value }))}
+                      placeholder={"Astra F\nAstra G\nAstra H\nCorsa A\nCorsa B"}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
                 <button onClick={() => setModal(null)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                 <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
