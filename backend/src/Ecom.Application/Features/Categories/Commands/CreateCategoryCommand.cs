@@ -64,18 +64,7 @@ public class CreateCategoryHandler(IApplicationDbContext db, IAuditService audit
         db.Categories.Add(category);
         await db.SaveChangesAsync(cancellationToken);
         await audit.LogAsync("CategoryCreated", "Kategori", category.Id.ToString(), cancellationToken: cancellationToken);
-        await cache.RemoveAsync("categories:True:False", cancellationToken);
-        await cache.RemoveAsync("categories:True:True", cancellationToken);
-        await cache.RemoveAsync("categories:False:False", cancellationToken);
-        await cache.RemoveAsync("categories:False:True", cancellationToken);
-        var tenantId = currentUser.IsSuperAdmin ? null : currentUser.UserId;
-        if (tenantId.HasValue)
-        {
-            await cache.RemoveAsync($"categories:True:False:{tenantId}", cancellationToken);
-            await cache.RemoveAsync($"categories:True:True:{tenantId}", cancellationToken);
-            await cache.RemoveAsync($"categories:False:False:{tenantId}", cancellationToken);
-            await cache.RemoveAsync($"categories:False:True:{tenantId}", cancellationToken);
-        }
+        await cache.RemoveByPrefixAsync("categories:", cancellationToken);
 
         return Result<Guid>.Success(category.Id);
     }

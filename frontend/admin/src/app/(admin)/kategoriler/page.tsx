@@ -9,6 +9,7 @@ import {
   ChevronRight, ChevronDown, FolderOpen, Folder,
   ChevronsDownUp, ChevronsUpDown, Info, History, ChevronUp,
   ToggleLeft, ToggleRight, Loader2, CheckSquare, Square,
+  Car, ZoomIn, RefreshCw,
 } from "lucide-react";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import CategoryPreview from "@/components/previews/CategoryPreview";
@@ -90,6 +91,34 @@ function slugify(s: string) {
 
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
+// ─── imagin.studio picker sabitleri ─────────────────────────────────────────
+const IMAGIN_MAKES = [
+  { v: "opel", l: "Opel" }, { v: "chevrolet", l: "Chevrolet" },
+  { v: "bmw", l: "BMW" }, { v: "mercedes-benz", l: "Mercedes-Benz" },
+  { v: "volkswagen", l: "Volkswagen" }, { v: "audi", l: "Audi" },
+  { v: "ford", l: "Ford" }, { v: "seat", l: "Seat" }, { v: "skoda", l: "Skoda" },
+  { v: "renault", l: "Renault" }, { v: "peugeot", l: "Peugeot" },
+  { v: "citroen", l: "Citroën" }, { v: "fiat", l: "Fiat" }, { v: "toyota", l: "Toyota" },
+  { v: "hyundai", l: "Hyundai" }, { v: "kia", l: "Kia" }, { v: "honda", l: "Honda" },
+  { v: "nissan", l: "Nissan" }, { v: "mazda", l: "Mazda" }, { v: "volvo", l: "Volvo" },
+  { v: "mitsubishi", l: "Mitsubishi" }, { v: "suzuki", l: "Suzuki" },
+  { v: "jeep", l: "Jeep" }, { v: "land-rover", l: "Land Rover" },
+  { v: "alfa-romeo", l: "Alfa Romeo" }, { v: "dacia", l: "Dacia" },
+  { v: "porsche", l: "Porsche" }, { v: "subaru", l: "Subaru" },
+  { v: "saab", l: "Saab" }, { v: "lexus", l: "Lexus" }, { v: "fiat", l: "Tofaş (Fiat)" },
+];
+const IMAGIN_PAINTS = [
+  { v: "color-red", l: "Kırmızı" }, { v: "color-blue", l: "Mavi" },
+  { v: "color-midnight-blue", l: "Lacivert" }, { v: "color-silver", l: "Gümüş" },
+  { v: "color-forest-green", l: "Yeşil" }, { v: "color-white", l: "Beyaz" },
+  { v: "color-grey", l: "Gri" }, { v: "color-orange", l: "Turuncu" },
+  { v: "color-black", l: "Siyah" }, { v: "color-yellow", l: "Sarı" },
+];
+const IMAGIN_ANGLES = [
+  { v: "23", l: "Yan (profil)" }, { v: "1", l: "Ön" },
+  { v: "4", l: "Arka" }, { v: "29", l: "Ön-Yan" }, { v: "13", l: "Arka-Yan" },
+];
+
 const PAGE_SIZES = [10, 25, 50] as const;
 type PageSize = typeof PAGE_SIZES[number];
 
@@ -157,6 +186,8 @@ export default function KategorilerPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [imagin, setImagin] = useState({ open: false, make: "", family: "", paint: "color-red", angle: "23" });
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -251,10 +282,10 @@ export default function KategorilerPage() {
     });
   }
 
-  function openCreate() { setForm(EMPTY); setError(""); setModal("create"); }
+  function openCreate() { setForm(EMPTY); setError(""); setModal("create"); setImagin({ open: false, make: "", family: "", paint: "color-red", angle: "23" }); }
   function openEdit(c: Category) {
     setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu, showInVehicleNav: c.showInVehicleNav ?? false, imageUrl: c.imageUrl ?? "", isActive: c.isActive });
-    setError(""); setModal("edit");
+    setError(""); setModal("edit"); setImagin({ open: false, make: "", family: "", paint: "color-red", angle: "23" });
   }
 
   async function handleSave() {
@@ -603,8 +634,15 @@ export default function KategorilerPage() {
                           )}
                           {/* Icon */}
                           {cat.imageUrl
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" />
+                            ? (
+                              <button onClick={e => { e.stopPropagation(); setZoomUrl(cat.imageUrl!); }} className="relative group shrink-0" title="Resmi büyüt">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" />
+                                <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <ZoomIn size={12} className="text-white" />
+                                </span>
+                              </button>
+                            )
                             : (expanded
                               ? <FolderOpen size={18} className="text-teal-500 shrink-0" />
                               : <Folder size={18} className="text-teal-400 shrink-0" />)
@@ -684,8 +722,15 @@ export default function KategorilerPage() {
                         <td className="px-5 py-2.5 text-xs text-slate-600 pl-12">
                           <div className="flex items-center gap-2">
                             {sub.imageUrl
-                              // eslint-disable-next-line @next/next/no-img-element
-                              ? <img src={sub.imageUrl} alt={sub.name} className="w-6 h-6 object-cover rounded" />
+                              ? (
+                                <button onClick={e => { e.stopPropagation(); setZoomUrl(sub.imageUrl!); }} className="relative group shrink-0" title="Resmi büyüt">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={sub.imageUrl} alt={sub.name} className="w-6 h-6 object-cover rounded" />
+                                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ZoomIn size={10} className="text-white" />
+                                  </span>
+                                </button>
+                              )
                               : <Folder size={14} className="text-slate-400 shrink-0" />}
                             <span className="text-slate-400 mr-0.5">↳</span>
                             {sub.name}
@@ -898,6 +943,96 @@ export default function KategorilerPage() {
                 <input className={INPUT} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: slugify(e.target.value) }))} />
               </div>
               <ImageUpload value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label={t("ui.categoryImage", "Kategori Görseli")} />
+
+              {/* ── imagin.studio Picker ──────────────────────────────────── */}
+              {(() => {
+                const url = imagin.make
+                  ? `https://cdn.imagin.studio/getimage?customer=img&make=${imagin.make}${imagin.family ? `&modelFamily=${encodeURIComponent(imagin.family)}` : ""}&angle=${imagin.angle}&width=800&zoomType=fullscreen&paintId=${imagin.paint}`
+                  : "";
+                return (
+                  <div className="border border-orange-200 rounded-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setImagin(s => ({ ...s, open: !s.open }))}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 hover:bg-orange-100 transition text-sm font-semibold text-orange-700"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Car size={14} />
+                        imagin.studio ile Araç Fotoğrafı Oluştur
+                        <span className="text-[10px] bg-orange-200 text-orange-600 px-1.5 py-0.5 rounded font-bold">Yedek Parça</span>
+                      </span>
+                      <ChevronDown size={14} className={`transition-transform ${imagin.open ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {imagin.open && (
+                      <div className="px-4 py-3 space-y-3 bg-white">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Marka (Make)</label>
+                            <select className={INPUT} value={imagin.make} onChange={e => setImagin(s => ({ ...s, make: e.target.value }))}>
+                              <option value="">Seçin...</option>
+                              {IMAGIN_MAKES.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Model (Family slug)</label>
+                            <input
+                              className={INPUT}
+                              value={imagin.family}
+                              onChange={e => setImagin(s => ({ ...s, family: e.target.value }))}
+                              placeholder="örn: astra, golf, 3-series..."
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Renk</label>
+                            <select className={INPUT} value={imagin.paint} onChange={e => setImagin(s => ({ ...s, paint: e.target.value }))}>
+                              {IMAGIN_PAINTS.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Açı</label>
+                            <select className={INPUT} value={imagin.angle} onChange={e => setImagin(s => ({ ...s, angle: e.target.value }))}>
+                              {IMAGIN_ANGLES.map(a => <option key={a.v} value={a.v}>{a.l}</option>)}
+                            </select>
+                          </div>
+                        </div>
+
+                        {imagin.make && (
+                          <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              key={url}
+                              src={url}
+                              alt="imagin.studio önizleme"
+                              className="w-full h-36 object-contain"
+                            />
+                            <div className="flex items-center gap-2 px-3 py-2 border-t border-slate-100">
+                              <p className="text-[10px] text-slate-400 font-mono flex-1 truncate">{url}</p>
+                              <button
+                                type="button"
+                                onClick={() => setZoomUrl(url)}
+                                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition"
+                                title="Büyüt"
+                              >
+                                <ZoomIn size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setForm(f => ({ ...f, imageUrl: url }))}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition"
+                              >
+                                <RefreshCw size={11} />
+                                Bu Resmi Kullan
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">{t("label.category", "Kategori")} ({t("label.name", "Ad")})</label>
                 <select className={INPUT} value={form.parentCategoryId} onChange={e => setForm(f => ({ ...f, parentCategoryId: e.target.value }))}>
@@ -951,6 +1086,24 @@ export default function KategorilerPage() {
             </PreviewPanel>
 
             </div>{/* /flex */}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {zoomUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setZoomUrl(null)}
+        >
+          <div className="relative max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <img src={zoomUrl} alt="Resim önizleme" className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl" />
+            <button
+              onClick={() => setZoomUrl(null)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       )}

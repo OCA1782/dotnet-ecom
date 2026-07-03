@@ -30,10 +30,7 @@ public class DeleteCategoryHandler(IApplicationDbContext db, IAuditService audit
         category.IsDeleted = true;
         await db.SaveChangesAsync(cancellationToken);
         await audit.LogAsync("CategoryDeleted", "Kategori", category.Id.ToString(), cancellationToken: cancellationToken);
-        await cache.RemoveAsync("categories:True:False", cancellationToken);
-        await cache.RemoveAsync("categories:True:True", cancellationToken);
-        await cache.RemoveAsync("categories:False:False", cancellationToken);
-        await cache.RemoveAsync("categories:False:True", cancellationToken);
+        await cache.RemoveByPrefixAsync("categories:", cancellationToken);
 
         return Result.Success();
     }

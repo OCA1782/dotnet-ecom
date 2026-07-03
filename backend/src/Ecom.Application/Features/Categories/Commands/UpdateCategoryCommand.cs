@@ -78,10 +78,7 @@ public class UpdateCategoryHandler(IApplicationDbContext db, IAuditService audit
         await db.SaveChangesAsync(cancellationToken);
         var detail = changes.Count > 0 ? string.Join(" | ", changes) : null;
         await audit.LogAsync("CategoryUpdated", "Kategori", category.Id.ToString(), null, detail, cancellationToken: cancellationToken);
-        await cache.RemoveAsync("categories:True:False", cancellationToken);
-        await cache.RemoveAsync("categories:True:True", cancellationToken);
-        await cache.RemoveAsync("categories:False:False", cancellationToken);
-        await cache.RemoveAsync("categories:False:True", cancellationToken);
+        await cache.RemoveByPrefixAsync("categories:", cancellationToken);
 
         return Result.Success();
     }

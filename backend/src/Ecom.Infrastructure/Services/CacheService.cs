@@ -1,5 +1,6 @@
 using Ecom.Application.Common.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Ecom.Infrastructure.Services;
@@ -7,6 +8,9 @@ namespace Ecom.Infrastructure.Services;
 public class CacheService(IDistributedCache cache) : ICacheService
 {
     private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(5);
+    // Static: tüm scoped instance'lar aynı key kaydını paylaşır; uygulama restart'ında
+    // in-memory cache de sıfırlanır, dolayısıyla senkron kalır.
+    private static readonly ConcurrentDictionary<string, bool> s_keys = new();
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken ct = default) where T : class
     {
@@ -23,17 +27,21 @@ public class CacheService(IDistributedCache cache) : ICacheService
             AbsoluteExpirationRelativeToNow = ttl ?? DefaultTtl
         };
         await cache.SetAsync(key, bytes, options, ct);
+        s_keys.TryAdd(key, true);
     }
 
-    public Task RemoveAsync(string key, CancellationToken ct = default) =>
-        cache.RemoveAsync(key, ct);
+    public async Task RemoveAsync(string key, CancellationToken ct = default)
+    {
+        await cache.RemoveAsync(key, ct);
+        s_keys.TryRemove(key, out _);
+    }
 
     public async Task RemoveByPrefixAsync(string prefix, CancellationToken ct = default)
     {
-        // IDistributedCache doesn't support prefix scan natively.
-        // With Redis this can be done via StackExchange.Redis IServer.Keys(),
-        // but for portability we track known keys by convention.
-        // Products and categories are invalidated via explicit keys.
-        await Task.CompletedTask;
+        var keys = s_keys.Keys
+            .Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
+            .ToList();
+        foreach (var key in keys)
+            await RemoveAsync(key, ct);
     }
 }
