@@ -397,12 +397,13 @@ function FallbackIcon() {
   );
 }
 
-function ModelImage({ brandKey, modelName, idx }: { brandKey: string; modelName: string; idx: number }) {
+function ModelImage({ brandKey, modelName, idx, imageUrl }: { brandKey: string; modelName: string; idx: number; imageUrl?: string }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <FallbackIcon />;
+  const src = (!failed && imageUrl) ? imageUrl : getModelImageUrl(brandKey, modelName, idx);
+  if (failed && !imageUrl) return <FallbackIcon />;
   return (
     <img
-      src={getModelImageUrl(brandKey, modelName, idx)}
+      src={src}
       alt={modelName}
       className="w-full h-full object-contain"
       onError={() => setFailed(true)}
@@ -410,8 +411,8 @@ function ModelImage({ brandKey, modelName, idx }: { brandKey: string; modelName:
   );
 }
 
-interface ApiCategory { id: string; name: string; slug: string; showInVehicleNav: boolean; subCategories: ApiCategory[]; }
-interface NavModel { name: string; id: string; }
+interface ApiCategory { id: string; name: string; slug: string; imageUrl?: string; showInVehicleNav: boolean; subCategories: ApiCategory[]; }
+interface NavModel { name: string; id: string; imageUrl?: string; }
 interface NavBrand { key: string; label: string; id: string; models: NavModel[]; }
 
 // brands prop: geriye dönük uyumluluk için tutuldu, kullanılmıyor
@@ -444,7 +445,7 @@ export default function SparePartsBrandNav({}: Props) {
             key: c.slug,
             label: c.name,
             id: c.id,
-            models: c.subCategories.map(s => ({ name: s.name, id: s.id })),
+            models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
           })));
           return;
         }
@@ -616,7 +617,7 @@ export default function SparePartsBrandNav({}: Props) {
                   className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all duration-150 group text-center bg-gray-50/60 hover:bg-orange-50/60"
                 >
                   <div className="w-full h-20 flex items-center justify-center">
-                    <ModelImage brandKey={openBrandObj.key} modelName={model.name} idx={idx} />
+                    <ModelImage brandKey={openBrandObj.key} modelName={model.name} idx={idx} imageUrl={model.imageUrl} />
                   </div>
                   <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model.name}</span>
                 </button>
