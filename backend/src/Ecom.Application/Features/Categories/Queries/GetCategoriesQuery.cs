@@ -40,8 +40,8 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             query = query.Where(c => c.IsActive);
         if (request.OnlyMenu)
             query = query.Where(c => c.ShowInMenu);
-        if (request.ShowInVehicleNav.HasValue)
-            query = query.Where(c => c.ShowInVehicleNav == request.ShowInVehicleNav.Value);
+        // ShowInVehicleNav filtresi sadece root kategorilerde uygulanır (alt kategoriler dahil edilir)
+        // — DB sorgusu yerine BuildTree seviyesinde uygulanır
         if (tenantId.HasValue)
             query = query.Where(c => c.CreatedByAdminId == tenantId.Value);
 
@@ -61,18 +61,20 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             ? await db.Users.Where(u => adminIds.Contains(u.Id)).Select(u => new { u.Id, u.Email }).ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken)
             : new Dictionary<Guid, string>();
 
-        var result = BuildTree(all, null, sourceNames, adminEmails);
+        var result = BuildTree(all, null, sourceNames, adminEmails, request.ShowInVehicleNav);
         await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
         return result;
     }
 
-    private static List<CategoryDto> BuildTree(List<Category> all, Guid? parentId, Dictionary<Guid, string> sourceNames, Dictionary<Guid, string> adminEmails)
+    private static List<CategoryDto> BuildTree(List<Category> all, Guid? parentId, Dictionary<Guid, string> sourceNames, Dictionary<Guid, string> adminEmails, bool? vehicleNavFilter = null)
         => all
             .Where(c => c.ParentCategoryId == parentId)
+            // ShowInVehicleNav filtresi yalnızca root seviyesinde (parentId == null) uygulanır
+            .Where(c => parentId != null || !vehicleNavFilter.HasValue || c.ShowInVehicleNav == vehicleNavFilter.Value)
             .Select(c => new CategoryDto(
                 c.Id, c.ParentCategoryId, c.Name, c.Slug,
                 c.Description, c.ImageUrl, c.SortOrder, c.IsActive, c.ShowInMenu,
-                BuildTree(all, c.Id, sourceNames, adminEmails),
+                BuildTree(all, c.Id, sourceNames, adminEmails, null),
                 c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
                 c.CreatedDate,
                 c.DataSource,
