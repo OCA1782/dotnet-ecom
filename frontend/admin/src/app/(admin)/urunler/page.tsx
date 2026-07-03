@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle, FolderInput, Tag } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -207,6 +207,11 @@ export default function AdminProductsPage() {
   const [bpPreviewLoading, setBpPreviewLoading] = useState(false);
   const [bpApplying, setBpApplying] = useState(false);
 
+  // Toplu kategori/marka değiştir modal
+  const [bulkAssignModal, setBulkAssignModal] = useState<"category" | "brand" | null>(null);
+  const [bulkAssignId, setBulkAssignId] = useState("");
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+
   // Duplicate products panel
   const [dupGroups, setDupGroups] = useState<DupGroup[] | null>(null);
   const [loadingDups, setLoadingDups] = useState(false);
@@ -321,6 +326,29 @@ export default function AdminProductsPage() {
       setMsg({ text: e instanceof Error ? e.message : t("auto.islemBasarisiz", "İşlem başarısız"), ok: false });
     } finally {
       setBulkLoading(false);
+    }
+  }
+
+  async function handleBulkAssign() {
+    if (selected.size === 0 || !bulkAssignId || !bulkAssignModal) return;
+    setBulkAssigning(true);
+    try {
+      const body: Record<string, unknown> = {
+        productIds: [...selected],
+        action: bulkAssignModal === "category" ? "set-category" : "set-brand",
+        ...(bulkAssignModal === "category" ? { newCategoryId: bulkAssignId } : { newBrandId: bulkAssignId }),
+      };
+      const r = await api.post<{ affected: number; errors: string[] }>("/api/products/bulk", body);
+      const label = bulkAssignModal === "category" ? "kategorisi" : "markası";
+      setMsg({ text: `${r.affected} ürünün ${label} güncellendi${r.errors.length ? ` (${r.errors.length} atlandı)` : ""}`, ok: true });
+      setBulkAssignModal(null);
+      setBulkAssignId("");
+      setSelected(new Set());
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız", ok: false });
+    } finally {
+      setBulkAssigning(false);
     }
   }
 
@@ -976,6 +1004,20 @@ export default function AdminProductsPage() {
               <Percent size={12} /> {t("ui.priceAdjust", "Fiyat Ayarla")}
             </button>
             <button
+              onClick={() => { setBulkAssignModal("category"); setBulkAssignId(""); }}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <FolderInput size={12} /> Kategori Değiştir
+            </button>
+            <button
+              onClick={() => { setBulkAssignModal("brand"); setBulkAssignId(""); }}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
+            >
+              <Tag size={12} /> Marka Değiştir
+            </button>
+            <button
               onClick={() => setBulkDeleteModal(true)}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50"
@@ -1391,6 +1433,73 @@ export default function AdminProductsPage() {
                 disabled={bulkLoading}
                 className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
                 {bulkLoading ? t("action.deleting", "Siliniyor...") : t("action.delete", "Sil")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toplu Kategori / Marka Değiştir Modal */}
+      {bulkAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bulkAssignModal === "category" ? "bg-teal-100" : "bg-indigo-100"}`}>
+                {bulkAssignModal === "category"
+                  ? <FolderInput size={20} className="text-teal-600" />
+                  : <Tag size={20} className="text-indigo-600" />}
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">
+                  {bulkAssignModal === "category" ? "Kategori Değiştir" : "Marka Değiştir"}
+                </h2>
+                <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">
+                {bulkAssignModal === "category" ? "Yeni Kategori" : "Yeni Marka"}
+              </label>
+              {bulkAssignModal === "category" ? (
+                <select
+                  className={SELECT}
+                  value={bulkAssignId}
+                  onChange={e => setBulkAssignId(e.target.value)}
+                >
+                  <option value="">— Kategori seçin —</option>
+                  {flattenCategories(categories).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.parentCategoryId ? `  ↳ ${c.name}` : c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  className={SELECT}
+                  value={bulkAssignId}
+                  onChange={e => setBulkAssignId(e.target.value)}
+                >
+                  <option value="">— Marka seçin —</option>
+                  {brands.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                onClick={() => { setBulkAssignModal(null); setBulkAssignId(""); }}
+                disabled={bulkAssigning}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={handleBulkAssign}
+                disabled={bulkAssigning || !bulkAssignId}
+                className={`px-5 py-2 rounded-xl text-white text-sm font-semibold transition disabled:opacity-50 ${bulkAssignModal === "category" ? "bg-teal-600 hover:bg-teal-700" : "bg-indigo-600 hover:bg-indigo-700"}`}
+              >
+                {bulkAssigning ? "Uygulanıyor..." : "Uygula"}
               </button>
             </div>
           </div>

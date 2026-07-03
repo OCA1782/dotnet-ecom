@@ -12,7 +12,9 @@ public record BulkProductsCommand(
     decimal? PriceAdjustAmount = null,
     decimal? PriceSetValue = null,
     Guid? CategoryId = null,
-    Guid? BrandId = null
+    Guid? BrandId = null,
+    Guid? NewCategoryId = null,
+    Guid? NewBrandId = null
 ) : IRequest<BulkProductsResult>;
 
 public record BulkProductsResult(int Affected, List<string> Errors);
@@ -187,6 +189,50 @@ public class BulkProductsHandler(IApplicationDbContext db, IAuditService audit)
                         oldValue: oldPrice.ToString("F2"),
                         newValue: p.Price.ToString("F2"),
                         cancellationToken: ct);
+                }
+                break;
+
+            case "set-category":
+                if (!request.NewCategoryId.HasValue)
+                {
+                    errors.Add("Hedef kategori belirtilmedi.");
+                    break;
+                }
+                var catExists = await db.Categories.AnyAsync(c => c.Id == request.NewCategoryId.Value && !c.IsDeleted, ct);
+                if (!catExists)
+                {
+                    errors.Add("Belirtilen kategori bulunamadı.");
+                    break;
+                }
+                foreach (var p in products)
+                {
+                    var oldCat = p.CategoryId;
+                    p.CategoryId = request.NewCategoryId.Value;
+                    affected++;
+                    await audit.LogAsync("ProductBulkCategoryChanged", "Product", p.Id.ToString(),
+                        oldValue: oldCat.ToString(), newValue: request.NewCategoryId.Value.ToString(), cancellationToken: ct);
+                }
+                break;
+
+            case "set-brand":
+                if (!request.NewBrandId.HasValue)
+                {
+                    errors.Add("Hedef marka belirtilmedi.");
+                    break;
+                }
+                var brandExists = await db.Brands.AnyAsync(b => b.Id == request.NewBrandId.Value && !b.IsDeleted, ct);
+                if (!brandExists)
+                {
+                    errors.Add("Belirtilen marka bulunamadı.");
+                    break;
+                }
+                foreach (var p in products)
+                {
+                    var oldBrand = p.BrandId?.ToString();
+                    p.BrandId = request.NewBrandId.Value;
+                    affected++;
+                    await audit.LogAsync("ProductBulkBrandChanged", "Product", p.Id.ToString(),
+                        oldValue: oldBrand, newValue: request.NewBrandId.Value.ToString(), cancellationToken: ct);
                 }
                 break;
 
