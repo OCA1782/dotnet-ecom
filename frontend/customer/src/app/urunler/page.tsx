@@ -132,36 +132,21 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const hasFilters = !!(params.s || params.kategori || params.ozellik || params.indirimli
     || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
 
-  // Active brand for brand nav highlight
-  const activeBrandIdForNav = activeBrandIds.length === 1 ? activeBrandIds[0] : undefined;
-
   return (
     <div>
     {/* Brand nav — spareparts template only */}
-    {isSP && <SparePartsBrandNav brands={brands} activeBrandSlug={activeBrandIdForNav} />}
+    {isSP && <SparePartsBrandNav />}
 
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Brand + model heading for spareparts */}
-      {isSP && (activeBrandNames.length > 0 || params.s) && (
+      {/* Arama / marka+model başlığı — spareparts */}
+      {isSP && params.s && (
         <div className="mb-5">
           <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
-            {activeBrandNames.map(n => (
-              <span key={n} className="flex items-center gap-1">
-                <span>/</span>
-                <Link href={`/urunler?markalar=${activeBrandIds[activeBrandNames.indexOf(n)]}`} className="hover:text-orange-500 transition-colors uppercase font-semibold">{n}</Link>
-              </span>
-            ))}
-            {params.s && (
-              <>
-                <span>/</span>
-                <span className="text-gray-600 font-semibold">{params.s}</span>
-              </>
-            )}
+            <span>/</span>
+            <span className="text-gray-600 font-semibold">{params.s}</span>
           </nav>
-          {params.s && (
-            <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.s}</h1>
-          )}
+          <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.s}</h1>
         </div>
       )}
 

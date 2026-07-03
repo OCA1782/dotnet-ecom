@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
-import type { Category, ProductListItem, PaginatedList, Campaign, Brand } from "@/types";
+import type { Category, ProductListItem, PaginatedList, Campaign } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import { type AnnouncementItem } from "@/components/AnnouncementsSection";
 import HeroSlider from "@/components/HeroSlider";
@@ -89,12 +89,6 @@ async function getFeaturedCampaigns(): Promise<Campaign[]> {
   catch { return []; }
 }
 
-async function getBrands(): Promise<Brand[]> {
-  try {
-    const data = await api.get<{ items: Brand[]; totalCount: number }>("/api/brands?pageSize=200&onlyActive=true&sortBy=name");
-    return data.items ?? [];
-  } catch { return []; }
-}
 
 const SCHEME_GRADIENT: Record<string, string> = {
   orange: "from-[#FF7A45] to-[#d95f28]",
@@ -115,8 +109,8 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
 ];
 
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang, brands] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getBrands(),
+  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(),
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
@@ -172,8 +166,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* ── Araç markası pill nav (API'den gelen tüm markalar + model dropdown) ── */}
-        <SparePartsBrandNav brands={brands} />
+        {/* ── Araç markası pill nav ── */}
+        <SparePartsBrandNav />
 
         {/* ── En Çok Aranan Parçalar şeridi ── */}
         <div className="bg-[#fff7ed] border-b border-orange-100">
