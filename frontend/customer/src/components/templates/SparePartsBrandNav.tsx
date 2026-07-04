@@ -495,14 +495,12 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   }
 
   function handleBrandClick(brand: NavBrand) {
-    if (brand.id) router.push(`/urunler?kategoriler=${encodeURIComponent(brand.id)}`);
-    else router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+    router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
   }
 
-  function handleModelClick(brand: NavBrand, model: NavModel) {
+  function handleModelClick(_brand: NavBrand, model: NavModel) {
     setOpenBrand(null);
-    if (model.id) router.push(`/urunler?kategoriler=${encodeURIComponent(model.id)}`);
-    else router.push(`/urunler?s=${encodeURIComponent(brand.label + " " + model.name)}`);
+    router.push(`/urunler?s=${encodeURIComponent(model.name)}`);
   }
 
   const openBrandObj = openBrand ? navBrands.find(b => b.key === openBrand) ?? null : null;
@@ -590,8 +588,7 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
                 <button
                   onClick={() => {
                     setOpenBrand(null);
-                    if (openBrandObj.id) router.push(`/urunler?kategoriler=${encodeURIComponent(openBrandObj.id)}`);
-                    else router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
+                    router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
                   }}
                   className="text-[11px] text-orange-600 font-bold hover:underline"
                 >

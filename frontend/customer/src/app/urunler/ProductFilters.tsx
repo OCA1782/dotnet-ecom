@@ -37,6 +37,13 @@ export default function ProductFilters({
   const [selectedBrands, setSelectedBrands] = useState<string[]>(activeBrandIds);
   const [attributes, setAttributes] = useState<Record<string, string[]>>({});
 
+  // Sync local state when URL-derived props change (e.g. nav brand click)
+  useEffect(() => { setSearch(searchTerm ?? ""); }, [searchTerm]);
+  useEffect(() => { setMin(minFiyat ?? ""); }, [minFiyat]);
+  useEffect(() => { setMax(maxFiyat ?? ""); }, [maxFiyat]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelectedBrands(activeBrandIds); }, [activeBrandIds.join(",")]);
+
   const SORT_OPTIONS = [
     { value: "",             label: "Varsayılan" },
     { value: "yeni",         label: t("prod2.sort.new") },
