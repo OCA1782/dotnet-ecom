@@ -413,16 +413,23 @@ function ModelImage({ brandKey, modelName, idx, imageUrl }: { brandKey: string; 
 
 interface ApiCategory { id: string; name: string; slug: string; imageUrl?: string; showInVehicleNav: boolean; subCategories: ApiCategory[]; }
 interface NavModel { name: string; id: string; imageUrl?: string; }
-interface NavBrand { key: string; label: string; id: string; models: NavModel[]; }
-
-// brands prop: geriye dönük uyumluluk için tutuldu, kullanılmıyor
-interface Props { brands?: unknown[]; activeBrandSlug?: string; }
+export interface NavBrand { key: string; label: string; id: string; models: NavModel[]; }
+interface Props { brands?: unknown[]; activeBrandSlug?: string; initialBrands?: NavBrand[]; }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5181";
 
-export default function SparePartsBrandNav({}: Props) {
+function mapCategoriesToNavBrands(data: ApiCategory[]): NavBrand[] {
+  const roots = data.filter(c => c.showInVehicleNav);
+  if (roots.length === 0) return [];
+  return roots.map(c => ({
+    key: c.slug, label: c.name, id: c.id,
+    models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
+  }));
+}
+
+export default function SparePartsBrandNav({ initialBrands }: Props) {
   const router = useRouter();
-  const [navBrands, setNavBrands] = useState<NavBrand[]>([]);
+  const [navBrands, setNavBrands] = useState<NavBrand[]>(initialBrands ?? []);
   const [openBrand, setOpenBrand]   = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
   const [canScrollLeft, setCanScrollLeft]   = useState(false);
@@ -431,24 +438,16 @@ export default function SparePartsBrandNav({}: Props) {
   const pillRef    = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // ── API'den araç kategorilerini çek; fallback: hardcoded CAR_BRANDS ─────
+  // ── API'den araç kategorilerini çek; initialBrands verilmişse atla ───────
   useEffect(() => {
+    if (initialBrands && initialBrands.length > 0) return;
     async function loadBrands() {
       try {
         const res = await fetch(`${API_BASE}/api/categories?onlyActive=true&showInVehicleNav=true`);
         if (!res.ok) throw new Error("api error");
         const data: ApiCategory[] = await res.json();
-        // Sadece ana kategoriler (parentCategoryId yok) araç markası olarak kullanılır
-        const roots = data.filter(c => c.showInVehicleNav);
-        if (roots.length > 0) {
-          setNavBrands(roots.map(c => ({
-            key: c.slug,
-            label: c.name,
-            id: c.id,
-            models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
-          })));
-          return;
-        }
+        const mapped = mapCategoriesToNavBrands(data);
+        if (mapped.length > 0) { setNavBrands(mapped); return; }
       } catch { /* fallback below */ }
       // Fallback: hardcoded CAR_BRANDS (no real IDs — search-based navigation)
       setNavBrands(CAR_BRANDS.map(b => ({

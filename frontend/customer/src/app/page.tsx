@@ -9,7 +9,7 @@ import { type AnnouncementItem } from "@/components/AnnouncementsSection";
 import HeroSlider from "@/components/HeroSlider";
 import { getSettings } from "@/lib/settings";
 import SparePartsVehicleSelector from "@/components/templates/SparePartsVehicleSelector";
-import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
+import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SparePartsBrandNav";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
 
@@ -108,9 +108,22 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
   { id: "f4", title: "Çok Satanlar", subtitle: "En Çok Tercih Edilen", icon: "#1", colorScheme: "amber", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=cok-satan", linkText: "Hepsini Gör →", displayOrder: 3, isActive: true, isFeatured: true },
 ];
 
+async function getVehicleNavBrands(): Promise<NavBrand[]> {
+  try {
+    const data = await api.get<{ id: string; name: string; slug: string; imageUrl?: string; showInVehicleNav: boolean; subCategories: { id: string; name: string; imageUrl?: string }[] }[]>(
+      "/api/categories?onlyActive=true&showInVehicleNav=true"
+    );
+    const roots = data.filter(c => c.showInVehicleNav);
+    return roots.map(c => ({
+      key: c.slug, label: c.name, id: c.id,
+      models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
+    }));
+  } catch { return []; }
+}
+
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(),
+  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang, vehicleNavBrands] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getVehicleNavBrands(),
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
@@ -167,7 +180,7 @@ export default async function HomePage() {
         </div>
 
         {/* ── Araç markası pill nav ── */}
-        <SparePartsBrandNav />
+        <SparePartsBrandNav initialBrands={vehicleNavBrands} />
 
         {/* ── En Çok Aranan Parçalar şeridi ── */}
         <div className="bg-[#fff7ed] border-b border-orange-100">
