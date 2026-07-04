@@ -14,6 +14,7 @@ import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 type SearchParams = Promise<{
   s?: string;
   kategori?: string;
+  kategoriler?: string; // category ID — araç menüsünden gelen (SparePartsBrandNav)
   minFiyat?: string;
   maxFiyat?: string;
   sayfa?: string;
@@ -43,7 +44,8 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     qs.set("page", params.sayfa ?? "1");
     qs.set("pageSize", "12");
     if (params.s) qs.set("search", params.s);
-    if (params.kategori) qs.set("categorySlug", params.kategori);
+    if (params.kategoriler) qs.set("categoryId", params.kategoriler);
+    else if (params.kategori) qs.set("categorySlug", params.kategori);
     if (params.minFiyat) qs.set("minPrice", params.minFiyat);
     if (params.maxFiyat) qs.set("maxPrice", params.maxFiyat);
     if (params.ozellik === "featured") qs.set("featured", "true");
@@ -102,6 +104,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     const merged = { ...params, ...overrides };
     const qs = new URLSearchParams();
     if (merged.s) qs.set("s", merged.s);
+    if (merged.kategoriler) qs.set("kategoriler", merged.kategoriler);
     if (merged.kategori) qs.set("kategori", merged.kategori);
     if (merged.minFiyat) qs.set("minFiyat", merged.minFiyat);
     if (merged.maxFiyat) qs.set("maxFiyat", merged.maxFiyat);
@@ -129,7 +132,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       }).filter((x): x is { key: string; value: string } => x !== null)
     : [];
 
-  const hasFilters = !!(params.s || params.kategori || params.ozellik || params.indirimli
+  const hasFilters = !!(params.s || params.kategori || params.kategoriler || params.ozellik || params.indirimli
     || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
 
   return (
