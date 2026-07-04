@@ -72,7 +72,27 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             query = query.Where(p => p.Name.Contains(request.Search) || (p.SKU != null && p.SKU.Contains(request.Search)) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
         if (request.CategoryId.HasValue)
-            query = query.Where(p => p.CategoryId == request.CategoryId);
+        {
+            // Collect the category itself plus all descendants (BFS) so that
+            // clicking a brand-level category (e.g. "Opel") also returns products
+            // that live in its sub-categories (e.g. "Astra F", "Corsa D"…).
+            var allCatIds = await db.Categories
+                .Where(c => !c.IsDeleted)
+                .Select(c => new { c.Id, c.ParentCategoryId })
+                .ToListAsync(cancellationToken);
+
+            var ids = new HashSet<Guid> { request.CategoryId.Value };
+            var queue = new Queue<Guid>();
+            queue.Enqueue(request.CategoryId.Value);
+            while (queue.Count > 0)
+            {
+                var pid = queue.Dequeue();
+                foreach (var child in allCatIds.Where(c => c.ParentCategoryId == pid).Select(c => c.Id))
+                    if (ids.Add(child)) queue.Enqueue(child);
+            }
+
+            query = query.Where(p => p.CategoryId.HasValue && ids.Contains(p.CategoryId.Value));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.CategorySlug))
         {
