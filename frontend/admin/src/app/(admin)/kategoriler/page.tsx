@@ -598,7 +598,7 @@ export default function KategorilerPage() {
                     <span title="Slug, URL adresinde görünen benzersiz kimlik metnidir. Örn: 'erkek-ayakkabisi' → /kategori/erkek-ayakkabisi. Türkçe karakter ve boşluk içermez."><Info size={12} className="text-slate-400 cursor-help" /></span>
                   </span>
                 </th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("ui.inMenu", "Menüde")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Görünüm</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.createdAt", "Oluşturma")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
@@ -648,9 +648,6 @@ export default function KategorilerPage() {
                               : <Folder size={18} className="text-teal-400 shrink-0" />)
                           }
                           <span className="text-slate-800">{cat.name}</span>
-                          {cat.showInVehicleNav && (
-                            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold shrink-0" title="Araç Menüsünde Göster (Yedek Parça şablonu)">🚗 Araç Menüsü</span>
-                          )}
                           {visibleKids.length > 0 && (
                             <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold shrink-0">
                               {visibleKids.length} {t("ui.sub", "alt")}
@@ -660,9 +657,17 @@ export default function KategorilerPage() {
                       </td>
                       <td className="px-5 py-3 text-slate-400 text-xs font-mono">{cat.slug}</td>
                       <td className="px-5 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cat.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                          {cat.showInMenu ? t("action.yes", "Evet") : t("action.no", "Hayır")}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {cat.showInMenu && (
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap">Kategori Menüsü</span>
+                          )}
+                          {cat.showInVehicleNav && (
+                            <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap">🚗 Otomotiv</span>
+                          )}
+                          {!cat.showInMenu && !cat.showInVehicleNav && (
+                            <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Gizli</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3">
                         <button
@@ -738,9 +743,9 @@ export default function KategorilerPage() {
                         </td>
                         <td className="px-5 py-2.5 text-slate-400 text-xs font-mono">{sub.slug}</td>
                         <td className="px-5 py-2.5">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${sub.showInMenu ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-                            {sub.showInMenu ? t("action.yes", "Evet") : t("action.no", "Hayır")}
-                          </span>
+                          {sub.showInMenu
+                            ? <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Kategori Menüsü</span>
+                            : <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Gizli</span>}
                         </td>
                         <td className="px-5 py-2.5">
                           <button
@@ -1053,24 +1058,52 @@ export default function KategorilerPage() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">{t("ui.sortOrder", "Sıra")}</label>
                   <input type="number" className={INPUT} value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
                 </div>
-                <div className="flex flex-col gap-2 justify-end pb-1">
-                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                    <input type="checkbox" checked={form.showInMenu} onChange={e => setForm(f => ({ ...f, showInMenu: e.target.checked }))} />
-                    {t("ui.showInMenu", "Menüde Göster")}
-                  </label>
-                  {!form.parentCategoryId && (
-                    <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer font-medium" title="Yalnızca yedek parça şablonuna özel — bu ana kategori araç markası olarak üst menüde görünür, alt kategorileri model olarak listelenir.">
-                      <input type="checkbox" checked={form.showInVehicleNav} onChange={e => setForm(f => ({ ...f, showInVehicleNav: e.target.checked }))} />
-                      Araç Menüsünde Göster
-                      <span className="text-[10px] bg-orange-100 text-orange-500 px-1.5 py-0.5 rounded font-semibold">Yedek Parça</span>
-                    </label>
-                  )}
+                <div className="flex flex-col justify-end pb-1">
                   {modal === "edit" && (
                     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                       <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
                       {t("status.active", "Aktif")}
                     </label>
                   )}
+                </div>
+              </div>
+
+              {/* ── Müşteri'de Görünüm ──────────────────────────────────────── */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Müşteri&apos;de Nerede Görünsün?</p>
+                <div className="border border-slate-200 rounded-xl bg-slate-50/60 divide-y divide-slate-100">
+                  <label className="flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-100/60 transition rounded-t-xl">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-teal-600"
+                      checked={form.showInMenu}
+                      onChange={e => setForm(f => ({ ...f, showInMenu: e.target.checked }))}
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-slate-800">Anasayfa / Kategori Menüsü</span>
+                      <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Ana navigasyonda ve anasayfanın kategori bölümünde görünür.</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-start gap-3 p-3 transition rounded-b-xl ${form.parentCategoryId ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-orange-50/60"}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-orange-500"
+                      checked={form.showInVehicleNav}
+                      disabled={!!form.parentCategoryId}
+                      onChange={e => setForm(f => ({ ...f, showInVehicleNav: e.target.checked }))}
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-orange-700 flex items-center gap-1.5 flex-wrap">
+                        Üst Otomotiv Menüsü
+                        <span className="text-[10px] bg-orange-100 text-orange-500 px-1.5 py-0.5 rounded font-semibold">Yedek Parça</span>
+                      </span>
+                      <p className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        {form.parentCategoryId
+                          ? "Yalnızca ana kategoriler (üst kategorisi olmayan) otomotiv menüsüne eklenebilir."
+                          : "Bu ana kategori araç markası olarak üst menüde görünür; alt kategorileri model olarak listelenir."}
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
