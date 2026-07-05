@@ -13,6 +13,7 @@ import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SpareP
 
 type SearchParams = Promise<{
   s?: string;
+  arac?: string;       // vehicle model exact search — from SparePartsBrandNav model click
   kategori?: string;
   kategoriler?: string; // category ID — araç menüsünden gelen (SparePartsBrandNav)
   minFiyat?: string;
@@ -29,6 +30,15 @@ type SearchParams = Promise<{
 async function getCategories(): Promise<Category[]> {
   try { return await api.get<Category[]>("/api/categories"); }
   catch { return []; }
+}
+
+async function getVehicleCategories(vehicleModel: string): Promise<Category[]> {
+  try {
+    const data = await api.get<{ id: string; name: string; slug: string; count: number }[]>(
+      `/api/products/vehicle-categories?vehicleModel=${encodeURIComponent(vehicleModel)}`
+    );
+    return data.map(c => ({ id: c.id, name: `${c.name} (${c.count})`, slug: c.slug, subCategories: [] }));
+  } catch { return []; }
 }
 
 async function getVehicleNavBrands(): Promise<NavBrand[]> {
@@ -57,6 +67,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     qs.set("page", params.sayfa ?? "1");
     qs.set("pageSize", "12");
     if (params.s) qs.set("search", params.s);
+    if (params.arac) qs.set("vehicleModel", params.arac);
     if (params.kategoriler) qs.set("categoryId", params.kategoriler);
     else if (params.kategori) qs.set("categorySlug", params.kategori);
     if (params.minFiyat) qs.set("minPrice", params.minFiyat);
@@ -79,7 +90,9 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const [params, settings] = await Promise.all([searchParams, getSettings()]);
   const siteName = settings.SiteName || "";
-  const title = params.s
+  const title = params.arac
+    ? `${params.arac} Uyumlu Yedek Parçalar`
+    : params.s
     ? `"${params.s}" için Arama Sonuçları`
     : params.siralama === "yeni"     ? "Yeni Sezon Ürünleri"
     : params.siralama === "cok-satan" ? "Çok Satanlar"
@@ -107,7 +120,12 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [categories, brands, products, lang, settings, vehicleNavBrands] = await Promise.all([getCategories(), getBrands(), getProducts(params), getServerLang(), getSettings(), getVehicleNavBrands()]);
+  const [allCategories, vehicleCats, brands, products, lang, settings, vehicleNavBrands] = await Promise.all([
+    getCategories(),
+    params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
+    getBrands(), getProducts(params), getServerLang(), getSettings(), getVehicleNavBrands(),
+  ]);
+  const categories = params.arac && vehicleCats.length > 0 ? vehicleCats : allCategories;
   const t = (key: string) => translate(lang, key);
   const isSP = settings.CustomerTemplate === "spareparts";
 
@@ -117,6 +135,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     const merged = { ...params, ...overrides };
     const qs = new URLSearchParams();
     if (merged.s) qs.set("s", merged.s);
+    if (merged.arac) qs.set("arac", merged.arac);
     if (merged.kategoriler) qs.set("kategoriler", merged.kategoriler);
     if (merged.kategori) qs.set("kategori", merged.kategori);
     if (merged.minFiyat) qs.set("minFiyat", merged.minFiyat);
@@ -145,7 +164,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       }).filter((x): x is { key: string; value: string } => x !== null)
     : [];
 
-  const hasFilters = !!(params.s || params.kategori || params.kategoriler || params.ozellik || params.indirimli
+  const hasFilters = !!(params.s || params.arac || params.kategori || params.kategoriler || params.ozellik || params.indirimli
     || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
 
   return (
@@ -155,14 +174,17 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Arama / marka+model başlığı — spareparts */}
-      {isSP && params.s && (
+      {isSP && (params.s || params.arac) && (
         <div className="mb-5">
           <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
             <span>/</span>
-            <span className="text-gray-600 font-semibold">{params.s}</span>
+            <span className="text-gray-600 font-semibold">{params.arac ?? params.s}</span>
           </nav>
-          <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.s}</h1>
+          <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.arac ?? params.s}</h1>
+          {params.arac && (
+            <p className="text-xs text-gray-400 mt-0.5">{params.arac} uyumlu parçalar gösteriliyor</p>
+          )}
         </div>
       )}
 
@@ -176,6 +198,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             minFiyat={params.minFiyat}
             maxFiyat={params.maxFiyat}
             searchTerm={params.s}
+            activeVehicleModel={params.arac}
             activeBrandIds={activeBrandIds}
             activeRating={params.puan ? Number(params.puan) : undefined}
             activeSiralama={params.siralama}

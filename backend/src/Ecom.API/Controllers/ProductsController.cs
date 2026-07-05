@@ -32,11 +32,12 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] string? attributes = null,
         [FromQuery] bool? onlyActive = null,
         [FromQuery] string? dataSource = null,
+        [FromQuery] string? vehicleModel = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive, dataSource), ct);
+            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive, dataSource, vehicleModel), ct);
         return Ok(result);
     }
 
@@ -45,6 +46,15 @@ public class ProductsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetProductByIdQuery(id), ct);
         if (result is null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpGet("vehicle-categories")]
+    public async Task<IActionResult> GetVehicleCategories([FromQuery] string vehicleModel = "", CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleModel))
+            return Ok(new List<object>());
+        var result = await mediator.Send(new GetVehicleCategoriesQuery(vehicleModel), ct);
         return Ok(result);
     }
 

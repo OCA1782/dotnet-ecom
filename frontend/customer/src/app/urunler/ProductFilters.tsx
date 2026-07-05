@@ -14,6 +14,7 @@ interface Props {
   minFiyat?: string;
   maxFiyat?: string;
   searchTerm?: string;
+  activeVehicleModel?: string;
   activeBrandIds: string[];
   activeRating?: number;
   activeSiralama?: string;
@@ -26,6 +27,7 @@ const RATINGS = [4, 3, 2, 1];
 
 export default function ProductFilters({
   categories, brands, activeCategory, minFiyat, maxFiyat, searchTerm,
+  activeVehicleModel,
   activeBrandIds, activeRating, activeSiralama, activeIndirimli,
   activeNitelikler, categorySlug,
 }: Props) {
@@ -74,6 +76,7 @@ export default function ProductFilters({
   function buildUrl(overrides: Record<string, string | undefined>) {
     const qs = new URLSearchParams();
     const s = overrides.s !== undefined ? overrides.s : search;
+    const arac = overrides.arac !== undefined ? overrides.arac : activeVehicleModel;
     const kat = overrides.kategori !== undefined ? overrides.kategori : activeCategory;
     const mn = overrides.minFiyat !== undefined ? overrides.minFiyat : min;
     const mx = overrides.maxFiyat !== undefined ? overrides.maxFiyat : max;
@@ -83,6 +86,7 @@ export default function ProductFilters({
     const indr = overrides.indirimli !== undefined ? overrides.indirimli : (activeIndirimli ? "true" : "");
     const nit = overrides.nitelikler !== undefined ? overrides.nitelikler : activeNitelikler;
     if (s) qs.set("s", s);
+    if (arac) qs.set("arac", arac);
     if (kat) qs.set("kategori", kat);
     if (mn) qs.set("minFiyat", mn);
     if (mx) qs.set("maxFiyat", mx);
@@ -111,7 +115,7 @@ export default function ProductFilters({
     router.push(buildUrl({ nitelikler: nit, sayfa: "1" }));
   }
 
-  const hasAnyFilter = !!(activeCategory || min || max || search || selectedBrands.length
+  const hasAnyFilter = !!(activeCategory || min || max || search || activeVehicleModel || selectedBrands.length
     || activeRating || activeSiralama || activeIndirimli || activeNitelikler);
 
   return (

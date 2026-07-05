@@ -500,7 +500,7 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
 
   function handleModelClick(_brand: NavBrand, model: NavModel) {
     setOpenBrand(null);
-    router.push(`/urunler?s=${encodeURIComponent(model.name)}`);
+    router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
   }
 
   const openBrandObj = openBrand ? navBrands.find(b => b.key === openBrand) ?? null : null;

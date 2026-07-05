@@ -23,7 +23,8 @@ public record GetProductsQuery(
     int? MinRating = null,       // minimum average rating (1-5)
     string? Attributes = null,   // comma-separated key:value pairs, e.g. "Renk:Kırmızı,Beden:M"
     bool? OnlyActive = null,     // admin view: explicitly restrict to active-only
-    string? DataSource = null    // "__manual__" = null datasource, otherwise exact match
+    string? DataSource = null,   // "__manual__" = null datasource, otherwise exact match
+    string? VehicleModel = null  // word-boundary vehicle model search (avoids "Yaris P1" matching "Yaris P10")
 ) : IRequest<PaginatedList<ProductListItemDto>>;
 
 public record ProductListItemDto(
@@ -71,6 +72,25 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(p => p.Name.Contains(request.Search) || (p.SKU != null && p.SKU.Contains(request.Search)) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
+        // Word-boundary vehicle model search: "Yaris P1" must NOT match "Yaris P10"
+        if (!string.IsNullOrWhiteSpace(request.VehicleModel))
+        {
+            var vm = request.VehicleModel;
+            query = query.Where(p =>
+                EF.Functions.Like(p.Name, $"% {vm} %") ||
+                EF.Functions.Like(p.Name, $"% {vm}") ||
+                EF.Functions.Like(p.Name, $"% {vm}/%") ||
+                EF.Functions.Like(p.Name, $"% {vm}-%") ||
+                EF.Functions.Like(p.Name, $"% {vm}(%") ||
+                EF.Functions.Like(p.Name, $"% {vm}|%") ||
+                EF.Functions.Like(p.Name, $"% {vm},%") ||
+                EF.Functions.Like(p.Name, $"{vm} %") ||
+                EF.Functions.Like(p.Name, $"{vm}/%") ||
+                EF.Functions.Like(p.Name, $"{vm}-%") ||
+                p.Name == vm
+            );
+        }
+
         if (request.CategoryId.HasValue)
         {
             // Collect the category itself plus all descendants (BFS) so that
@@ -91,7 +111,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                     if (ids.Add(child)) queue.Enqueue(child);
             }
 
-            query = query.Where(p => p.CategoryId.HasValue && ids.Contains(p.CategoryId.Value));
+            query = query.Where(p => ids.Contains(p.CategoryId));
         }
 
         if (!string.IsNullOrWhiteSpace(request.CategorySlug))
