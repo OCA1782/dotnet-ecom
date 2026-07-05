@@ -15,6 +15,9 @@ interface Props {
   maxFiyat?: string;
   searchTerm?: string;
   activeVehicleModel?: string;
+  activeOemNo?: string;
+  activeChassis?: string;
+  activeMotor?: string;
   activeBrandIds: string[];
   activeRating?: number;
   activeSiralama?: string;
@@ -27,7 +30,7 @@ const RATINGS = [4, 3, 2, 1];
 
 export default function ProductFilters({
   categories, brands, activeCategory, minFiyat, maxFiyat, searchTerm,
-  activeVehicleModel,
+  activeVehicleModel, activeOemNo, activeChassis, activeMotor,
   activeBrandIds, activeRating, activeSiralama, activeIndirimli,
   activeNitelikler, categorySlug,
 }: Props) {
@@ -77,6 +80,9 @@ export default function ProductFilters({
     const qs = new URLSearchParams();
     const s = overrides.s !== undefined ? overrides.s : search;
     const arac = overrides.arac !== undefined ? overrides.arac : activeVehicleModel;
+    const oemNo = overrides.oemNo !== undefined ? overrides.oemNo : activeOemNo;
+    const chassis = overrides.chassis !== undefined ? overrides.chassis : activeChassis;
+    const motor = overrides.motor !== undefined ? overrides.motor : activeMotor;
     const kat = overrides.kategori !== undefined ? overrides.kategori : activeCategory;
     const mn = overrides.minFiyat !== undefined ? overrides.minFiyat : min;
     const mx = overrides.maxFiyat !== undefined ? overrides.maxFiyat : max;
@@ -87,6 +93,9 @@ export default function ProductFilters({
     const nit = overrides.nitelikler !== undefined ? overrides.nitelikler : activeNitelikler;
     if (s) qs.set("s", s);
     if (arac) qs.set("arac", arac);
+    if (oemNo) qs.set("oemNo", oemNo);
+    if (chassis) qs.set("chassis", chassis);
+    if (motor) qs.set("motor", motor);
     if (kat) qs.set("kategori", kat);
     if (mn) qs.set("minFiyat", mn);
     if (mx) qs.set("maxFiyat", mx);

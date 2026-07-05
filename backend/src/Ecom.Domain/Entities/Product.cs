@@ -29,6 +29,9 @@ public class Product : BaseEntity
     public string? StylesJson { get; set; }
     public string? VideoUrl { get; set; }
 
+    public string? OemPartNumber { get; set; }
+    public string? Chassis { get; set; }
+
     public Guid? ImportedFromSourceId { get; set; }
     public Guid? CreatedByAdminId { get; set; }
 

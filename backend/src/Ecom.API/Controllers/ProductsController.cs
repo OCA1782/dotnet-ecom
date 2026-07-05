@@ -33,11 +33,13 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromQuery] bool? onlyActive = null,
         [FromQuery] string? dataSource = null,
         [FromQuery] string? vehicleModel = null,
+        [FromQuery] string? oemPartNo = null,
+        [FromQuery] string? chassis = null,
         CancellationToken ct = default)
     {
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("ProductManager");
         var result = await mediator.Send(new GetProductsQuery(
-            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive, dataSource, vehicleModel), ct);
+            page, pageSize, search, categoryId, categorySlug, brandId, minPrice, maxPrice, inStock, isAdmin, featured, onSale, sortBy, brandIds, minRating, attributes, onlyActive, dataSource, vehicleModel, oemPartNo, chassis), ct);
         return Ok(result);
     }
 

@@ -32,59 +32,134 @@ const MODELS: Record<string, string[]> = {
   "Jeep": ["Renegade","Compass","Cherokee","Grand Cherokee","Wrangler"],
 };
 
+type SearchMode = "vehicle" | "oem" | "chassis";
+
+const INPUT = "w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400";
+
 export default function SparePartsVehicleSelector() {
+  const [mode, setMode] = useState<SearchMode>("vehicle");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
-  const [plate, setPlate] = useState("");
+  const [motor, setMotor] = useState("");
+  const [oemNo, setOemNo] = useState("");
+  const [chassis, setChassis] = useState("");
   const router = useRouter();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const qs = new URLSearchParams();
-    if (plate) qs.set("s", plate);
-    else if (brand && model) qs.set("s", `${brand} ${model}`);
-    else if (brand) qs.set("s", brand);
+    if (mode === "oem" && oemNo.trim()) {
+      qs.set("oemNo", oemNo.trim());
+    } else if (mode === "chassis" && chassis.trim()) {
+      qs.set("chassis", chassis.trim());
+    } else {
+      // vehicle mode — combine brand + model + motor into arac param (word-boundary search)
+      const parts = [brand, model, motor].filter(Boolean);
+      if (parts.length > 0) {
+        if (model) {
+          qs.set("arac", [brand, model].filter(Boolean).join(" "));
+        } else if (brand) {
+          qs.set("s", brand);
+        }
+        if (motor) qs.set("motor", motor.trim());
+      }
+    }
     router.push(`/urunler${qs.toString() ? `?${qs}` : ""}`);
   }
 
   const models = brand ? (MODELS[brand] ?? []) : [];
 
+  const TAB = (m: SearchMode, label: string) => (
+    <button
+      type="button"
+      onClick={() => setMode(m)}
+      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
+        mode === m
+          ? "bg-orange-500 text-white shadow-sm"
+          : "text-gray-500 hover:bg-gray-100"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <form onSubmit={handleSearch} className="flex flex-col gap-2.5">
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Plaka ile ara</label>
-        <input
-          type="text"
-          value={plate}
-          onChange={e => setPlate(e.target.value)}
-          placeholder="34 ABC 123"
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
-        />
+      {/* Mode tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        {TAB("vehicle", "Araç")}
+        {TAB("oem", "OEM / Parça No")}
+        {TAB("chassis", "Şasi No")}
       </div>
-      <p className="text-xs text-gray-400 leading-snug">— veya araç modelini seçin —</p>
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Marka</label>
-        <select
-          value={brand}
-          onChange={e => { setBrand(e.target.value); setModel(""); }}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none bg-white"
-        >
-          <option value="">Marka seçin</option>
-          {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Model</label>
-        <select
-          value={model}
-          onChange={e => setModel(e.target.value)}
-          disabled={!brand}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400"
-        >
-          <option value="">Model seçin</option>
-          {models.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-      </div>
+
+      {mode === "vehicle" && (
+        <>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Marka</label>
+            <select
+              value={brand}
+              onChange={e => { setBrand(e.target.value); setModel(""); }}
+              className={INPUT}
+            >
+              <option value="">Marka seçin</option>
+              {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Model</label>
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              disabled={!brand}
+              className={INPUT}
+            >
+              <option value="">Model seçin</option>
+              {models.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Motor</label>
+            <input
+              type="text"
+              value={motor}
+              onChange={e => setMotor(e.target.value)}
+              placeholder="örn: 1.6 TDI, 2.0 FSI, 1NZ-FE..."
+              className={INPUT}
+            />
+          </div>
+        </>
+      )}
+
+      {mode === "oem" && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">OEM / Parça No</label>
+          <input
+            type="text"
+            value={oemNo}
+            onChange={e => setOemNo(e.target.value)}
+            placeholder="örn: TI13292D, 1K0498099A..."
+            className={INPUT}
+            autoFocus
+          />
+          <p className="text-[10px] text-gray-400 mt-1">Orijinal parça numarası veya tedarikçi ref. kodu</p>
+        </div>
+      )}
+
+      {mode === "chassis" && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Şasi / VIN No</label>
+          <input
+            type="text"
+            value={chassis}
+            onChange={e => setChassis(e.target.value)}
+            placeholder="örn: WVWZZZ1KZ6W..."
+            className={INPUT}
+            autoFocus
+          />
+          <p className="text-[10px] text-gray-400 mt-1">Araç şasi numarası (VIN)</p>
+        </div>
+      )}
+
       <button
         type="submit"
         className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition"

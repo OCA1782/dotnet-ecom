@@ -24,7 +24,9 @@ public record GetProductsQuery(
     string? Attributes = null,   // comma-separated key:value pairs, e.g. "Renk:Kırmızı,Beden:M"
     bool? OnlyActive = null,     // admin view: explicitly restrict to active-only
     string? DataSource = null,   // "__manual__" = null datasource, otherwise exact match
-    string? VehicleModel = null  // word-boundary vehicle model search (avoids "Yaris P1" matching "Yaris P10")
+    string? VehicleModel = null, // word-boundary vehicle model search (avoids "Yaris P1" matching "Yaris P10")
+    string? OemPartNo = null,    // OEM / part reference number
+    string? Chassis = null       // chassis / VIN range
 ) : IRequest<PaginatedList<ProductListItemDto>>;
 
 public record ProductListItemDto(
@@ -70,7 +72,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             query = query.Where(p => p.ImportedFromSourceId != null || p.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
-            query = query.Where(p => p.Name.Contains(request.Search) || (p.SKU != null && p.SKU.Contains(request.Search)) || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
+            query = query.Where(p => p.Name.Contains(request.Search)
+                || (p.SKU != null && p.SKU.Contains(request.Search))
+                || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
         // Word-boundary vehicle model search: "Yaris P1" must NOT match "Yaris P10"
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
@@ -89,6 +93,21 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 EF.Functions.Like(p.Name, $"{vm}-%") ||
                 p.Name == vm
             );
+        }
+
+        // OEM search: checks OemPartNumber field (future imports) AND Name (existing data)
+        if (!string.IsNullOrWhiteSpace(request.OemPartNo))
+        {
+            var oemSearch = request.OemPartNo!;
+            query = query.Where(p =>
+                (p.OemPartNumber != null && p.OemPartNumber.Contains(oemSearch))
+                || p.Name.Contains(oemSearch));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Chassis))
+        {
+            var chassisSearch = request.Chassis!;
+            query = query.Where(p => p.Chassis != null && p.Chassis.Contains(chassisSearch));
         }
 
         if (request.CategoryId.HasValue)

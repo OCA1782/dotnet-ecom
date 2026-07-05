@@ -14,6 +14,9 @@ import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SpareP
 type SearchParams = Promise<{
   s?: string;
   arac?: string;       // vehicle model exact search — from SparePartsBrandNav model click
+  motor?: string;      // engine filter (text search within product name)
+  oemNo?: string;      // OEM / part reference number
+  chassis?: string;    // chassis / VIN number
   kategori?: string;
   kategoriler?: string; // category ID — araç menüsünden gelen (SparePartsBrandNav)
   minFiyat?: string;
@@ -68,6 +71,9 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     qs.set("pageSize", "12");
     if (params.s) qs.set("search", params.s);
     if (params.arac) qs.set("vehicleModel", params.arac);
+    if (params.motor) qs.set("search", [params.s, params.motor].filter(Boolean).join(" "));
+    if (params.oemNo) qs.set("oemPartNo", params.oemNo);
+    if (params.chassis) qs.set("chassis", params.chassis);
     if (params.kategoriler) qs.set("categoryId", params.kategoriler);
     else if (params.kategori) qs.set("categorySlug", params.kategori);
     if (params.minFiyat) qs.set("minPrice", params.minFiyat);
@@ -90,7 +96,11 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const [params, settings] = await Promise.all([searchParams, getSettings()]);
   const siteName = settings.SiteName || "";
-  const title = params.arac
+  const title = params.oemNo
+    ? `OEM ${params.oemNo} Parça Arama`
+    : params.chassis
+    ? `Şasi ${params.chassis} Uyumlu Parçalar`
+    : params.arac
     ? `${params.arac} Uyumlu Yedek Parçalar`
     : params.s
     ? `"${params.s}" için Arama Sonuçları`
@@ -136,6 +146,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     const qs = new URLSearchParams();
     if (merged.s) qs.set("s", merged.s);
     if (merged.arac) qs.set("arac", merged.arac);
+    if (merged.motor) qs.set("motor", merged.motor);
+    if (merged.oemNo) qs.set("oemNo", merged.oemNo);
+    if (merged.chassis) qs.set("chassis", merged.chassis);
     if (merged.kategoriler) qs.set("kategoriler", merged.kategoriler);
     if (merged.kategori) qs.set("kategori", merged.kategori);
     if (merged.minFiyat) qs.set("minFiyat", merged.minFiyat);
@@ -164,7 +177,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       }).filter((x): x is { key: string; value: string } => x !== null)
     : [];
 
-  const hasFilters = !!(params.s || params.arac || params.kategori || params.kategoriler || params.ozellik || params.indirimli
+  const hasFilters = !!(params.s || params.arac || params.motor || params.oemNo || params.chassis || params.kategori || params.kategoriler || params.ozellik || params.indirimli
     || params.minFiyat || params.maxFiyat || params.siralama || params.markalar || params.puan || params.nitelikler);
 
   return (
@@ -174,16 +187,26 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Arama / marka+model başlığı — spareparts */}
-      {isSP && (params.s || params.arac) && (
+      {isSP && (params.s || params.arac || params.oemNo || params.chassis) && (
         <div className="mb-5">
           <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
             <span>/</span>
-            <span className="text-gray-600 font-semibold">{params.arac ?? params.s}</span>
+            <span className="text-gray-600 font-semibold">
+              {params.oemNo ? `OEM: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` : (params.arac ?? params.s)}
+            </span>
           </nav>
-          <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">{params.arac ?? params.s}</h1>
+          <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">
+            {params.oemNo ? `OEM / Parça No: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` : (params.arac ?? params.s)}
+          </h1>
           {params.arac && (
             <p className="text-xs text-gray-400 mt-0.5">{params.arac} uyumlu parçalar gösteriliyor</p>
+          )}
+          {params.oemNo && (
+            <p className="text-xs text-gray-400 mt-0.5">OEM / parça numarasına göre sonuçlar</p>
+          )}
+          {params.chassis && (
+            <p className="text-xs text-gray-400 mt-0.5">Şasi numarasına göre uyumlu parçalar</p>
           )}
         </div>
       )}
@@ -199,6 +222,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             maxFiyat={params.maxFiyat}
             searchTerm={params.s}
             activeVehicleModel={params.arac}
+            activeOemNo={params.oemNo}
+            activeChassis={params.chassis}
+            activeMotor={params.motor}
             activeBrandIds={activeBrandIds}
             activeRating={params.puan ? Number(params.puan) : undefined}
             activeSiralama={params.siralama}

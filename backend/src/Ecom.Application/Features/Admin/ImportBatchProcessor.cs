@@ -326,6 +326,12 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             var brandName = Map(row, fm, "Brand");
             var desc = Map(row, fm, "Description") ?? string.Empty;
             var imageUrl = Map(row, fm, "ImageUrl");
+            var oemPartNumber = Map(row, fm, "OemPartNumber");
+            var chassis = Map(row, fm, "Chassis");
+            // Auto-extract OEM ref from "BRAND REFCODE | Description" pattern
+            if (string.IsNullOrWhiteSpace(oemPartNumber) && name!.Contains(" | "))
+                oemPartNumber = name[..name.IndexOf(" | ", StringComparison.Ordinal)].Trim();
+            if (oemPartNumber != null && oemPartNumber.Length > 200) oemPartNumber = oemPartNumber[..200];
 
             // Category: auto-resolve/create. Empty/unmapped → fall back to default "Genel" category.
             Guid? categoryId;
@@ -411,6 +417,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         attached.IsDeleted = false;
                         if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
                         if (brandId.HasValue) attached.BrandId = brandId.Value;
+                        if (!string.IsNullOrWhiteSpace(oemPartNumber)) attached.OemPartNumber = oemPartNumber;
+                        if (!string.IsNullOrWhiteSpace(chassis)) attached.Chassis = chassis;
                         touchedProductIds?.Add(attached.Id);
 
                         // Add main image if mapped and not already present (check both DB and change-tracker staged images)
@@ -449,6 +457,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     Name = name, Slug = slug, SKU = sku, Price = price,
                     CategoryId = categoryId.Value, BrandId = brandId,
                     Description = desc,
+                    OemPartNumber = oemPartNumber,
+                    Chassis = chassis,
                     ImportedFromSourceId = sourceId,
                     IsActive = true,
                     IsPublished = true,
