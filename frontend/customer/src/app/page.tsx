@@ -230,9 +230,6 @@ export default async function HomePage() {
 
               {/* Kategoriler listesi */}
               <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                <div className="bg-gradient-to-r from-orange-500 to-orange-400 px-4 py-3">
-                  <span className="text-xs font-extrabold text-white uppercase tracking-wide">Kategoriler</span>
-                </div>
                 <div className="p-1.5 flex flex-col gap-0.5">
                   {categories.slice(0, 12).map(cat => (
                     <Link key={cat.id} href={`/urunler?kategori=${cat.slug}`}
