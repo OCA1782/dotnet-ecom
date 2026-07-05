@@ -372,6 +372,38 @@ export default async function HomePage() {
                   </div>
                 </div>
               )}
+
+              {/* ── Kampanyalar ── */}
+              {campaigns.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                    <h3 className="font-extrabold text-gray-900 text-sm flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"/>
+                      Kampanyalar
+                    </h3>
+                  </div>
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {campaigns.slice(0, 4).map(c => {
+                      const gradient = SCHEME_GRADIENT[c.colorScheme] ?? SCHEME_GRADIENT.orange;
+                      return (
+                        <div key={c.id} className="relative overflow-hidden rounded-xl p-4 text-white min-h-[100px] flex flex-col justify-between group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                          <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+                          <div className="absolute right-2 bottom-0 text-[60px] font-black text-white/10 leading-none select-none">{c.icon}</div>
+                          <div className="relative">
+                            <h4 className="font-extrabold text-sm leading-tight mb-1">{c.title}</h4>
+                            {c.subtitle && <p className="text-white/70 text-xs mb-2">{c.subtitle}</p>}
+                            {c.linkUrl && (
+                              <Link href={c.linkUrl} className="text-xs font-bold bg-white/20 hover:bg-white/35 px-3 py-1 rounded-full transition inline-block backdrop-blur-sm">
+                                {c.linkText || "İncele →"}
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
