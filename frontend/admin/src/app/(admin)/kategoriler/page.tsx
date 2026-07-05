@@ -188,6 +188,7 @@ export default function KategorilerPage() {
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [imagin, setImagin] = useState({ open: false, make: "", family: "", paint: "color-red", angle: "23" });
+  const [templateTag, setTemplateTag] = useState<"" | "spareparts">("");
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -282,10 +283,11 @@ export default function KategorilerPage() {
     });
   }
 
-  function openCreate() { setForm(EMPTY); setError(""); setModal("create"); setImagin({ open: false, make: "", family: "", paint: "color-red", angle: "23" }); }
+  function openCreate() { setForm(EMPTY); setError(""); setModal("create"); setImagin({ open: false, make: "", family: "", paint: "color-red", angle: "23" }); setTemplateTag(""); }
   function openEdit(c: Category) {
     setForm({ id: c.id, name: c.name, slug: c.slug, parentCategoryId: c.parentCategoryId ?? "", description: "", sortOrder: String(c.sortOrder), showInMenu: c.showInMenu, showInVehicleNav: c.showInVehicleNav ?? false, imageUrl: c.imageUrl ?? "", isActive: c.isActive });
     setError(""); setModal("edit"); setImagin({ open: false, make: "", family: "", paint: "color-red", angle: "23" });
+    setTemplateTag(c.imageUrl?.includes("imagin.studio") ? "spareparts" : "");
   }
 
   async function handleSave() {
@@ -949,8 +951,17 @@ export default function KategorilerPage() {
               </div>
               <ImageUpload value={form.imageUrl} onChange={url => setForm(f => ({ ...f, imageUrl: url }))} label={t("ui.categoryImage", "Kategori Görseli")} />
 
+              {/* ── Şablon Seçimi ─────────────────────────────────────────── */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Şablon</label>
+                <select className={INPUT} value={templateTag} onChange={e => setTemplateTag(e.target.value as "" | "spareparts")}>
+                  <option value="">Genel</option>
+                  <option value="spareparts">Yedek Parça</option>
+                </select>
+              </div>
+
               {/* ── imagin.studio Picker ──────────────────────────────────── */}
-              {(() => {
+              {templateTag === "spareparts" && (() => {
                 const url = imagin.make
                   ? `https://cdn.imagin.studio/getimage?customer=img&make=${imagin.make}${imagin.family ? `&modelFamily=${encodeURIComponent(imagin.family)}` : ""}&angle=${imagin.angle}&width=800&zoomType=fullscreen&paintId=${imagin.paint}`
                   : "";
