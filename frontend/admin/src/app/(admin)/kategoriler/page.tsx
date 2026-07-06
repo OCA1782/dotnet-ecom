@@ -1141,6 +1141,7 @@ export default function KategorilerPage() {
           onClick={() => setZoomUrl(null)}
         >
           <div className="relative max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={zoomUrl} alt="Resim önizleme" className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl" />
             <button
               onClick={() => setZoomUrl(null)}

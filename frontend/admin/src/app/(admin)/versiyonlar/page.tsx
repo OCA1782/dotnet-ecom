@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Package, Server, Database, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Save, Loader2, Settings, Globe, Shield } from "lucide-react";
+import { Server, Database, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Save, Loader2, Settings, Globe, Shield } from "lucide-react";
 
 const CARD = "bg-white rounded-xl border border-slate-200 p-5";
 const INPUT = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -53,13 +53,13 @@ export default function VersiyonlarPage() {
   const [customerVersion, setCustomerVersion] = useState("");
   const [maintenanceMsgEdit, setMaintenanceMsgEdit] = useState("");
 
-  const load = useCallback(async () => {
+  async function load() {
     setLoading(true);
     setError(null);
     try {
       const [vInfo, sData] = await Promise.all([
-        api("/api/version") as Promise<VersionInfo>,
-        api("/api/admin/settings") as Promise<Settings>,
+        api.get<VersionInfo>("/api/version"),
+        api.get<Settings>("/api/admin/settings"),
       ]);
       setInfo(vInfo);
       setSettings(sData);
@@ -70,21 +70,18 @@ export default function VersiyonlarPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveVersionSettings() {
     setSaving(true);
     setSaved(false);
     try {
-      await api("/api/admin/settings", {
-        method: "PUT",
-        body: JSON.stringify({
-          ...settings,
-          CustomerVersion: customerVersion,
-          Msg_MaintenanceMode: maintenanceMsgEdit,
-        }),
+      await api.put("/api/admin/settings", {
+        ...settings,
+        CustomerVersion: customerVersion,
+        Msg_MaintenanceMode: maintenanceMsgEdit,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -100,10 +97,7 @@ export default function VersiyonlarPage() {
     const next = settings.MaintenanceMode === "true" ? "false" : "true";
     setSaving(true);
     try {
-      await api("/api/admin/settings", {
-        method: "PUT",
-        body: JSON.stringify({ ...settings, MaintenanceMode: next }),
-      });
+      await api.put("/api/admin/settings", { ...settings, MaintenanceMode: next });
       await load();
     } catch {
       setError("Bakım modu değiştirilemedi.");
