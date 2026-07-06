@@ -30,7 +30,9 @@ public record ProductDetailDto(
     string? MetaDescription,
     int AvailableStock,
     List<ProductImageDto> Images,
-    List<ProductVariantDto> Variants
+    List<ProductVariantDto> Variants,
+    string? OemPartNumber = null,
+    string? Chassis = null
 );
 
 public record ProductImageDto(Guid Id, string ImageUrl, int SortOrder, bool IsMain, string? AltText);
@@ -104,6 +106,8 @@ internal static class ProductMapper
         p.Variants.Select(v => new ProductVariantDto(
             v.Id, v.VariantName, v.SKU,
             v.Price, v.DiscountPrice, v.IsActive,
-            v.AttributesJson, v.Stock?.AvailableQuantity ?? 0)).ToList()
+            v.AttributesJson, v.Stock?.AvailableQuantity ?? 0)).ToList(),
+        p.OemPartNumber,
+        p.Chassis
     );
 }
