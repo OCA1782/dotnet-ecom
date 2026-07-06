@@ -3,6 +3,7 @@ using Ecom.Application.Features.Admin.Commands;
 using Ecom.Application.Features.Admin.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecom.API.Controllers.Admin;
@@ -10,7 +11,11 @@ namespace Ecom.API.Controllers.Admin;
 [ApiController]
 [Route("api/admin/settings")]
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class SettingsController(IMediator mediator, IEmailService emailService) : ControllerBase
+public class SettingsController(
+    IMediator mediator,
+    IEmailService emailService,
+    IWebHostEnvironment hostEnv,
+    IConfiguration config) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
@@ -25,7 +30,42 @@ public class SettingsController(IMediator mediator, IEmailService emailService) 
     {
         settings["SettingsVersion"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
         await mediator.Send(new UpdateSettingsCommand(settings), ct);
+
+        // CustomerTemplate değiştiğinde customer .env.local'daki fallback'i otomatik senkronize et.
+        // Böylece API geçici olarak erişilemez olsa bile (deploy, restart, timeout) şablon kaybolmaz.
+        // Yol: appsettings.Development.json → "CustomerFrontendEnvPath" (üretimde tanımlı değilse sessizce geçer).
+        if (settings.TryGetValue("CustomerTemplate", out var newTemplate) && !string.IsNullOrWhiteSpace(newTemplate))
+        {
+            var envPath = config["CustomerFrontendEnvPath"];
+            if (!string.IsNullOrWhiteSpace(envPath))
+            {
+                var fullPath = Path.IsPathRooted(envPath)
+                    ? envPath
+                    : Path.GetFullPath(Path.Combine(hostEnv.ContentRootPath, envPath));
+                SyncEnvVar(fullPath, "NEXT_PUBLIC_FALLBACK_TEMPLATE", newTemplate);
+            }
+        }
+
         return NoContent();
+    }
+
+    // .env dosyasında belirtilen key'i günceller; yoksa sona ekler.
+    // Dosya yoksa veya yazma izni yoksa sessizce geçer — bu özellik geliştirme kolaylığıdır, kritik değil.
+    private static void SyncEnvVar(string filePath, string key, string value)
+    {
+        try
+        {
+            var lines = System.IO.File.Exists(filePath)
+                ? new List<string>(System.IO.File.ReadAllLines(filePath))
+                : [];
+            var idx = lines.FindIndex(l => l.StartsWith($"{key}=") || l.StartsWith($"{key} ="));
+            if (idx >= 0)
+                lines[idx] = $"{key}={value}";
+            else
+                lines.Add($"{key}={value}");
+            System.IO.File.WriteAllLines(filePath, lines);
+        }
+        catch { /* Dosya erişim hatası — geliştirme dışı ortamda beklenen durum */ }
     }
 
     [HttpPost("test-alert")]
