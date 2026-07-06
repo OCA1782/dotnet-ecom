@@ -51,7 +51,7 @@ const DEFAULTS: SiteSettings = {
   FreeShippingLimit: "", DefaultShippingCost: "",
   MaintenanceMode: "false", AdminMenuOrder: "", AdminMenuConfig: "", AdminRbacMatrix: "",
   // Şablon
-  CustomerTemplate: "modern",
+  CustomerTemplate: "spareparts",
   DisabledTemplates: "",
   // Ortam
   AppEnvironment: "development",
@@ -2757,7 +2757,7 @@ export default function YonetimPage() {
             {/* Template list with paging + hide/show */}
             {(() => {
               const disabledIds = new Set((settings.DisabledTemplates || "").split(",").map(s => s.trim()).filter(Boolean));
-              const activeId = settings.CustomerTemplate || "modern";
+              const activeId = settings.CustomerTemplate || "spareparts";
               const toggleDisabled = (id: string) => {
                 const ids = new Set(disabledIds);
                 if (ids.has(id)) ids.delete(id); else ids.add(id);
