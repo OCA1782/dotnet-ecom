@@ -56,11 +56,33 @@ type TemplateName = typeof VALID_TEMPLATES[number];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings();
-  const rawTemplate = settings.CustomerTemplate ?? "modern";
+
+  // Template kalıcılığı: API başarısızsa env var, o da yoksa son template
+  const envFallback = process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE ?? "modern";
+  const rawTemplate = settings.CustomerTemplate ?? envFallback;
   const template: TemplateName = (VALID_TEMPLATES as readonly string[]).includes(rawTemplate)
     ? rawTemplate as TemplateName
-    : "modern";
+    : envFallback as TemplateName;
+
   const languageSwitcherEnabled = settings.CustomerLanguageSwitcherEnabled !== "false";
+  const isMaintenanceMode = settings.MaintenanceMode === "true";
+  const maintenanceMsg = settings.Msg_MaintenanceMode || "Site bakım çalışması yapılıyor. Lütfen daha sonra tekrar deneyin.";
+  const siteName = settings.SiteName || "Mağaza";
+
+  if (isMaintenanceMode) {
+    return (
+      <html lang="tr" className={`${geist.variable} h-full antialiased`}>
+        <body className="min-h-full flex items-center justify-center bg-slate-50">
+          <div className="max-w-md w-full mx-4 text-center">
+            <div className="text-5xl mb-6">🔧</div>
+            <h1 className="text-2xl font-bold text-slate-800 mb-3">{siteName}</h1>
+            <p className="text-slate-600 mb-8 leading-relaxed">{maintenanceMsg}</p>
+            <div className="text-xs text-slate-400">Bakım Modu Aktif</div>
+          </div>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
@@ -70,7 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <CompareProvider>
           <Header
             logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
-            siteName={settings.SiteName || "Mağaza"}
+            siteName={siteName}
             languageSwitcherEnabled={languageSwitcherEnabled}
           />
           <main className="flex-1">{children}</main>

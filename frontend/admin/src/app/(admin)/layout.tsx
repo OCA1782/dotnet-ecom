@@ -64,6 +64,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/hareketler",   label: "Hareketler",    icon: Activity,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/takip",        label: "Takip",         icon: ShieldAlert,     group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/dis-kaynaklar",label: "Dış Kaynaklar", icon: Database,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/versiyonlar",  label: "Versiyonlar",   icon: Layers,          group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/servisler",    label: "Servisler",     icon: HeartPulse,      group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/kuyruklar",    label: "Kuyruklar",     icon: Inbox,           group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/joblar",       label: "Joblar",        icon: Clock,           group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
