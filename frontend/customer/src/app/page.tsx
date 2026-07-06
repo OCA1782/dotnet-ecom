@@ -228,20 +228,6 @@ export default async function HomePage() {
                 </form>
               </div>
 
-              {/* Kategoriler listesi */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                <div className="p-1.5 flex flex-col gap-0.5">
-                  {categories.slice(0, 12).map(cat => (
-                    <Link key={cat.id} href={`/urunler?kategori=${cat.slug}`}
-                      className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all duration-150 group">
-                      <span>{cat.name}</span>
-                      <svg className="w-3 h-3 text-gray-300 group-hover:text-orange-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
-                      </svg>
-                    </Link>
-                  ))}
-                </div>
-              </div>
             </aside>
 
             {/* ── Sağ içerik ── */}
