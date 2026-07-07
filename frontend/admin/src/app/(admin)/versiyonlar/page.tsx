@@ -72,7 +72,8 @@ export default function VersiyonlarPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void load(); }, []);
 
   async function saveVersionSettings() {
     setSaving(true);
