@@ -239,70 +239,100 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
                   {suggestLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                 </button>
 
-                {suggestOpen && suggestions.length > 0 && mounted && (
+                {suggestOpen && mounted && (
                   <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] overflow-hidden">
-                    {suggestions.filter(s => s.type !== "product").length > 0 && (
-                      <div className="px-3 pt-2 pb-1 flex flex-wrap gap-2">
-                        {suggestions.filter(s => s.type !== "product").map((item, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSuggestionClick(item)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-xs font-medium text-slate-600 transition"
-                          >
-                            {item.type === "category" ? <Layers size={11} className="shrink-0" /> : <Tag size={11} className="shrink-0" />}
-                            {item.name}
-                          </button>
+                    {suggestLoading && suggestions.length === 0 ? (
+                      /* Loading skeleton inside dropdown */
+                      <div className="py-3 px-3 space-y-2 animate-pulse">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0" />
+                            <div className="flex-1 space-y-1.5">
+                              <div className="h-3 bg-slate-100 rounded w-3/4" />
+                              <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                            </div>
+                          </div>
                         ))}
                       </div>
-                    )}
-
-                    {suggestions.filter(s => s.type === "product").length > 0 && (
+                    ) : suggestions.length === 0 ? (
+                      /* No results */
+                      <div className="py-6 px-4 text-center">
+                        <p className="text-sm text-slate-500">
+                          <span className="font-medium text-slate-700">&ldquo;{search}&rdquo;</span> için sonuç bulunamadı
+                        </p>
+                        <button
+                          onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
+                          className="mt-2 text-xs text-teal-600 hover:text-teal-800 font-semibold transition"
+                        >
+                          Tüm ürünlerde ara →
+                        </button>
+                      </div>
+                    ) : (
                       <>
                         {suggestions.filter(s => s.type !== "product").length > 0 && (
-                          <div className="mx-3 border-t border-slate-100 mt-1" />
-                        )}
-                        <div className="py-1">
-                          {suggestions.filter(s => s.type === "product").map((item, i) => {
-                            const globalIdx = suggestions.indexOf(item);
-                            return (
+                          <div className="px-3 pt-2 pb-1 flex flex-wrap gap-2">
+                            {suggestions.filter(s => s.type !== "product").map((item, i) => (
                               <button
                                 key={i}
                                 onClick={() => handleSuggestionClick(item)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-xs font-medium text-slate-600 transition"
                               >
-                                {item.imageUrl ? (
-                                  <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
-                                    <Search size={14} className="text-slate-300" />
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
-                                  {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}
-                                </div>
-                                {item.price != null && (
-                                  <span className="text-sm font-semibold text-teal-600 shrink-0">
-                                    {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
-                                  </span>
-                                )}
+                                {item.type === "category" ? <Layers size={11} className="shrink-0" /> : <Tag size={11} className="shrink-0" />}
+                                {item.name}
                               </button>
-                            );
-                          })}
+                            ))}
+                          </div>
+                        )}
+
+                        {suggestions.filter(s => s.type === "product").length > 0 && (
+                          <>
+                            {suggestions.filter(s => s.type !== "product").length > 0 && (
+                              <div className="mx-3 border-t border-slate-100 mt-1" />
+                            )}
+                            <div className="py-1">
+                              {suggestions.filter(s => s.type === "product").map((item, i) => {
+                                const globalIdx = suggestions.indexOf(item);
+                                return (
+                                  <button
+                                    key={i}
+                                    onClick={() => handleSuggestionClick(item)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}
+                                  >
+                                    {item.imageUrl ? (
+                                      <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
+                                        <Search size={14} className="text-slate-300" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                                      {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}
+                                    </div>
+                                    {item.price != null && (
+                                      <span className="text-sm font-semibold text-teal-600 shrink-0">
+                                        {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+
+                        <div className="border-t border-slate-100 px-3 py-2">
+                          <button
+                            onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
+                            className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-1 transition"
+                          >
+                            {totalProducts > 0
+                              ? t("header.search.view_all_products").replace("{count}", String(totalProducts))
+                              : t("header.search.all_results").replace("{query}", search)}
+                          </button>
                         </div>
                       </>
                     )}
-
-                    <div className="border-t border-slate-100 px-3 py-2">
-                      <button
-                        onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); }}
-                        className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-1 transition"
-                      >
-                        {totalProducts > 0
-                          ? t("header.search.view_all_products").replace("{count}", String(totalProducts))
-                          : t("header.search.all_results").replace("{query}", search)}
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import ProductFilters from "./ProductFilters";
+import MobileFilterSheet from "./MobileFilterSheet";
 import { getSettings } from "@/lib/settings";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
@@ -212,7 +213,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       )}
 
       <div className="flex gap-8">
-        {/* Sidebar Filters */}
+        {/* Sidebar Filters — desktop only */}
         <aside className="hidden lg:block w-64 shrink-0">
           <ProductFilters
             categories={categories}
@@ -236,6 +237,27 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
+
+          {/* Mobile filter sheet — hidden on desktop */}
+          <MobileFilterSheet
+            categories={categories}
+            brands={brands}
+            activeCategory={params.kategori}
+            minFiyat={params.minFiyat}
+            maxFiyat={params.maxFiyat}
+            searchTerm={params.s}
+            activeVehicleModel={params.arac}
+            activeOemNo={params.oemNo}
+            activeChassis={params.chassis}
+            activeMotor={params.motor}
+            activeBrandIds={activeBrandIds}
+            activeRating={params.puan ? Number(params.puan) : undefined}
+            activeSiralama={params.siralama}
+            activeIndirimli={params.indirimli === "true"}
+            activeNitelikler={params.nitelikler}
+            categorySlug={params.kategori}
+          />
+
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <p className={`text-sm font-medium ${isSP ? "text-orange-500" : "text-teal-400"}`}>
