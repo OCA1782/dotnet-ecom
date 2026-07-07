@@ -31,6 +31,8 @@ interface ProductDetail {
   categoryId: string; brandId?: string;
   isActive: boolean; isPublished: boolean; isFeatured: boolean;
   images: ProductImage[];
+  oemPartNumber?: string;
+  chassis?: string;
 }
 interface ProductHistoryEntry {
   eventType: "audit" | "stock";
@@ -58,12 +60,15 @@ interface ProductForm {
   isActive: boolean;
   isFeatured: boolean;
   initialStock: string;
+  oemPartNumber: string;
+  chassis: string;
 }
 
 const EMPTY_FORM: ProductForm = {
   name: "", slug: "", sku: "", description: "", shortDescription: "",
   price: "", discountPrice: "", taxRate: "18", categoryId: "",
   brandId: "", isPublished: true, isActive: true, isFeatured: false, initialStock: "0",
+  oemPartNumber: "", chassis: "",
 };
 
 interface DupProduct {
@@ -119,11 +124,12 @@ function Modal({ title, onClose, children, preview, showPreview, onTogglePreview
   );
 }
 
-function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: React.ReactNode; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 mb-1">{label}</div>
       {children}
+      {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
     </div>
   );
 }
@@ -492,6 +498,7 @@ export default function AdminProductsPage() {
       price: String(p.price), discountPrice: p.discountPrice ? String(p.discountPrice) : "",
       taxRate: String(p.taxRate), categoryId: "", brandId: "",
       isPublished: true, isActive: p.isActive, isFeatured: p.isFeatured, initialStock: "0",
+      oemPartNumber: "", chassis: "",
     });
     setFormError("");
     setNewImageUrl("");
@@ -510,6 +517,8 @@ export default function AdminProductsPage() {
         isPublished: detail.isPublished,
         isFeatured: detail.isFeatured,
         taxRate: String(detail.taxRate),
+        oemPartNumber: detail.oemPartNumber ?? "",
+        chassis: detail.chassis ?? "",
       }));
     } catch { setProductImages([]); }
   }
@@ -543,6 +552,8 @@ export default function AdminProductsPage() {
           metaTitle: null,
           metaDescription: null,
           initialStock: parseInt(form.initialStock) || 0,
+          oemPartNumber: form.oemPartNumber || null,
+          chassis: form.chassis || null,
         });
         if (created?.id && stagedImages.length > 0) {
           for (let i = 0; i < stagedImages.length; i++) {
@@ -577,6 +588,8 @@ export default function AdminProductsPage() {
           isFeatured: form.isFeatured,
           metaTitle: null,
           metaDescription: null,
+          oemPartNumber: form.oemPartNumber || null,
+          chassis: form.chassis || null,
         });
         setMsg({ text: t("auto.urunGuncellendi", "Ürün güncellendi."), ok: true });
       }
@@ -1623,6 +1636,15 @@ export default function AdminProductsPage() {
               </Field>
               <Field label={t("label.tax", "Vergi") + " (%)"}>
                 <input type="number" className={INPUT} value={form.taxRate} onChange={e => setField("taxRate", e.target.value)} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="OEM / Parça No" hint="Orijinal üretici parça numarası (örn: 55599958)">
+                <input className={INPUT} value={form.oemPartNumber} onChange={e => setField("oemPartNumber", e.target.value)} placeholder="Örn: PSA 55599958" />
+              </Field>
+              <Field label="Şasi / Model" hint="Uyumlu araç şasi veya model bilgisi">
+                <input className={INPUT} value={form.chassis} onChange={e => setField("chassis", e.target.value)} placeholder="Örn: Audi A3 8V" />
               </Field>
             </div>
 

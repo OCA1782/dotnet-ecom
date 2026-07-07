@@ -24,7 +24,9 @@ public record UpdateProductCommand(
     bool IsPublished,
     bool IsFeatured,
     string? MetaTitle,
-    string? MetaDescription
+    string? MetaDescription,
+    string? OemPartNumber,
+    string? Chassis
 ) : IRequest<Result>;
 
 public class UpdateProductValidator : AbstractValidator<UpdateProductCommand>
@@ -70,6 +72,8 @@ public class UpdateProductHandler(IApplicationDbContext db, IAuditService audit,
         product.IsFeatured = request.IsFeatured;
         product.MetaTitle = request.MetaTitle;
         product.MetaDescription = request.MetaDescription;
+        product.OemPartNumber = request.OemPartNumber;
+        product.Chassis = request.Chassis;
 
         await db.SaveChangesAsync(cancellationToken);
         await cache.RemoveAsync($"product:slug:{request.Slug}", cancellationToken);

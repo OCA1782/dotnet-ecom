@@ -119,6 +119,26 @@ export default async function ProductDetailPage({
             <p className="text-sm text-slate-600 leading-relaxed">{product.shortDescription}</p>
           )}
 
+          {/* OEM / Chassis — spareparts */}
+          {isSP && (product.oemPartNumber || product.chassis) && (
+            <div className="flex flex-wrap gap-3">
+              {product.oemPartNumber && (
+                <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-lg px-3 py-1.5">
+                  <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-widest">OEM</span>
+                  <span className="font-mono text-sm font-bold text-gray-800">{product.oemPartNumber}</span>
+                  <Link href={`/urunler?oemNo=${encodeURIComponent(product.oemPartNumber)}`}
+                    className="text-[10px] text-orange-500 hover:underline ml-1">uyumlu ürünler</Link>
+                </div>
+              )}
+              {product.chassis && (
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Şasi</span>
+                  <span className="font-mono text-sm font-bold text-gray-800">{product.chassis}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Stock status */}
           {product.availableStock === 0 ? (
             <span className="inline-block text-sm text-red-600 font-medium">{t("prod2.detail.out_of_stock")}</span>

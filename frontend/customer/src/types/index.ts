@@ -52,6 +52,8 @@ export interface ProductDetail extends ProductListItem {
   metaDescription?: string;
   images: ProductImage[];
   variants: ProductVariant[];
+  oemPartNumber?: string;
+  chassis?: string;
 }
 
 export interface Campaign {

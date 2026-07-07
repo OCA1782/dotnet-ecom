@@ -25,6 +25,8 @@ public record CreateProductCommand(
     bool IsPublished,
     string? MetaTitle,
     string? MetaDescription,
+    string? OemPartNumber,
+    string? Chassis,
     int InitialStock = 0,
     bool IsFeatured = false
 ) : IRequest<Result<Guid>>;
@@ -84,6 +86,8 @@ public class CreateProductHandler(IApplicationDbContext db, IAuditService audit,
             IsFeatured = request.IsFeatured,
             MetaTitle = request.MetaTitle,
             MetaDescription = request.MetaDescription,
+            OemPartNumber = request.OemPartNumber,
+            Chassis = request.Chassis,
             CreatedByAdminId = currentUser.IsSuperAdmin ? null : currentUser.UserId,
         };
 
