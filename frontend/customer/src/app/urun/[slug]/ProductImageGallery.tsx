@@ -16,11 +16,30 @@ export default function ProductImageGallery({ images, productName }: Props) {
     return idx >= 0 ? idx : 0;
   });
   const [fullscreen, setFullscreen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const thumbsRef = useRef<HTMLDivElement>(null);
 
-  const prev = useCallback(() => setCurrent((c) => (c - 1 + images.length) % images.length), [images.length]);
-  const next = useCallback(() => setCurrent((c) => (c + 1) % images.length), [images.length]);
+  const prev = useCallback(() => { setCurrent((c) => (c - 1 + images.length) % images.length); setImgError(false); }, [images.length]);
+  const next = useCallback(() => { setCurrent((c) => (c + 1) % images.length); setImgError(false); }, [images.length]);
+
+  // Auto-scroll thumbnail strip to keep active thumb in view
+  useEffect(() => {
+    if (!thumbsRef.current || images.length <= 1) return;
+    const container = thumbsRef.current;
+    const thumb = container.children[current] as HTMLElement | undefined;
+    if (!thumb) return;
+    const containerLeft = container.scrollLeft;
+    const containerRight = containerLeft + container.clientWidth;
+    const thumbLeft = thumb.offsetLeft;
+    const thumbRight = thumbLeft + thumb.offsetWidth;
+    if (thumbLeft < containerLeft) {
+      container.scrollTo({ left: thumbLeft - 8, behavior: "smooth" });
+    } else if (thumbRight > containerRight) {
+      container.scrollTo({ left: thumbRight - container.clientWidth + 8, behavior: "smooth" });
+    }
+  }, [current, images.length]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -73,16 +92,26 @@ export default function ProductImageGallery({ images, productName }: Props) {
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={img.imageUrl}
-            alt={img.altText ?? productName}
-            className="object-contain w-full h-full p-8 select-none"
-            draggable={false}
-          />
+          {imgError ? (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-slate-300">
+              <span className="text-5xl">📦</span>
+              <span className="text-xs">Görsel yüklenemedi</span>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={img.imageUrl}
+              src={img.imageUrl}
+              alt={img.altText ?? productName}
+              className="object-contain w-full h-full p-8 select-none"
+              draggable={false}
+              onError={() => setImgError(true)}
+            />
+          )}
 
           <button
             onClick={() => setFullscreen(true)}
+            aria-label="Tam ekran görüntüle"
             className="absolute top-3 right-3 bg-white/80 hover:bg-white text-slate-700 rounded-xl p-2 opacity-0 group-hover:opacity-100 transition shadow-md"
           >
             <Maximize2 size={16} />
@@ -92,12 +121,14 @@ export default function ProductImageGallery({ images, productName }: Props) {
             <>
               <button
                 onClick={prev}
+                aria-label="Önceki görsel"
                 className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-slate-700 rounded-xl p-2 opacity-0 group-hover:opacity-100 transition shadow-md"
               >
                 <ChevronLeft size={22} />
               </button>
               <button
                 onClick={next}
+                aria-label="Sonraki görsel"
                 className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-slate-700 rounded-xl p-2 opacity-0 group-hover:opacity-100 transition shadow-md"
               >
                 <ChevronRight size={22} />
@@ -107,7 +138,8 @@ export default function ProductImageGallery({ images, productName }: Props) {
                 {images.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => setCurrent(i)}
+                    onClick={() => { setCurrent(i); setImgError(false); }}
+                    aria-label={`Görsel ${i + 1}`}
                     className={`h-1.5 rounded-full transition-all duration-300 ${i === current ? "bg-slate-800 w-5" : "bg-slate-400 w-1.5"}`}
                   />
                 ))}
@@ -117,16 +149,17 @@ export default function ProductImageGallery({ images, productName }: Props) {
         </div>
 
         {images.length > 1 && (
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          <div ref={thumbsRef} className="mt-4 flex gap-2 overflow-x-auto pb-1 scroll-smooth">
             {images.map((thumb, i) => (
               <button
                 key={thumb.id}
-                onClick={() => setCurrent(i)}
+                onClick={() => { setCurrent(i); setImgError(false); }}
+                aria-label={`${thumb.altText ?? productName} — ${i + 1}. görsel`}
                 className={`w-16 h-16 shrink-0 bg-slate-100 rounded-xl overflow-hidden border-2 transition-all ${
                   i === current ? "border-teal-500 shadow-md" : "border-transparent hover:border-slate-300"
                 }`}
               >
-                <Image src={thumb.imageUrl} alt={thumb.altText ?? ""} width={80} height={80} className="object-contain w-full h-full p-1" />
+                <Image src={thumb.imageUrl} alt={thumb.altText ?? `${productName} ${i + 1}`} width={80} height={80} className="object-contain w-full h-full p-1" />
               </button>
             ))}
           </div>
@@ -143,6 +176,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
             <span className="text-white/50 text-sm">{current + 1} / {images.length}</span>
             <button
               onClick={() => setFullscreen(false)}
+              aria-label="Tam ekranı kapat"
               className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl p-2 transition"
             >
               <X size={20} />
@@ -152,6 +186,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
           <div className="flex-1 flex items-center justify-center relative min-h-0 px-14">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={`fs-${img.imageUrl}`}
               src={img.imageUrl}
               alt={img.altText ?? productName}
               className="max-h-full max-w-full object-contain select-none"
@@ -162,12 +197,14 @@ export default function ProductImageGallery({ images, productName }: Props) {
               <>
                 <button
                   onClick={prev}
+                  aria-label="Önceki görsel"
                   className="absolute left-2 bg-white/10 hover:bg-white/20 text-white rounded-xl p-3 transition"
                 >
                   <ChevronLeft size={26} />
                 </button>
                 <button
                   onClick={next}
+                  aria-label="Sonraki görsel"
                   className="absolute right-2 bg-white/10 hover:bg-white/20 text-white rounded-xl p-3 transition"
                 >
                   <ChevronRight size={26} />
@@ -176,17 +213,25 @@ export default function ProductImageGallery({ images, productName }: Props) {
             )}
           </div>
 
+          {/* Swipe hint — shown briefly on mobile */}
+          {images.length > 1 && (
+            <p className="sm:hidden text-white/30 text-xs text-center pb-1 shrink-0">
+              ← kaydırarak gezin →
+            </p>
+          )}
+
           {images.length > 1 && (
             <div className="flex gap-2 justify-center overflow-x-auto px-4 py-3 shrink-0">
               {images.map((thumb, i) => (
                 <button
                   key={thumb.id}
                   onClick={() => setCurrent(i)}
+                  aria-label={`${thumb.altText ?? productName} — ${i + 1}. görsel`}
                   className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
                     i === current ? "border-teal-400" : "border-white/20 hover:border-white/50"
                   }`}
                 >
-                  <Image src={thumb.imageUrl} alt={thumb.altText ?? ""} width={56} height={56} className="object-contain w-full h-full p-0.5" />
+                  <Image src={thumb.imageUrl} alt={thumb.altText ?? `${productName} ${i + 1}`} width={56} height={56} className="object-contain w-full h-full p-0.5" />
                 </button>
               ))}
             </div>

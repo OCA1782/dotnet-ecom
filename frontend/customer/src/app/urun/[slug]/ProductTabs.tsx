@@ -62,12 +62,32 @@ export default function ProductTabs({ product, reviewCount }: Props) {
 
         {active === "compat" && (
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-3">Uyumlu Araç Modelleri</p>
-            <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-relaxed">
-              {product.name}
-            </div>
-            {product.shortDescription && (
-              <p className="mt-3 text-sm text-gray-500">{product.shortDescription}</p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">Uyumlu Araç / Şasi Bilgisi</p>
+            {(product.oemPartNumber || product.chassis) ? (
+              <div className="space-y-2">
+                {product.oemPartNumber && (
+                  <div className="flex items-center gap-3 bg-orange-50 border border-orange-100 rounded-xl px-4 py-3">
+                    <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-widest shrink-0">OEM</span>
+                    <span className="font-mono text-sm font-bold text-gray-800">{product.oemPartNumber}</span>
+                  </div>
+                )}
+                {product.chassis && (
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0">Şasi</span>
+                    <span className="font-mono text-sm font-bold text-gray-800">{product.chassis}</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 pt-1">
+                  Araç uyumluluğunu doğrulamak için OEM / parça numarasını yetkili servis veya katalog üzerinden kontrol edin.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-xl p-5 text-center">
+                <p className="text-sm text-gray-400">Bu ürün için araç uyumluluk bilgisi girilmemiş.</p>
+                {product.shortDescription && (
+                  <p className="mt-2 text-sm text-gray-500">{product.shortDescription}</p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -76,9 +96,21 @@ export default function ProductTabs({ product, reviewCount }: Props) {
           <div>
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-100">
-                {product.sku && (
+                {product.oemPartNumber && (
                   <tr>
                     <td className="py-2.5 pr-4 font-semibold text-gray-600 w-40">OEM / Parça No</td>
+                    <td className="py-2.5 text-gray-800 font-mono">{product.oemPartNumber}</td>
+                  </tr>
+                )}
+                {product.chassis && (
+                  <tr>
+                    <td className="py-2.5 pr-4 font-semibold text-gray-600 w-40">Şasi / Model</td>
+                    <td className="py-2.5 text-gray-800 font-mono">{product.chassis}</td>
+                  </tr>
+                )}
+                {product.sku && (
+                  <tr>
+                    <td className="py-2.5 pr-4 font-semibold text-gray-600 w-40">SKU</td>
                     <td className="py-2.5 text-gray-800 font-mono">{product.sku}</td>
                   </tr>
                 )}
