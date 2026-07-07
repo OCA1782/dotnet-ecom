@@ -1586,6 +1586,7 @@ export default function YonetimPage() {
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [testEmail, setTestEmail]               = useState("");
   const [testEmailSending, setTestEmailSending] = useState(false);
@@ -2008,6 +2009,7 @@ export default function YonetimPage() {
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       await api.put("/api/admin/settings", {
         ...settings,
@@ -2016,9 +2018,14 @@ export default function YonetimPage() {
         AdminRbacMatrix: JSON.stringify(rbacMatrix),
         AdminCustomRoles: JSON.stringify(customRoles),
       });
+      // Kayıt sonrası DB'den yeniden yükle — kalıcılığı doğrular
+      const fresh = await api.get<SiteSettings>("/api/admin/settings");
+      setSettings({ ...DEFAULTS, ...fresh });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-      window.dispatchEvent(new CustomEvent("ecom:settings-updated", { detail: settings }));
+      window.dispatchEvent(new CustomEvent("ecom:settings-updated", { detail: fresh }));
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Kaydedilemedi.");
     } finally { setSaving(false); }
   }
 
@@ -2078,6 +2085,11 @@ export default function YonetimPage() {
       {saved && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-lg">
           <CheckCircle size={16} /> {t("msg.saved", "Başarıyla kaydedildi")}
+        </div>
+      )}
+      {saveError && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-red-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-lg cursor-pointer" onClick={() => setSaveError(null)}>
+          <span>⚠</span> {saveError}
         </div>
       )}
 
