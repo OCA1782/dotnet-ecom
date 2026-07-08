@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 // ─── Detaylı araç modelleri ──────────────────────────────────────────────────
@@ -429,6 +429,8 @@ function mapCategoriesToNavBrands(data: ApiCategory[]): NavBrand[] {
 
 export default function SparePartsBrandNav({ initialBrands }: Props) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const [navBrands, setNavBrands] = useState<NavBrand[]>(initialBrands ?? []);
   const [openBrand, setOpenBrand]   = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
@@ -495,12 +497,19 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   }
 
   function handleBrandClick(brand: NavBrand) {
-    router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+    setNavigatingTo(brand.label);
+    setOpenBrand(null);
+    startTransition(() => {
+      router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+    });
   }
 
   function handleModelClick(_brand: NavBrand, model: NavModel) {
+    setNavigatingTo(model.name);
     setOpenBrand(null);
-    router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
+    startTransition(() => {
+      router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
+    });
   }
 
   const openBrandObj = openBrand ? navBrands.find(b => b.key === openBrand) ?? null : null;
@@ -512,6 +521,30 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
       className="relative bg-white border-b border-gray-100 shadow-sm"
       onMouseLeave={handleWrapperLeave}
     >
+      {/* Navigasyon yükleniyor göstergesi */}
+      {(isPending || navigatingTo) && (
+        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+          {/* İnce turuncu progress bar */}
+          <div className="h-0.5 bg-orange-200">
+            <div className="h-full bg-orange-500 animate-[progress_1.2s_ease-in-out_infinite]" style={{ width: "60%", animationName: "navprogress" }} />
+          </div>
+          <style>{`
+            @keyframes navprogress {
+              0%   { width: 0%;   margin-left: 0; }
+              50%  { width: 70%;  margin-left: 10%; }
+              100% { width: 0%;   margin-left: 100%; }
+            }
+          `}</style>
+          {/* Yönlendiriliyor bildirimi */}
+          <div className="absolute top-0.5 right-3 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-b-lg shadow-md flex items-center gap-1.5">
+            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            {navigatingTo ? `${navigatingTo} yükleniyor…` : "Yükleniyor…"}
+          </div>
+        </div>
+      )}
       {/* ── Pill şeridi + ok butonları ──────────────────────────────────── */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -606,18 +639,36 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
             </div>
             {/* Model grid — yandan görünüm, farklı renkler, büyük kart */}
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-2">
-              {models.map((model, idx) => (
-                <button
-                  key={model.id || model.name}
-                  onClick={() => handleModelClick(openBrandObj, model)}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all duration-150 group text-center bg-gray-50/60 hover:bg-orange-50/60"
-                >
-                  <div className="w-full h-20 flex items-center justify-center">
-                    <ModelImage brandKey={openBrandObj.key} modelName={model.name} idx={idx} imageUrl={model.imageUrl} />
-                  </div>
-                  <span className="text-[10px] font-semibold text-gray-600 group-hover:text-orange-600 leading-tight transition-colors line-clamp-2 w-full">{model.name}</span>
-                </button>
-              ))}
+              {models.map((model, idx) => {
+                const isNavigating = navigatingTo === model.name;
+                return (
+                  <button
+                    key={model.id || model.name}
+                    onClick={() => handleModelClick(openBrandObj, model)}
+                    disabled={isPending || navigatingTo !== null}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all duration-150 group text-center relative ${
+                      isNavigating
+                        ? "border-orange-400 bg-orange-50 shadow-md"
+                        : "border-gray-100 hover:border-orange-300 hover:shadow-md bg-gray-50/60 hover:bg-orange-50/60"
+                    }`}
+                  >
+                    <div className="w-full h-20 flex items-center justify-center relative">
+                      <ModelImage brandKey={openBrandObj.key} modelName={model.name} idx={idx} imageUrl={model.imageUrl} />
+                      {isNavigating && (
+                        <div className="absolute inset-0 bg-orange-50/80 flex items-center justify-center rounded-lg">
+                          <svg className="w-6 h-6 animate-spin text-orange-500" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-semibold leading-tight line-clamp-2 w-full transition-colors ${
+                      isNavigating ? "text-orange-600 font-bold" : "text-gray-600 group-hover:text-orange-600"
+                    }`}>{model.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

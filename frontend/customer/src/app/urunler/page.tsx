@@ -65,6 +65,22 @@ async function getBrands(): Promise<Brand[]> {
   } catch { return []; }
 }
 
+function extractBaseModel(vehicleModel: string): string {
+  // "Astra F" → "Astra", "Golf VIII" → "Golf", "3 Serisi E90" → "3 Serisi", "X5 E53" → "X5"
+  return vehicleModel
+    .replace(/\s+([A-Z]\d+[A-Za-z]?|[IVXLC]{1,6}|[A-Z]{1,2}\d*)$/, "")
+    .trim();
+}
+
+async function getSuggestedProducts(searchTerm: string, limit = 8): Promise<ProductListItem[]> {
+  try {
+    const data = await api.get<PaginatedList<ProductListItem>>(
+      `/api/products?page=1&pageSize=${limit}&search=${encodeURIComponent(searchTerm)}`
+    );
+    return data.items;
+  } catch { return []; }
+}
+
 async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList<ProductListItem>> {
   try {
     const qs = new URLSearchParams();
@@ -137,6 +153,16 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
     getBrands(), getProducts(params), getServerLang(), getSettings(), getVehicleNavBrands(),
   ]);
+
+  // Araç modeli araması sıfır sonuç döndürürse daha geniş önerileri çek
+  const noVehicleResults = params.arac && products.items.length === 0 && Number(params.sayfa ?? 1) === 1;
+  const baseModel = params.arac ? extractBaseModel(params.arac) : "";
+  const suggestedProducts = noVehicleResults && baseModel && baseModel !== params.arac
+    ? await getSuggestedProducts(baseModel)
+    : noVehicleResults && params.arac
+    ? await getSuggestedProducts(params.arac.split(" ")[0])
+    : [];
+
   const categories = params.arac && vehicleCats.length > 0 ? vehicleCats : allCategories;
   const t = (key: string) => translate(lang, key);
   const isSP = settings.CustomerTemplate === "spareparts";
@@ -327,12 +353,98 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           </div>
 
           {products.items.length === 0 ? (
-            <div className="text-center py-24 text-slate-400">
-              <p className="text-5xl mb-4">🔍</p>
-              <p className="text-lg font-medium text-slate-600">{t("prod2.list.no_results")}</p>
-              <Link href="/urunler" className="mt-3 inline-block text-sm font-semibold text-teal-600 hover:text-teal-800">
-                {t("prod2.filter.clear")}
-              </Link>
+            <div>
+              <div className="text-center py-12 text-slate-400">
+                <p className="text-5xl mb-4">🔍</p>
+                <p className="text-lg font-medium text-slate-700">
+                  {params.arac
+                    ? <><span className="text-orange-600 font-bold">&ldquo;{params.arac}&rdquo;</span> için ürün bulunamadı.</>
+                    : t("prod2.list.no_results")}
+                </p>
+                {params.arac && (
+                  <p className="text-sm text-slate-400 mt-1">
+                    Tam model eşleşmesi bulunamadı — daha geniş arama sonuçları aşağıda gösteriliyor.
+                  </p>
+                )}
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  {params.arac && (
+                    <Link
+                      href={`/urunler?s=${encodeURIComponent(params.arac.split(" ")[0])}`}
+                      className={`text-sm font-semibold px-4 py-2 rounded-full border transition ${
+                        isSP
+                          ? "border-orange-300 text-orange-600 hover:bg-orange-50"
+                          : "border-teal-300 text-teal-600 hover:bg-teal-50"
+                      }`}
+                    >
+                      &ldquo;{params.arac.split(" ")[0]}&rdquo; ara →
+                    </Link>
+                  )}
+                  <Link href="/urunler" className="text-sm font-semibold text-slate-400 hover:text-red-500 transition">
+                    Tüm Ürünlere Dön
+                  </Link>
+                </div>
+              </div>
+
+              {/* Önerilen ürünler — araç modeli araması için fallback */}
+              {suggestedProducts.length > 0 && (
+                <div className="mt-4">
+                  <div className={`flex items-center gap-2 mb-4 px-1 ${isSP ? "" : ""}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full inline-block ${isSP ? "bg-orange-500" : "bg-teal-500"}`} />
+                    <h3 className="text-sm font-extrabold text-gray-800">
+                      {baseModel && baseModel !== params.arac
+                        ? <>&ldquo;{baseModel}&rdquo; ile İlgili Ürünler</>
+                        : <>Önerilen Ürünler</>}
+                    </h3>
+                    <span className="text-xs text-gray-400">({suggestedProducts.length} ürün)</span>
+                  </div>
+                  <div data-product-grid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {suggestedProducts.map((product) => (
+                      <Link
+                        key={product.id}
+                        href={`/urun/${product.slug}`}
+                        className={`bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-all duration-200 group ${
+                          isSP
+                            ? "border border-gray-100 hover:shadow-lg hover:shadow-orange-100/50 shadow-sm"
+                            : "border border-teal-100 hover:shadow-xl hover:shadow-teal-100/50"
+                        }`}
+                      >
+                        <div className={`aspect-square flex items-center justify-center relative ${
+                          isSP ? "bg-white" : "bg-gradient-to-br from-teal-50 to-cyan-50"
+                        }`}>
+                          {product.discountPrice && (
+                            <span className={`absolute top-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow ${
+                              isSP ? "bg-orange-500" : "bg-gradient-to-r from-orange-400 to-pink-500"
+                            }`}>{t("prod2.list.on_sale")}</span>
+                          )}
+                          {product.imageUrl ? (
+                            <Image src={product.imageUrl} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" />
+                          ) : (
+                            <span className="text-4xl">📦</span>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          {product.brandName && (
+                            <p className={`text-xs font-medium mb-0.5 ${isSP ? "text-orange-500" : "text-teal-400"}`}>{product.brandName}</p>
+                          )}
+                          <h3 className={`font-semibold text-slate-800 line-clamp-2 text-sm transition-colors ${
+                            isSP ? "group-hover:text-orange-600" : "group-hover:text-teal-700"
+                          }`}>{product.name}</h3>
+                          <div className="mt-2 flex items-center gap-2">
+                            {product.discountPrice ? (
+                              <>
+                                <span className={`font-bold ${isSP ? "text-orange-600" : "text-teal-700"}`}>{formatPrice(product.discountPrice)}</span>
+                                <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
+                              </>
+                            ) : (
+                              <span className={`font-bold ${isSP ? "text-orange-600" : "text-teal-700"}`}>{formatPrice(product.price)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div data-product-grid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
