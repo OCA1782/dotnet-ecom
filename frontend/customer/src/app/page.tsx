@@ -10,7 +10,6 @@ import { type AnnouncementItem } from "@/components/AnnouncementsSection";
 import HeroSlider from "@/components/HeroSlider";
 import { getSettings } from "@/lib/settings";
 import SparePartsVehicleSelector from "@/components/templates/SparePartsVehicleSelector";
-import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SparePartsBrandNav";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
 
@@ -116,22 +115,9 @@ const FALLBACK_CAMPAIGNS: Campaign[] = [
   { id: "f4", title: "Çok Satanlar", subtitle: "En Çok Tercih Edilen", icon: "#1", colorScheme: "amber", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=cok-satan", linkText: "Hepsini Gör →", displayOrder: 3, isActive: true, isFeatured: true },
 ];
 
-async function getVehicleNavBrands(): Promise<NavBrand[]> {
-  try {
-    const data = await api.get<{ id: string; name: string; slug: string; imageUrl?: string; showInVehicleNav: boolean; subCategories: { id: string; name: string; imageUrl?: string }[] }[]>(
-      "/api/categories?onlyActive=true&showInVehicleNav=true"
-    );
-    const roots = data.filter(c => c.showInVehicleNav);
-    return roots.map(c => ({
-      key: c.slug, label: c.name, id: c.id,
-      models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
-    }));
-  } catch { return []; }
-}
-
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, topDiscountProducts, announcements, campaignsRaw, settings, lang, vehicleNavBrands] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getTopDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getVehicleNavBrands(),
+  const [categoriesRaw, products, discountProducts, topDiscountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getTopDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(),
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
@@ -161,10 +147,6 @@ export default async function HomePage() {
       parseTrustItem(settings.Spareparts_Trust3, { abbr: "30G",  title: "30 Gün İade",        desc: "Koşulsuz iade garantisi"     }),
       parseTrustItem(settings.Spareparts_Trust4, { abbr: "7/24", title: "Teknik Destek",      desc: "Uzman ekip her an hazır"     }),
     ];
-    const HOT_PARTS = parseList(
-      settings.Spareparts_HotParts,
-      ["Fren Diski","Motor Yağı","Hava Filtresi","Akü","Buji Seti","Amortisör","Debriyaj","Radyatör"]
-    ).map(label => ({ label, href: `/urunler?s=${encodeURIComponent(label)}` }));
     return (
       <div className="bg-[#f3f4f6]">
 
@@ -183,24 +165,6 @@ export default async function HomePage() {
                 className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full transition-all duration-150">
                 {t("home2.sp.b2b.apply")}
               </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Araç markası pill nav ── */}
-        <SparePartsBrandNav initialBrands={vehicleNavBrands} />
-
-        {/* ── En Çok Aranan Parçalar şeridi ── */}
-        <div className="bg-[#fff7ed] border-b border-orange-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest shrink-0">{t("home2.sp.hot.label")}</span>
-              {HOT_PARTS.map(p => (
-                <Link key={p.label} href={p.href}
-                  className="text-[11px] font-semibold text-gray-700 hover:text-orange-600 hover:underline transition-colors">
-                  {p.label}
-                </Link>
-              ))}
             </div>
           </div>
         </div>

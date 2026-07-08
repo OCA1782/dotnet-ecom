@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Pacifico } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SparePartsBrandNav";
+import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 import ChatWidget from "@/components/ChatWidget";
@@ -16,6 +19,18 @@ import { getSettings } from "@/lib/settings";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-pacifico" });
+
+async function getVehicleNavBrands(): Promise<NavBrand[]> {
+  try {
+    const data = await api.get<{ id: string; name: string; slug: string; showInVehicleNav: boolean; subCategories: { id: string; name: string; imageUrl?: string }[] }[]>(
+      "/api/categories?onlyActive=true&showInVehicleNav=true"
+    );
+    return data.filter(c => c.showInVehicleNav).map(c => ({
+      key: c.slug, label: c.name, id: c.id,
+      models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
+    }));
+  } catch { return []; }
+}
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -55,7 +70,7 @@ const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe"
 type TemplateName = typeof VALID_TEMPLATES[number];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const settings = await getSettings();
+  const [settings, vehicleNavBrands] = await Promise.all([getSettings(), getVehicleNavBrands()]);
 
   // Template kalıcılığı: API başarısızsa env var, o da yoksa son template
   const envFallback = process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE ?? "modern";
@@ -84,17 +99,43 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     );
   }
 
+  const HOT_PARTS = (settings.Spareparts_HotParts?.trim()
+    ? settings.Spareparts_HotParts.split(",").map((s: string) => s.trim()).filter(Boolean)
+    : ["Fren Diski","Motor Yağı","Hava Filtresi","Akü","Buji Seti","Amortisör","Debriyaj","Radyatör"]
+  ).map((label: string) => ({ label, href: `/urunler?s=${encodeURIComponent(label)}` }));
+
   return (
     <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
       <body className="min-h-full flex flex-col">
         <GoogleProvider>
         <I18nProvider>
         <CompareProvider>
-          <Header
-            logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
-            siteName={siteName}
-            languageSwitcherEnabled={languageSwitcherEnabled}
-          />
+          {/* Spareparts şablonunda Header + araç nav şeridi birlikte sabitlenir */}
+          <div className={template === "spareparts" ? "sticky top-0 z-50" : undefined}>
+            <Header
+              logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
+              siteName={siteName}
+              languageSwitcherEnabled={languageSwitcherEnabled}
+            />
+            {template === "spareparts" && (
+              <>
+                <SparePartsBrandNav initialBrands={vehicleNavBrands} />
+                <div className="bg-[#fff7ed] border-b border-orange-100">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest shrink-0">EN ÇOK ARANAN</span>
+                      {HOT_PARTS.map((p: { label: string; href: string }) => (
+                        <Link key={p.label} href={p.href}
+                          className="text-[11px] font-semibold text-gray-700 hover:text-orange-600 hover:underline transition-colors">
+                          {p.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <main className="flex-1">{children}</main>
           <Footer />
           <ChatWidget />

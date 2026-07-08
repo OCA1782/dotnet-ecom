@@ -521,29 +521,44 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
       className="relative bg-white border-b border-gray-100 shadow-sm"
       onMouseLeave={handleWrapperLeave}
     >
-      {/* Navigasyon yükleniyor göstergesi */}
+      {/* Tam ekran navigasyon yükleniyor göstergesi */}
       {(isPending || navigatingTo) && (
-        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
-          {/* İnce turuncu progress bar */}
-          <div className="h-0.5 bg-orange-200">
-            <div className="h-full bg-orange-500 animate-[progress_1.2s_ease-in-out_infinite]" style={{ width: "60%", animationName: "navprogress" }} />
-          </div>
+        <>
           <style>{`
             @keyframes navprogress {
-              0%   { width: 0%;   margin-left: 0; }
-              50%  { width: 70%;  margin-left: 10%; }
-              100% { width: 0%;   margin-left: 100%; }
+              0%   { width: 5%;  margin-left: 0; }
+              50%  { width: 65%; margin-left: 15%; }
+              100% { width: 5%;  margin-left: 95%; }
             }
           `}</style>
-          {/* Yönlendiriliyor bildirimi */}
-          <div className="absolute top-0.5 right-3 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-b-lg shadow-md flex items-center gap-1.5">
-            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-            </svg>
-            {navigatingTo ? `${navigatingTo} yükleniyor…` : "Yükleniyor…"}
+          {/* Üst progress bar — viewport'a sabitlenmiş */}
+          <div className="fixed top-0 left-0 right-0 z-[9999] h-1.5 bg-orange-100 pointer-events-none overflow-hidden">
+            <div
+              className="h-full bg-orange-500"
+              style={{
+                animation: "navprogress 1.4s ease-in-out infinite",
+                boxShadow: "0 0 10px rgba(249,115,22,0.7)",
+              }}
+            />
           </div>
-        </div>
+          {/* Merkez alt toast */}
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+            <div className="bg-gray-900/90 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 animate-spin text-orange-400" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider mb-0.5">Yükleniyor</p>
+                <p className="text-sm font-extrabold text-white leading-snug max-w-[200px] truncate">
+                  {navigatingTo ?? "Sayfa"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
       )}
       {/* ── Pill şeridi + ok butonları ──────────────────────────────────── */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
