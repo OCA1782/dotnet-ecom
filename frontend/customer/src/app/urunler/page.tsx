@@ -10,7 +10,6 @@ import MobileFilterSheet from "./MobileFilterSheet";
 import { getSettings } from "@/lib/settings";
 import { getServerLang } from "@/lib/server-i18n";
 import { t as translate } from "@/lib/i18n";
-import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SparePartsBrandNav";
 
 type SearchParams = Promise<{
   s?: string;
@@ -42,19 +41,6 @@ async function getVehicleCategories(vehicleModel: string): Promise<Category[]> {
       `/api/products/vehicle-categories?vehicleModel=${encodeURIComponent(vehicleModel)}`
     );
     return data.map(c => ({ id: c.id, name: `${c.name} (${c.count})`, slug: c.slug, subCategories: [] }));
-  } catch { return []; }
-}
-
-async function getVehicleNavBrands(): Promise<NavBrand[]> {
-  try {
-    const data = await api.get<{ id: string; name: string; slug: string; imageUrl?: string; showInVehicleNav: boolean; subCategories: { id: string; name: string; imageUrl?: string }[] }[]>(
-      "/api/categories?onlyActive=true&showInVehicleNav=true"
-    );
-    const roots = data.filter(c => c.showInVehicleNav);
-    return roots.map(c => ({
-      key: c.slug, label: c.name, id: c.id,
-      models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
-    }));
   } catch { return []; }
 }
 
@@ -148,10 +134,10 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [allCategories, vehicleCats, brands, products, lang, settings, vehicleNavBrands] = await Promise.all([
+  const [allCategories, vehicleCats, brands, products, lang, settings] = await Promise.all([
     getCategories(),
     params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
-    getBrands(), getProducts(params), getServerLang(), getSettings(), getVehicleNavBrands(),
+    getBrands(), getProducts(params), getServerLang(), getSettings(),
   ]);
 
   // Araç modeli araması sıfır sonuç döndürürse daha geniş önerileri çek
@@ -210,9 +196,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
   return (
     <div>
-    {/* Brand nav — spareparts template only */}
-    {isSP && <SparePartsBrandNav initialBrands={vehicleNavBrands} />}
-
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Arama / marka+model başlığı — spareparts */}
       {isSP && (params.s || params.arac || params.oemNo || params.chassis) && (
