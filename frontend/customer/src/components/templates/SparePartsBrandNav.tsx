@@ -509,14 +509,15 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     });
   }
 
-  function handleModelClick(_brand: NavBrand, model: NavModel) {
-    setNavigatingTo(model.name);
+  function handleModelClick(brand: NavBrand, model: NavModel) {
+    setNavigatingTo(`${brand.label} ${model.name}`);
     setOpenBrand(null);
     startTransition(() => {
+      const markaParam = `&marka=${encodeURIComponent(brand.label)}`;
       if (model.id) {
-        router.push(`/urunler?kategoriler=${model.id}&arac=${encodeURIComponent(model.name)}`);
+        router.push(`/urunler?kategoriler=${model.id}&arac=${encodeURIComponent(model.name)}${markaParam}`);
       } else {
-        router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
+        router.push(`/urunler?arac=${encodeURIComponent(model.name)}${markaParam}`);
       }
     });
   }
@@ -547,9 +548,16 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
               style={{ animation: "navprogress 1.4s ease-in-out infinite", boxShadow: "0 0 10px rgba(249,115,22,0.7)" }}
             />
           </div>
-          {/* Ekran ortası kart */}
-          <div className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center">
-            <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center gap-5 px-10 py-9 mx-4" style={{ maxWidth: "300px", width: "100%" }}>
+          {/* Ekran ortası kart — dışına tıklanınca overlay kapanır */}
+          <div
+            className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center"
+            onClick={() => setNavigatingTo(null)}
+          >
+            <div
+              className="bg-white rounded-3xl shadow-2xl flex flex-col items-center gap-5 px-10 py-9 mx-4"
+              style={{ maxWidth: "300px", width: "100%" }}
+              onClick={e => e.stopPropagation()}
+            >
               <div className="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg" style={{ boxShadow: "0 8px 24px rgba(249,115,22,0.45)" }}>
                 <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>

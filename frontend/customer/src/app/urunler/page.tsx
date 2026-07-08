@@ -19,6 +19,7 @@ type SearchParams = Promise<{
   chassis?: string;    // chassis / VIN number
   kategori?: string;
   kategoriler?: string; // category ID — araç menüsünden gelen (SparePartsBrandNav)
+  marka?: string;       // vehicle brand label — from SparePartsBrandNav (breadcrumb display)
   minFiyat?: string;
   maxFiyat?: string;
   sayfa?: string;
@@ -106,7 +107,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     : params.chassis
     ? `Şasi ${params.chassis} Uyumlu Parçalar`
     : params.arac
-    ? `${params.arac} Uyumlu Yedek Parçalar`
+    ? `${params.marka ? `${params.marka} ` : ""}${params.arac} Uyumlu Yedek Parçalar`
     : params.s
     ? `"${params.s}" için Arama Sonuçları`
     : params.siralama === "yeni"     ? "Yeni Sezon Ürünleri"
@@ -165,6 +166,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     if (merged.oemNo) qs.set("oemNo", merged.oemNo);
     if (merged.chassis) qs.set("chassis", merged.chassis);
     if (merged.kategoriler) qs.set("kategoriler", merged.kategoriler);
+    if (merged.marka) qs.set("marka", merged.marka);
     if (merged.kategori) qs.set("kategori", merged.kategori);
     if (merged.minFiyat) qs.set("minFiyat", merged.minFiyat);
     if (merged.maxFiyat) qs.set("maxFiyat", merged.maxFiyat);
@@ -204,15 +206,22 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
             <span>/</span>
+            {params.marka && params.arac && (
+              <>
+                <Link href={`/urunler?s=${encodeURIComponent(params.marka)}&marka=${encodeURIComponent(params.marka)}`} className="hover:text-orange-500 transition-colors">{params.marka}</Link>
+                <span>/</span>
+              </>
+            )}
             <span className="text-gray-600 font-semibold">
               {params.oemNo ? `OEM: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` : (params.arac ?? params.s)}
             </span>
           </nav>
           <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">
-            {params.oemNo ? `OEM / Parça No: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` : (params.arac ?? params.s)}
+            {params.oemNo ? `OEM / Parça No: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` :
+             params.marka && params.arac ? `${params.marka} ${params.arac}` : (params.arac ?? params.s)}
           </h1>
           {params.arac && (
-            <p className="text-xs text-gray-400 mt-0.5">{params.arac} uyumlu parçalar gösteriliyor</p>
+            <p className="text-xs text-gray-400 mt-0.5">{params.marka ? `${params.marka} ` : ""}{params.arac} uyumlu parçalar gösteriliyor</p>
           )}
           {params.oemNo && (
             <p className="text-xs text-gray-400 mt-0.5">OEM / parça numarasına göre sonuçlar</p>
