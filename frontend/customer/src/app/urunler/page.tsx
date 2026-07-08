@@ -73,7 +73,8 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     qs.set("page", params.sayfa ?? "1");
     qs.set("pageSize", "12");
     if (params.s) qs.set("search", params.s);
-    if (params.arac) qs.set("vehicleModel", params.arac);
+    // kategoriler (categoryId) varsa indexed FK sorgusu kullan — LIKE'tan çok daha hızlı
+    if (params.arac && !params.kategoriler) qs.set("vehicleModel", params.arac);
     if (params.motor) qs.set("search", [params.s, params.motor].filter(Boolean).join(" "));
     if (params.oemNo) qs.set("oemPartNo", params.oemNo);
     if (params.chassis) qs.set("chassis", params.chassis);
@@ -136,7 +137,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const params = await searchParams;
   const [allCategories, vehicleCats, brands, products, lang, settings] = await Promise.all([
     getCategories(),
-    params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
+    params.arac && !params.kategoriler ? getVehicleCategories(params.arac) : Promise.resolve([]),
     getBrands(), getProducts(params), getServerLang(), getSettings(),
   ]);
 

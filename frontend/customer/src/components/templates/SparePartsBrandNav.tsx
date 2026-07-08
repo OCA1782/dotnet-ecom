@@ -440,6 +440,11 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   const pillRef    = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // ── Navigasyon tamamlanınca overlay'i kapat ──────────────────────────────
+  useEffect(() => {
+    if (!isPending) setNavigatingTo(null);
+  }, [isPending]);
+
   // ── API'den araç kategorilerini çek; initialBrands verilmişse atla ───────
   useEffect(() => {
     if (initialBrands && initialBrands.length > 0) return;
@@ -508,7 +513,11 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     setNavigatingTo(model.name);
     setOpenBrand(null);
     startTransition(() => {
-      router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
+      if (model.id) {
+        router.push(`/urunler?kategoriler=${model.id}&arac=${encodeURIComponent(model.name)}`);
+      } else {
+        router.push(`/urunler?arac=${encodeURIComponent(model.name)}`);
+      }
     });
   }
 

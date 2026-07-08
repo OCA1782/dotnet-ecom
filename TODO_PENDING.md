@@ -1,6 +1,6 @@
-# TODO Pending
+﻿# TODO Pending
 
-> Son güncelleme: 07.07.2026 — AdminLintAuditJob (manuel)
+> Son güncelleme: 08.07.2026 17:40 UTC (AdminLintAuditJob)
 
 ## Özet
 
@@ -9,14 +9,14 @@
 | Toplam uyarı | 0 |
 | Toplam hata | 0 |
 | Etkilenen dosya | 0 |
+| Komut | `frontend/admin/node_modules/.bin/eslint src --format json` |
 
-## Durum
+## Öncelikli Aksiyonlar
 
-Tüm lint hataları giderildi:
+## İlk Çalışma Sırası
 
-- ✅ `src/app/(admin)/versiyonlar/page.tsx` — `react-hooks/set-state-in-effect` doğru kural ile disable; gereksiz `exhaustive-deps` comment kaldırıldı
 
 ## Not
 
 - Bu dosya `AdminLintAuditJob` tarafından güncellenir.
-- Bir sonraki lint koşusunda yeni uyarılar listelenecektir.
+- İlerleme, her dosya düzeltildikten sonra yeni lint koşusuyla yeniden değerlendirilmelidir.

@@ -76,22 +76,24 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 || (p.SKU != null && p.SKU.Contains(request.Search))
                 || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
-        // Word-boundary vehicle model search: "Yaris P1" must NOT match "Yaris P10"
+        // Word-boundary vehicle model search: "Yaris P1" must NOT match "Yaris P10".
+        // StartsWith patterns (no leading wildcard) allow SQL Server to use the Name index.
+        // Leading-space patterns cover middle/end positions.
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
         {
-            var vm = request.VehicleModel;
+            var vm = request.VehicleModel.Trim();
             query = query.Where(p =>
+                p.Name == vm ||
+                p.Name.StartsWith(vm + " ") ||
+                p.Name.StartsWith(vm + "/") ||
+                p.Name.StartsWith(vm + "-") ||
                 EF.Functions.Like(p.Name, $"% {vm} %") ||
                 EF.Functions.Like(p.Name, $"% {vm}") ||
                 EF.Functions.Like(p.Name, $"% {vm}/%") ||
                 EF.Functions.Like(p.Name, $"% {vm}-%") ||
                 EF.Functions.Like(p.Name, $"% {vm}(%") ||
                 EF.Functions.Like(p.Name, $"% {vm}|%") ||
-                EF.Functions.Like(p.Name, $"% {vm},%") ||
-                EF.Functions.Like(p.Name, $"{vm} %") ||
-                EF.Functions.Like(p.Name, $"{vm}/%") ||
-                EF.Functions.Like(p.Name, $"{vm}-%") ||
-                p.Name == vm
+                EF.Functions.Like(p.Name, $"% {vm},%")
             );
         }
 

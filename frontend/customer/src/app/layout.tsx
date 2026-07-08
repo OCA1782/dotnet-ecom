@@ -4,8 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import SparePartsBrandNav, { type NavBrand } from "@/components/templates/SparePartsBrandNav";
-import { api } from "@/lib/api";
+import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 
 export const dynamic = "force-dynamic";
 import ChatWidget from "@/components/ChatWidget";
@@ -19,18 +18,6 @@ import { getSettings } from "@/lib/settings";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-pacifico" });
-
-async function getVehicleNavBrands(): Promise<NavBrand[]> {
-  try {
-    const data = await api.get<{ id: string; name: string; slug: string; showInVehicleNav: boolean; subCategories: { id: string; name: string; imageUrl?: string }[] }[]>(
-      "/api/categories?onlyActive=true&showInVehicleNav=true"
-    );
-    return data.filter(c => c.showInVehicleNav).map(c => ({
-      key: c.slug, label: c.name, id: c.id,
-      models: c.subCategories.map(s => ({ name: s.name, id: s.id, imageUrl: s.imageUrl })),
-    }));
-  } catch { return []; }
-}
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -70,7 +57,7 @@ const VALID_TEMPLATES = ["modern", "minimal", "bold", "dark", "showcase", "luxe"
 type TemplateName = typeof VALID_TEMPLATES[number];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [settings, vehicleNavBrands] = await Promise.all([getSettings(), getVehicleNavBrands()]);
+  const settings = await getSettings();
 
   // Template kalıcılığı: API başarısızsa env var, o da yoksa son template
   const envFallback = process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE ?? "modern";
@@ -119,7 +106,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             />
             {template === "spareparts" && (
               <>
-                <SparePartsBrandNav initialBrands={vehicleNavBrands} />
+                <SparePartsBrandNav initialBrands={[]} />
                 <div className="bg-[#fff7ed] border-b border-orange-100">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
                     <div className="flex items-center gap-3 flex-wrap">
