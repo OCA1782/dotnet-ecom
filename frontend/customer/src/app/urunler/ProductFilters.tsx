@@ -74,6 +74,7 @@ export default function ProductFilters({
     { value: "cok-satan",    label: t("prod2.sort.bestseller") },
     { value: "fiyat-artan",  label: t("prod2.sort.price_asc") },
     { value: "fiyat-azalan", label: t("prod2.sort.price_desc") },
+    { value: "indirim",      label: "İndirime Göre" },
   ];
 
   // Parse active attribute pairs: "Renk:Kırmızı,Beden:M" → [{key,value}]

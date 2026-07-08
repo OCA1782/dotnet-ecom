@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
+import { formatPrice } from "@/lib/utils";
 import type { Category, ProductListItem, PaginatedList, Campaign } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import { type AnnouncementItem } from "@/components/AnnouncementsSection";
@@ -77,6 +78,13 @@ async function getDiscountProducts(): Promise<ProductListItem[]> {
   } catch { return []; }
 }
 
+async function getTopDiscountProducts(): Promise<ProductListItem[]> {
+  try {
+    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=5&onSale=true&sortBy=discount-desc");
+    return data.items;
+  } catch { return []; }
+}
+
 async function getAnnouncements(): Promise<AnnouncementItem[]> {
   try {
     const data = await api.get<{ items: AnnouncementItem[] }>("/api/announcements?pageSize=20");
@@ -122,8 +130,8 @@ async function getVehicleNavBrands(): Promise<NavBrand[]> {
 }
 
 export default async function HomePage() {
-  const [categoriesRaw, products, discountProducts, announcements, campaignsRaw, settings, lang, vehicleNavBrands] = await Promise.all([
-    getCategories(), getFeaturedProducts(), getDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getVehicleNavBrands(),
+  const [categoriesRaw, products, discountProducts, topDiscountProducts, announcements, campaignsRaw, settings, lang, vehicleNavBrands] = await Promise.all([
+    getCategories(), getFeaturedProducts(), getDiscountProducts(), getTopDiscountProducts(), getAnnouncements(), getFeaturedCampaigns(), getSettings(), getServerLang(), getVehicleNavBrands(),
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
@@ -387,6 +395,62 @@ export default async function HomePage() {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── İndirime Göre ── en yüksek indirim yüzdeli ürünler */}
+              {topDiscountProducts.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                    <h3 className="font-extrabold text-gray-900 text-sm flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"/>
+                      İndirime Göre
+                    </h3>
+                    <Link href="/urunler?indirimli=true&siralama=indirim" className="text-xs text-orange-600 font-bold hover:underline">
+                      Tümünü Gör →
+                    </Link>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex flex-col divide-y divide-gray-50">
+                      {topDiscountProducts.map((p, idx) => {
+                        const discountPct = p.discountPrice && p.price > 0
+                          ? Math.round(((p.price - p.discountPrice) / p.price) * 100)
+                          : 0;
+                        return (
+                          <Link key={p.id} href={`/urunler/${p.slug}`}
+                            className="flex items-center gap-3 py-2.5 group hover:bg-orange-50/40 rounded-xl transition-colors duration-150 px-1">
+                            {/* Sıra numarası */}
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                              idx === 0 ? "bg-orange-500 text-white" :
+                              idx === 1 ? "bg-orange-400 text-white" :
+                              idx === 2 ? "bg-orange-300 text-white" :
+                              "bg-gray-100 text-gray-500"
+                            }`}>{idx + 1}</span>
+                            {/* Ürün resmi */}
+                            <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 shrink-0 overflow-hidden">
+                              {p.imageUrl
+                                ? <Image src={p.imageUrl} alt={p.name} width={40} height={40} className="w-full h-full object-contain" />
+                                : <span className="w-full h-full flex items-center justify-center text-lg">🔧</span>
+                              }
+                            </div>
+                            {/* Ürün adı + marka */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-800 leading-snug line-clamp-1 group-hover:text-orange-700 transition-colors">{p.name}</p>
+                              {p.brandName && <p className="text-[10px] text-gray-400 leading-none mt-0.5">{p.brandName}</p>}
+                            </div>
+                            {/* Fiyat + indirim */}
+                            <div className="flex flex-col items-end shrink-0">
+                              <span className="text-xs font-extrabold text-orange-600">{formatPrice(p.discountPrice ?? p.price)}</span>
+                              <span className="text-[10px] text-gray-400 line-through leading-none">{formatPrice(p.price)}</span>
+                              {discountPct > 0 && (
+                                <span className="mt-0.5 bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-%{discountPct}</span>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}

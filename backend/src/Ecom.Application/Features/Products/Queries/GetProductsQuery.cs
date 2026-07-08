@@ -251,6 +251,13 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             "createdDate-desc" => query.OrderByDescending(p => p.CreatedDate),
             "dataSource-asc"   => query.OrderBy(p => p.DataSource),
             "dataSource-desc"  => query.OrderByDescending(p => p.DataSource),
+            // Sort by discount percentage: (Price - DiscountPrice) / Price DESC
+            "discount-desc" => query
+                .Where(p => p.DiscountPrice != null && p.Price > 0)
+                .OrderByDescending(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
+            "discount-asc"  => query
+                .Where(p => p.DiscountPrice != null && p.Price > 0)
+                .OrderBy(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
             _                  => query.OrderByDescending(p => p.CreatedDate),
         };
 

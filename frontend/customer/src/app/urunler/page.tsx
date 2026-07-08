@@ -88,6 +88,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     else if (params.siralama === "cok-satan") qs.set("sortBy", "bestseller");
     else if (params.siralama === "fiyat-artan") qs.set("sortBy", "price-asc");
     else if (params.siralama === "fiyat-azalan") qs.set("sortBy", "price-desc");
+    else if (params.siralama === "indirim") qs.set("sortBy", "discount-desc");
     return await api.get<PaginatedList<ProductListItem>>(`/api/products?${qs}`);
   } catch {
     return { items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false, hasPreviousPage: false };
@@ -312,6 +313,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     "cok-satan": t("prod2.sort.bestseller"),
                     "fiyat-artan": t("prod2.sort.price_asc"),
                     "fiyat-azalan": t("prod2.sort.price_desc"),
+                    indirim: "İndirime Göre",
                   }[params.siralama] ?? params.siralama}
                   href={buildUrl({ siralama: undefined, sayfa: "1" })}
                 />
