@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle, FolderInput, Tag } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle, FolderInput, Tag, Package } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -217,6 +217,18 @@ export default function AdminProductsPage() {
   const [bulkAssignModal, setBulkAssignModal] = useState<"category" | "brand" | null>(null);
   const [bulkAssignId, setBulkAssignId] = useState("");
   const [bulkAssigning, setBulkAssigning] = useState(false);
+
+  // Toplu stok güncelle modal (seçili)
+  const [bulkStockModal, setBulkStockModal] = useState(false);
+  const [bulkStockForm, setBulkStockForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
+  const [bulkStockUpdating, setBulkStockUpdating] = useState(false);
+
+  // Koşullu stok güncelle modal
+  const [condStockModal, setCondStockModal] = useState(false);
+  const [condStockForm, setCondStockForm] = useState({ minStock: "", maxStock: "", quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
+  const [condStockPreview, setCondStockPreview] = useState<number | null>(null);
+  const [condStockPreviewLoading, setCondStockPreviewLoading] = useState(false);
+  const [condStockUpdating, setCondStockUpdating] = useState(false);
 
   // Duplicate products panel
   const [dupGroups, setDupGroups] = useState<DupGroup[] | null>(null);
@@ -459,6 +471,72 @@ export default function AdminProductsPage() {
       setSelectedDups(new Set());
     } catch { setMsg({ text: "Mükerrer ürünler yüklenemedi.", ok: false }); }
     finally { setLoadingDups(false); }
+  }
+
+  async function fetchCondStockPreview() {
+    if (!condStockForm.minStock && !condStockForm.maxStock) { setCondStockPreview(null); return; }
+    setCondStockPreviewLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (condStockForm.minStock !== "") qs.set("minStock", condStockForm.minStock);
+      if (condStockForm.maxStock !== "") qs.set("maxStock", condStockForm.maxStock);
+      const data = await api.get<{ count: number }>(`/api/admin/stocks/condition-preview?${qs}`);
+      setCondStockPreview(data.count);
+    } catch { setCondStockPreview(null); }
+    finally { setCondStockPreviewLoading(false); }
+  }
+
+  async function handleCondStockUpdate() {
+    if (!condStockForm.quantity) return;
+    if (!condStockForm.minStock && !condStockForm.maxStock) return;
+    setCondStockUpdating(true);
+    try {
+      const result = await api.post<{ succeeded: number; failed: number }>(
+        "/api/admin/stocks/bulk-adjust-by-condition",
+        {
+          minStock: condStockForm.minStock !== "" ? Number(condStockForm.minStock) : null,
+          maxStock: condStockForm.maxStock !== "" ? Number(condStockForm.maxStock) : null,
+          quantity: Number(condStockForm.quantity),
+          movementType: condStockForm.movementType,
+          note: condStockForm.note || null,
+          criticalStockLevel: condStockForm.criticalStockLevel !== "" ? Number(condStockForm.criticalStockLevel) : null,
+        }
+      );
+      setMsg({ text: `${result.succeeded} ürün stoku güncellendi${result.failed > 0 ? `, ${result.failed} hatalı` : ""}.`, ok: result.failed === 0 });
+      setCondStockModal(false);
+      setCondStockForm({ minStock: "", maxStock: "", quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
+      setCondStockPreview(null);
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Hata", ok: false });
+    } finally { setCondStockUpdating(false); }
+  }
+
+  async function handleBulkStockUpdate() {
+    if (!bulkStockForm.quantity || selected.size === 0) return;
+    setBulkStockUpdating(true);
+    try {
+      const result = await api.post<{ succeeded: number; failed: number; errors: string[] }>(
+        "/api/admin/stocks/bulk-adjust",
+        {
+          productIds: [...selected],
+          quantity: Number(bulkStockForm.quantity),
+          movementType: bulkStockForm.movementType,
+          note: bulkStockForm.note || null,
+          criticalStockLevel: bulkStockForm.criticalStockLevel !== "" ? Number(bulkStockForm.criticalStockLevel) : null,
+        }
+      );
+      setMsg({
+        text: `${result.succeeded} ürün stoku güncellendi${result.failed > 0 ? `, ${result.failed} hatalı` : ""}.`,
+        ok: result.failed === 0,
+      });
+      setBulkStockModal(false);
+      setSelected(new Set());
+      setBulkStockForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Toplu stok güncelleme hatası", ok: false });
+    } finally { setBulkStockUpdating(false); }
   }
 
   async function handleDeleteDups() {
@@ -739,6 +817,12 @@ export default function AdminProductsPage() {
             className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
           >
             <Percent size={14} /> {t("ui.bulkPriceUpdate", "Toplu Fiyat")}
+          </button>
+          <button
+            onClick={() => { setCondStockModal(true); setCondStockForm({ minStock: "", maxStock: "", quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" }); setCondStockPreview(null); }}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
+          >
+            <Package size={14} /> Koşullu Stok
           </button>
           <button onClick={openCreate}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
@@ -1029,6 +1113,13 @@ export default function AdminProductsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-xl transition disabled:opacity-50"
             >
               <Tag size={12} /> Marka Değiştir
+            </button>
+            <button
+              onClick={() => { setBulkStockModal(true); setBulkStockForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" }); }}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600/80 hover:bg-emerald-600 rounded-xl transition disabled:opacity-50"
+            >
+              <Package size={12} /> Toplu Stok
             </button>
             <button
               onClick={() => setBulkDeleteModal(true)}
@@ -1514,6 +1605,187 @@ export default function AdminProductsPage() {
               >
                 {bulkAssigning ? "Uygulanıyor..." : "Uygula"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toplu Stok Güncelle Modal */}
+      {bulkStockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Package size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Toplu Stok Güncelle</h2>
+                  <p className="text-xs text-slate-500">{selected.size} ürün seçili</p>
+                </div>
+              </div>
+              <button onClick={() => setBulkStockModal(false)} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Hareket Tipi</label>
+                <select value={bulkStockForm.movementType}
+                  onChange={e => setBulkStockForm(f => ({ ...f, movementType: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                  <option value="StockIn">Stok Girişi</option>
+                  <option value="StockOut">Stok Çıkışı</option>
+                  <option value="Adjustment">Düzeltme</option>
+                  <option value="Return">İade</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Miktar</label>
+                <input type="number" min={1}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={bulkStockForm.quantity}
+                  onChange={e => setBulkStockForm(f => ({ ...f, quantity: e.target.value }))}
+                  placeholder="Adet" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Kritik Eşik <span className="text-slate-400 font-normal">(boş bırakırsanız değişmez)</span>
+                </label>
+                <input type="number" min={0}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={bulkStockForm.criticalStockLevel}
+                  onChange={e => setBulkStockForm(f => ({ ...f, criticalStockLevel: e.target.value }))}
+                  placeholder="İsteğe bağlı" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
+                <input
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={bulkStockForm.note}
+                  onChange={e => setBulkStockForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="İsteğe bağlı" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleBulkStockUpdate} disabled={bulkStockUpdating || !bulkStockForm.quantity}
+                className="flex-1 bg-emerald-600 text-white font-semibold py-2.5 rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                {bulkStockUpdating ? <><Loader2 size={14} className="animate-spin" /> İşleniyor...</> : `${selected.size} Ürünü Güncelle`}
+              </button>
+              <button onClick={() => setBulkStockModal(false)} disabled={bulkStockUpdating}
+                className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm disabled:opacity-50">İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Koşullu Stok Güncelleme Modali */}
+      {condStockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Package size={16} className="text-emerald-600" /> Koşullu Stok Güncelle
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Belirlenen stok aralığındaki tüm ürünlere aynı hareket uygulanır</p>
+              </div>
+              <button onClick={() => setCondStockModal(false)} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Hızlı Koşul</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Tükenenler (= 0)", min: "0", max: "0" },
+                  { label: "Kritik (1–5)", min: "1", max: "5" },
+                  { label: "Düşük (1–10)", min: "1", max: "10" },
+                  { label: "Stoklu (> 0)", min: "1", max: "" },
+                ].map(p => (
+                  <button key={p.label}
+                    onClick={() => { setCondStockForm(f => ({ ...f, minStock: p.min, maxStock: p.max })); setCondStockPreview(null); }}
+                    className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition ${condStockForm.minStock === p.min && condStockForm.maxStock === p.max ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-300 hover:border-emerald-400 hover:text-emerald-700"}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Minimum Stok (≥)</label>
+                <input type="number" min={0}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={condStockForm.minStock}
+                  onChange={e => { setCondStockForm(f => ({ ...f, minStock: e.target.value })); setCondStockPreview(null); }}
+                  placeholder="Boş = sınırsız" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Maksimum Stok (≤)</label>
+                <input type="number" min={0}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={condStockForm.maxStock}
+                  onChange={e => { setCondStockForm(f => ({ ...f, maxStock: e.target.value })); setCondStockPreview(null); }}
+                  placeholder="Boş = sınırsız" />
+              </div>
+            </div>
+
+            <div>
+              <button onClick={fetchCondStockPreview} disabled={condStockPreviewLoading || (!condStockForm.minStock && !condStockForm.maxStock)}
+                className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-40">
+                {condStockPreviewLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                Kaç ürün etkilenecek?
+              </button>
+              {condStockPreview !== null && (
+                <p className="mt-2 text-sm font-semibold text-emerald-700">
+                  → <span className="text-lg">{condStockPreview}</span> ürün bu koşula uyuyor
+                </p>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Hareket Tipi</label>
+                <select value={condStockForm.movementType}
+                  onChange={e => setCondStockForm(f => ({ ...f, movementType: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                  <option value="StockIn">Stok Girişi</option>
+                  <option value="StockOut">Stok Çıkışı</option>
+                  <option value="Adjustment">Düzeltme</option>
+                  <option value="Return">İade</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Miktar</label>
+                  <input type="number" min={1}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={condStockForm.quantity}
+                    onChange={e => setCondStockForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Adet" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Kritik Eşik <span className="font-normal text-slate-400">(opsiyonel)</span></label>
+                  <input type="number" min={0}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={condStockForm.criticalStockLevel}
+                    onChange={e => setCondStockForm(f => ({ ...f, criticalStockLevel: e.target.value }))} placeholder="Değişmez" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Not <span className="font-normal text-slate-400">(opsiyonel)</span></label>
+                <input
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  value={condStockForm.note}
+                  onChange={e => setCondStockForm(f => ({ ...f, note: e.target.value }))} placeholder="Açıklama" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={handleCondStockUpdate}
+                disabled={condStockUpdating || !condStockForm.quantity || (!condStockForm.minStock && !condStockForm.maxStock)}
+                className="flex-1 bg-emerald-600 text-white font-semibold py-2.5 rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                {condStockUpdating ? <><Loader2 size={14} className="animate-spin" /> Uygulanıyor...</> : condStockPreview !== null ? `${condStockPreview} Ürünü Güncelle` : "Uygula"}
+              </button>
+              <button onClick={() => setCondStockModal(false)} disabled={condStockUpdating}
+                className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm disabled:opacity-50">İptal</button>
             </div>
           </div>
         </div>

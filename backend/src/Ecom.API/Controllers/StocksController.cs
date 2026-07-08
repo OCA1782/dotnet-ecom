@@ -56,6 +56,34 @@ public class StocksController(IMediator mediator) : ControllerBase
         return Ok(new { message = "Stok güncellendi." });
     }
 
+    [HttpPost("bulk-adjust")]
+    public async Task<IActionResult> BulkAdjust([FromBody] BulkAdjustStockCommand command, CancellationToken ct)
+    {
+        if (command.ProductIds == null || command.ProductIds.Count == 0)
+            return BadRequest(new { error = "En az bir ürün seçilmelidir." });
+        var result = await mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("bulk-adjust-by-condition")]
+    public async Task<IActionResult> BulkAdjustByCondition([FromBody] BulkAdjustStockByConditionCommand command, CancellationToken ct)
+    {
+        if (command.MinStock == null && command.MaxStock == null)
+            return BadRequest(new { error = "En az bir stok koşulu belirtilmelidir." });
+        var result = await mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("condition-preview")]
+    public async Task<IActionResult> ConditionPreview(
+        [FromQuery] int? minStock,
+        [FromQuery] int? maxStock,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetStockConditionCountQuery(minStock, maxStock), ct);
+        return Ok(new { count = result });
+    }
+
     [HttpDelete("{productId:guid}")]
     public async Task<IActionResult> Delete(Guid productId, CancellationToken ct)
     {

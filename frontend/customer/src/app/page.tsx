@@ -128,7 +128,7 @@ export default async function HomePage() {
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
   const campaigns = campaignsRaw.length > 0 ? campaignsRaw : FALLBACK_CAMPAIGNS;
-  const template = settings.CustomerTemplate ?? "modern";
+  const template = settings.CustomerTemplate ?? process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE ?? "modern";
 
   /* ══════════════════════════════════════════════════════
      SPAREPARTS — Yedek Parça / Oto tarzı modern

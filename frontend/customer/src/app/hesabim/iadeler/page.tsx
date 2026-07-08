@@ -39,7 +39,26 @@ export default function IadelerPage() {
   }, [user, page]);
 
   if (authLoading || loading) {
-    return <div className="py-16 text-center text-slate-400">{t("returns.loading")}</div>;
+    return (
+      <div className="animate-pulse">
+        <div className="h-7 bg-gray-200 rounded w-32 mb-8" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-36" />
+                  <div className="h-3 bg-gray-100 rounded w-24" />
+                </div>
+                <div className="h-6 bg-gray-200 rounded-full w-20 shrink-0" />
+              </div>
+              <div className="h-3 bg-gray-100 rounded w-full" />
+              <div className="h-3 bg-gray-100 rounded w-2/3" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

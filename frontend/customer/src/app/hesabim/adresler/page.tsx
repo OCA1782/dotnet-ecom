@@ -130,7 +130,27 @@ export default function AddressesPage() {
   }
 
   if (authLoading || loading) {
-    return <div className="py-16 text-center text-slate-400">{t("addr.loading")}</div>;
+    return (
+      <div className="animate-pulse">
+        <div className="flex items-center justify-between mb-8">
+          <div className="h-7 bg-gray-200 rounded w-40" />
+          <div className="h-9 bg-gray-200 rounded-xl w-28" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-4 bg-gray-200 rounded w-28" />
+                <div className="h-5 bg-gray-100 rounded-full w-16" />
+              </div>
+              <div className="h-3 bg-gray-100 rounded w-full" />
+              <div className="h-3 bg-gray-100 rounded w-3/4" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

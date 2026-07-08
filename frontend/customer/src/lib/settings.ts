@@ -21,7 +21,9 @@ export async function getSettings(): Promise<Record<string, string>> {
     _lastKnownSettings = data; // başarılı yanıtı sakla
     return data;
   } catch {
-    // API erişilemez — en son bilinen settings'i döndür (şablon kaybolmaz)
-    return _lastKnownSettings ?? {};
+    if (_lastKnownSettings) return _lastKnownSettings;
+    // Son çare: .env.local'daki NEXT_PUBLIC_FALLBACK_TEMPLATE — process yeniden başlasa bile şablon korunur
+    const fallback = process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE;
+    return fallback ? { CustomerTemplate: fallback } : {};
   }
 }

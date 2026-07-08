@@ -66,11 +66,6 @@ public static class DbInitializer
     {
         var adminEmail = config["Seed:AdminEmail"] ?? "admin@ecom.com";
 
-        var adminPassword = config["Seed:AdminPassword"];
-        if (string.IsNullOrWhiteSpace(adminPassword))
-            throw new InvalidOperationException(
-                "Seed:AdminPassword yapılandırması eksik. .env dosyasında SEED_ADMIN_PASSWORD tanımlayın.");
-
         var existingUsers = await db.Users
             .IgnoreQueryFilters()
             .Include(u => u.Roles)
@@ -129,6 +124,12 @@ public static class DbInitializer
 
             return;
         }
+
+        // Admin henüz yok — ilk kurulumda password zorunlu
+        var adminPassword = config["Seed:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+            throw new InvalidOperationException(
+                "Seed:AdminPassword yapılandırması eksik. appsettings.Development.json'a veya ortam değişkenine Seed__AdminPassword ekleyin.");
 
         var admin = new User
         {
