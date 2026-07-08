@@ -431,6 +431,8 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const [cancelClickCount, setCancelClickCount] = useState(0);
+  const [cancelled, setCancelled] = useState(false);
   const [navBrands, setNavBrands] = useState<NavBrand[]>(initialBrands ?? []);
   const [openBrand, setOpenBrand]   = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
@@ -442,8 +444,27 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
 
   // ── Navigasyon tamamlanınca overlay'i kapat ──────────────────────────────
   useEffect(() => {
-    if (!isPending) setNavigatingTo(null);
+    if (!isPending) {
+      setNavigatingTo(null);
+      setCancelClickCount(0);
+      setCancelled(false);
+    }
   }, [isPending]);
+
+  function handleOverlayClick() {
+    if (cancelled) return;
+    const next = cancelClickCount + 1;
+    setCancelClickCount(next);
+    if (next >= 4) {
+      setCancelled(true);
+      setTimeout(() => {
+        setNavigatingTo(null);
+        setCancelClickCount(0);
+        setCancelled(false);
+        router.push("/");
+      }, 1600);
+    }
+  }
 
   // ── API'den araç kategorilerini çek; initialBrands verilmişse atla ───────
   useEffect(() => {
@@ -548,27 +569,49 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
               style={{ animation: "navprogress 1.4s ease-in-out infinite", boxShadow: "0 0 10px rgba(249,115,22,0.7)" }}
             />
           </div>
-          {/* Ekran ortası kart — dışına tıklanınca overlay kapanır */}
+          {/* Ekran ortası kart — 4 kez tıklanınca arama iptal edilir */}
           <div
             className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center"
-            onClick={() => setNavigatingTo(null)}
+            onClick={handleOverlayClick}
           >
             <div
               className="bg-white rounded-3xl shadow-2xl flex flex-col items-center gap-5 px-10 py-9 mx-4"
               style={{ maxWidth: "300px", width: "100%" }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg" style={{ boxShadow: "0 8px 24px rgba(249,115,22,0.45)" }}>
-                <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest mb-2">Yükleniyor</p>
-                <p className="text-base font-extrabold text-gray-900 leading-snug">{navigatingTo ?? "Sayfa"}</p>
-                <p className="text-xs text-gray-400 mt-1.5">Ürünler getiriliyor…</p>
-              </div>
+              {cancelled ? (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center shadow-sm">
+                    <svg className="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Arama İptal Edildi</p>
+                    <p className="text-base font-extrabold text-gray-800 leading-snug">Aramadan çıkıldı</p>
+                    <p className="text-xs text-gray-400 mt-1.5">Anasayfaya yönlendiriliyorsunuz…</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg" style={{ boxShadow: "0 8px 24px rgba(249,115,22,0.45)" }}>
+                    <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest mb-2">Yükleniyor</p>
+                    <p className="text-base font-extrabold text-gray-900 leading-snug">{navigatingTo ?? "Sayfa"}</p>
+                    <p className="text-xs text-gray-400 mt-1.5">Ürünler getiriliyor…</p>
+                  </div>
+                  {cancelClickCount > 0 && (
+                    <p className="text-[11px] text-gray-400 text-center -mt-2">
+                      İptal için {4 - cancelClickCount} kez daha tıklayın
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </>
