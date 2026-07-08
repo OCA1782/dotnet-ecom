@@ -521,7 +521,7 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
       className="relative bg-white border-b border-gray-100 shadow-sm"
       onMouseLeave={handleWrapperLeave}
     >
-      {/* Tam ekran navigasyon yükleniyor göstergesi */}
+      {/* Tam ekran navigasyon yükleniyor overlay */}
       {(isPending || navigatingTo) && (
         <>
           <style>{`
@@ -531,30 +531,26 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
               100% { width: 5%;  margin-left: 95%; }
             }
           `}</style>
-          {/* Üst progress bar — viewport'a sabitlenmiş */}
+          {/* Üst progress bar */}
           <div className="fixed top-0 left-0 right-0 z-[9999] h-1.5 bg-orange-100 pointer-events-none overflow-hidden">
             <div
               className="h-full bg-orange-500"
-              style={{
-                animation: "navprogress 1.4s ease-in-out infinite",
-                boxShadow: "0 0 10px rgba(249,115,22,0.7)",
-              }}
+              style={{ animation: "navprogress 1.4s ease-in-out infinite", boxShadow: "0 0 10px rgba(249,115,22,0.7)" }}
             />
           </div>
-          {/* Merkez alt toast */}
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
-            <div className="bg-gray-900/90 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 animate-spin text-orange-400" viewBox="0 0 24 24" fill="none">
+          {/* Ekran ortası kart */}
+          <div className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center">
+            <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center gap-5 px-10 py-9 mx-4" style={{ maxWidth: "300px", width: "100%" }}>
+              <div className="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg" style={{ boxShadow: "0 8px 24px rgba(249,115,22,0.45)" }}>
+                <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider mb-0.5">Yükleniyor</p>
-                <p className="text-sm font-extrabold text-white leading-snug max-w-[200px] truncate">
-                  {navigatingTo ?? "Sayfa"}
-                </p>
+              <div className="text-center">
+                <p className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest mb-2">Yükleniyor</p>
+                <p className="text-base font-extrabold text-gray-900 leading-snug">{navigatingTo ?? "Sayfa"}</p>
+                <p className="text-xs text-gray-400 mt-1.5">Ürünler getiriliyor…</p>
               </div>
             </div>
           </div>
