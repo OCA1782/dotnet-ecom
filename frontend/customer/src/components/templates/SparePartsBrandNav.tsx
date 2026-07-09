@@ -547,14 +547,9 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     setOpenBrand(null);
     startTransition(() => {
       const markaParam = `&marka=${encodeURIComponent(brand.label)}`;
-      if (brand.id) {
-        // brand.id (marka UUID) → backend pre-filter: CategoryId IN (brand ve alt kategorileri)
-        // arac (model adı) → backend vehicleModel LIKE araması
-        // İkisi birlikte: marka alt kümesinde LIKE → 111K yerine ~5K satır
-        router.push(`/urunler?kategoriler=${brand.id}&arac=${encodeURIComponent(model.name)}${markaParam}`);
-      } else {
-        router.push(`/urunler?arac=${encodeURIComponent(model.name)}${markaParam}`);
-      }
+      // VehicleModel indexed column handles model filtering — do NOT send kategoriler
+      // (vehicle nav brand UUID is not a product category — products live in part-type tree)
+      router.push(`/urunler?arac=${encodeURIComponent(model.name)}${markaParam}`);
     });
   }
 

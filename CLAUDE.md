@@ -25,8 +25,7 @@ Aşağıdaki davranışlar önceki sessiyonlarda kasıtlı olarak eklendi. Deği
 
 | Davranış | Neden |
 |---|---|
-| `handleModelClick`: brand.id varsa `?kategoriler={brand-uuid}&arac={modelName}&marka={label}` | brand UUID pre-filter + vehicleModel LIKE: 111K→~5K satır |
-| `handleModelClick`: brand.id KULLANILIR, model.id değil | model.id ürün CategoryId'si ile eşleşmez (farklı granülarite) |
+| `handleModelClick`: `?arac={modelName}&marka={label}` — kategoriler GÖNDERİLMEZ | Araç nav brand UUID'si ürün kategorisi değil (ürünler "Otomotiv > Parça" ağacında); VehicleModel index yeterli |
 | `useEffect([isPending])`: isPending=false → `setNavigatingTo(null)` sıfırlanır | Sonsuz overlay hatası önlenir |
 | İptal butonu: 2 tıklama onay akışı (İptal Et → Evet, aramayı iptal et) | Yanlışlıkla iptal önlenir |
 | Yükleniyor modalı: `${brand.label} ${model.name}` metni | "Mercedes C Serisi W206" formatı |
