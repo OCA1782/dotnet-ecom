@@ -25,7 +25,7 @@ public static class DependencyInjection
             if (dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
                 options.UseNpgsql(connStr);
             else
-                options.UseSqlServer(connStr);
+                options.UseSqlServer(connStr, sql => sql.CommandTimeout(120));
         });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());

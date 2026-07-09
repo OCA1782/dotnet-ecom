@@ -30,29 +30,43 @@ public class JobScheduler(
 
         logger.LogInformation("JobScheduler başladı — {Count} job kayıtlı.", _jobs.Length);
 
+        // Give LocalDB 60 seconds to warm up before the first job run
+        await Task.Delay(60_000, stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            var siteSettings = await LoadSiteSettingsAsync(stoppingToken);
-			foreach (var job in _jobs)
-			{
-				if (stateManager.IsPaused(job.Name)) continue;
-				if (_running.GetValueOrDefault(job.Name)) continue;
+            try
+            {
+                var siteSettings = await LoadSiteSettingsAsync(stoppingToken);
+                foreach (var job in _jobs)
+                {
+                    if (stateManager.IsPaused(job.Name)) continue;
+                    if (_running.GetValueOrDefault(job.Name)) continue;
 
-				var now = DateTime.UtcNow;
-				var lastRun = _lastRuns.GetValueOrDefault(job.Name, DateTime.MinValue);
-				var elapsed = (now - lastRun).TotalMinutes;
+                    var now = DateTime.UtcNow;
+                    var lastRun = _lastRuns.GetValueOrDefault(job.Name, DateTime.MinValue);
+                    var elapsed = (now - lastRun).TotalMinutes;
 
-				var isManual = stateManager.ShouldTrigger(job.Name);
-				var effectiveInterval = stateManager.GetEffectiveInterval(job.Name, job.IntervalMinutes);
+                    var isManual = stateManager.ShouldTrigger(job.Name);
+                    var effectiveInterval = stateManager.GetEffectiveInterval(job.Name, job.IntervalMinutes);
 
-				var shouldRun =
-					isManual ||
-					(ShouldAutoRun(job.Name, now, siteSettings) && elapsed >= effectiveInterval);
+                    var shouldRun =
+                        isManual ||
+                        (ShouldAutoRun(job.Name, now, siteSettings) && elapsed >= effectiveInterval);
 
-				if (shouldRun)
-					_ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
-			}
-			
+                    if (shouldRun)
+                        _ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "JobScheduler döngü hatası — 30s sonra yeniden deneniyor");
+            }
+
             // Wait up to 30s, but wake immediately on a manual trigger signal
             var signal = _triggerSignal.Task;
             await Task.WhenAny(signal, Task.Delay(30_000, stoppingToken));
