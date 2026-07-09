@@ -19,17 +19,17 @@ public class GetVehicleCategoriesQueryHandler(IApplicationDbContext db) : IReque
         var catIdList = await db.Products
             .Where(p => p.IsActive && p.IsPublished)
             .Where(p =>
-                EF.Functions.Like(p.Name, $"% {vm} %") ||
-                EF.Functions.Like(p.Name, $"% {vm}") ||
-                EF.Functions.Like(p.Name, $"% {vm}/%") ||
-                EF.Functions.Like(p.Name, $"% {vm}-%") ||
-                EF.Functions.Like(p.Name, $"% {vm}(%") ||
-                EF.Functions.Like(p.Name, $"% {vm}|%") ||
-                EF.Functions.Like(p.Name, $"% {vm},%") ||
-                EF.Functions.Like(p.Name, $"{vm} %") ||
-                EF.Functions.Like(p.Name, $"{vm}/%") ||
-                EF.Functions.Like(p.Name, $"{vm}-%") ||
-                p.Name == vm
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm} %") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}/%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}-%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}(%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}|%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm},%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm} %") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm}/%") ||
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm}-%") ||
+                EF.Functions.Collate(p.Name, "Turkish_CI_AS") == vm
             )
             .Select(p => p.CategoryId)
             .ToListAsync(cancellationToken);

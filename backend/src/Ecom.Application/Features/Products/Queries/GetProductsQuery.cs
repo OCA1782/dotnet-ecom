@@ -72,9 +72,14 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             query = query.Where(p => p.ImportedFromSourceId != null || p.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
-            query = query.Where(p => p.Name.Contains(request.Search)
-                || (p.SKU != null && p.SKU.Contains(request.Search))
-                || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
+        {
+            var s = request.Search;
+            var sp = $"%{s}%";
+            query = query.Where(p =>
+                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), sp)
+                || (p.SKU != null && p.SKU.Contains(s))
+                || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), sp)));
+        }
 
         // Vehicle model search — sequential two-tier strategy:
         // Tier 1: VehicleModel indexed column (sub-millisecond prefix search)

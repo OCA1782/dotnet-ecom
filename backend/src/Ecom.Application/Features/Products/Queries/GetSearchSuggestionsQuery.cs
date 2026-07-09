@@ -28,9 +28,11 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         var q = request.Q.Trim();
         var items = new List<SearchSuggestionItem>();
 
+        var likePat = $"%{q}%";
+
         // Kategoriler (max 2)
         var categories = await db.Categories
-            .Where(c => !c.IsDeleted && c.Name.Contains(q))
+            .Where(c => !c.IsDeleted && EF.Functions.Like(EF.Functions.Collate(c.Name, "Turkish_CI_AS"), likePat))
             .OrderBy(c => c.Name)
             .Take(2)
             .Select(c => new { c.Name, c.Slug, c.Icon })
@@ -41,7 +43,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
 
         // Markalar (max 2)
         var brands = await db.Brands
-            .Where(b => !b.IsDeleted && b.Name.Contains(q))
+            .Where(b => !b.IsDeleted && EF.Functions.Like(EF.Functions.Collate(b.Name, "Turkish_CI_AS"), likePat))
             .OrderBy(b => b.Name)
             .Take(2)
             .Select(b => new { b.Name, b.Slug, b.Icon })
@@ -57,8 +59,9 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
             .Include(p => p.Brand)
             .Include(p => p.Images.Where(i => i.IsMain))
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (p.Name.Contains(q) || (p.SKU != null && p.SKU.Contains(q))
-                    || (p.Brand != null && p.Brand.Name.Contains(q))))
+                && (EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), likePat)
+                    || (p.SKU != null && p.SKU.Contains(q))
+                    || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), likePat))))
             .OrderByDescending(p => p.Name.StartsWith(q))
             .ThenBy(p => p.Name)
             .Take(productLimit)
@@ -76,8 +79,9 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         // Toplam eşleşen ürün sayısı (dropdown "X sonuç" için)
         int totalProducts = await db.Products
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (p.Name.Contains(q) || (p.SKU != null && p.SKU.Contains(q))
-                    || (p.Brand != null && p.Brand.Name.Contains(q))))
+                && (EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), likePat)
+                    || (p.SKU != null && p.SKU.Contains(q))
+                    || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), likePat))))
             .CountAsync(cancellationToken);
 
         items.AddRange(products.Select(p => new SearchSuggestionItem(

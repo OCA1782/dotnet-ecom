@@ -156,10 +156,10 @@ else
   fail "SparePartsBrandNav: showCancelBtn eksik"
 fi
 
-if grep -q "kategoriler=\${brand.id}" "$SPNAV" 2>/dev/null; then
-  pass "SparePartsBrandNav: handleModelClick kategoriler brand UUID kullanıyor (pre-filter)"
+if ! grep -q "kategoriler=\${brand.id}" "$SPNAV" 2>/dev/null && grep -q "arac=\${encodeURIComponent(model.name)}" "$SPNAV" 2>/dev/null; then
+  pass "SparePartsBrandNav: handleModelClick arac kullanıyor, kategoriler YOK (VehicleModel index ile)"
 else
-  fail "SparePartsBrandNav: handleModelClick kategoriler eksik — LIKE sorgusu çok yavaş!"
+  fail "SparePartsBrandNav: handleModelClick arac parametresi eksik veya hatalı kategoriler var"
 fi
 
 if grep -q 'params.arac) qs.set("vehicleModel"' "$PAGE" 2>/dev/null; then
