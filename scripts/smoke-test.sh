@@ -3,6 +3,11 @@
 # Kullanım: bash scripts/smoke-test.sh
 # Her değişiklik öncesi ve sonrası çalıştır. Tüm testler PASS olmalı.
 
+# Proje kökünde olduğumuzdan emin ol
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 API="http://localhost:5124"
 FRONTEND="http://localhost:3000"
 PASS=0
@@ -145,22 +150,22 @@ else
   fail "SparePartsBrandNav: navigatingTo temizleme kodu eksik"
 fi
 
-if grep -q "cancelClickCount" "$SPNAV" 2>/dev/null; then
-  pass "SparePartsBrandNav: 4-tıklama overlay iptali var"
+if grep -q "showCancelBtn" "$SPNAV" 2>/dev/null; then
+  pass "SparePartsBrandNav: overlay iptal butonu (showCancelBtn) var"
 else
-  fail "SparePartsBrandNav: cancelClickCount eksik"
+  fail "SparePartsBrandNav: showCancelBtn eksik"
 fi
 
-if grep -q "kategoriler=\${model.id}" "$SPNAV" 2>/dev/null; then
-  pass "SparePartsBrandNav: handleModelClick kategoriler UUID kullanıyor"
+if grep -q "kategoriler=\${brand.id}" "$SPNAV" 2>/dev/null; then
+  pass "SparePartsBrandNav: handleModelClick kategoriler brand UUID kullanıyor (pre-filter)"
 else
   fail "SparePartsBrandNav: handleModelClick kategoriler eksik — LIKE sorgusu çok yavaş!"
 fi
 
-if grep -q "params.arac && !params.kategoriler" "$PAGE" 2>/dev/null; then
-  pass "urunler/page.tsx: vehicleModel LIKE kategoriler varsa skip"
+if grep -q 'params.arac) qs.set("vehicleModel"' "$PAGE" 2>/dev/null; then
+  pass "urunler/page.tsx: vehicleModel her zaman arac varsa gönderiliyor"
 else
-  fail "urunler/page.tsx: LIKE skip kodu eksik"
+  fail "urunler/page.tsx: vehicleModel arac koşulu eksik"
 fi
 
 if grep -q "params.marka" "$PAGE" 2>/dev/null; then

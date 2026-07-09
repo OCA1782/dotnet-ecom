@@ -76,25 +76,44 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 || (p.SKU != null && p.SKU.Contains(request.Search))
                 || (p.Brand != null && p.Brand.Name.Contains(request.Search)));
 
-        // Word-boundary vehicle model search: "Yaris P1" must NOT match "Yaris P10".
-        // StartsWith patterns (no leading wildcard) allow SQL Server to use the Name index.
-        // Leading-space patterns cover middle/end positions.
+        // Vehicle model search — sequential two-tier strategy:
+        // Tier 1: VehicleModel indexed column (sub-millisecond prefix search)
+        // Tier 2: Name LIKE fallback — only runs if Tier 1 returns 0 results
+        //   (avoids 74K row full-scan when VehicleModel is already populated)
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
         {
             var vm = request.VehicleModel.Trim();
-            query = query.Where(p =>
-                p.Name == vm ||
-                p.Name.StartsWith(vm + " ") ||
-                p.Name.StartsWith(vm + "/") ||
-                p.Name.StartsWith(vm + "-") ||
-                EF.Functions.Like(p.Name, $"% {vm} %") ||
-                EF.Functions.Like(p.Name, $"% {vm}") ||
-                EF.Functions.Like(p.Name, $"% {vm}/%") ||
-                EF.Functions.Like(p.Name, $"% {vm}-%") ||
-                EF.Functions.Like(p.Name, $"% {vm}(%") ||
-                EF.Functions.Like(p.Name, $"% {vm}|%") ||
-                EF.Functions.Like(p.Name, $"% {vm},%")
-            );
+            var baseVm = StripGenerationCode(vm); // "A Serisi W176" → "A Serisi"
+
+            var tier1Query = query.Where(p =>
+                p.VehicleModel != null && (
+                    EF.Functions.Like(p.VehicleModel, vm + "%") ||
+                    (baseVm != vm && EF.Functions.Like(p.VehicleModel, baseVm + "%"))
+                ));
+
+            var tier1Count = await tier1Query.CountAsync(cancellationToken);
+
+            if (tier1Count > 0)
+            {
+                query = tier1Query;
+            }
+            else
+            {
+                // Fallback: Name LIKE for products not yet tagged with VehicleModel
+                query = query.Where(p =>
+                    p.Name == vm ||
+                    p.Name.StartsWith(vm + " ") ||
+                    p.Name.StartsWith(vm + "/") ||
+                    p.Name.StartsWith(vm + "-") ||
+                    EF.Functions.Like(p.Name, $"% {vm} %") ||
+                    EF.Functions.Like(p.Name, $"% {vm}") ||
+                    EF.Functions.Like(p.Name, $"% {vm}/%") ||
+                    EF.Functions.Like(p.Name, $"% {vm}-%") ||
+                    EF.Functions.Like(p.Name, $"% {vm}(%") ||
+                    EF.Functions.Like(p.Name, $"% {vm}|%") ||
+                    EF.Functions.Like(p.Name, $"% {vm},%")
+                );
+            }
         }
 
         // OEM search: checks OemPartNumber field (future imports) AND Name (existing data)
@@ -289,4 +308,13 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
     }
 
     private record AttrPair(string Key, string Value);
+
+    // Mirrors frontend extractBaseModel: "A Serisi W176" → "A Serisi", "3 Serisi E90" → "3 Serisi"
+    private static string StripGenerationCode(string vehicleModel)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(
+            vehicleModel.Trim(),
+            @"\s+([A-Z]\d+[A-Za-z]?|[IVXLC]{1,6}|[A-Z]{1,2}\d*)$",
+            "").Trim();
+    }
 }

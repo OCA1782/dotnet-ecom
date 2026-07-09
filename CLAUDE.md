@@ -25,9 +25,10 @@ Aşağıdaki davranışlar önceki sessiyonlarda kasıtlı olarak eklendi. Deği
 
 | Davranış | Neden |
 |---|---|
-| `handleModelClick`: model.id varsa `?kategoriler={uuid}&arac={name}&marka={label}` | 16s → 0.3s performans (48×) |
+| `handleModelClick`: brand.id varsa `?kategoriler={brand-uuid}&arac={modelName}&marka={label}` | brand UUID pre-filter + vehicleModel LIKE: 111K→~5K satır |
+| `handleModelClick`: brand.id KULLANILIR, model.id değil | model.id ürün CategoryId'si ile eşleşmez (farklı granülarite) |
 | `useEffect([isPending])`: isPending=false → `setNavigatingTo(null)` sıfırlanır | Sonsuz overlay hatası önlenir |
-| 4-tıklama overlay iptali: `cancelClickCount >= 4` → "Aramadan çıkıldı" + router.push("/") | Kullanıcı isteği |
+| İptal butonu: 2 tıklama onay akışı (İptal Et → Evet, aramayı iptal et) | Yanlışlıkla iptal önlenir |
 | Yükleniyor modalı: `${brand.label} ${model.name}` metni | "Mercedes C Serisi W206" formatı |
 | `SparePartsBrandNav` layout.tsx'te sticky header içinde | Tüm sayfalarda sabit nav |
 
@@ -35,8 +36,8 @@ Aşağıdaki davranışlar önceki sessiyonlarda kasıtlı olarak eklendi. Deği
 
 | Davranış | Neden |
 |---|---|
-| `if (params.arac && !params.kategoriler) qs.set("vehicleModel", ...)` | kategoriler varsa LIKE skip edilir |
-| `params.arac && !params.kategoriler ? getVehicleCategories(...) : []` | kategoriler varsa API çağrısı skip |
+| `if (params.arac) qs.set("vehicleModel", ...)` | arac varsa her zaman vehicleModel LIKE gönderilir |
+| `params.arac ? getVehicleCategories(...) : []` | arac varsa her zaman araç-özgü kategoriler yüklenir (sidebar) |
 | Breadcrumb: `Anasayfa / {marka} / {arac}` | params.marka varsa marka segmenti |
 | `marka?: string` SearchParams tipinde | URL'den marka etiketi taşınır |
 | `export const dynamic = "force-dynamic"` | Settings her render'da fresh gelir |
@@ -45,7 +46,8 @@ Aşağıdaki davranışlar önceki sessiyonlarda kasıtlı olarak eklendi. Deği
 
 | Davranış | Neden |
 |---|---|
-| VehicleModel: `p.Name.StartsWith(vm + " ")` vb. | Index kullanabilir LIKE pattern |
+| VehicleModel arama — SEQUENTIAL iki aşamalı: önce `CountAsync` (index seek), eğer > 0 → sadece `VehicleModel LIKE` kullan, aksi halde Name LIKE fallback | OR birleştirme yerine sıralı → 74K satır taramasından kaçınır |
+| `StripGenerationCode`: "A Serisi W176" → "A Serisi" | "A Serisi W176%" ve "A Serisi%" her iki prefix de aranır |
 | CategoryId BFS traverse | Alt kategorileri de kapsar |
 
 ### D. layout.tsx (`frontend/customer/src/app/layout.tsx`)
@@ -60,8 +62,10 @@ Aşağıdaki davranışlar önceki sessiyonlarda kasıtlı olarak eklendi. Deği
 | Davranış | Neden |
 |---|---|
 | 8 ürün `IsFeatured=1` | Homepage "Öne Çıkan Ürünler" bölümü |
-| `IX_Products_Name` index (SQL Server) | VehicleModel LIKE hızı |
+| `IX_Products_Name` index (SQL Server) | Name prefix LIKE hızı |
+| `IX_Products_VehicleModel` index (migration: AddProductVehicleModel) | VehicleModel LIKE hızı — 25K+ ürün indexed |
 | SKU nullable | `IsRequired(false)` — import uyumluluğu |
+| ~25K ürün VehicleModel doldurulmuş (Phase 1: prefix match, Phase 2: chassis code) | `scripts/backfill-vehicle-model.ps1` ile yeni ürünler için çalıştırılabilir |
 
 ---
 

@@ -31,6 +31,7 @@ public class Product : BaseEntity
 
     public string? OemPartNumber { get; set; }
     public string? Chassis { get; set; }
+    public string? VehicleModel { get; set; }
 
     public Guid? ImportedFromSourceId { get; set; }
     public Guid? CreatedByAdminId { get; set; }

@@ -74,8 +74,8 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     qs.set("page", params.sayfa ?? "1");
     qs.set("pageSize", "12");
     if (params.s) qs.set("search", params.s);
-    // kategoriler (categoryId) varsa indexed FK sorgusu kullan — LIKE'tan çok daha hızlı
-    if (params.arac && !params.kategoriler) qs.set("vehicleModel", params.arac);
+    // arac varsa her zaman vehicleModel LIKE gönder; kategoriler (brand UUID) varsa ek pre-filter
+    if (params.arac) qs.set("vehicleModel", params.arac);
     if (params.motor) qs.set("search", [params.s, params.motor].filter(Boolean).join(" "));
     if (params.oemNo) qs.set("oemPartNo", params.oemNo);
     if (params.chassis) qs.set("chassis", params.chassis);
@@ -138,17 +138,16 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const params = await searchParams;
   const [allCategories, vehicleCats, brands, products, lang, settings] = await Promise.all([
     getCategories(),
-    params.arac && !params.kategoriler ? getVehicleCategories(params.arac) : Promise.resolve([]),
+    params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
     getBrands(), getProducts(params), getServerLang(), getSettings(),
   ]);
 
   // Araç modeli araması sıfır sonuç döndürürse daha geniş önerileri çek
   const noVehicleResults = params.arac && products.items.length === 0 && Number(params.sayfa ?? 1) === 1;
   const baseModel = params.arac ? extractBaseModel(params.arac) : "";
-  const suggestedProducts = noVehicleResults && baseModel && baseModel !== params.arac
-    ? await getSuggestedProducts(baseModel)
-    : noVehicleResults && params.arac
-    ? await getSuggestedProducts(params.arac.split(" ")[0])
+  // baseModel = extractBaseModel("A Serisi W176") → "A Serisi"; use it for both suggestions and button text
+  const suggestedProducts = noVehicleResults && baseModel
+    ? await getSuggestedProducts(baseModel !== params.arac ? baseModel : baseModel.split(" ")[0])
     : [];
 
   const categories = params.arac && vehicleCats.length > 0 ? vehicleCats : allCategories;
@@ -362,14 +361,14 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                 <div className="flex items-center justify-center gap-3 mt-4">
                   {params.arac && (
                     <Link
-                      href={`/urunler?s=${encodeURIComponent(params.arac.split(" ")[0])}`}
+                      href={`/urunler?s=${encodeURIComponent(baseModel || params.arac.split(" ")[0])}`}
                       className={`text-sm font-semibold px-4 py-2 rounded-full border transition ${
                         isSP
                           ? "border-orange-300 text-orange-600 hover:bg-orange-50"
                           : "border-teal-300 text-teal-600 hover:bg-teal-50"
                       }`}
                     >
-                      &ldquo;{params.arac.split(" ")[0]}&rdquo; ara →
+                      &ldquo;{baseModel || params.arac.split(" ")[0]}&rdquo; ara →
                     </Link>
                   )}
                   <Link href="/urunler" className="text-sm font-semibold text-slate-400 hover:text-red-500 transition">

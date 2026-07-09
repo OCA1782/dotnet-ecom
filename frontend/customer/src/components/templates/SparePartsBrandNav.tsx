@@ -431,8 +431,9 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
-  const [cancelClickCount, setCancelClickCount] = useState(0);
   const [cancelled, setCancelled] = useState(false);
+  const [showCancelBtn, setShowCancelBtn] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
   const [navBrands, setNavBrands] = useState<NavBrand[]>(initialBrands ?? []);
   const [openBrand, setOpenBrand]   = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
@@ -446,23 +447,34 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
   useEffect(() => {
     if (!isPending) {
       setNavigatingTo(null);
-      setCancelClickCount(0);
       setCancelled(false);
+      setShowCancelBtn(false);
+      setCancelConfirm(false);
     }
   }, [isPending]);
 
-  function handleOverlayClick() {
+  // ── 2 saniye sonra "İptal Et" butonu göster ──────────────────────────────
+  useEffect(() => {
+    const visible = !!(navigatingTo || isPending);
+    if (!visible) { setShowCancelBtn(false); setCancelConfirm(false); return; }
+    const t = setTimeout(() => setShowCancelBtn(true), 2000);
+    return () => clearTimeout(t);
+  }, [navigatingTo, isPending]);
+
+  function handleCancelClick() {
     if (cancelled) return;
-    const next = cancelClickCount + 1;
-    setCancelClickCount(next);
-    if (next >= 4) {
+    if (!cancelConfirm) {
+      setCancelConfirm(true);
+      setTimeout(() => setCancelConfirm(false), 3000);
+    } else {
       setCancelled(true);
       setTimeout(() => {
         setNavigatingTo(null);
-        setCancelClickCount(0);
         setCancelled(false);
+        setShowCancelBtn(false);
+        setCancelConfirm(false);
         router.push("/");
-      }, 1600);
+      }, 1500);
     }
   }
 
@@ -535,8 +547,11 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     setOpenBrand(null);
     startTransition(() => {
       const markaParam = `&marka=${encodeURIComponent(brand.label)}`;
-      if (model.id) {
-        router.push(`/urunler?kategoriler=${model.id}&arac=${encodeURIComponent(model.name)}${markaParam}`);
+      if (brand.id) {
+        // brand.id (marka UUID) → backend pre-filter: CategoryId IN (brand ve alt kategorileri)
+        // arac (model adı) → backend vehicleModel LIKE araması
+        // İkisi birlikte: marka alt kümesinde LIKE → 111K yerine ~5K satır
+        router.push(`/urunler?kategoriler=${brand.id}&arac=${encodeURIComponent(model.name)}${markaParam}`);
       } else {
         router.push(`/urunler?arac=${encodeURIComponent(model.name)}${markaParam}`);
       }
@@ -569,15 +584,11 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
               style={{ animation: "navprogress 1.4s ease-in-out infinite", boxShadow: "0 0 10px rgba(249,115,22,0.7)" }}
             />
           </div>
-          {/* Ekran ortası kart — 4 kez tıklanınca arama iptal edilir */}
-          <div
-            className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center"
-            onClick={handleOverlayClick}
-          >
+          {/* Ekran ortası kart — backdrop tıklaması iptal etmez */}
+          <div className="fixed inset-0 z-[9998] bg-black/35 backdrop-blur-[2px] flex items-center justify-center">
             <div
               className="bg-white rounded-3xl shadow-2xl flex flex-col items-center gap-5 px-10 py-9 mx-4"
               style={{ maxWidth: "300px", width: "100%" }}
-              onClick={e => e.stopPropagation()}
             >
               {cancelled ? (
                 <>
@@ -605,10 +616,17 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
                     <p className="text-base font-extrabold text-gray-900 leading-snug">{navigatingTo ?? "Sayfa"}</p>
                     <p className="text-xs text-gray-400 mt-1.5">Ürünler getiriliyor…</p>
                   </div>
-                  {cancelClickCount > 0 && (
-                    <p className="text-[11px] text-gray-400 text-center -mt-2">
-                      İptal için {4 - cancelClickCount} kez daha tıklayın
-                    </p>
+                  {showCancelBtn && (
+                    <button
+                      onClick={handleCancelClick}
+                      className={`mt-1 text-[11px] font-semibold px-4 py-1.5 rounded-full border transition-all duration-150 ${
+                        cancelConfirm
+                          ? "border-red-300 text-red-600 bg-red-50 hover:bg-red-100"
+                          : "border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300"
+                      }`}
+                    >
+                      {cancelConfirm ? "Evet, aramayı iptal et" : "İptal Et"}
+                    </button>
                   )}
                 </>
               )}

@@ -16,7 +16,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.SKU).HasMaxLength(100).IsRequired(false);
         builder.Property(x => x.OemPartNumber).HasMaxLength(200).IsRequired(false);
         builder.Property(x => x.Chassis).HasMaxLength(500).IsRequired(false);
+        builder.Property(x => x.VehicleModel).HasMaxLength(300).IsRequired(false);
         builder.HasIndex(x => x.OemPartNumber);
+        builder.HasIndex(x => x.VehicleModel);
         builder.Property(x => x.Price).HasColumnType("decimal(18,2)");
         builder.Property(x => x.DiscountPrice).HasColumnType("decimal(18,2)");
         builder.Property(x => x.TaxRate).HasColumnType("decimal(5,2)");

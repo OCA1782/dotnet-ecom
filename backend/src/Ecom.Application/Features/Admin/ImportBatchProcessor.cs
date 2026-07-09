@@ -288,9 +288,10 @@ public class ImportBatchProcessor(IApplicationDbContext db)
             .ToHashSetAsync(ct);
 
         // IgnoreQueryFilters: soft-deleted categories/brands must be visible to avoid slug duplicate errors
-        var categories = (await db.Categories.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
-            .GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
-        var categorySlugs = await db.Categories.IgnoreQueryFilters().AsNoTracking().Select(c => c.Slug).ToHashSetAsync(ct);
+        var allCategoryList = await db.Categories.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct);
+        var categories = allCategoryList.GroupBy(c => c.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
+        var categoryById = allCategoryList.ToDictionary(c => c.Id);
+        var categorySlugs = allCategoryList.Select(c => c.Slug).ToHashSet();
         var brands = (await db.Brands.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
             .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
         var brandSlugs = await db.Brands.IgnoreQueryFilters().AsNoTracking().Select(b => b.Slug).ToHashSetAsync(ct);
@@ -335,9 +336,11 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
             // Category: auto-resolve/create. Empty/unmapped → fall back to default "Genel" category.
             Guid? categoryId;
+            string? vehicleModel = null;
             if (!string.IsNullOrWhiteSpace(catName))
             {
                 categoryId = ResolveCategoryId(catName!, categories, categorySlugs, sourceId, toReactivate);
+                vehicleModel = ExtractVehicleModelFromCategoryPath(catName!, categories, categoryById);
             }
             else
             {
@@ -419,6 +422,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         if (brandId.HasValue) attached.BrandId = brandId.Value;
                         if (!string.IsNullOrWhiteSpace(oemPartNumber)) attached.OemPartNumber = oemPartNumber;
                         if (!string.IsNullOrWhiteSpace(chassis)) attached.Chassis = chassis;
+                        if (vehicleModel != null && attached.VehicleModel == null) attached.VehicleModel = vehicleModel;
                         touchedProductIds?.Add(attached.Id);
 
                         // Add main image if mapped and not already present (check both DB and change-tracker staged images)
@@ -459,6 +463,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                     Description = desc,
                     OemPartNumber = oemPartNumber,
                     Chassis = chassis,
+                    VehicleModel = vehicleModel,
                     ImportedFromSourceId = sourceId,
                     IsActive = true,
                     IsPublished = true,
@@ -600,5 +605,35 @@ public class ImportBatchProcessor(IApplicationDbContext db)
         await db.SaveChangesAsync(ct);
         db.ClearChangeTracker();
         return (ins, upd, skip, reasons);
+    }
+
+    // Extracts VehicleModel from a category path such as "Mercedes-Benz > A Serisi W176".
+    // Returns the leaf node when its parent category has ShowInVehicleNav=true.
+    // E.g., "Opel > Astra F" → "Astra F"; "Fren Sistemi" → null (not a vehicle category).
+    private static string? ExtractVehicleModelFromCategoryPath(
+        string catName,
+        Dictionary<string, Category> categoryByName,
+        Dictionary<Guid, Category> categoryById)
+    {
+        if (string.IsNullOrWhiteSpace(catName)) return null;
+
+        if (catName.Contains('>'))
+        {
+            var parts = catName.Split('>').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToArray();
+            if (parts.Length < 2) return null;
+            var parentName = parts[^2]; // second-to-last
+            var leafName   = parts[^1]; // last
+            if (categoryByName.TryGetValue(parentName.ToLower(), out var parentCat) && parentCat.ShowInVehicleNav)
+                return leafName;
+            return null;
+        }
+
+        // Single-name: find category, check its parent
+        if (!categoryByName.TryGetValue(catName.ToLower(), out var cat)) return null;
+        if (cat.ParentCategoryId.HasValue &&
+            categoryById.TryGetValue(cat.ParentCategoryId.Value, out var parent) &&
+            parent.ShowInVehicleNav)
+            return cat.Name;
+        return null;
     }
 }
