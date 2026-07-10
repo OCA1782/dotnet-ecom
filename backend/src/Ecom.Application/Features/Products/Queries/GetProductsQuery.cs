@@ -55,11 +55,10 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
 {
     public async Task<PaginatedList<ProductListItemDto>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
+        // No Include() calls — they force hash joins that require large memory grants in LocalDB.
+        // Navigation properties are accessed directly in the final Select() which EF translates
+        // to efficient correlated subqueries or nested loop joins on the 5-row result set.
         var query = db.Products
-            .Include(p => p.Category)
-            .Include(p => p.Brand)
-            .Include(p => p.Images.Where(i => i.IsMain))
-            .Include(p => p.Stock)
             .Where(p => !p.IsDeleted)
             .AsQueryable();
 
@@ -76,9 +75,9 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             var s = request.Search;
             var sp = $"%{s}%";
             query = query.Where(p =>
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), sp)
+                EF.Functions.Like(p.Name, sp)
                 || (p.SKU != null && p.SKU.Contains(s))
-                || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), sp)));
+                || (p.Brand != null && EF.Functions.Like(p.Brand.Name, sp)));
         }
 
         // Vehicle model search — sequential two-tier strategy:
@@ -292,13 +291,12 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             .Take(request.PageSize)
             .Select(p => new ProductListItemDto(
                 p.Id, p.Name, p.Slug, p.ShortDescription, p.SKU,
-                p.Category != null ? p.Category.Name : null,
-                p.Brand != null ? p.Brand.Name : null,
+                db.Categories.Where(c => c.Id == p.CategoryId).Select(c => c.Name).FirstOrDefault(),
+                db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
                 p.Price, p.DiscountPrice, p.Currency,
-                p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
-                p.Images.Any() ? p.Images.First().ImageUrl : null,
+                (int?)(db.Stocks.Where(s => s.ProductId == p.Id).Select(s => (int?)(s.Quantity - s.ReservedQuantity)).FirstOrDefault()) ?? 0,
+                db.ProductImages.Where(i => i.ProductId == p.Id && i.IsMain).Select(i => i.ImageUrl).FirstOrDefault(),
                 p.IsActive, p.IsPublished, p.IsFeatured,
-                // LEFT JOIN instead of correlated subquery to avoid N+1
                 p.ImportedFromSourceId != null
                     ? db.ExternalSources.Where(s => s.Id == p.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
                     : null,

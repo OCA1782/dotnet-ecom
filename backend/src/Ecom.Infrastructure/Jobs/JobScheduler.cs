@@ -30,14 +30,16 @@ public class JobScheduler(
 
         logger.LogInformation("JobScheduler başladı — {Count} job kayıtlı.", _jobs.Length);
 
-        // Give LocalDB 60 seconds to warm up before the first job run
-        await Task.Delay(60_000, stoppingToken);
+        // Give LocalDB 120 seconds to warm up before the first job run
+        await Task.Delay(120_000, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 var siteSettings = await LoadSiteSettingsAsync(stoppingToken);
+                var autoRunDisabled = bool.TryParse(config["Jobs:DisableAutoRun"], out var d) && d;
+                var concurrentRunning = _running.Count(kvp => kvp.Value);
                 foreach (var job in _jobs)
                 {
                     if (stateManager.IsPaused(job.Name)) continue;
@@ -52,10 +54,15 @@ public class JobScheduler(
 
                     var shouldRun =
                         isManual ||
-                        (ShouldAutoRun(job.Name, now, siteSettings) && elapsed >= effectiveInterval);
+                        (!autoRunDisabled && ShouldAutoRun(job.Name, now, siteSettings) && elapsed >= effectiveInterval);
 
-                    if (shouldRun)
-                        _ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
+                    if (!shouldRun) continue;
+
+                    // Limit concurrent auto-triggered jobs to prevent LocalDB connection exhaustion
+                    if (!isManual && concurrentRunning >= 1) break;
+
+                    _ = Task.Run(() => RunJobAsync(job, isManual: isManual, stoppingToken), stoppingToken);
+                    if (!isManual) concurrentRunning++;
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -193,9 +200,18 @@ public class JobScheduler(
 
     private async Task<Dictionary<string, string>> LoadSiteSettingsAsync(CancellationToken ct)
     {
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        return await db.SiteSettings.ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            return await db.SiteSettings.ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning("SiteSettings yüklenemedi, boş döndürülüyor: {Msg}", ex.Message);
+            try { Microsoft.Data.SqlClient.SqlConnection.ClearAllPools(); } catch { }
+            return [];
+        }
     }
 
     private string? ResolveSetting(IReadOnlyDictionary<string, string> siteSettings, string key) =>

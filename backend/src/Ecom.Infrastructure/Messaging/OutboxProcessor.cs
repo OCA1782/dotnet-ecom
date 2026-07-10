@@ -1,6 +1,7 @@
 using Ecom.Infrastructure.Persistence;
 using Ecom.Infrastructure.Services;
 using MassTransit;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,16 +17,20 @@ public class OutboxProcessor(
     : BackgroundService
 {
     private const string ServiceName = "OutboxProcessor";
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(5);
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
-        serviceManager.Register(ServiceName, "Outbox mesaj işlemcisi — olayları kuyruğa iletir (10 sn'de bir)");
+        serviceManager.Register(ServiceName, "Outbox mesaj işlemcisi — olayları kuyruğa iletir (60 sn'de bir)");
         return base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Wait for LocalDB to fully stabilize before touching the DB
+        await Task.Delay(StartupDelay, stoppingToken).ContinueWith(_ => { }, CancellationToken.None);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             bool triggered = serviceManager.ShouldTrigger(ServiceName);
@@ -42,6 +47,8 @@ public class OutboxProcessor(
                 {
                     serviceManager.RecordRunEnd(ServiceName, false, ex.Message[..Math.Min(100, ex.Message.Length)]);
                     logger.LogError(ex, "OutboxProcessor error");
+                    // Clear all pools so main app connections are not stuck behind broken pool state
+                    try { SqlConnection.ClearAllPools(); } catch { }
                 }
             }
 
@@ -53,6 +60,8 @@ public class OutboxProcessor(
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.SetCommandTimeout(15); // Fail fast — don't block for 2 minutes on a stale connection
+
         var publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
 
         var messages = await db.OutboxMessages

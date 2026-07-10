@@ -20,6 +20,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(x => x.OemPartNumber);
         builder.HasIndex(x => x.VehicleModel);
         builder.HasIndex(x => x.IsFeatured);
+        builder.HasIndex(x => new { x.IsDeleted, x.IsActive, x.IsPublished })
+            .HasDatabaseName("IX_Products_ActivePublished");
         builder.Property(x => x.Price).HasColumnType("decimal(18,2)");
         builder.Property(x => x.DiscountPrice).HasColumnType("decimal(18,2)");
         builder.Property(x => x.TaxRate).HasColumnType("decimal(5,2)");
