@@ -228,6 +228,38 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return Ok(new { dryRun = false, deleted, message = $"{deleted} mükerrer ürün soft-delete edildi" });
     }
 
+    [HttpDelete("purge-all")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> PurgeAll(
+        [FromServices] ApplicationDbContext db,
+        [FromQuery] bool dryRun = true,
+        CancellationToken ct = default)
+    {
+        var isPostgres = db.Database.ProviderName?.Contains("Npgsql") == true;
+
+        if (dryRun)
+        {
+            var countSql = isPostgres
+                ? @"SELECT CAST(COUNT(*) AS BIGINT) AS ""Value"" FROM ""Products"""
+                : @"SELECT CAST(COUNT(*) AS BIGINT) AS [Value] FROM Products";
+
+            var total = await db.Database.SqlQueryRaw<long>(countSql).FirstOrDefaultAsync(ct);
+            return Ok(new { dryRun = true, total, message = $"{total} ürün kalıcı olarak silinecek (dryRun=false ile onaylayın)" });
+        }
+
+        int deleted;
+        if (isPostgres)
+        {
+            deleted = await db.Database.ExecuteSqlRawAsync(@"DELETE FROM ""Products""", ct);
+        }
+        else
+        {
+            deleted = await db.Database.ExecuteSqlRawAsync(@"DELETE FROM Products", ct);
+        }
+
+        return Ok(new { dryRun = false, deleted, message = $"{deleted} ürün kalıcı olarak silindi" });
+    }
+
     [HttpGet("{id:guid}/history")]
     [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
     public async Task<IActionResult> GetHistory(Guid id, CancellationToken ct)

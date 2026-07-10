@@ -482,7 +482,7 @@ export default function DisKaynaklarPage() {
           [source.id]: { loaded: allRows.length, total: totalCount, page: 1, totalPages },
         }));
 
-        for (let p = 2; p <= Math.min(totalPages, 200); p++) {
+        for (let p = 2; p <= totalPages; p++) {
           try {
             const pageData = await api.get<{
               columns: string[];
@@ -1006,7 +1006,7 @@ export default function DisKaynaklarPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {sources.map(source => {
+          {sources.map((source, sourceIdx) => {
             const preview = previewMap[source.id];
             const isExpanded = expandedId === source.id;
             const target = targetMap[source.id] || "Product";
@@ -1059,11 +1059,9 @@ export default function DisKaynaklarPage() {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${
                       source.type === "RestApi" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"
                     }`}>{source.type === "RestApi" ? "REST" : "Excel"}</span>
-                    {source.code && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                        #{source.code}
-                      </span>
-                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                      #{source.code ?? (source.type === "RestApi" ? `REST-${sourceIdx + 1}` : `XLS-${sourceIdx + 1}`)}
+                    </span>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">

@@ -242,6 +242,12 @@ export default function AdminProductsPage() {
   const [deduplicatePreviewCount, setDeduplicatePreviewCount] = useState<number | null>(null);
   const [deduplicating, setDeduplicating] = useState(false);
 
+  // Tüm listeyi hard delete (purge)
+  const [purgeStep, setPurgeStep] = useState<0 | 1 | 2 | 3>(0); // 0=closed, 1=step1, 2=step2, 3=step3-confirm
+  const [purgePreviewCount, setPurgePreviewCount] = useState<number | null>(null);
+  const [purgeTyped, setPurgeTyped] = useState("");
+  const [purging, setPurging] = useState(false);
+
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
@@ -595,6 +601,30 @@ export default function AdminProductsPage() {
     } finally { setDeduplicating(false); }
   }
 
+  async function openPurgeModal() {
+    setPurgeStep(1);
+    setPurgePreviewCount(null);
+    setPurgeTyped("");
+    try {
+      const r = await api.get<{ dryRun: boolean; total: number }>("/api/products/purge-all?dryRun=true");
+      setPurgePreviewCount(r.total);
+    } catch { setPurgePreviewCount(null); }
+  }
+
+  async function confirmPurgeAll() {
+    setPurging(true);
+    try {
+      const r = await api.delete<{ dryRun: boolean; deleted: number }>("/api/products/purge-all?dryRun=false");
+      setMsg({ text: `${r.deleted} ürün kalıcı olarak silindi.`, ok: true });
+      setPurgeStep(0);
+      setSelected(new Set());
+      setDupGroups(null);
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Silme başarısız", ok: false });
+    } finally { setPurging(false); }
+  }
+
   async function handleDeleteDups() {
     if (selectedDups.size === 0) return;
     // Safety: never delete the canonical (first) product in each group
@@ -883,6 +913,13 @@ export default function AdminProductsPage() {
           <button onClick={openCreate}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
             <Plus size={16} /> {t("ui.newProduct", "Yeni Ürün")}
+          </button>
+          <button
+            onClick={openPurgeModal}
+            className="flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold px-3 py-2 rounded-xl transition shadow"
+            title="Tüm ürünleri kalıcı olarak sil"
+          >
+            <Trash2 size={14} /> Tümünü Temizle
           </button>
         </div>
       </div>
@@ -2252,6 +2289,85 @@ export default function AdminProductsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Tüm Listeyi Hard Delete — Çok Adımlı Onay */}
+      {purgeStep > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-red-700 text-base">Tüm Ürün Listesini Kalıcı Sil</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Adım {purgeStep} / 3 — Bu işlem GERİ ALINAMAZ</p>
+              </div>
+            </div>
+
+            {purgeStep === 1 && (
+              <>
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 space-y-1">
+                  {purgePreviewCount === null ? (
+                    <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Sayılıyor...</span>
+                  ) : (
+                    <span><strong>{purgePreviewCount.toLocaleString("tr-TR")}</strong> ürün veritabanından tamamen silinecek.</span>
+                  )}
+                  <p className="text-xs text-red-600 mt-1">Stok kayıtları, görseller ve sipariş geçmişi de etkilenebilir.</p>
+                </div>
+                <p className="text-sm text-slate-700">Bu işlemi onaylıyor musunuz?</p>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button onClick={() => setPurgeStep(0)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">Vazgeç</button>
+                  <button onClick={() => setPurgeStep(2)} disabled={purgePreviewCount === null} className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                    Devam Et →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {purgeStep === 2 && (
+              <>
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800">
+                  <p><strong>Son uyarı:</strong> {purgePreviewCount?.toLocaleString("tr-TR")} ürün kalıcı olarak silinecek ve kurtarılamayacak.</p>
+                </div>
+                <p className="text-sm text-slate-700">Devam etmek istediğinizden emin misiniz? Bu işlemi durdurmak mümkün olmayacak.</p>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button onClick={() => setPurgeStep(0)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">Hayır, Vazgeç</button>
+                  <button onClick={() => setPurgeStep(3)} className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                    Evet, Devam Et →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {purgeStep === 3 && (
+              <>
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800">
+                  <p>Onaylamak için aşağıya <strong>SİL</strong> yazın:</p>
+                </div>
+                <input
+                  type="text"
+                  value={purgeTyped}
+                  onChange={e => setPurgeTyped(e.target.value)}
+                  placeholder="SİL"
+                  className="w-full border border-red-300 rounded-xl px-3 py-2 text-sm text-red-900 bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 font-mono"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-3 pt-2">
+                  <button onClick={() => setPurgeStep(0)} disabled={purging} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">Vazgeç</button>
+                  <button
+                    onClick={confirmPurgeAll}
+                    disabled={purging || purgeTyped.trim().toUpperCase() !== "SİL"}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-red-700 text-white text-sm font-semibold hover:bg-red-800 transition disabled:opacity-50"
+                  >
+                    {purging ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    {purging ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Toplu Mükerrer Silme Onay Modalı */}

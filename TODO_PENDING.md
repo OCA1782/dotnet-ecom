@@ -1,6 +1,6 @@
 # TODO Pending
 
-> Son güncelleme: 11.07.2026 00:30 UTC
+> Son güncelleme: 11.07.2026 02:00 UTC
 
 ## Özet
 
@@ -63,6 +63,22 @@
 | `POST /api/admin/stocks/bulk-adjust-by-percentage` endpoint | ✅ |
 | Arama textbox: kategori adı + kaynak (DataSource) alanı eklendi | ✅ |
 | Kaynak (DataSource) combobox kaldırıldı — search'e entegre edildi | ✅ |
+
+### ✅ Dış Kaynaklar — Fetch Limiti & Kod Badge (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| Kaynak kodu badge: `code=NULL` olunca `REST-N` / `XLS-N` fallback gösteriliyor | ✅ |
+| REST/Excel fetch — 200-sayfa (~20K satır) limiti kaldırıldı, tüm sayfa döngüsü geçerli | ✅ |
+| "Tümünü Aktar" — fetch limiti kalktığından tüm veri preview'dan aktarılıyor | ✅ |
+
+### ✅ Admin Ürünler — Tüm Listeyi Kalıcı Sil (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| `DELETE /api/products/purge-all?dryRun=true\|false` endpoint (SuperAdmin) | ✅ |
+| 3 adımlı onay akışı: ön uyarı → ikinci onay → "SİL" yazma doğrulaması | ✅ |
+| UI: "Tümünü Temizle" butonu üst action bar'da | ✅ |
 
 ### 📋 Kalan Görevler
 
