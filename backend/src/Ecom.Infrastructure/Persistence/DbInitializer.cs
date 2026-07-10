@@ -3,6 +3,8 @@ using Ecom.Domain.Entities;
 using Ecom.Infrastructure.Security;
 using Ecom.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using UserRoleEntity = Ecom.Domain.Entities.UserRole;
@@ -16,7 +18,14 @@ public static class DbInitializer
     {
         var provider = db.Database.ProviderName ?? "";
         if (provider.Contains("Npgsql"))
-            await db.Database.EnsureCreatedAsync();
+        {
+            // EnsureCreated connects to the maintenance 'postgres' DB first (to check if EcomDb exists),
+            // but our Docker user may not have access to 'postgres'. Instead, use RelationalDatabaseCreator
+            // directly to create tables in the already-existing database without the DB-existence check.
+            var creator = db.GetService<IRelationalDatabaseCreator>();
+            if (!await creator.HasTablesAsync())
+                await creator.CreateTablesAsync();
+        }
         else
             await db.Database.MigrateAsync();
 

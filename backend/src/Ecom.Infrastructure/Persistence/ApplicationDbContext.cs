@@ -64,11 +64,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
-        // Remap SQL Server-specific column types for PostgreSQL
+        // Remap SQL Server-specific constructs for PostgreSQL
         if (Database.ProviderName?.Contains("Npgsql") == true)
         {
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {
+                // Column types: nvarchar(max) → text, decimal(N,M) → numeric(N,M)
                 foreach (var property in entity.GetProperties())
                 {
                     var colType = property.GetColumnType();
@@ -77,6 +78,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                         property.SetColumnType("text");
                     else if (colType.StartsWith("decimal(", StringComparison.OrdinalIgnoreCase))
                         property.SetColumnType(colType.Replace("decimal(", "numeric(", StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Index filters: T-SQL bracket syntax → PostgreSQL double-quote syntax
+                // e.g. "[IsDeleted] = 0" → "\"IsDeleted\" = false"
+                foreach (var index in entity.GetIndexes())
+                {
+                    var filter = index.GetFilter();
+                    if (string.IsNullOrEmpty(filter)) continue;
+                    var pgFilter = filter
+                        .Replace("[", "\"").Replace("]", "\"")
+                        .Replace("= 0", "= false").Replace("= 1", "= true");
+                    index.SetFilter(pgFilter);
                 }
             }
         }

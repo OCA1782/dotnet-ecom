@@ -1,0 +1,23 @@
+services:
+  ecom-postgres:
+    image: postgres:17-alpine
+    container_name: ecom-postgres
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_DB: EcomDb
+      POSTGRES_USER: ecom
+      POSTGRES_PASSWORD: ecom_dev_2026
+    volumes:
+      - ecom-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecom -d EcomDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  ecom-postgres-data:
+    driver: local
