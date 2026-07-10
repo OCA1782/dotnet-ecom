@@ -2,6 +2,7 @@ using System.Net;
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Features.Products.Commands;
 using Ecom.Application.Features.Products.Queries;
+using Ecom.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -161,6 +162,70 @@ public class ProductsController(IMediator mediator) : ControllerBase
             .ToList();
 
         return Ok(result);
+    }
+
+    [HttpPost("deduplicate")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Deduplicate(
+        [FromServices] ApplicationDbContext db,
+        [FromQuery] bool dryRun = true,
+        CancellationToken ct = default)
+    {
+        var isPostgres = db.Database.ProviderName?.Contains("Npgsql") == true;
+
+        if (dryRun)
+        {
+            var countSql = isPostgres
+                ? @"SELECT CAST(COALESCE(SUM(cnt - 1), 0) AS BIGINT) AS ""Value"" FROM (
+                        SELECT COUNT(*) AS cnt FROM ""Products""
+                        WHERE NOT ""IsDeleted""
+                        GROUP BY ""Name"", COALESCE(""DataSource"", '')
+                        HAVING COUNT(*) > 1) t"
+                : @"SELECT CAST(ISNULL(SUM(cnt - 1), 0) AS BIGINT) AS [Value] FROM (
+                        SELECT COUNT(*) AS cnt FROM Products
+                        WHERE IsDeleted = 0
+                        GROUP BY Name, ISNULL(DataSource, '')
+                        HAVING COUNT(*) > 1) t";
+
+            var toDelete = await db.Database.SqlQueryRaw<long>(countSql).FirstOrDefaultAsync(ct);
+            return Ok(new { dryRun = true, toDelete, message = $"{toDelete} mükerrer ürün silinecek (dryRun=false ile çalıştırın)" });
+        }
+
+        int deleted;
+        if (isPostgres)
+        {
+            deleted = await db.Database.ExecuteSqlRawAsync(@"
+                WITH ranked AS (
+                    SELECT ""Id"",
+                        ROW_NUMBER() OVER (
+                            PARTITION BY ""Name"", COALESCE(""DataSource"", '')
+                            ORDER BY ""CreatedDate"" ASC, ""Id"" ASC
+                        ) AS rn
+                    FROM ""Products""
+                    WHERE NOT ""IsDeleted""
+                )
+                UPDATE ""Products""
+                SET ""IsDeleted"" = true
+                WHERE ""Id"" IN (SELECT ""Id"" FROM ranked WHERE rn > 1)", ct);
+        }
+        else
+        {
+            deleted = await db.Database.ExecuteSqlRawAsync(@"
+                WITH ranked AS (
+                    SELECT Id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY Name, ISNULL(DataSource, '')
+                            ORDER BY CreatedDate ASC, Id ASC
+                        ) AS rn
+                    FROM Products
+                    WHERE IsDeleted = 0
+                )
+                UPDATE Products
+                SET IsDeleted = 1
+                WHERE Id IN (SELECT Id FROM ranked WHERE rn > 1)", ct);
+        }
+
+        return Ok(new { dryRun = false, deleted, message = $"{deleted} mükerrer ürün soft-delete edildi" });
     }
 
     [HttpGet("{id:guid}/history")]

@@ -1,6 +1,6 @@
 # TODO Pending
 
-> Son güncelleme: 10.07.2026 18:10 UTC
+> Son güncelleme: 10.07.2026 20:05 UTC
 
 ## Özet
 
@@ -39,6 +39,19 @@
 | VehicleModel 'C Serisi W204' | 460ms | 79ms (6x) |
 | Öne çıkan ürünler | 180ms | 25ms (7x) |
 | Arama önerileri | — | 70ms |
+
+### ✅ Mükerrer Ürün Temizliği (2026-07-10 — TAMAMLANDI)
+
+**Kriter:** Aynı `Name` + `DataSource` kombinasyonu → en eski kayıt korundu, geri kalanlar soft-delete
+
+| DB | Öncesi | Sonrası | Silinen |
+|---|---|---|---|
+| PostgreSQL | 111,866 | 68,361 | 43,505 |
+| SQL Server (LocalDB) | 111,866 | 68,361 | 43,505 |
+
+- `POST /api/products/deduplicate?dryRun=true|false` endpoint eklendi (SuperAdmin)
+- ROW_NUMBER() OVER PARTITION BY Name, DataSource — en eski `CreatedDate ASC` korunuyor
+- Her iki DB'de IDENTICAL temizlik (aynı import dataseti)
 
 ### 📋 Kalan Görevler
 
