@@ -1,6 +1,6 @@
 # TODO Pending
 
-> Son güncelleme: 10.07.2026 20:05 UTC
+> Son güncelleme: 11.07.2026 00:30 UTC
 
 ## Özet
 
@@ -52,6 +52,17 @@
 - `POST /api/products/deduplicate?dryRun=true|false` endpoint eklendi (SuperAdmin)
 - ROW_NUMBER() OVER PARTITION BY Name, DataSource — en eski `CreatedDate ASC` korunuyor
 - Her iki DB'de IDENTICAL temizlik (aynı import dataseti)
+
+### ✅ Admin Ürünler Ekranı — Toplu İşlemler (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| Mükerrer ürünler paneli — "Tümünü Seç" butonu | ✅ |
+| Mükerrer ürünler paneli — "Tüm Kopyaları Sil" (onay modalı + dry-run) | ✅ |
+| Toplu stok güncelle — "% Oran" modu eklendi | ✅ |
+| `POST /api/admin/stocks/bulk-adjust-by-percentage` endpoint | ✅ |
+| Arama textbox: kategori adı + kaynak (DataSource) alanı eklendi | ✅ |
+| Kaynak (DataSource) combobox kaldırıldı — search'e entegre edildi | ✅ |
 
 ### 📋 Kalan Görevler
 

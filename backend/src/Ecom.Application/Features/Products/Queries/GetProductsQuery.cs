@@ -76,18 +76,26 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             var s = request.Search;
             var sp = $"%{s}%";
 
-            // Pre-fetch matching brand IDs (404 brands total) to avoid a Hash Join in the main query.
-            // This keeps the Products filter as a single-table predicate so the GIN trigram index fires.
+            // Pre-fetch matching brand IDs — keeps Products filter as single-table predicate so GIN fires.
             var matchingBrandIds = await db.Brands
                 .AsNoTracking()
                 .Where(b => EF.Functions.ILike(b.Name, sp))
                 .Select(b => b.Id)
                 .ToListAsync(cancellationToken);
 
+            // Pre-fetch matching category IDs — same pattern, avoids Hash Join.
+            var matchingCategoryIds = await db.Categories
+                .AsNoTracking()
+                .Where(c => !c.IsDeleted && EF.Functions.ILike(c.Name, sp))
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken);
+
             query = query.Where(p =>
                 EF.Functions.ILike(p.Name, sp)
                 || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
-                || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value)));
+                || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value))
+                || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
+                || (p.DataSource != null && EF.Functions.ILike(p.DataSource, sp)));
         }
 
         // Vehicle model search — sequential two-tier strategy:

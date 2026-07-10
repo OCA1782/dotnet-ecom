@@ -74,6 +74,20 @@ public class StocksController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("bulk-adjust-by-percentage")]
+    public async Task<IActionResult> BulkAdjustByPercentage([FromBody] BulkAdjustStockByPercentageCommand command, CancellationToken ct)
+    {
+        if (command.ProductIds == null || command.ProductIds.Count == 0)
+            return BadRequest(new { error = "En az bir ürün seçilmelidir." });
+        if (command.Percentage <= 0)
+            return BadRequest(new { error = "Oran 0'dan büyük olmalıdır." });
+        var validModes = new[] { "increase", "decrease", "set" };
+        if (!validModes.Contains(command.PercentageMode))
+            return BadRequest(new { error = "Geçersiz oran modu. Geçerli değerler: increase, decrease, set" });
+        var result = await mediator.Send(command, ct);
+        return Ok(result);
+    }
+
     [HttpGet("condition-preview")]
     public async Task<IActionResult> ConditionPreview(
         [FromQuery] int? minStock,

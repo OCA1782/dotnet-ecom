@@ -222,6 +222,8 @@ export default function AdminProductsPage() {
   const [bulkStockModal, setBulkStockModal] = useState(false);
   const [bulkStockForm, setBulkStockForm] = useState({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
   const [bulkStockUpdating, setBulkStockUpdating] = useState(false);
+  const [bulkStockMode, setBulkStockMode] = useState<"quantity" | "percentage">("quantity");
+  const [bulkStockPct, setBulkStockPct] = useState({ percentage: "", percentageMode: "increase", note: "", criticalStockLevel: "" });
 
   // Koşullu stok güncelle modal
   const [condStockModal, setCondStockModal] = useState(false);
@@ -236,6 +238,9 @@ export default function AdminProductsPage() {
   const [showDupPanel, setShowDupPanel] = useState(false);
   const [selectedDups, setSelectedDups] = useState<Set<string>>(new Set());
   const [deletingDups, setDeletingDups] = useState(false);
+  const [showDeduplicateConfirm, setShowDeduplicateConfirm] = useState(false);
+  const [deduplicatePreviewCount, setDeduplicatePreviewCount] = useState<number | null>(null);
+  const [deduplicating, setDeduplicating] = useState(false);
 
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -246,8 +251,8 @@ export default function AdminProductsPage() {
 
   // Computed: how many active filters
   const activeFilterCount = useMemo(() =>
-    [search, filterCategoryId, filterBrandId, filterDataSource, showInactive ? "1" : ""].filter(Boolean).length,
-    [search, filterCategoryId, filterBrandId, filterDataSource, showInactive]
+    [search, filterCategoryId, filterBrandId, showInactive ? "1" : ""].filter(Boolean).length,
+    [search, filterCategoryId, filterBrandId, showInactive]
   );
 
   const fetchProducts = useCallback(async () => {
@@ -513,19 +518,34 @@ export default function AdminProductsPage() {
   }
 
   async function handleBulkStockUpdate() {
-    if (!bulkStockForm.quantity || selected.size === 0) return;
     setBulkStockUpdating(true);
     try {
-      const result = await api.post<{ succeeded: number; failed: number; errors: string[] }>(
-        "/api/admin/stocks/bulk-adjust",
-        {
-          productIds: [...selected],
-          quantity: Number(bulkStockForm.quantity),
-          movementType: bulkStockForm.movementType,
-          note: bulkStockForm.note || null,
-          criticalStockLevel: bulkStockForm.criticalStockLevel !== "" ? Number(bulkStockForm.criticalStockLevel) : null,
-        }
-      );
+      let result: { succeeded: number; failed: number; errors: string[] };
+      if (bulkStockMode === "percentage") {
+        if (!bulkStockPct.percentage || selected.size === 0) return;
+        result = await api.post<{ succeeded: number; failed: number; errors: string[] }>(
+          "/api/admin/stocks/bulk-adjust-by-percentage",
+          {
+            productIds: [...selected],
+            percentage: Number(bulkStockPct.percentage),
+            percentageMode: bulkStockPct.percentageMode,
+            note: bulkStockPct.note || null,
+            criticalStockLevel: bulkStockPct.criticalStockLevel !== "" ? Number(bulkStockPct.criticalStockLevel) : null,
+          }
+        );
+      } else {
+        if (!bulkStockForm.quantity || selected.size === 0) return;
+        result = await api.post<{ succeeded: number; failed: number; errors: string[] }>(
+          "/api/admin/stocks/bulk-adjust",
+          {
+            productIds: [...selected],
+            quantity: Number(bulkStockForm.quantity),
+            movementType: bulkStockForm.movementType,
+            note: bulkStockForm.note || null,
+            criticalStockLevel: bulkStockForm.criticalStockLevel !== "" ? Number(bulkStockForm.criticalStockLevel) : null,
+          }
+        );
+      }
       setMsg({
         text: `${result.succeeded} ürün stoku güncellendi${result.failed > 0 ? `, ${result.failed} hatalı` : ""}.`,
         ok: result.failed === 0,
@@ -533,10 +553,46 @@ export default function AdminProductsPage() {
       setBulkStockModal(false);
       setSelected(new Set());
       setBulkStockForm({ quantity: "", movementType: "StockIn", note: "", criticalStockLevel: "" });
+      setBulkStockPct({ percentage: "", percentageMode: "increase", note: "", criticalStockLevel: "" });
+      setBulkStockMode("quantity");
       await fetchProducts();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Toplu stok güncelleme hatası", ok: false });
     } finally { setBulkStockUpdating(false); }
+  }
+
+  function handleSelectAllDups() {
+    if (!dupGroups) return;
+    const allExtras = dupGroups.flatMap(g => g.products.slice(1).map(p => p.id));
+    const allSelected = allExtras.every(id => selectedDups.has(id));
+    if (allSelected) {
+      setSelectedDups(new Set());
+    } else {
+      setSelectedDups(new Set(allExtras));
+    }
+  }
+
+  async function openDeduplicateConfirm() {
+    setDeduplicatePreviewCount(null);
+    setShowDeduplicateConfirm(true);
+    try {
+      const r = await api.post<{ dryRun: boolean; toDelete: number }>("/api/products/deduplicate?dryRun=true", {});
+      setDeduplicatePreviewCount(r.toDelete);
+    } catch { setDeduplicatePreviewCount(null); }
+  }
+
+  async function confirmDeduplicateAll() {
+    setDeduplicating(true);
+    try {
+      const r = await api.post<{ dryRun: boolean; deleted: number }>("/api/products/deduplicate?dryRun=false", {});
+      setMsg({ text: `${r.deleted} mükerrer ürün silindi.`, ok: true });
+      setShowDeduplicateConfirm(false);
+      setSelectedDups(new Set());
+      await loadDuplicates();
+      await fetchProducts();
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "Toplu silme başarısız", ok: false });
+    } finally { setDeduplicating(false); }
   }
 
   async function handleDeleteDups() {
@@ -855,7 +911,17 @@ export default function AdminProductsPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {showDupPanel && dupGroups !== null && dupGroups.length > 0 && (
+              <button
+                onClick={handleSelectAllDups}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+              >
+                {selectedDups.size > 0 && dupGroups.flatMap(g => g.products.slice(1)).every(p => selectedDups.has(p.id))
+                  ? <><CheckSquare size={12} /> Seçimi Kaldır</>
+                  : <><Square size={12} /> Tümünü Seç</>}
+              </button>
+            )}
             {selectedDups.size > 0 && (
               <button
                 onClick={handleDeleteDups}
@@ -864,6 +930,16 @@ export default function AdminProductsPage() {
               >
                 {deletingDups ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 {selectedDups.size} seçiliyi sil
+              </button>
+            )}
+            {dupGroups !== null && dupGroups.length > 0 && (
+              <button
+                onClick={openDeduplicateConfirm}
+                disabled={loadingDups || deduplicating}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl transition disabled:opacity-50"
+              >
+                <Trash2 size={12} />
+                Tüm Kopyaları Sil
               </button>
             )}
             <button
@@ -962,7 +1038,7 @@ export default function AdminProductsPage() {
               <input
                 value={searchInput}
                 onChange={e => handleSearchChange(e.target.value)}
-                placeholder={t("filter.search", "Ara...")}
+                placeholder={t("filter.search", "Ürün adı, SKU, kategori, marka, kaynak...")}
                 className="pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 w-full text-slate-900 bg-white"
               />
               {searchInput && (
@@ -1003,18 +1079,6 @@ export default function AdminProductsPage() {
           >
             <option value="">{t("filter.allBrands", "Tüm Markalar")}</option>
             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-
-          {/* DataSource filter */}
-          <select
-            value={filterDataSource}
-            onChange={e => { setFilterDataSource(e.target.value); setPage(1); }}
-            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[140px]"
-          >
-            <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
-            <option value="__manual__">{t("filter.manual", "Manuel Giriş")}</option>
-            <option value="catalogiq">CatalogIQ</option>
-            <option value="test">Test</option>
           </select>
 
           {/* Page size */}
@@ -1626,51 +1690,112 @@ export default function AdminProductsPage() {
               </div>
               <button onClick={() => setBulkStockModal(false)} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Hareket Tipi</label>
-                <select value={bulkStockForm.movementType}
-                  onChange={e => setBulkStockForm(f => ({ ...f, movementType: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                  <option value="StockIn">Stok Girişi</option>
-                  <option value="StockOut">Stok Çıkışı</option>
-                  <option value="Adjustment">Düzeltme</option>
-                  <option value="Return">İade</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Miktar</label>
-                <input type="number" min={1}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  value={bulkStockForm.quantity}
-                  onChange={e => setBulkStockForm(f => ({ ...f, quantity: e.target.value }))}
-                  placeholder="Adet" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Kritik Eşik <span className="text-slate-400 font-normal">(boş bırakırsanız değişmez)</span>
-                </label>
-                <input type="number" min={0}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  value={bulkStockForm.criticalStockLevel}
-                  onChange={e => setBulkStockForm(f => ({ ...f, criticalStockLevel: e.target.value }))}
-                  placeholder="İsteğe bağlı" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
-                <input
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  value={bulkStockForm.note}
-                  onChange={e => setBulkStockForm(f => ({ ...f, note: e.target.value }))}
-                  placeholder="İsteğe bağlı" />
-              </div>
+            {/* Mod seçimi: Miktar / Oran */}
+            <div className="flex rounded-xl border border-slate-200 overflow-hidden text-xs font-semibold">
+              <button
+                onClick={() => setBulkStockMode("quantity")}
+                className={`flex-1 py-2 transition ${bulkStockMode === "quantity" ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
+                Miktar
+              </button>
+              <button
+                onClick={() => setBulkStockMode("percentage")}
+                className={`flex-1 py-2 transition ${bulkStockMode === "percentage" ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
+                % Oran
+              </button>
             </div>
+            {bulkStockMode === "quantity" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Hareket Tipi</label>
+                  <select value={bulkStockForm.movementType}
+                    onChange={e => setBulkStockForm(f => ({ ...f, movementType: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                    <option value="StockIn">Stok Girişi (mevcut + miktar)</option>
+                    <option value="StockOut">Stok Çıkışı (mevcut − miktar)</option>
+                    <option value="Adjustment">Düzeltme (mevcut = miktar)</option>
+                    <option value="Return">İade</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Miktar (adet)</label>
+                  <input type="number" min={1}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockForm.quantity}
+                    onChange={e => setBulkStockForm(f => ({ ...f, quantity: e.target.value }))}
+                    placeholder="Adet" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Kritik Eşik <span className="text-slate-400 font-normal">(boş = değişmez)</span>
+                  </label>
+                  <input type="number" min={0}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockForm.criticalStockLevel}
+                    onChange={e => setBulkStockForm(f => ({ ...f, criticalStockLevel: e.target.value }))}
+                    placeholder="İsteğe bağlı" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
+                  <input
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockForm.note}
+                    onChange={e => setBulkStockForm(f => ({ ...f, note: e.target.value }))}
+                    placeholder="İsteğe bağlı" />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Oran Modu</label>
+                  <select value={bulkStockPct.percentageMode}
+                    onChange={e => setBulkStockPct(f => ({ ...f, percentageMode: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                    <option value="increase">Artır (mevcut × (1 + %X))</option>
+                    <option value="decrease">Azalt (mevcut × (1 − %X))</option>
+                    <option value="set">Oranla Ayarla (mevcut × %X)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Oran (%)</label>
+                  <input type="number" min={1} max={1000}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockPct.percentage}
+                    onChange={e => setBulkStockPct(f => ({ ...f, percentage: e.target.value }))}
+                    placeholder="örn. 20 = %20" />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {bulkStockPct.percentageMode === "increase" && "Stoku %X artırır. Örn: mevcut=100, %20 → 120"}
+                    {bulkStockPct.percentageMode === "decrease" && "Stoku %X azaltır. Örn: mevcut=100, %20 → 80"}
+                    {bulkStockPct.percentageMode === "set" && "Stoku mevcut stokun %X'ine eşitler. Örn: mevcut=100, %50 → 50"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Kritik Eşik <span className="text-slate-400 font-normal">(boş = değişmez)</span>
+                  </label>
+                  <input type="number" min={0}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockPct.criticalStockLevel}
+                    onChange={e => setBulkStockPct(f => ({ ...f, criticalStockLevel: e.target.value }))}
+                    placeholder="İsteğe bağlı" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Not</label>
+                  <input
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value={bulkStockPct.note}
+                    onChange={e => setBulkStockPct(f => ({ ...f, note: e.target.value }))}
+                    placeholder="İsteğe bağlı" />
+                </div>
+              </div>
+            )}
             <div className="flex gap-3 pt-1">
-              <button onClick={handleBulkStockUpdate} disabled={bulkStockUpdating || !bulkStockForm.quantity}
+              <button
+                onClick={handleBulkStockUpdate}
+                disabled={bulkStockUpdating || (bulkStockMode === "quantity" ? !bulkStockForm.quantity : !bulkStockPct.percentage)}
                 className="flex-1 bg-emerald-600 text-white font-semibold py-2.5 rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm flex items-center justify-center gap-2">
                 {bulkStockUpdating ? <><Loader2 size={14} className="animate-spin" /> İşleniyor...</> : `${selected.size} Ürünü Güncelle`}
               </button>
-              <button onClick={() => setBulkStockModal(false)} disabled={bulkStockUpdating}
+              <button onClick={() => { setBulkStockModal(false); setBulkStockMode("quantity"); }} disabled={bulkStockUpdating}
                 className="px-5 border border-slate-300 text-slate-600 rounded-xl hover:bg-slate-50 text-sm disabled:opacity-50">İptal</button>
             </div>
           </div>
@@ -2127,6 +2252,50 @@ export default function AdminProductsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Toplu Mükerrer Silme Onay Modalı */}
+      {showDeduplicateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800 text-base">Tüm Kopyaları Sil</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Bu işlem geri alınamaz.</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+              {deduplicatePreviewCount === null ? (
+                <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Hesaplanıyor...</span>
+              ) : (
+                <span>
+                  <strong>{deduplicatePreviewCount.toLocaleString("tr-TR")}</strong> mükerrer ürün silinecek.{" "}
+                  Her gruptan en eski kayıt korunur, geri kalanlar pasif yapılır.
+                </span>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowDeduplicateConfirm(false)}
+                disabled={deduplicating}
+                className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={confirmDeduplicateAll}
+                disabled={deduplicating || deduplicatePreviewCount === null}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deduplicating ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                {deduplicating ? "Siliniyor..." : "Evet, Tümünü Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
