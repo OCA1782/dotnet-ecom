@@ -1604,6 +1604,12 @@ export default function YonetimPage() {
   const [mailGuideOpen, setMailGuideOpen]       = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sysInfo, setSysInfo] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [dbHealth, setDbHealth] = useState<any>(null);
+  const [dbHealthLoading, setDbHealthLoading] = useState(false);
+  const [dbProviderPending, setDbProviderPending] = useState<string | null>(null);
+  const [dbProviderSaving, setDbProviderSaving] = useState(false);
+  const [dbProviderMsg, setDbProviderMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [openMsgGroups, setOpenMsgGroups] = useState<Set<string>>(new Set(["Doğrulama Mesajları"]));
   const [newMsgOpen, setNewMsgOpen] = useState(false);
   const [newMsgLabel, setNewMsgLabel] = useState("");
@@ -2072,6 +2078,34 @@ export default function YonetimPage() {
     set("ApiBaseUrl", settings[`ApiBaseUrl_${env}`] || settings.ApiBaseUrl);
     set("CustomerBaseUrl", settings[`CustomerBaseUrl_${env}`] || settings.CustomerBaseUrl);
     set("AdminBaseUrl", settings[`AdminBaseUrl_${env}`] || settings.AdminBaseUrl);
+  }
+
+  async function loadDbHealth() {
+    setDbHealthLoading(true);
+    try {
+      const data = await api.get("/api/admin/db-health");
+      setDbHealth(data);
+    } catch {
+      setDbHealth(null);
+    } finally {
+      setDbHealthLoading(false);
+    }
+  }
+
+  async function saveDbProvider() {
+    if (!dbProviderPending) return;
+    setDbProviderSaving(true);
+    setDbProviderMsg(null);
+    try {
+      const res = await api.patch<{ message?: string }>("/api/admin/db-health/provider", { provider: dbProviderPending });
+      setDbProviderMsg({ ok: true, text: res.message ?? "Güncellendi. API'yi yeniden başlatın." });
+      api.get("/api/admin/system-info").then(setSysInfo).catch(() => {});
+    } catch (e: unknown) {
+      const msg = (e as { error?: string })?.error ?? "Güncellenemedi.";
+      setDbProviderMsg({ ok: false, text: msg });
+    } finally {
+      setDbProviderSaving(false);
+    }
   }
 
   if (loading) return (
@@ -4689,16 +4723,23 @@ export default function YonetimPage() {
                 </div>
 
                 {/* DB */}
-                <div className="p-4 border border-slate-200 rounded-xl space-y-2">
-                  <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                    <Database size={13} /> Veritabanı
-                    <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${sysInfo.database?.isConfigured ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                      {sysInfo.database?.isConfigured ? "Bağlı" : "Yapılandırılmamış"}
-                    </span>
-                  </p>
+                <div className="p-4 border border-slate-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                      <Database size={13} /> Veritabanı
+                      <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${sysInfo.database?.isConfigured ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                        {sysInfo.database?.isConfigured ? "Bağlı" : "Yapılandırılmamış"}
+                      </span>
+                    </p>
+                    <button onClick={loadDbHealth} disabled={dbHealthLoading}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 disabled:opacity-50">
+                      {dbHealthLoading ? <Loader2 size={11} className="animate-spin" /> : <Activity size={11} />}
+                      Performans İzle
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg p-2.5">
-                      <p className="text-[10px] text-slate-400 mb-0.5">Sağlayıcı</p>
+                      <p className="text-[10px] text-slate-400 mb-0.5">Aktif Sağlayıcı</p>
                       <p className="text-xs font-semibold text-slate-700">{sysInfo.database?.provider}</p>
                     </div>
                     <div className="bg-slate-50 rounded-lg p-2.5">
@@ -4706,6 +4747,84 @@ export default function YonetimPage() {
                       <p className="text-xs font-mono text-slate-500 truncate">{sysInfo.database?.connectionMasked}</p>
                     </div>
                   </div>
+
+                  {/* DB Provider Toggle */}
+                  <div className="border border-amber-200 bg-amber-50 rounded-lg p-3 space-y-2">
+                    <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1.5">
+                      <Database size={12} /> Veritabanı Sağlayıcısını Değiştir
+                    </p>
+                    <p className="text-[10px] text-amber-700">
+                      Değişiklik <strong>appsettings.json</strong> dosyasına yazılır ve API yeniden başlatıldıktan sonra etkin olur.
+                      PostgreSQL için <code className="bg-amber-100 px-1 rounded">ConnectionStrings:PostgreSQL</code> bağlantı dizisinin doldurulmuş olması gerekir.
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      {["SqlServer", "PostgreSQL"].map(p => (
+                        <button key={p}
+                          onClick={() => setDbProviderPending(dbProviderPending === p ? null : p)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                            (dbProviderPending ?? sysInfo.database?.provider) === p
+                              ? "bg-teal-600 text-white border-teal-600"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                          }`}>
+                          {p === "SqlServer" ? "SQL Server / LocalDB" : "PostgreSQL"}
+                          {sysInfo.database?.provider === p && (
+                            <span className="ml-1 text-[9px] opacity-70">(aktif)</span>
+                          )}
+                        </button>
+                      ))}
+                      {dbProviderPending && dbProviderPending !== sysInfo.database?.provider && (
+                        <button onClick={saveDbProvider} disabled={dbProviderSaving}
+                          className="ml-auto px-3 py-1.5 text-xs font-semibold bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-1">
+                          {dbProviderSaving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                          Kaydet
+                        </button>
+                      )}
+                    </div>
+                    {dbProviderMsg && (
+                      <div className={`flex items-center gap-1.5 text-[11px] font-medium ${dbProviderMsg.ok ? "text-emerald-700" : "text-red-600"}`}>
+                        {dbProviderMsg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                        {dbProviderMsg.text}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DB Health Panel */}
+                  {dbHealth && (
+                    <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">
+                        <Activity size={12} />
+                        Performans İzleme
+                        <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${dbHealth.canConnect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          {dbHealth.canConnect ? `Bağlantı: ${dbHealth.pingMs}ms` : "Bağlantı Hatası"}
+                        </span>
+                      </div>
+                      {dbHealth.connectError && (
+                        <p className="text-[10px] text-red-600 font-mono">{dbHealth.connectError}</p>
+                      )}
+                      <div className="flex gap-4 text-[11px]">
+                        <span className="text-slate-500">Toplam yavaş sorgu:</span>
+                        <span className={`font-semibold ${dbHealth.slowQueries?.totalCount > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+                          {dbHealth.slowQueries?.totalCount ?? 0}
+                        </span>
+                        <span className="text-slate-400">(eşik: {dbHealth.slowQueries?.thresholdMs}ms)</span>
+                      </div>
+                      {dbHealth.slowQueries?.recent?.length > 0 ? (
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {dbHealth.slowQueries.recent.map((q: {occurredAt: string; durationMs: number; sqlPreview: string}, i: number) => (
+                            <div key={i} className="bg-white border border-slate-200 rounded p-2 text-[10px] space-y-0.5">
+                              <div className="flex justify-between text-slate-500">
+                                <span>{new Date(q.occurredAt).toLocaleTimeString("tr-TR")}</span>
+                                <span className="font-semibold text-amber-700">{q.durationMs}ms</span>
+                              </div>
+                              <pre className="text-slate-600 font-mono whitespace-pre-wrap break-all">{q.sqlPreview}</pre>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-emerald-700 font-medium">Yavaş sorgu yok — performans iyi durumda.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Cache + Queue + Email grid */}

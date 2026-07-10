@@ -14,7 +14,11 @@ public static class DbInitializer
 {
     public static async Task SeedAsync(ApplicationDbContext db, IConfiguration config, string contentRootPath)
     {
-        await db.Database.MigrateAsync();
+        var provider = db.Database.ProviderName ?? "";
+        if (provider.Contains("Npgsql"))
+            await db.Database.EnsureCreatedAsync();
+        else
+            await db.Database.MigrateAsync();
 
         await SeedAdminUser(db, config);
         await SeedSiteSettings(db);

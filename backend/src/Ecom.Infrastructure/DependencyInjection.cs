@@ -18,19 +18,22 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connStr = configuration.GetConnectionString("DefaultConnection") ?? "";
         var dbProvider = configuration["Database:Provider"] ?? "SqlServer";
-        services.AddDbContext<ApplicationDbContext>(options =>
+        var connStr = dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase)
+            ? (configuration.GetConnectionString("PostgreSQL") ?? configuration.GetConnectionString("DefaultConnection") ?? "")
+            : (configuration.GetConnectionString("DefaultConnection") ?? "");
+        services.AddSingleton<SlowQueryInterceptor>();
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
+            options.AddInterceptors(sp.GetRequiredService<SlowQueryInterceptor>());
             if (dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
-                options.UseNpgsql(connStr);
+                options.UseNpgsql(connStr, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
             else
                 options.UseSqlServer(connStr, sql =>
                 {
                     sql.CommandTimeout(120);
                     sql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
                 });
-
         });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());

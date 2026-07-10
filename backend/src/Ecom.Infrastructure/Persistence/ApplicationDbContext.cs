@@ -63,6 +63,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Remap SQL Server-specific column types for PostgreSQL
+        if (Database.ProviderName?.Contains("Npgsql") == true)
+        {
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entity.GetProperties())
+                {
+                    var colType = property.GetColumnType();
+                    if (colType == null) continue;
+                    if (colType.Equals("nvarchar(max)", StringComparison.OrdinalIgnoreCase))
+                        property.SetColumnType("text");
+                    else if (colType.StartsWith("decimal(", StringComparison.OrdinalIgnoreCase))
+                        property.SetColumnType(colType.Replace("decimal(", "numeric(", StringComparison.OrdinalIgnoreCase));
+                }
+            }
+        }
+
         base.OnModelCreating(modelBuilder);
     }
 
