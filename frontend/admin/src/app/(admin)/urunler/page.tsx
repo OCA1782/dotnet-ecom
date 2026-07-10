@@ -336,6 +336,14 @@ export default function AdminProductsPage() {
     });
   }
 
+  function broadcastProductChanged() {
+    if (typeof BroadcastChannel !== "undefined") {
+      const bc = new BroadcastChannel("ecom-product-changed");
+      bc.postMessage({ ts: Date.now() });
+      bc.close();
+    }
+  }
+
   async function handleBulkAction(action: string, pricePercent?: number) {
     if (selected.size === 0) return;
     setBulkLoading(true);
@@ -351,6 +359,7 @@ export default function AdminProductsPage() {
       setMsg({ text: msg, ok: !allSkipped });
       setSelected(new Set());
       await fetchProducts();
+      if (action === "delete") broadcastProductChanged();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : t("auto.islemBasarisiz", "İşlem başarısız"), ok: false });
     } finally {
@@ -596,6 +605,7 @@ export default function AdminProductsPage() {
       setSelectedDups(new Set());
       await loadDuplicates();
       await fetchProducts();
+      broadcastProductChanged();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Toplu silme başarısız", ok: false });
     } finally { setDeduplicating(false); }
@@ -620,6 +630,7 @@ export default function AdminProductsPage() {
       setSelected(new Set());
       setDupGroups(null);
       await fetchProducts();
+      broadcastProductChanged();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Silme başarısız", ok: false });
     } finally { setPurging(false); }
@@ -640,6 +651,7 @@ export default function AdminProductsPage() {
       setSelectedDups(new Set());
       await loadDuplicates();
       await fetchProducts();
+      broadcastProductChanged();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : "Silme başarısız", ok: false });
     } finally { setDeletingDups(false); }

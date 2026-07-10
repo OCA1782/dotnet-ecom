@@ -1,6 +1,6 @@
 # TODO Pending
 
-> Son güncelleme: 11.07.2026 02:00 UTC
+> Son güncelleme: 11.07.2026 03:00 UTC
 
 ## Özet
 
@@ -79,6 +79,24 @@
 | `DELETE /api/products/purge-all?dryRun=true\|false` endpoint (SuperAdmin) | ✅ |
 | 3 adımlı onay akışı: ön uyarı → ikinci onay → "SİL" yazma doğrulaması | ✅ |
 | UI: "Tümünü Temizle" butonu üst action bar'da | ✅ |
+
+### ✅ Dış Kaynaklar — Aktarılmış/Aktarılmamış Canlı Takip (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| 15 saniyede bir otomatik importedSet yenileme (expanded kaynak için) | ✅ |
+| BroadcastChannel `ecom-product-changed` — dis-kaynaklar dinler, anında yeniler | ✅ |
+| Import (chunked + async job) tamamlandığında importedSet otomatik güncellenir | ✅ |
+| Ürünler toplu sil/dedup/purge → broadcast tetikler, dis-kaynaklar eş zamanlı yenilenir | ✅ |
+| save-preview limit 50MB → 200MB artırıldı (büyük REST kaynaklar için) | ✅ |
+
+### ✅ Admin Ürünler — Tüm Sütunlara Göre Arama (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| "Oluşturan" (createdByAdminEmail) — pre-fetch user IDs + IN clause | ✅ |
+| "Kaynak" ImportedFromSourceName — pre-fetch ExternalSource IDs + IN clause | ✅ |
+| Tüm sütunlar aranabilir: Ad, SKU, Kategori, Marka, Kaynak, DataSource, Oluşturan | ✅ |
 
 ### 📋 Kalan Görevler
 

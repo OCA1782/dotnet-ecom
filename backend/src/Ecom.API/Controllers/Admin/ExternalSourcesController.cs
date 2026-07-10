@@ -183,7 +183,7 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
 
     // Save accumulated preview rows to file cache (called by frontend after progressive fetch)
     [HttpPost("{id:guid}/save-preview")]
-    [RequestSizeLimit(52_428_800)]
+    [RequestSizeLimit(209_715_200)] // 200 MB — large REST sources can have 100K+ rows
     public async Task<IActionResult> SavePreview(Guid id,
         [FromBody] SavePreviewRequest data,
         [FromServices] IWebHostEnvironment env,

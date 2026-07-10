@@ -307,6 +307,19 @@ export default function DisKaynaklarPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
+  // Refs for auto-refresh interval (avoids stale closure in setInterval)
+  const expandedIdRef = useRef<string | null>(null);
+  const previewMapRef = useRef<Record<string, PreviewData>>({});
+  const importedSetRef = useRef<Record<string, Set<string>>>({});
+  const targetMapRef = useRef<Record<string, string>>({});
+  const mappingStateRef = useRef<Record<string, Record<string, string>>>({});
+
+  useEffect(() => { expandedIdRef.current = expandedId; }, [expandedId]);
+  useEffect(() => { previewMapRef.current = previewMap; }, [previewMap]);
+  useEffect(() => { importedSetRef.current = importedSet; }, [importedSet]);
+  useEffect(() => { targetMapRef.current = targetMap; }, [targetMap]);
+  useEffect(() => { mappingStateRef.current = mappingState; }, [mappingState]);
+
   // Batched check-imported: splits large identifier lists into chunks to avoid SQL IN clause limits
   async function checkImportedBatched(sourceId: string, targetEntity: string, identifiers: string[]): Promise<Set<string>> {
     const BATCH = 2000;
@@ -394,6 +407,46 @@ export default function DisKaynaklarPage() {
       setPendingAutoCheck(prev => prev === sourceId ? null : prev);
     });
   }, [pendingAutoCheck, previewMap, targetMap, mappingState]);
+
+  // Helper: silently refresh importedSet for a single source (no loading indicator)
+  const refreshImportedForSource = useCallback(async (sourceId: string) => {
+    const preview = previewMapRef.current[sourceId];
+    if (!preview?.rows?.length) return;
+    const target = targetMapRef.current[sourceId] || "Product";
+    const mapping = mappingStateRef.current[sourceId] || {};
+    const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
+    if (!identCol) return;
+    const identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
+    if (!identifiers.length) return;
+    const imported = await checkImportedBatched(sourceId, target, identifiers);
+    setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
+  }, []);
+
+  // 15-second auto-refresh: keep "Aktarılmış/Aktarılmamış" counts in sync with DB
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentExpandedId = expandedIdRef.current;
+      if (!currentExpandedId) return;
+      // Only refresh if importedSet was already populated (i.e., user clicked "Kontrol Et" at least once)
+      if (!importedSetRef.current[currentExpandedId]) return;
+      void refreshImportedForSource(currentExpandedId);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [refreshImportedForSource]);
+
+  // BroadcastChannel: listen for product changes from the ürünler admin screen
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const bc = new BroadcastChannel("ecom-product-changed");
+    bc.onmessage = () => {
+      // Refresh importedSet for ALL sources that have data loaded (not just expanded one)
+      const allSourceIds = Object.keys(importedSetRef.current);
+      for (const sourceId of allSourceIds) {
+        void refreshImportedForSource(sourceId);
+      }
+    };
+    return () => bc.close();
+  }, [refreshImportedForSource]);
 
   async function loadServerPreview(source: ExternalSource) {
     if (previewMap[source.id]) return; // already in memory
@@ -658,6 +711,7 @@ export default function DisKaynaklarPage() {
         toast(true, `Aktarım tamamlandı — +${totalIns} eklendi, ~${totalUpd} güncellendi, ⊘${totalSkip} atlandı`);
       loadLogs(sourceId);
       load();
+      void refreshImportedForSource(sourceId);
     } catch (e: unknown) {
       toast(false, e instanceof Error ? e.message : "İçe aktarma hatası");
       setImportProgress(prev => { const n = { ...prev }; delete n[sourceId]; return n; });
@@ -732,6 +786,7 @@ export default function DisKaynaklarPage() {
             setImportProgress(prev => { const n = { ...prev }; delete n[sourceId]; return n; });
             loadLogs(sourceId);
             load();
+            if (status.status === "Completed") void refreshImportedForSource(sourceId);
           }
         } catch { /* polling failure — keep trying */ }
       }, 2000);

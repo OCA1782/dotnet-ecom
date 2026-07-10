@@ -90,12 +90,28 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 .Select(c => c.Id)
                 .ToListAsync(cancellationToken);
 
+            // Pre-fetch admin user IDs by email — covers "Oluşturan" column search.
+            var matchingAdminIds = await db.Users
+                .AsNoTracking()
+                .Where(u => u.Email != null && EF.Functions.ILike(u.Email, sp))
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+
+            // Pre-fetch external source IDs by name — covers ImportedFromSourceName column when DataSource is null.
+            var matchingSourceIds = await db.ExternalSources
+                .AsNoTracking()
+                .Where(s => EF.Functions.ILike(s.Name, sp))
+                .Select(s => s.Id)
+                .ToListAsync(cancellationToken);
+
             query = query.Where(p =>
                 EF.Functions.ILike(p.Name, sp)
                 || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
                 || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value))
                 || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
-                || (p.DataSource != null && EF.Functions.ILike(p.DataSource, sp)));
+                || (p.DataSource != null && EF.Functions.ILike(p.DataSource, sp))
+                || (matchingAdminIds.Count > 0 && p.CreatedByAdminId.HasValue && matchingAdminIds.Contains(p.CreatedByAdminId.Value))
+                || (matchingSourceIds.Count > 0 && p.ImportedFromSourceId.HasValue && matchingSourceIds.Contains(p.ImportedFromSourceId.Value)));
         }
 
         // Vehicle model search — sequential two-tier strategy:
