@@ -1,6 +1,6 @@
-﻿# TODO Pending
+# TODO Pending
 
-> Son güncelleme: 09.07.2026 17:27 UTC (AdminLintAuditJob)
+> Son güncelleme: 10.07.2026 18:10 UTC
 
 ## Özet
 
@@ -13,8 +13,38 @@
 
 ## Öncelikli Aksiyonlar
 
-## İlk Çalışma Sırası
+### ✅ PostgreSQL Performans İyileştirmeleri (2026-07-10 — TAMAMLANDI)
 
+**Karar:** PostgreSQL birincil DB. SQL Server yedek konumda kalır.
+
+| Görev | Durum | Sonuç |
+|---|---|---|
+| `pg_trgm` extension + GIN partial index on Name | ✅ | ILIKE araması çalışıyor (case-insensitive) |
+| Covering sort index `(IsDeleted, IsActive, IsPublished, CreatedDate DESC)` | ✅ | No-filter liste: 4s → 26ms |
+| Partial index `Products(VehicleModel) WHERE VehicleModel IS NOT NULL` | ✅ | VehicleModel sorgusu: 0.46s → 79ms |
+| `IX_Products_ImportedFromSourceId` index | ✅ | Admin kaynak filtresi |
+| EF Core `AsNoTracking()` — GET sorgulara eklendi | ✅ | GetProductsQuery, GetSearchSuggestionsQuery, GetVehicleCategoriesQuery |
+| `Turkish_CI_AS` Collate → `ILike` (PostgreSQL uyumu) | ✅ | GetVehicleCategoriesQuery, GetSearchSuggestionsQuery |
+| `EF.Functions.Like` → `ILike` — tüm arama sorgularında | ✅ | GetProductsQuery (search + vehicleModel tier1+tier2) |
+| PostgreSQL `work_mem=64MB` + `shared_buffers=1GB` Docker config | ✅ | Warm query: 997ms → 35ms |
+| `random_page_cost=1.1` + `effective_io_concurrency=200` (SSD ayarı) | ✅ | Bitmap scan tercihi iyileşti |
+| Brand search JOIN → pre-fetch + IN clause | ✅ | GIN index aktif, OR join kaldırıldı |
+
+**Performans Özeti (126K ürün, PostgreSQL):**
+
+| Sorgu | Öncesi | Sonrası |
+|---|---|---|
+| No-filter liste (warm) | 4.01s | 26ms (154x) |
+| Arama 'mercedes' (BOZUKTU) | 0 sonuç | 9100 sonuç, 123ms |
+| VehicleModel 'C Serisi W204' | 460ms | 79ms (6x) |
+| Öne çıkan ürünler | 180ms | 25ms (7x) |
+| Arama önerileri | — | 70ms |
+
+### 📋 Kalan Görevler
+
+- [ ] Composite index: `Products(IsDeleted, CategoryId, Price)` — filtreli ürün listesi (henüz bekleniyor)
+- [ ] SlowQueryInterceptor log analizi — 500ms+ sorgular tespit ve optimize
+- [ ] `GetProductsQuery` — search COUNT büyük sonuç setlerinde (~9K) yaklaşık sayım seçeneği
 
 ## Not
 

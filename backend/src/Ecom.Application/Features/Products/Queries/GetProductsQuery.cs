@@ -59,6 +59,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         // Navigation properties are accessed directly in the final Select() which EF translates
         // to efficient correlated subqueries or nested loop joins on the 5-row result set.
         var query = db.Products
+            .AsNoTracking()
             .Where(p => !p.IsDeleted)
             .AsQueryable();
 
@@ -74,10 +75,19 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         {
             var s = request.Search;
             var sp = $"%{s}%";
+
+            // Pre-fetch matching brand IDs (404 brands total) to avoid a Hash Join in the main query.
+            // This keeps the Products filter as a single-table predicate so the GIN trigram index fires.
+            var matchingBrandIds = await db.Brands
+                .AsNoTracking()
+                .Where(b => EF.Functions.ILike(b.Name, sp))
+                .Select(b => b.Id)
+                .ToListAsync(cancellationToken);
+
             query = query.Where(p =>
-                EF.Functions.Like(p.Name, sp)
-                || (p.SKU != null && p.SKU.Contains(s))
-                || (p.Brand != null && EF.Functions.Like(p.Brand.Name, sp)));
+                EF.Functions.ILike(p.Name, sp)
+                || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
+                || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value)));
         }
 
         // Vehicle model search — sequential two-tier strategy:
@@ -91,8 +101,8 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
 
             var tier1Query = query.Where(p =>
                 p.VehicleModel != null && (
-                    EF.Functions.Like(p.VehicleModel, vm + "%") ||
-                    (baseVm != vm && EF.Functions.Like(p.VehicleModel, baseVm + "%"))
+                    EF.Functions.ILike(p.VehicleModel, vm + "%") ||
+                    (baseVm != vm && EF.Functions.ILike(p.VehicleModel, baseVm + "%"))
                 ));
 
             var tier1Count = await tier1Query.CountAsync(cancellationToken);
@@ -103,19 +113,19 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             }
             else
             {
-                // Fallback: Name LIKE for products not yet tagged with VehicleModel
+                // Fallback: Name ILike for products not yet tagged with VehicleModel
                 query = query.Where(p =>
                     p.Name == vm ||
                     p.Name.StartsWith(vm + " ") ||
                     p.Name.StartsWith(vm + "/") ||
                     p.Name.StartsWith(vm + "-") ||
-                    EF.Functions.Like(p.Name, $"% {vm} %") ||
-                    EF.Functions.Like(p.Name, $"% {vm}") ||
-                    EF.Functions.Like(p.Name, $"% {vm}/%") ||
-                    EF.Functions.Like(p.Name, $"% {vm}-%") ||
-                    EF.Functions.Like(p.Name, $"% {vm}(%") ||
-                    EF.Functions.Like(p.Name, $"% {vm}|%") ||
-                    EF.Functions.Like(p.Name, $"% {vm},%")
+                    EF.Functions.ILike(p.Name, $"% {vm} %") ||
+                    EF.Functions.ILike(p.Name, $"% {vm}") ||
+                    EF.Functions.ILike(p.Name, $"% {vm}/%") ||
+                    EF.Functions.ILike(p.Name, $"% {vm}-%") ||
+                    EF.Functions.ILike(p.Name, $"% {vm}(%") ||
+                    EF.Functions.ILike(p.Name, $"% {vm}|%") ||
+                    EF.Functions.ILike(p.Name, $"% {vm},%")
                 );
             }
         }

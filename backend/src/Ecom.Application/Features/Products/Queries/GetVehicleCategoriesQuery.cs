@@ -14,22 +14,24 @@ public class GetVehicleCategoriesQueryHandler(IApplicationDbContext db) : IReque
     {
         var vm = request.VehicleModel;
 
-        // Fetch category IDs of matching products — grouping done in memory to avoid
-        // EF Core translation issues with GroupBy + multiple LIKE conditions on SQL Server
+        // Primary: use VehicleModel column (backfilled index, fast prefix search)
+        // Fallback: name-based ILike search for products not yet backfilled
         var catIdList = await db.Products
+            .AsNoTracking()
             .Where(p => p.IsActive && p.IsPublished)
             .Where(p =>
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm} %") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}/%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}-%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}(%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm}|%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"% {vm},%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm} %") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm}/%") ||
-                EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), $"{vm}-%") ||
-                EF.Functions.Collate(p.Name, "Turkish_CI_AS") == vm
+                (p.VehicleModel != null && EF.Functions.ILike(p.VehicleModel, vm + "%")) ||
+                EF.Functions.ILike(p.Name, $"% {vm} %") ||
+                EF.Functions.ILike(p.Name, $"% {vm}") ||
+                EF.Functions.ILike(p.Name, $"% {vm}/%") ||
+                EF.Functions.ILike(p.Name, $"% {vm}-%") ||
+                EF.Functions.ILike(p.Name, $"% {vm}(%") ||
+                EF.Functions.ILike(p.Name, $"% {vm}|%") ||
+                EF.Functions.ILike(p.Name, $"% {vm},%") ||
+                EF.Functions.ILike(p.Name, $"{vm} %") ||
+                EF.Functions.ILike(p.Name, $"{vm}/%") ||
+                EF.Functions.ILike(p.Name, $"{vm}-%") ||
+                p.Name == vm
             )
             .Select(p => p.CategoryId)
             .ToListAsync(cancellationToken);

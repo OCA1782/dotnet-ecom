@@ -9,6 +9,15 @@ services:
       POSTGRES_DB: EcomDb
       POSTGRES_USER: ecom
       POSTGRES_PASSWORD: ecom_dev_2026
+    command: >
+      postgres
+      -c shared_buffers=1GB
+      -c work_mem=64MB
+      -c effective_cache_size=8GB
+      -c maintenance_work_mem=256MB
+      -c max_connections=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
     volumes:
       - ecom-postgres-data:/var/lib/postgresql/data
     healthcheck:

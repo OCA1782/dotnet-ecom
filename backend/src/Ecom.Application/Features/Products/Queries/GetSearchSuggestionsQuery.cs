@@ -32,7 +32,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
 
         // Kategoriler (max 2)
         var categories = await db.Categories
-            .Where(c => !c.IsDeleted && EF.Functions.Like(EF.Functions.Collate(c.Name, "Turkish_CI_AS"), likePat))
+            .Where(c => !c.IsDeleted && EF.Functions.ILike(c.Name, likePat))
             .OrderBy(c => c.Name)
             .Take(2)
             .Select(c => new { c.Name, c.Slug, c.Icon })
@@ -43,7 +43,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
 
         // Markalar (max 2)
         var brands = await db.Brands
-            .Where(b => !b.IsDeleted && EF.Functions.Like(EF.Functions.Collate(b.Name, "Turkish_CI_AS"), likePat))
+            .Where(b => !b.IsDeleted && EF.Functions.ILike(b.Name, likePat))
             .OrderBy(b => b.Name)
             .Take(2)
             .Select(b => new { b.Name, b.Slug, b.Icon })
@@ -55,13 +55,21 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         // Ürünler — kalan slot
         int productLimit = Math.Max(request.Limit - items.Count, 3);
 
+        // Pre-fetch brand IDs to avoid hash join in the main Products query
+        var matchingBrandIds = brands.Select(b => b.Slug).ToList(); // reuse brand results
+        var matchingBrandGuids = await db.Brands
+            .AsNoTracking()
+            .Where(b => !b.IsDeleted && EF.Functions.ILike(b.Name, likePat))
+            .Select(b => b.Id)
+            .ToListAsync(cancellationToken);
+
         var products = await db.Products
-            .Include(p => p.Brand)
+            .AsNoTracking()
             .Include(p => p.Images.Where(i => i.IsMain))
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), likePat)
-                    || (p.SKU != null && p.SKU.Contains(q))
-                    || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), likePat))))
+                && (EF.Functions.ILike(p.Name, likePat)
+                    || (p.SKU != null && EF.Functions.ILike(p.SKU, likePat))
+                    || (matchingBrandGuids.Count > 0 && p.BrandId.HasValue && matchingBrandGuids.Contains(p.BrandId.Value))))
             .OrderByDescending(p => p.Name.StartsWith(q))
             .ThenBy(p => p.Name)
             .Take(productLimit)
@@ -71,7 +79,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
                 p.Slug,
                 p.Price,
                 p.DiscountPrice,
-                BrandName = p.Brand != null ? p.Brand.Name : null,
+                BrandName = db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
                 ImageUrl = p.Images.FirstOrDefault() != null ? p.Images.First().ImageUrl : null,
             })
             .ToListAsync(cancellationToken);
@@ -79,9 +87,9 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         // Toplam eşleşen ürün sayısı (dropdown "X sonuç" için)
         int totalProducts = await db.Products
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (EF.Functions.Like(EF.Functions.Collate(p.Name, "Turkish_CI_AS"), likePat)
-                    || (p.SKU != null && p.SKU.Contains(q))
-                    || (p.Brand != null && EF.Functions.Like(EF.Functions.Collate(p.Brand.Name, "Turkish_CI_AS"), likePat))))
+                && (EF.Functions.ILike(p.Name, likePat)
+                    || (p.SKU != null && EF.Functions.ILike(p.SKU, likePat))
+                    || (matchingBrandGuids.Count > 0 && p.BrandId.HasValue && matchingBrandGuids.Contains(p.BrandId.Value))))
             .CountAsync(cancellationToken);
 
         items.AddRange(products.Select(p => new SearchSuggestionItem(
