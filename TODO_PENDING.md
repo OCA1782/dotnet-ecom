@@ -1,6 +1,6 @@
 # TODO Pending
 
-> Son güncelleme: 11.07.2026 03:00 UTC
+> Son güncelleme: 11.07.2026 04:00 UTC
 
 ## Özet
 
@@ -97,6 +97,18 @@
 | "Oluşturan" (createdByAdminEmail) — pre-fetch user IDs + IN clause | ✅ |
 | "Kaynak" ImportedFromSourceName — pre-fetch ExternalSource IDs + IN clause | ✅ |
 | Tüm sütunlar aranabilir: Ad, SKU, Kategori, Marka, Kaynak, DataSource, Oluşturan | ✅ |
+
+### ✅ Dış Kaynaklar — Fetch Düzeltmeleri & Sayfalı Çek (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| "Tümünü Çek" butonu (eski Veri Çek) — tüm sayfaları sırayla çeker | ✅ |
+| "Sayfalı Çek" butonu + sayfa sayısı input (default 5) — N sayfa ile sınırlı çekim | ✅ |
+| `handleFetch(pageLimit?)` — opsiyonel limit parametresi | ✅ |
+| Ardışık hata sayacı: 3 peş peşe hata → çekim durdurulur, kullanıcı uyarılır | ✅ |
+| İlerleme göstergesi: `loaded / total` sayımı Tümünü Çek butonunda görünür | ✅ |
+| `save-preview` backend: `LastFetchedAt` + `LastFetchedCount` güncellenir (metadata artık doğru) | ✅ |
+| Fetch tamamlanınca `load()` çağrılır → kaynak kartı lastFetchedAt'ı yeniler | ✅ |
 
 ### 📋 Kalan Görevler
 

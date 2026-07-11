@@ -181,11 +181,13 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return Ok(new { columns, rows, page, totalPages, totalCount, hasNextPage });
     }
 
-    // Save accumulated preview rows to file cache (called by frontend after progressive fetch)
+    // Save accumulated preview rows to file cache (called by frontend after progressive fetch).
+    // Also updates LastFetchedAt and LastFetchedCount so source card shows correct metadata.
     [HttpPost("{id:guid}/save-preview")]
     [RequestSizeLimit(209_715_200)] // 200 MB — large REST sources can have 100K+ rows
     public async Task<IActionResult> SavePreview(Guid id,
         [FromBody] SavePreviewRequest data,
+        [FromServices] IApplicationDbContext db,
         [FromServices] IWebHostEnvironment env,
         CancellationToken ct)
     {
@@ -194,6 +196,16 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         var previewPath = Path.Combine(uploadDir, $"{id}-preview.json");
         var json = JsonSerializer.Serialize(new { columns = data.Columns, rows = data.Rows });
         await System.IO.File.WriteAllTextAsync(previewPath, json, ct);
+
+        // Update source metadata so the card reflects the latest fetch
+        var source = await db.ExternalSources.FindAsync([id], ct);
+        if (source != null)
+        {
+            source.LastFetchedAt = DateTime.UtcNow;
+            source.LastFetchedCount = data.Rows?.Count ?? 0;
+            await db.SaveChangesAsync(ct);
+        }
+
         return Ok();
     }
 

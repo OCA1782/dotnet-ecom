@@ -304,6 +304,8 @@ export default function DisKaynaklarPage() {
   const [importFilter, setImportFilter] = useState<Record<string, "all" | "imported" | "not">>({});
   // source total available count from quick metadata call
   const [totalAvailable, setTotalAvailable] = useState<Record<string, number | null>>({});
+  // partial fetch: per-source page count input (used by "Sayfalı Çek" button)
+  const [partialFetchPages, setPartialFetchPages] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -501,10 +503,12 @@ export default function DisKaynaklarPage() {
     loadLogs(id);
   }
 
-  async function handleFetch(source: ExternalSource) {
+  // pageLimit: if set, fetch at most this many pages (partial fetch). Undefined = fetch all.
+  async function handleFetch(source: ExternalSource, pageLimit?: number) {
     setFetching(source.id);
+    let fetchWarning: string | null = null;
     try {
-      // Fetch page 1 — show data immediately before remaining pages arrive
+      // Page 1 — immediately visible so user sees data while rest loads
       const page1 = await api.get<{
         columns: string[];
         rows: Record<string, string>[];
@@ -524,10 +528,12 @@ export default function DisKaynaklarPage() {
       const allColumns = page1.columns;
       const allRows = [...page1.rows];
       const totalCount = page1.totalCount ?? page1.rows.length;
-      const totalPages = page1.totalPages ?? 1;
+      const rawTotalPages = page1.totalPages ?? 1;
+      // Apply page limit: cap total pages if partial fetch
+      const totalPages = pageLimit != null ? Math.min(rawTotalPages, pageLimit) : rawTotalPages;
 
       applyPreview(source.id, { columns: allColumns, rows: [...allRows] });
-      setFetching(null); // data is visible; switch to fetchingMore for subsequent pages
+      setFetching(null); // page 1 visible; progress indicator takes over
 
       if (page1.hasNextPage && totalPages > 1) {
         setFetchingMore(prev => ({
@@ -535,6 +541,7 @@ export default function DisKaynaklarPage() {
           [source.id]: { loaded: allRows.length, total: totalCount, page: 1, totalPages },
         }));
 
+        let consecutiveErrors = 0;
         for (let p = 2; p <= totalPages; p++) {
           try {
             const pageData = await api.get<{
@@ -543,7 +550,16 @@ export default function DisKaynaklarPage() {
               hasNextPage: boolean;
               error?: string;
             }>(`/api/admin/external-sources/${source.id}/fetch-page?page=${p}`);
-            if (pageData.error || !pageData.rows?.length) break;
+
+            if (pageData.error) {
+              consecutiveErrors++;
+              fetchWarning = `Sayfa ${p}: ${pageData.error}`;
+              if (consecutiveErrors >= 3) { fetchWarning = `${consecutiveErrors} art arda sayfa hatası — çekim ${p}. sayfada durdu`; break; }
+              continue;
+            }
+            if (!pageData.rows?.length) break; // empty page = end of data
+
+            consecutiveErrors = 0;
             allRows.push(...pageData.rows);
             setPreviewMap(prev => ({
               ...prev,
@@ -554,21 +570,31 @@ export default function DisKaynaklarPage() {
               [source.id]: { loaded: allRows.length, total: totalCount, page: p, totalPages },
             }));
             if (!pageData.hasNextPage) break;
-          } catch { break; }
+          } catch {
+            consecutiveErrors++;
+            if (consecutiveErrors >= 3) { fetchWarning = `Ağ hatası — çekim ${p}. sayfada durdu`; break; }
+          }
         }
 
         setFetchingMore(prev => { const n = { ...prev }; delete n[source.id]; return n; });
       }
 
-      // Save complete preview to server so it survives page refresh (non-blocking)
+      // Save to server — also updates LastFetchedAt / LastFetchedCount on the source entity
       api.post(`/api/admin/external-sources/${source.id}/save-preview`, {
         columns: allColumns, rows: allRows,
-      }).catch(() => { /* non-critical */ });
+      }).catch(() => { /* non-critical — preview still visible in client */ });
 
-      // Auto-check import status so aktarılan/aktarılmayan filter works immediately
+      // Refresh source list so the card shows updated lastFetchedAt
+      load();
+
       setPendingAutoCheck(source.id);
 
-      toast(true, `${allRows.length.toLocaleString("tr-TR")} satır çekildi.`);
+      const limitNote = pageLimit != null ? ` (ilk ${pageLimit} sayfa)` : "";
+      if (fetchWarning) {
+        toast(false, `${allRows.length.toLocaleString("tr-TR")} satır çekildi${limitNote}. ⚠️ ${fetchWarning}`);
+      } else {
+        toast(true, `${allRows.length.toLocaleString("tr-TR")} satır çekildi${limitNote}.`);
+      }
     } catch (e: unknown) {
       applyPreview(source.id, { columns: [], rows: [], error: e instanceof Error ? e.message : "Hata oluştu" });
       setFetching(null);
@@ -1159,23 +1185,49 @@ export default function DisKaynaklarPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* REST API: Fetch data button */}
+                    {/* REST API: Fetch ALL data button */}
                     {source.type === "RestApi" && (
                       <button
                         onClick={() => handleFetch(source)}
                         disabled={fetching === source.id || !!fetchingMore[source.id]}
-                        title="Önizleme için kaynak verilerini çek (sayfalı tam çekim)"
+                        title="Tüm sayfaları sırayla çek ve önbelleğe kaydet"
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {(fetching === source.id || fetchingMore[source.id])
                           ? <><RefreshCw size={12} className="animate-spin" /> Çekiliyor...</>
-                          : <><RefreshCw size={12} /> Veri Çek</>}
+                          : <><RefreshCw size={12} /> Tümünü Çek</>}
                         {fetchingMore[source.id] && (
                           <span className="text-[10px] text-teal-500 tabular-nums">
-                            {fetchingMore[source.id]!.loaded.toLocaleString("tr-TR")}
+                            {fetchingMore[source.id]!.loaded.toLocaleString("tr-TR")} / {fetchingMore[source.id]!.total.toLocaleString("tr-TR")}
                           </span>
                         )}
                       </button>
+                    )}
+                    {/* REST API: Partial fetch — user specifies page count */}
+                    {source.type === "RestApi" && (
+                      <div className="flex items-center gap-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max="9999"
+                          value={partialFetchPages[source.id] ?? "5"}
+                          onChange={e => setPartialFetchPages(prev => ({ ...prev, [source.id]: e.target.value }))}
+                          disabled={fetching === source.id || !!fetchingMore[source.id]}
+                          title="Çekilecek sayfa sayısı"
+                          className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center tabular-nums bg-white focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50"
+                        />
+                        <button
+                          onClick={() => {
+                            const n = parseInt(partialFetchPages[source.id] ?? "5", 10);
+                            if (n > 0) handleFetch(source, n);
+                          }}
+                          disabled={fetching === source.id || !!fetchingMore[source.id]}
+                          title={`İlk ${partialFetchPages[source.id] ?? 5} sayfayı çek`}
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          <RefreshCw size={11} /> Sayfalı Çek
+                        </button>
+                      </div>
                     )}
                     {/* REST API: quick count — labeled button */}
                     {source.type === "RestApi" && (
