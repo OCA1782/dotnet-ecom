@@ -168,6 +168,22 @@
 
 **Analiz:** `C:\PROJECTS\DOTNET\DOCUMENTS\ECOM\ANALIZ\Yuksek_Hacimli_Veri_Onizleme_ve_Ice_Aktarma_Mimarisi.pdf` dokümanı ile mevcut yapı kıyaslandı. PDF Bölüm 8.2: "JobId URL'de taşınmalı, reload sonrası DB'den durum restore edilmeli." Mevcut `toggleExpand` zaten `GET /{id}/preview-job` ile aktif job'ı DB'den restore ediyor — eksik olan yalnızca "Tümünü Çek"in server-side mekanizmayı kullanmasıydı.
 
+### ✅ Dış Kaynaklar — İdempotency Kontrolü & Mükerrer Kayıt Testi (2026-07-11 — TAMAMLANDI)
+
+**Test Senaryoları (DummyJSON REST kaynağı, 3 ürün, SKU'lu):**
+
+| Senaryo | Beklenen | Gerçekleşen |
+|---|---|---|
+| 1. Import (conflict=skip) | inserted=3 | ✅ insertedCount=3 |
+| 2. Aynı veri tekrar import (conflict=skip) | skipped=3 | ✅ skippedCount=3, skipReasons: "Zaten güncel (değişiklik yok)" |
+| 3. Fiyat değişikliği + yeni ürün (conflict=update) | updated=1, inserted=1, skipped=2 | ✅ Tüm beklenenler doğru |
+
+**Katmanlar:**
+- **Uygulama katmanı:** `seenSku` dict + alan bazlı karşılaştırma (Name, Price, Desc, CategoryId, BrandId) — aynıysa DB'ye yazmaz
+- **DB katmanı:** `UX_Products_SourceId_SKU` partial unique index (ImportedFromSourceId + SKU WHERE NOT NULL) — eş zamanlı import güvenliği
+
+**Sonuç:** İdempotency tam çalışıyor — aynı veri iki kez aktarılsa da mükerrer kayıt oluşmuyor.
+
 ### 📋 Kalan Görevler
 
 - [ ] SlowQueryInterceptor log analizi — 500ms+ sorgular tespit ve optimize
