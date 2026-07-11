@@ -1033,10 +1033,10 @@ export default function DisKaynaklarPage() {
     }
   }
 
-  async function handleFetchAndImport(sourceId: string) {
+  async function handleFetchAndImport(sourceId: string, forceConflict?: string) {
     const target = targetMap[sourceId] || "Product";
     const mapping = mappingState[sourceId] || {};
-    const conflict = conflictMap[sourceId] || "skip";
+    const conflict = forceConflict ?? conflictMap[sourceId] ?? "skip";
     const syncDelete = syncDeleteMap[sourceId] ?? false;
 
     if (Object.keys(mapping).length === 0) {
@@ -2077,16 +2077,42 @@ export default function DisKaynaklarPage() {
                         <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-200">
                           {/* Large source: row-based import not available — server-side fetch-and-import is primary */}
                           {isLargeSource ? (
-                            <div className="px-4 py-3 flex items-start gap-3">
-                              <Database size={14} className="text-indigo-400 mt-0.5 shrink-0" />
-                              <div>
-                                <p className="text-xs font-semibold text-indigo-800">Büyük kaynak — sunucu taraflı aktarım gerekli</p>
-                                <p className="text-[11px] text-indigo-600 mt-0.5">
-                                  {previewTotalCount.toLocaleString("tr-TR")} satır içeren bu kaynak için tarayıcı bellek sınırı aşıldığından
-                                  satır seçimi devre dışıdır. Aşağıdaki <strong>Çek &amp; Aktar</strong> seçeneğini kullanın.
-                                </p>
+                            <>
+                              <div className="px-4 py-3 flex items-start gap-3">
+                                <Database size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-semibold text-indigo-800">Büyük kaynak — sunucu taraflı aktarım gerekli</p>
+                                  <p className="text-[11px] text-indigo-600 mt-0.5">
+                                    {previewTotalCount.toLocaleString("tr-TR")} satır içeren bu kaynak için tarayıcı bellek sınırı aşıldığından
+                                    satır seçimi devre dışıdır. Aşağıdaki <strong>Çek &amp; Aktar</strong> veya <strong>Aktarılmamışları Aktar</strong> seçeneğini kullanın.
+                                  </p>
+                                </div>
                               </div>
-                            </div>
+                              {impSet && impIdentCol && (() => {
+                                const notCount = previewTotalCount - impSet.size;
+                                if (notCount <= 0) return null;
+                                return (
+                                  <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap bg-violet-50/50 border-t border-violet-100">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-violet-800 flex items-center gap-1.5">
+                                        Aktarılmamışları Aktar
+                                        <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>
+                                      </p>
+                                      <p className="text-[11px] text-violet-600 mt-0.5">
+                                        Kaynak yeniden çekilir; sistemde olmayan ~{notCount.toLocaleString("tr-TR")} satır aktarılır (mevcut kayıtlar atlanır)
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleFetchAndImport(source.id, "skip")}
+                                      disabled={importing === source.id}
+                                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-violet-600 hover:bg-violet-700 text-white shrink-0 disabled:cursor-not-allowed"
+                                    >
+                                      <Zap size={14} /> Aktarılmamışları Aktar (~{notCount.toLocaleString("tr-TR")})
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </>
                           ) : (
                             <>
                               {/* Scenario 1: Import selected rows */}
