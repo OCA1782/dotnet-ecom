@@ -52,6 +52,17 @@ interface PreviewData {
   columns: string[];
   rows: Record<string, string>[];
   error?: string;
+  // Set for large sources (>LARGE_SOURCE_THRESHOLD): rows stays empty, display uses server pagination
+  serverPaginated?: boolean;
+  totalCount?: number;
+}
+
+interface ServerPreviewPage {
+  rows: Record<string, string>[];
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  loading?: boolean;
 }
 
 interface Toast { id: number; ok: boolean; text: string; }
@@ -72,6 +83,9 @@ interface ImportProgress {
 const PAGE_SIZE = 50;
 const CHUNK_SIZE = 500;
 const ASYNC_THRESHOLD = 5000; // rows above this go to RabbitMQ background job
+// Large source threshold: above this, rows are NOT kept in browser state after save — server-side pagination used
+const LARGE_SOURCE_THRESHOLD = 2000;
+const SERVER_PAGE_SIZE = 100;
 
 const TARGET_ENTITIES = ["Product", "Category", "Brand", "Stock"];
 const TARGET_LABELS: Record<string, string> = {
@@ -306,6 +320,8 @@ export default function DisKaynaklarPage() {
   const [totalAvailable, setTotalAvailable] = useState<Record<string, number | null>>({});
   // partial fetch: per-source page count input (used by "Sayfalı Çek" button)
   const [partialFetchPages, setPartialFetchPages] = useState<Record<string, string>>({});
+  // Server-side paginated display for large sources (rows not kept in browser memory)
+  const [serverPreviewPage, setServerPreviewPage] = useState<Record<string, ServerPreviewPage>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -337,6 +353,32 @@ export default function DisKaynaklarPage() {
       } catch { break; }
     }
     return imported;
+  }
+
+  // Load a page from the server-stored preview.json — used for large sources after save-preview
+  async function loadServerPreviewPage(sourceId: string, page: number) {
+    setServerPreviewPage(prev => ({
+      ...prev,
+      [sourceId]: { ...(prev[sourceId] ?? { rows: [], page: 1, totalPages: 1, totalCount: 0 }), loading: true },
+    }));
+    try {
+      const data = await api.get<{
+        columns: string[];
+        rows: Record<string, string>[];
+        page: number;
+        totalPages: number;
+        totalCount: number;
+      }>(`/api/admin/external-sources/${sourceId}/preview-page?page=${page}&pageSize=${SERVER_PAGE_SIZE}`);
+      setServerPreviewPage(prev => ({
+        ...prev,
+        [sourceId]: { rows: data.rows, page: data.page, totalPages: data.totalPages, totalCount: data.totalCount },
+      }));
+    } catch {
+      setServerPreviewPage(prev => ({
+        ...prev,
+        [sourceId]: { ...(prev[sourceId] ?? { rows: [], page: 1, totalPages: 1, totalCount: 0 }), loading: false },
+      }));
+    }
   }
 
   const toast = useCallback((ok: boolean, text: string) => {
@@ -392,19 +434,35 @@ export default function DisKaynaklarPage() {
   useEffect(() => {
     if (!pendingAutoCheck) return;
     const preview = previewMap[pendingAutoCheck];
-    if (!preview?.rows?.length) return;
+    if (!preview) return;
     const target = targetMap[pendingAutoCheck] || "Product";
     const mapping = mappingState[pendingAutoCheck] || {};
     const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
     const sourceId = pendingAutoCheck;
-    const identifiers = identCol
-      ? [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))]
-      : [];
-    const p = identifiers.length > 0
-      ? checkImportedBatched(sourceId, target, identifiers).then(imported => {
+
+    let p: Promise<unknown>;
+    if (preview.serverPaginated) {
+      // Large source: get identifiers from server preview.json
+      if (!identCol) { setPendingAutoCheck(null); return; }
+      p = api.get<{ identifiers: string[] }>(
+        `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identCol)}`
+      ).then(res =>
+        checkImportedBatched(sourceId, target, res.identifiers).then(imported => {
           setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
         })
-      : Promise.resolve();
+      ).catch(() => {});
+    } else {
+      if (!preview.rows?.length) { setPendingAutoCheck(null); return; }
+      const identifiers = identCol
+        ? [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))]
+        : [];
+      p = identifiers.length > 0
+        ? checkImportedBatched(sourceId, target, identifiers).then(imported => {
+            setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
+          })
+        : Promise.resolve();
+    }
+
     p.finally(() => {
       setPendingAutoCheck(prev => prev === sourceId ? null : prev);
     });
@@ -413,12 +471,25 @@ export default function DisKaynaklarPage() {
   // Helper: silently refresh importedSet for a single source (no loading indicator)
   const refreshImportedForSource = useCallback(async (sourceId: string) => {
     const preview = previewMapRef.current[sourceId];
-    if (!preview?.rows?.length) return;
+    if (!preview?.columns?.length) return;
     const target = targetMapRef.current[sourceId] || "Product";
     const mapping = mappingStateRef.current[sourceId] || {};
     const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
     if (!identCol) return;
-    const identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
+
+    let identifiers: string[];
+    if (preview.serverPaginated) {
+      // Large source: fetch identifiers from server-stored preview.json
+      try {
+        const res = await api.get<{ identifiers: string[] }>(
+          `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identCol)}`
+        );
+        identifiers = res.identifiers;
+      } catch { return; }
+    } else {
+      identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
+    }
+
     if (!identifiers.length) return;
     const imported = await checkImportedBatched(sourceId, target, identifiers);
     setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
@@ -453,16 +524,46 @@ export default function DisKaynaklarPage() {
   async function loadServerPreview(source: ExternalSource) {
     if (previewMap[source.id]) return; // already in memory
     if (!source.lastFetchedAt) return; // never had data
-    // For all source types: /preview returns file cache (Excel → parses saved .xlsx, RestApi → reads saved .json)
+
     setFetching(source.id);
     try {
-      const data = await api.get<PreviewData>(`/api/admin/external-sources/${source.id}/preview`);
-      if (data && !data.error) {
-        applyPreview(source.id, data, targetMap[source.id] || "Product");
-        // Trigger auto import-status check after state settles
-        setPendingAutoCheck(source.id);
-      } else if (data?.error) {
-        setPreviewMap(prev => ({ ...prev, [source.id]: data }));
+      // Large REST source: skip full /preview load, use server-side pagination directly
+      if (source.type === "RestApi" && (source.lastFetchedCount ?? 0) > LARGE_SOURCE_THRESHOLD) {
+        const data = await api.get<{
+          columns: string[]; rows: Record<string, string>[];
+          totalCount: number; totalPages: number; page: number;
+        }>(`/api/admin/external-sources/${source.id}/preview-page?page=1&pageSize=${SERVER_PAGE_SIZE}`);
+
+        if (data.totalCount > 0) {
+          const target = targetMap[source.id] || "Product";
+          setPreviewMap(prev => ({
+            ...prev,
+            [source.id]: { columns: data.columns, rows: [], serverPaginated: true, totalCount: data.totalCount },
+          }));
+          setServerPreviewPage(prev => ({
+            ...prev,
+            [source.id]: { rows: data.rows, page: 1, totalPages: data.totalPages, totalCount: data.totalCount },
+          }));
+          if (!targetMap[source.id]) setTargetMap(prev => ({ ...prev, [source.id]: target }));
+          const auto = autoMap(target, data.columns);
+          if (Object.keys(auto).length > 0)
+            setMappingState(prev => ({ ...prev, [source.id]: { ...(prev[source.id] ?? {}), ...auto } }));
+          setExpandedId(source.id);
+          setActiveTab(prev => ({ ...prev, [source.id]: "preview" }));
+          loadLogs(source.id);
+          setPendingAutoCheck(source.id);
+        } else if (data.totalCount === 0) {
+          setPreviewMap(prev => ({ ...prev, [source.id]: { columns: [], rows: [], error: "Önizleme bulunamadı. Tekrar 'Tümünü Çek' yapın." } }));
+        }
+      } else {
+        // Small source or Excel: full /preview load (existing behavior)
+        const data = await api.get<PreviewData>(`/api/admin/external-sources/${source.id}/preview`);
+        if (data && !data.error) {
+          applyPreview(source.id, data, targetMap[source.id] || "Product");
+          setPendingAutoCheck(source.id);
+        } else if (data?.error) {
+          setPreviewMap(prev => ({ ...prev, [source.id]: data }));
+        }
       }
     } catch { /* silent — user will see empty state */ }
     setFetching(null);
@@ -531,8 +632,10 @@ export default function DisKaynaklarPage() {
       const rawTotalPages = page1.totalPages ?? 1;
       // Apply page limit: cap total pages if partial fetch
       const totalPages = pageLimit != null ? Math.min(rawTotalPages, pageLimit) : rawTotalPages;
+      // Detect whether this will be a large source (show first page immediately, skip per-page setState for large)
+      const willBeLarge = (page1.totalCount ?? totalPages * page1.rows.length) > LARGE_SOURCE_THRESHOLD;
 
-      applyPreview(source.id, { columns: allColumns, rows: [...allRows] });
+      applyPreview(source.id, { columns: allColumns, rows: [...page1.rows] });
       setFetching(null); // page 1 visible; progress indicator takes over
 
       if (page1.hasNextPage && totalPages > 1) {
@@ -561,10 +664,13 @@ export default function DisKaynaklarPage() {
 
             consecutiveErrors = 0;
             allRows.push(...pageData.rows);
-            setPreviewMap(prev => ({
-              ...prev,
-              [source.id]: { columns: allColumns, rows: [...allRows] },
-            }));
+            // Large sources: skip per-page setState to reduce memory pressure; only update progress counter
+            if (!willBeLarge) {
+              setPreviewMap(prev => ({
+                ...prev,
+                [source.id]: { columns: allColumns, rows: [...allRows] },
+              }));
+            }
             setFetchingMore(prev => ({
               ...prev,
               [source.id]: { loaded: allRows.length, total: totalCount, page: p, totalPages },
@@ -579,21 +685,47 @@ export default function DisKaynaklarPage() {
         setFetchingMore(prev => { const n = { ...prev }; delete n[source.id]; return n; });
       }
 
-      // Save to server — also updates LastFetchedAt / LastFetchedCount on the source entity
-      api.post(`/api/admin/external-sources/${source.id}/save-preview`, {
-        columns: allColumns, rows: allRows,
-      }).catch(() => { /* non-critical — preview still visible in client */ });
+      const limitNote = pageLimit != null ? ` (ilk ${pageLimit} sayfa)` : "";
+      const rowCountLabel = allRows.length.toLocaleString("tr-TR");
+
+      if (allRows.length > LARGE_SOURCE_THRESHOLD) {
+        // Large source: await save-preview, then free rows from browser memory
+        try {
+          await api.post(`/api/admin/external-sources/${source.id}/save-preview`, {
+            columns: allColumns, rows: allRows,
+          });
+          // Switch to server-side pagination — clear rows from React state
+          setPreviewMap(prev => ({
+            ...prev,
+            [source.id]: { columns: allColumns, rows: [], serverPaginated: true, totalCount: allRows.length },
+          }));
+          await loadServerPreviewPage(source.id, 1);
+        } catch {
+          // If save failed, keep whatever is in state (rows still visible from last setState)
+          toast(false, "Veri sunucuya kaydedilemedi — önizleme bellekte tutuluyor.");
+        }
+      } else {
+        // Small source: fire-and-forget save (existing behavior)
+        if (!willBeLarge) {
+          setPreviewMap(prev => ({
+            ...prev,
+            [source.id]: { columns: allColumns, rows: allRows },
+          }));
+        }
+        api.post(`/api/admin/external-sources/${source.id}/save-preview`, {
+          columns: allColumns, rows: allRows,
+        }).catch(() => { /* non-critical — preview still visible in client */ });
+      }
 
       // Refresh source list so the card shows updated lastFetchedAt
       load();
 
       setPendingAutoCheck(source.id);
 
-      const limitNote = pageLimit != null ? ` (ilk ${pageLimit} sayfa)` : "";
       if (fetchWarning) {
-        toast(false, `${allRows.length.toLocaleString("tr-TR")} satır çekildi${limitNote}. ⚠️ ${fetchWarning}`);
+        toast(false, `${rowCountLabel} satır çekildi${limitNote}. ⚠️ ${fetchWarning}`);
       } else {
-        toast(true, `${allRows.length.toLocaleString("tr-TR")} satır çekildi${limitNote}.`);
+        toast(true, `${rowCountLabel} satır çekildi${limitNote}.`);
       }
     } catch (e: unknown) {
       applyPreview(source.id, { columns: [], rows: [], error: e instanceof Error ? e.message : "Hata oluştu" });
@@ -614,24 +746,30 @@ export default function DisKaynaklarPage() {
 
   async function handleCheckImported(sourceId: string) {
     const preview = previewMap[sourceId];
-    if (!preview?.rows.length) return;
+    if (!preview?.columns?.length) return;
     const target = targetMap[sourceId] || "Product";
     const mapping = mappingState[sourceId] || {};
 
-    // Determine the identifier column
     let identifierSourceCol: string | undefined;
-    if (target === "Product" || target === "Stock") {
-      identifierSourceCol = mapping["SKU"];
-    } else if (target === "Brand" || target === "Category") {
-      identifierSourceCol = mapping["Name"];
-    }
+    if (target === "Product" || target === "Stock") identifierSourceCol = mapping["SKU"];
+    else if (target === "Brand" || target === "Category") identifierSourceCol = mapping["Name"];
     if (!identifierSourceCol) { toast(false, "Alan eşlemesinde tanımlayıcı alan (SKU / Ad) bulunamadı."); return; }
-
-    const identifiers = [...new Set(preview.rows.map(r => r[identifierSourceCol!] ?? "").filter(Boolean))];
-    if (!identifiers.length) { toast(false, "Tanımlayıcı değer bulunamadı."); return; }
 
     setCheckingImport(sourceId);
     try {
+      let identifiers: string[];
+      if (preview.serverPaginated) {
+        // Large source: fetch unique identifier values from server-stored preview.json
+        const res = await api.get<{ identifiers: string[]; totalCount: number }>(
+          `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identifierSourceCol)}`
+        );
+        identifiers = res.identifiers;
+      } else {
+        identifiers = [...new Set(preview.rows.map(r => r[identifierSourceCol!] ?? "").filter(Boolean))];
+      }
+
+      if (!identifiers.length) { toast(false, "Tanımlayıcı değer bulunamadı."); setCheckingImport(null); return; }
+
       const imported = await checkImportedBatched(sourceId, target, identifiers);
       setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
       toast(true, `${imported.size} / ${identifiers.length} kayıt daha önce aktarılmış.`);
@@ -1105,8 +1243,15 @@ export default function DisKaynaklarPage() {
             const impSet = importedSet[source.id];
             const impIdentCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
 
-            // Compute filtered indices (absolute indices into preview.rows)
-            const filteredIdxs: number[] = preview
+            // Large source: rows are on server, display uses server-paginated page
+            const isLargeSource = preview?.serverPaginated === true;
+            const serverPage = serverPreviewPage[source.id];
+            const previewTotalCount = isLargeSource
+              ? (preview?.totalCount ?? serverPage?.totalCount ?? 0)
+              : (preview?.rows.length ?? 0);
+
+            // Compute filtered indices (only for small sources — large sources filter server-side in future)
+            const filteredIdxs: number[] = !isLargeSource && preview
               ? preview.rows.reduce<number[]>((acc, row, i) => {
                   if (filterTxt && !Object.values(row).some(v => v.toLowerCase().includes(filterTxt)))
                     return acc;
@@ -1120,16 +1265,25 @@ export default function DisKaynaklarPage() {
                   return acc;
                 }, [])
               : [];
-            const isFiltered = filterTxt.length > 0 || impFilter !== "all";
+            const isFiltered = !isLargeSource && (filterTxt.length > 0 || impFilter !== "all");
             const filteredCount = filteredIdxs.length;
-            const totalPages = preview ? Math.ceil(filteredCount / PAGE_SIZE) : 0;
-            const curPage = Math.min(tablePage[source.id] ?? 0, Math.max(0, totalPages - 1));
-            const pageFilteredIdxs = filteredIdxs.slice(curPage * PAGE_SIZE, (curPage + 1) * PAGE_SIZE);
-            const pageRowsData = pageFilteredIdxs.map(i => preview!.rows[i]);
-            const allOnPageSelected = pageFilteredIdxs.length > 0 && selRowSet
+
+            // Pagination: client-side for small sources, server-side for large sources
+            const totalPages = isLargeSource
+              ? (serverPage?.totalPages ?? 0)
+              : (preview ? Math.ceil(filteredCount / PAGE_SIZE) : 0);
+            const curPage = isLargeSource
+              ? Math.max(0, (serverPage?.page ?? 1) - 1)
+              : Math.min(tablePage[source.id] ?? 0, Math.max(0, totalPages - 1));
+            const pageFilteredIdxs = isLargeSource ? [] : filteredIdxs.slice(curPage * PAGE_SIZE, (curPage + 1) * PAGE_SIZE);
+            const pageRowsData: Record<string, string>[] = isLargeSource
+              ? (serverPage?.rows ?? [])
+              : pageFilteredIdxs.map(i => preview!.rows[i]);
+
+            const allOnPageSelected = !isLargeSource && pageFilteredIdxs.length > 0 && selRowSet
               ? pageFilteredIdxs.every(i => selRowSet.has(i))
-              : pageFilteredIdxs.length > 0;
-            const selRowCount = selRowSet?.size ?? 0;
+              : false;
+            const selRowCount = isLargeSource ? 0 : (selRowSet?.size ?? 0);
             const selColCount = selColSet?.size ?? preview?.columns.length ?? 0;
             const progress = importProgress[source.id];
             return (
@@ -1281,7 +1435,7 @@ export default function DisKaynaklarPage() {
                       return (
                         <div className="flex border-b border-slate-100 px-4 bg-slate-50/60">
                           {([
-                            { key: "preview" as const, label: t("dis-kaynaklar.tabDataImport", "Veri & Aktarma"), badge: preview?.rows.length, badgeRed: false },
+                            { key: "preview" as const, label: t("dis-kaynaklar.tabDataImport", "Veri & Aktarma"), badge: preview ? previewTotalCount : undefined, badgeRed: false },
                             { key: "history" as const, label: t("dis-kaynaklar.tabHistory", "Aktarma Geçmişi"), badge: logs?.length, badgeRed: errorCount > 0 },
                           ]).map(tab => (
                             <button key={tab.key}
@@ -1346,15 +1500,17 @@ export default function DisKaynaklarPage() {
                             <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5">
                               {(["all", "not", "imported"] as const).map(f => {
                                 const tabCount = f === "all"
-                                  ? preview.rows.length
+                                  ? previewTotalCount
                                   : f === "imported" ? (impSet?.size ?? null)
-                                  : impSet ? (preview.rows.length - impSet.size) : null;
+                                  : impSet ? (previewTotalCount - impSet.size) : null;
                                 return (
                                   <button
                                     key={f}
                                     onClick={() => {
-                                      setImportFilter(prev => ({ ...prev, [source.id]: f }));
-                                      setTablePage(prev => ({ ...prev, [source.id]: 0 }));
+                                      if (!isLargeSource) {
+                                        setImportFilter(prev => ({ ...prev, [source.id]: f }));
+                                        setTablePage(prev => ({ ...prev, [source.id]: 0 }));
+                                      }
                                     }}
                                     className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition font-medium ${
                                       impFilter === f
@@ -1398,82 +1554,108 @@ export default function DisKaynaklarPage() {
                             </button>
                           </div>
 
-                          {/* Filter input */}
-                          <div className="relative">
-                            <svg viewBox="0 0 16 16" className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 fill-current text-slate-400 pointer-events-none">
-                              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
-                            </svg>
-                            <input
-                              type="text"
-                              value={filterText[source.id] ?? ""}
-                              onChange={e => {
-                                setFilterText(prev => ({ ...prev, [source.id]: e.target.value }));
-                                setTablePage(prev => ({ ...prev, [source.id]: 0 }));
-                              }}
-                              placeholder={t("dis-kaynaklar.filterRows", "Satırlarda filtrele...")}
-                              className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 placeholder-slate-400"
-                            />
-                            {filterTxt && (
-                              <button
-                                onClick={() => { setFilterText(prev => ({ ...prev, [source.id]: "" })); setTablePage(prev => ({ ...prev, [source.id]: 0 })); }}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
-                              >
-                                <X size={13} />
-                              </button>
-                            )}
-                          </div>
+                          {/* Filter input — only for small sources */}
+                          {!isLargeSource && (
+                            <div className="relative">
+                              <svg viewBox="0 0 16 16" className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 fill-current text-slate-400 pointer-events-none">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+                              </svg>
+                              <input
+                                type="text"
+                                value={filterText[source.id] ?? ""}
+                                onChange={e => {
+                                  setFilterText(prev => ({ ...prev, [source.id]: e.target.value }));
+                                  setTablePage(prev => ({ ...prev, [source.id]: 0 }));
+                                }}
+                                placeholder={t("dis-kaynaklar.filterRows", "Satırlarda filtrele...")}
+                                className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 placeholder-slate-400"
+                              />
+                              {filterTxt && (
+                                <button
+                                  onClick={() => { setFilterText(prev => ({ ...prev, [source.id]: "" })); setTablePage(prev => ({ ...prev, [source.id]: 0 })); }}
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                                >
+                                  <X size={13} />
+                                </button>
+                              )}
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {isFiltered ? (
-                                <button
-                                  onClick={() => selectFilteredRows(source.id, filteredIdxs)}
-                                  className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition font-medium border border-amber-200"
-                                >
-                                  {t("dis-kaynaklar.selectFiltered", "Filtrelenenleri Seç")} ({filteredCount.toLocaleString("tr-TR")})
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => selectAllRows(source.id, preview.rows.length)}
-                                  className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-100 hover:text-teal-700 text-slate-600 transition font-medium"
-                                >
-                                  {t("dis-kaynaklar.selectAll", "Tümünü Seç")}
-                                </button>
+                              {!isLargeSource && (
+                                <>
+                                  {isFiltered ? (
+                                    <button
+                                      onClick={() => selectFilteredRows(source.id, filteredIdxs)}
+                                      className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition font-medium border border-amber-200"
+                                    >
+                                      {t("dis-kaynaklar.selectFiltered", "Filtrelenenleri Seç")} ({filteredCount.toLocaleString("tr-TR")})
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => selectAllRows(source.id, preview!.rows.length)}
+                                      className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-100 hover:text-teal-700 text-slate-600 transition font-medium"
+                                    >
+                                      {t("dis-kaynaklar.selectAll", "Tümünü Seç")}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => deselectAllRows(source.id)}
+                                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 transition font-medium"
+                                  >
+                                    {t("dis-kaynaklar.deselectAll", "Seçimi Kaldır")}
+                                  </button>
+                                  <span className="text-xs text-slate-500">
+                                    <span className="font-semibold text-teal-600">{selRowCount.toLocaleString("tr-TR")}</span>
+                                    <span className="text-slate-400"> {t("dis-kaynaklar.selected", "seçili")}</span>
+                                    {isFiltered && (
+                                      <span className="text-amber-600"> · {filteredCount.toLocaleString("tr-TR")} {t("dis-kaynaklar.filtered", "filtrelendi")}</span>
+                                    )}
+                                    <span className="text-slate-400"> / {preview!.rows.length.toLocaleString("tr-TR")} {t("dis-kaynaklar.total", "toplam")}</span>
+                                    <span className="mx-1.5 text-slate-300">·</span>
+                                    <span className="font-semibold text-violet-600">{selColCount}</span>
+                                    <span className="text-slate-400">/{preview!.columns.length} {t("dis-kaynaklar.columns", "sütun")}</span>
+                                  </span>
+                                </>
                               )}
-                              <button
-                                onClick={() => deselectAllRows(source.id)}
-                                className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 transition font-medium"
-                              >
-                                {t("dis-kaynaklar.deselectAll", "Seçimi Kaldır")}
-                              </button>
-                              <span className="text-xs text-slate-500">
-                                <span className="font-semibold text-teal-600">{selRowCount.toLocaleString("tr-TR")}</span>
-                                <span className="text-slate-400"> {t("dis-kaynaklar.selected", "seçili")}</span>
-                                {isFiltered && (
-                                  <span className="text-amber-600"> · {filteredCount.toLocaleString("tr-TR")} {t("dis-kaynaklar.filtered", "filtrelendi")}</span>
-                                )}
-                                <span className="text-slate-400"> / {preview.rows.length.toLocaleString("tr-TR")} {t("dis-kaynaklar.total", "toplam")}</span>
-                                <span className="mx-1.5 text-slate-300">·</span>
-                                <span className="font-semibold text-violet-600">{selColCount}</span>
-                                <span className="text-slate-400">/{preview.columns.length} {t("dis-kaynaklar.columns", "sütun")}</span>
-                              </span>
+                              {isLargeSource && (
+                                <span className="text-xs text-indigo-600 flex items-center gap-1.5">
+                                  <Database size={11} />
+                                  <span className="font-semibold">{previewTotalCount.toLocaleString("tr-TR")} satır</span>
+                                  <span className="text-slate-400">· Sunucu önbelleği · Sayfa {curPage + 1}/{totalPages}</span>
+                                  {serverPage?.loading && <RefreshCw size={10} className="animate-spin text-indigo-400" />}
+                                </span>
+                              )}
                             </div>
                             {totalPages > 1 && (
                               <div className="flex items-center gap-1 text-xs">
                                 <button
-                                  disabled={curPage === 0}
-                                  onClick={() => setTablePage(prev => ({ ...prev, [source.id]: curPage - 1 }))}
+                                  disabled={curPage === 0 || serverPage?.loading}
+                                  onClick={() => {
+                                    if (isLargeSource) {
+                                      void loadServerPreviewPage(source.id, curPage); // curPage is 0-based; server page = curPage (go to prev)
+                                    } else {
+                                      setTablePage(prev => ({ ...prev, [source.id]: curPage - 1 }));
+                                    }
+                                  }}
                                   className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition"
                                 >
                                   <ChevronLeft size={13} />
                                 </button>
                                 <span className="px-2 text-slate-500 tabular-nums">
                                   {curPage + 1} / {totalPages}
-                                  {isFiltered && <span className="text-amber-500 ml-1">({filteredCount.toLocaleString("tr-TR")} satır)</span>}
+                                  {!isLargeSource && isFiltered && <span className="text-amber-500 ml-1">({filteredCount.toLocaleString("tr-TR")} satır)</span>}
                                 </span>
                                 <button
-                                  disabled={curPage === totalPages - 1}
-                                  onClick={() => setTablePage(prev => ({ ...prev, [source.id]: curPage + 1 }))}
+                                  disabled={curPage === totalPages - 1 || serverPage?.loading}
+                                  onClick={() => {
+                                    if (isLargeSource) {
+                                      void loadServerPreviewPage(source.id, curPage + 2); // curPage is 0-based; next = curPage + 2
+                                    } else {
+                                      setTablePage(prev => ({ ...prev, [source.id]: curPage + 1 }));
+                                    }
+                                  }}
                                   className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition"
                                 >
                                   <ChevronRight size={13} />
@@ -1488,46 +1670,54 @@ export default function DisKaynaklarPage() {
                           <table className="text-xs w-full min-w-max">
                             <thead className="sticky top-0 z-10 bg-slate-100">
                               <tr>
-                                {/* Row select all checkbox */}
-                                <th className="px-2.5 py-2.5 w-8 border-r border-slate-200 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={allOnPageSelected}
-                                    onChange={() => togglePageRows(source.id, pageFilteredIdxs, allOnPageSelected)}
-                                    className="accent-teal-600 cursor-pointer"
-                                    title={t("dis-kaynaklar.togglePageRows", "Sayfadaki tümünü seç/kaldır")}
-                                  />
-                                </th>
+                                {/* Row select all checkbox — hidden for large (server-paginated) sources */}
+                                {!isLargeSource && (
+                                  <th className="px-2.5 py-2.5 w-8 border-r border-slate-200 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={allOnPageSelected}
+                                      onChange={() => togglePageRows(source.id, pageFilteredIdxs, allOnPageSelected)}
+                                      className="accent-teal-600 cursor-pointer"
+                                      title={t("dis-kaynaklar.togglePageRows", "Sayfadaki tümünü seç/kaldır")}
+                                    />
+                                  </th>
+                                )}
                                 {/* Row number */}
                                 <th className="px-2 py-2.5 w-10 border-r border-slate-200 text-slate-400 font-normal text-center">#</th>
-                                {/* Column headers — click to toggle inclusion */}
-                                {preview.columns.map(col => {
-                                  const isColSel = selColSet ? selColSet.has(col) : true;
+                                {/* Column headers — click to toggle inclusion (small sources only) */}
+                                {(preview?.columns ?? []).map(col => {
+                                  const isColSel = !isLargeSource && (selColSet ? selColSet.has(col) : true);
                                   return (
                                     <th
                                       key={col}
-                                      onClick={() => toggleCol(source.id, col, preview)}
-                                      title={isColSel ? t("dis-kaynaklar.excludeCol", "Tıkla: sütunu çıkar") : t("dis-kaynaklar.includeCol", "Tıkla: sütunu dahil et")}
-                                      className={`px-3 py-2.5 text-left whitespace-nowrap cursor-pointer select-none transition border-r border-slate-200 last:border-r-0 group ${
-                                        isColSel
-                                          ? "text-slate-700 font-medium hover:bg-slate-200"
-                                          : "text-slate-300 font-normal bg-slate-50/80"
+                                      onClick={() => !isLargeSource && toggleCol(source.id, col, preview!)}
+                                      title={isLargeSource ? col : isColSel ? t("dis-kaynaklar.excludeCol", "Tıkla: sütunu çıkar") : t("dis-kaynaklar.includeCol", "Tıkla: sütunu dahil et")}
+                                      className={`px-3 py-2.5 text-left whitespace-nowrap select-none transition border-r border-slate-200 last:border-r-0 ${
+                                        isLargeSource
+                                          ? "text-slate-600 font-medium"
+                                          : isColSel
+                                            ? "cursor-pointer text-slate-700 font-medium hover:bg-slate-200"
+                                            : "cursor-pointer text-slate-300 font-normal bg-slate-50/80"
                                       }`}
                                     >
-                                      <div className="flex items-center gap-1.5">
-                                        <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition ${
-                                          isColSel
-                                            ? "border-teal-500 bg-teal-500"
-                                            : "border-slate-300 bg-white"
-                                        }`}>
-                                          {isColSel && (
-                                            <svg viewBox="0 0 10 8" className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                                              <polyline points="1,4 4,7 9,1" />
-                                            </svg>
-                                          )}
-                                        </span>
-                                        <span className={isColSel ? "" : "line-through"}>{col}</span>
-                                      </div>
+                                      {isLargeSource ? (
+                                        <span>{col}</span>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition ${
+                                            isColSel
+                                              ? "border-teal-500 bg-teal-500"
+                                              : "border-slate-300 bg-white"
+                                          }`}>
+                                            {isColSel && (
+                                              <svg viewBox="0 0 10 8" className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <polyline points="1,4 4,7 9,1" />
+                                              </svg>
+                                            )}
+                                          </span>
+                                          <span className={isColSel ? "" : "line-through"}>{col}</span>
+                                        </div>
+                                      )}
                                     </th>
                                   );
                                 })}
@@ -1535,26 +1725,34 @@ export default function DisKaynaklarPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                               {pageRowsData.map((row, pageIdx) => {
-                                const absIdx = pageFilteredIdxs[pageIdx];
-                                const isRowSel = selRowSet ? selRowSet.has(absIdx) : true;
+                                const absIdx = isLargeSource
+                                  ? (curPage * SERVER_PAGE_SIZE) + pageIdx
+                                  : pageFilteredIdxs[pageIdx];
+                                const isRowSel = !isLargeSource && (selRowSet ? selRowSet.has(absIdx) : true);
                                 const rowIdentifier = impIdentCol ? row[impIdentCol] : undefined;
                                 const isImported = impSet && rowIdentifier ? impSet.has(rowIdentifier) : null;
                                 return (
                                   <tr
                                     key={absIdx}
-                                    onClick={() => toggleRow(source.id, absIdx)}
-                                    className={`cursor-pointer transition-colors ${
-                                      isRowSel ? "bg-teal-50/40 hover:bg-teal-50/70" : "hover:bg-slate-50/80"
+                                    onClick={() => !isLargeSource && toggleRow(source.id, absIdx)}
+                                    className={`transition-colors ${
+                                      isLargeSource
+                                        ? "hover:bg-slate-50/60"
+                                        : isRowSel
+                                          ? "cursor-pointer bg-teal-50/40 hover:bg-teal-50/70"
+                                          : "cursor-pointer hover:bg-slate-50/80"
                                     }`}
                                   >
-                                    <td className="px-2.5 py-1.5 text-center border-r border-slate-100" onClick={e => e.stopPropagation()}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isRowSel}
-                                        onChange={() => toggleRow(source.id, absIdx)}
-                                        className="accent-teal-600 cursor-pointer"
-                                      />
-                                    </td>
+                                    {!isLargeSource && (
+                                      <td className="px-2.5 py-1.5 text-center border-r border-slate-100" onClick={e => e.stopPropagation()}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isRowSel}
+                                          onChange={() => toggleRow(source.id, absIdx)}
+                                          className="accent-teal-600 cursor-pointer"
+                                        />
+                                      </td>
+                                    )}
                                     <td className="px-2 py-1.5 text-center border-r border-slate-100 tabular-nums select-none">
                                       <span className="text-slate-300 text-xs">{absIdx + 1}</span>
                                       {isImported !== null && (
@@ -1564,14 +1762,14 @@ export default function DisKaynaklarPage() {
                                         />
                                       )}
                                     </td>
-                                    {preview.columns.map(col => {
-                                      const isColSel = selColSet ? selColSet.has(col) : true;
+                                    {(preview?.columns ?? []).map(col => {
+                                      const isColSel = isLargeSource || (selColSet ? selColSet.has(col) : true);
                                       return (
                                         <td
                                           key={col}
                                           className={`px-3 py-1.5 max-w-[200px] truncate border-r border-slate-100 last:border-r-0 transition-colors ${
                                             isColSel
-                                              ? isRowSel ? "text-slate-800" : "text-slate-500"
+                                              ? (!isLargeSource && isRowSel) ? "text-slate-800" : "text-slate-500"
                                               : "text-slate-250 opacity-30"
                                           }`}
                                           title={row[col] ?? ""}
@@ -1614,13 +1812,13 @@ export default function DisKaynaklarPage() {
                             <label className="block text-xs text-slate-500 mb-2">
                               {t("dis-kaynaklar.fieldMapping", "Alan eşlemesi")}
                               <span className="ml-1 text-teal-600">({t("dis-kaynaklar.autoDetected", "otomatik algılandı")})</span>
-                              {selColCount < preview.columns.length && (
+                              {!isLargeSource && selColCount < (preview?.columns.length ?? 0) && (
                                 <span className="ml-1 text-violet-500">· {t("dis-kaynaklar.onlySelectedCols", "yalnızca seçili sütunlar")}</span>
                               )}
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                               {fieldList.map(field => {
-                                const activeCols = preview.columns.filter(c => selColSet ? selColSet.has(c) : true);
+                                const activeCols = (preview?.columns ?? []).filter(c => isLargeSource || (selColSet ? selColSet.has(c) : true));
                                 return (
                                   <div key={field}>
                                     <label className="block text-[10px] font-medium text-slate-500 mb-0.5">{field}</label>
@@ -1692,70 +1890,86 @@ export default function DisKaynaklarPage() {
 
                         {/* Import action buttons */}
                         <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-200">
-                          {/* Scenario 1: Import selected rows */}
-                          <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-slate-700">Seçili Satırları Aktar</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">
-                                {selRowCount > 0
-                                  ? `Tabloda işaretlediğiniz ${selRowCount.toLocaleString("tr-TR")} satır aktarılacak`
-                                  : "Tabloda satırları işaretleyip aktarın — tek tek veya filtrelenenleri toplu seçin"}
-                              </p>
+                          {/* Large source: row-based import not available — server-side fetch-and-import is primary */}
+                          {isLargeSource ? (
+                            <div className="px-4 py-3 flex items-start gap-3">
+                              <Database size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-semibold text-indigo-800">Büyük kaynak — sunucu taraflı aktarım gerekli</p>
+                                <p className="text-[11px] text-indigo-600 mt-0.5">
+                                  {previewTotalCount.toLocaleString("tr-TR")} satır içeren bu kaynak için tarayıcı bellek sınırı aşıldığından
+                                  satır seçimi devre dışıdır. Aşağıdaki <strong>Çek &amp; Aktar</strong> seçeneğini kullanın.
+                                </p>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => handleImport(source.id, false)}
-                              disabled={importing === source.id || selRowCount === 0}
-                              title={selRowCount === 0 ? "Tabloda satır işaretleyin, ardından aktarın" : `${selRowCount.toLocaleString("tr-TR")} seçili satırı aktar`}
-                              className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-teal-600 hover:bg-teal-700 disabled:cursor-not-allowed shrink-0"
-                            >
-                              {importing === source.id ? (
-                                <><RefreshCw size={14} className="animate-spin" /> İşleniyor...</>
-                              ) : (
-                                <><Download size={14} />
-                                  {selRowCount > 0
-                                    ? `${selRowCount.toLocaleString("tr-TR")} Seçiliyi Aktar`
-                                    : "Seçili Satırları Aktar"}
-                                </>
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Scenario 2: Import all visible rows */}
-                          {(() => {
-                            const allCount = preview?.rows.length ?? 0;
-                            const allAsync = allCount > ASYNC_THRESHOLD;
-                            return (
+                          ) : (
+                            <>
+                              {/* Scenario 1: Import selected rows */}
                               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                                 <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-slate-700">
-                                    Önizlemedeki Tümünü Aktar
-                                    {allAsync && <span className="ml-1.5 text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>}
-                                  </p>
+                                  <p className="text-xs font-semibold text-slate-700">Seçili Satırları Aktar</p>
                                   <p className="text-[11px] text-slate-500 mt-0.5">
-                                    {allCount > 0
-                                      ? allAsync
-                                        ? `${allCount.toLocaleString("tr-TR")} satır RabbitMQ kuyruğunda işlenir — tarayıcıyı kapatabilirsiniz`
-                                        : `Çekilen ${allCount.toLocaleString("tr-TR")} satırın tamamını aktarır`
-                                      : "Önce veri çekin"}
+                                    {selRowCount > 0
+                                      ? `Tabloda işaretlediğiniz ${selRowCount.toLocaleString("tr-TR")} satır aktarılacak`
+                                      : "Tabloda satırları işaretleyip aktarın — tek tek veya filtrelenenleri toplu seçin"}
                                   </p>
                                 </div>
                                 <button
-                                  onClick={() => handleImport(source.id, true)}
-                                  disabled={importing === source.id || allCount === 0}
-                                  title={allAsync ? `${allCount.toLocaleString("tr-TR")} satır arka planda (RabbitMQ) işlenir` : `${allCount.toLocaleString("tr-TR")} satırın tamamını aktar`}
-                                  className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm border shrink-0 ${
-                                    allAsync
-                                      ? "bg-violet-600 text-white border-violet-600 hover:bg-violet-700"
-                                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                                  }`}
+                                  onClick={() => handleImport(source.id, false)}
+                                  disabled={importing === source.id || selRowCount === 0}
+                                  title={selRowCount === 0 ? "Tabloda satır işaretleyin, ardından aktarın" : `${selRowCount.toLocaleString("tr-TR")} seçili satırı aktar`}
+                                  className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-teal-600 hover:bg-teal-700 disabled:cursor-not-allowed shrink-0"
                                 >
-                                  {allAsync ? <Zap size={14} /> : <Download size={14} />}
-                                  Tümünü Aktar
-                                  {allCount > 0 && <span className="text-[11px] opacity-80">({allCount.toLocaleString("tr-TR")})</span>}
+                                  {importing === source.id ? (
+                                    <><RefreshCw size={14} className="animate-spin" /> İşleniyor...</>
+                                  ) : (
+                                    <><Download size={14} />
+                                      {selRowCount > 0
+                                        ? `${selRowCount.toLocaleString("tr-TR")} Seçiliyi Aktar`
+                                        : "Seçili Satırları Aktar"}
+                                    </>
+                                  )}
                                 </button>
                               </div>
-                            );
-                          })()}
+
+                              {/* Scenario 2: Import all visible rows (small sources only) */}
+                              {(() => {
+                                const allCount = preview?.rows.length ?? 0;
+                                const allAsync = allCount > ASYNC_THRESHOLD;
+                                return (
+                                  <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-slate-700">
+                                        Önizlemedeki Tümünü Aktar
+                                        {allAsync && <span className="ml-1.5 text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500 mt-0.5">
+                                        {allCount > 0
+                                          ? allAsync
+                                            ? `${allCount.toLocaleString("tr-TR")} satır RabbitMQ kuyruğunda işlenir — tarayıcıyı kapatabilirsiniz`
+                                            : `Çekilen ${allCount.toLocaleString("tr-TR")} satırın tamamını aktarır`
+                                          : "Önce veri çekin"}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleImport(source.id, true)}
+                                      disabled={importing === source.id || allCount === 0}
+                                      title={allAsync ? `${allCount.toLocaleString("tr-TR")} satır arka planda (RabbitMQ) işlenir` : `${allCount.toLocaleString("tr-TR")} satırın tamamını aktar`}
+                                      className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm border shrink-0 ${
+                                        allAsync
+                                          ? "bg-violet-600 text-white border-violet-600 hover:bg-violet-700"
+                                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {allAsync ? <Zap size={14} /> : <Download size={14} />}
+                                      Tümünü Aktar
+                                      {allCount > 0 && <span className="text-[11px] opacity-80">({allCount.toLocaleString("tr-TR")})</span>}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          )}
 
                           {/* Scenario 3: Fetch-and-import (REST only) — for 100K+ sources */}
                           {source.type === "RestApi" && (

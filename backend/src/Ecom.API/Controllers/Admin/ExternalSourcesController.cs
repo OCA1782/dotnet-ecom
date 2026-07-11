@@ -209,6 +209,72 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return Ok();
     }
 
+    // Paginated read of server-stored preview.json — avoids loading all rows into browser memory
+    [HttpGet("{id:guid}/preview-page")]
+    public async Task<IActionResult> GetPreviewPage(
+        Guid id,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken ct,
+        int page = 1,
+        int pageSize = 100)
+    {
+        var previewPath = Path.Combine(env.ContentRootPath, "uploads", "external-sources", $"{id}-preview.json");
+        if (!System.IO.File.Exists(previewPath))
+            return Ok(new { columns = Array.Empty<string>(), rows = Array.Empty<object>(), totalCount = 0, totalPages = 0, page, pageSize });
+
+        var json = await System.IO.File.ReadAllTextAsync(previewPath, ct);
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(json); }
+        catch { return BadRequest(new { error = "Önizleme dosyası bozuk." }); }
+
+        var root = doc.RootElement;
+        var columns = root.GetProperty("columns").EnumerateArray().Select(e => e.GetString()!).ToList();
+        var allRows = root.GetProperty("rows").EnumerateArray().ToList();
+
+        var totalCount = allRows.Count;
+        pageSize = Math.Max(1, Math.Min(pageSize, 500));
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling((double)totalCount / pageSize);
+        page = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
+
+        var slice = allRows
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => r.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.ToString()))
+            .ToList();
+
+        return Ok(new { columns, rows = slice, totalCount, totalPages, page, pageSize });
+    }
+
+    // Extract unique identifier values from server-stored preview.json (for import-status check on large sources)
+    [HttpGet("{id:guid}/preview-identifiers")]
+    public async Task<IActionResult> GetPreviewIdentifiers(
+        Guid id,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken ct,
+        string field = "SKU",
+        int limit = 100000)
+    {
+        var previewPath = Path.Combine(env.ContentRootPath, "uploads", "external-sources", $"{id}-preview.json");
+        if (!System.IO.File.Exists(previewPath))
+            return Ok(new { field, identifiers = Array.Empty<string>(), totalCount = 0 });
+
+        var json = await System.IO.File.ReadAllTextAsync(previewPath, ct);
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(json); }
+        catch { return BadRequest(new { error = "Önizleme dosyası bozuk." }); }
+
+        var identifiers = doc.RootElement
+            .GetProperty("rows")
+            .EnumerateArray()
+            .Select(r => r.TryGetProperty(field, out var v) ? v.ToString() : "")
+            .Where(v => !string.IsNullOrEmpty(v))
+            .Distinct()
+            .Take(limit)
+            .ToList();
+
+        return Ok(new { field, identifiers, totalCount = identifiers.Count });
+    }
+
     [HttpPost("{id:guid}/upload-excel")]
     [RequestSizeLimit(52_428_800)] // 50 MB
     public async Task<IActionResult> UploadExcel(Guid id, IFormFile file,

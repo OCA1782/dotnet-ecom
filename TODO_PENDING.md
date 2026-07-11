@@ -110,6 +110,34 @@
 | `save-preview` backend: `LastFetchedAt` + `LastFetchedCount` güncellenir (metadata artık doğru) | ✅ |
 | Fetch tamamlanınca `load()` çağrılır → kaynak kartı lastFetchedAt'ı yeniler | ✅ |
 
+### ✅ Dış Kaynaklar — Yapısal Mimari Revizyonu / PDF Analizi (2026-07-11 — TAMAMLANDI)
+
+**Analiz:** `Yuksek_Hacimli_Veri_Onizleme_ve_Ice_Aktarma_Mimarisi.pdf` (16 sayfa) ile mevcut implementasyon kıyaslandı.
+
+**Tespit edilen anti-pattern:** 100K+ satır tüm olarak browser React state'inde tutulmaktaydı (`previewMap.rows`). PDF'in Bölüm 7.1 anti-pattern listesinde: "1M kaydı tek API response veya browser state'inde taşımak."
+
+| Yapısal Değişiklik | Durum |
+|---|---|
+| `GET /preview-page?page=N&pageSize=100` — sunucu taraflı sayfalı önizleme (preview.json okur) | ✅ |
+| `GET /preview-identifiers?field=SKU` — büyük kaynak için tek sütun değerleri (aktarım durumu kontrolü) | ✅ |
+| `LARGE_SOURCE_THRESHOLD = 2000` sabiti — bu üstü kaynaklarda sunucu sayfalama devreye girer | ✅ |
+| `ServerPreviewPage` interface + `serverPreviewPage` state — görüntüleme için sunucu sayfası | ✅ |
+| `handleFetch`: büyük kaynak → save-preview await eder, ardından rows'u React state'ten temizler | ✅ |
+| `loadServerPreview`: büyük REST kaynaklar `preview-page?page=1` ile yüklenir (tam `/preview` yok) | ✅ |
+| `handleCheckImported`: büyük kaynaklar `/preview-identifiers` endpoint'i kullanır | ✅ |
+| `refreshImportedForSource`: aynı — sunucu endpoint ile identifier listesi alır | ✅ |
+| `pendingAutoCheck` useEffect: serverPaginated için `/preview-identifiers` tetikler | ✅ |
+| Tablo: büyük kaynaklarda satır seçim checkbox'ları gizlenir | ✅ |
+| Tablo navigation: büyük kaynaklarda `loadServerPreviewPage(page)` çağrır | ✅ |
+| Import buttons: büyük kaynaklar için "Seçili Aktar" / "Tümünü Aktar" yerine bilgi mesajı + Çek & Aktar | ✅ |
+| Tab badge + filtre sayaçları: `previewTotalCount` kullanır (serverPaginated aware) | ✅ |
+
+**Kapsam dışı bırakılanlar (büyük mimari değişiklikler):**
+- Durable PreviewJob + ImportJob entity state machine (haftalık iş)
+- Cursor/keyset pagination (offset yeterli mevcut yapı için)
+- RabbitMQ quorum queue / publisher confirms
+- Idempotency key unique index (migration gerektirir)
+
 ### 📋 Kalan Görevler
 
 - [ ] Composite index: `Products(IsDeleted, CategoryId, Price)` — filtreli ürün listesi (henüz bekleniyor)
