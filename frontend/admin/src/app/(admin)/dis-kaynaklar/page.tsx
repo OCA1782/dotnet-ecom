@@ -325,6 +325,8 @@ export default function DisKaynaklarPage() {
   const [activeTab, setActiveTab] = useState<Record<string, "preview" | "history">>({});
   // import status: importedSet[sourceId] = Set of identifier values that exist in DB
   const [importedSet, setImportedSet] = useState<Record<string, Set<string>>>({});
+  // total unique non-empty identifiers in preview.json (SKU-bearing rows only) — used for accurate notCount
+  const [previewIdentifierCount, setPreviewIdentifierCount] = useState<Record<string, number>>({});
   // sync-delete: per-source flag — when true, products absent from source are soft-deleted after fetch-and-import
   const [syncDeleteMap, setSyncDeleteMap] = useState<Record<string, boolean>>({});
   const [checkingImport, setCheckingImport] = useState<string | null>(null);
@@ -469,11 +471,12 @@ export default function DisKaynaklarPage() {
       if (!identCol) { setPendingAutoCheck(null); return; }
       p = api.get<{ identifiers: string[] }>(
         `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identCol)}`
-      ).then(res =>
-        checkImportedBatched(sourceId, target, res.identifiers).then(imported => {
+      ).then(res => {
+        setPreviewIdentifierCount(prev => ({ ...prev, [sourceId]: res.identifiers.length }));
+        return checkImportedBatched(sourceId, target, res.identifiers).then(imported => {
           setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
-        })
-      ).catch(() => {});
+        });
+      }).catch(() => {});
     } else {
       if (!preview.rows?.length) { setPendingAutoCheck(null); return; }
       const identifiers = identCol
@@ -514,6 +517,7 @@ export default function DisKaynaklarPage() {
     }
 
     if (!identifiers.length) return;
+    setPreviewIdentifierCount(prev => ({ ...prev, [sourceId]: identifiers.length }));
     const imported = await checkImportedBatched(sourceId, target, identifiers);
     setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
   }, []);
@@ -891,6 +895,7 @@ export default function DisKaynaklarPage() {
 
       const imported = await checkImportedBatched(sourceId, target, identifiers);
       setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
+      setPreviewIdentifierCount(prev => ({ ...prev, [sourceId]: identifiers.length }));
       toast(true, `${imported.size} / ${identifiers.length} kayıt daha önce aktarılmış.`);
     } catch { toast(false, "Aktarım durumu kontrol edilemedi."); }
     setCheckingImport(null);
@@ -2101,27 +2106,39 @@ export default function DisKaynaklarPage() {
                                 </div>
                               </div>
                               {impSet && impIdentCol && (() => {
-                                const notCount = previewTotalCount - impSet.size;
-                                if (notCount <= 0) return null;
+                                const identTotal = previewIdentifierCount[source.id] ?? 0;
+                                const notCount = Math.max(0, identTotal - impSet.size);
+                                const noIdentRows = identTotal > 0 ? previewTotalCount - identTotal : 0;
                                 return (
-                                  <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap bg-violet-50/50 border-t border-violet-100">
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-semibold text-violet-800 flex items-center gap-1.5">
-                                        Aktarılmamışları Aktar
-                                        <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>
-                                      </p>
-                                      <p className="text-[11px] text-violet-600 mt-0.5">
-                                        Kaynak yeniden çekilir; sistemde olmayan ~{notCount.toLocaleString("tr-TR")} satır aktarılır (mevcut kayıtlar atlanır)
-                                      </p>
-                                    </div>
-                                    <button
-                                      onClick={() => handleFetchAndImport(source.id, "skip")}
-                                      disabled={importing === source.id}
-                                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-violet-600 hover:bg-violet-700 text-white shrink-0 disabled:cursor-not-allowed"
-                                    >
-                                      <Zap size={14} /> Aktarılmamışları Aktar (~{notCount.toLocaleString("tr-TR")})
-                                    </button>
-                                  </div>
+                                  <>
+                                    {notCount > 0 && (
+                                      <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap bg-violet-50/50 border-t border-violet-100">
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-semibold text-violet-800 flex items-center gap-1.5">
+                                            Aktarılmamışları Aktar
+                                            <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>
+                                          </p>
+                                          <p className="text-[11px] text-violet-600 mt-0.5">
+                                            Kaynak yeniden çekilir; {impSet.size.toLocaleString("tr-TR")} aktarılmış, {notCount.toLocaleString("tr-TR")} SKU'lu satır henüz aktarılmamış
+                                          </p>
+                                        </div>
+                                        <button
+                                          onClick={() => handleFetchAndImport(source.id, "skip")}
+                                          disabled={importing === source.id}
+                                          className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-violet-600 hover:bg-violet-700 text-white shrink-0 disabled:cursor-not-allowed"
+                                        >
+                                          <Zap size={14} /> Aktarılmamışları Aktar ({notCount.toLocaleString("tr-TR")})
+                                        </button>
+                                      </div>
+                                    )}
+                                    {notCount === 0 && identTotal > 0 && (
+                                      <div className="px-4 py-3 flex items-center gap-2 text-xs text-teal-700 bg-teal-50/60 border-t border-teal-100">
+                                        <CheckCircle size={13} className="shrink-0 text-teal-500" />
+                                        Takip edilebilir tüm satırlar ({identTotal.toLocaleString("tr-TR")}) sisteme aktarılmış.
+                                        {noIdentRows > 0 && <span className="text-slate-400 ml-1">{noIdentRows.toLocaleString("tr-TR")} satırın SKU&apos;su boş — takip dışı.</span>}
+                                      </div>
+                                    )}
+                                  </>
                                 );
                               })()}
                             </>

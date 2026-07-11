@@ -442,6 +442,23 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                         upd++;
                     }
                 }
+                else if (existing.IsDeleted)
+                {
+                    // Soft-deleted product: always restore even on conflict=skip.
+                    // "Skip" means don't overwrite active records; restoring archived ones is always safe.
+                    var attached = await db.Products.FindAsync([existing.Id], ct);
+                    if (attached != null)
+                    {
+                        attached.Name = name; attached.Price = price;
+                        attached.Description = desc; attached.IsDeleted = false;
+                        if (categoryId.HasValue) attached.CategoryId = categoryId.Value;
+                        if (brandId.HasValue) attached.BrandId = brandId.Value;
+                        if (!string.IsNullOrWhiteSpace(oemPartNumber)) attached.OemPartNumber = oemPartNumber;
+                        if (!string.IsNullOrWhiteSpace(chassis)) attached.Chassis = chassis;
+                        touchedProductIds?.Add(attached.Id);
+                        rst++;
+                    }
+                }
                 else { skip++; Bump(reasons, "Çakışma (mevcut kayıt atlandı)"); }
             }
             else

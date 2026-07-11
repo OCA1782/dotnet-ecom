@@ -263,10 +263,19 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         try { doc = JsonDocument.Parse(json); }
         catch { return BadRequest(new { error = "Önizleme dosyası bozuk." }); }
 
+        // Case-insensitive field lookup: source columns may differ in casing from mapping key
         var identifiers = doc.RootElement
             .GetProperty("rows")
             .EnumerateArray()
-            .Select(r => r.TryGetProperty(field, out var v) ? v.ToString() : "")
+            .Select(r =>
+            {
+                if (r.TryGetProperty(field, out var exact)) return exact.ToString();
+                // Fallback: case-insensitive scan
+                foreach (var prop in r.EnumerateObject())
+                    if (string.Equals(prop.Name, field, StringComparison.OrdinalIgnoreCase))
+                        return prop.Value.ToString();
+                return "";
+            })
             .Where(v => !string.IsNullOrEmpty(v))
             .Distinct()
             .Take(limit)
