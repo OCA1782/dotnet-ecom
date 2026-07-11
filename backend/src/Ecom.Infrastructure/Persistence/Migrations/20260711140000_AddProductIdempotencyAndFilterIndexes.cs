@@ -1,38 +1,30 @@
+using Ecom.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Ecom.Infrastructure.Persistence.Migrations
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260711140000_AddProductIdempotencyAndFilterIndexes")]
+public partial class AddProductIdempotencyAndFilterIndexes : Migration
 {
-    /// <inheritdoc />
-    public partial class AddProductIdempotencyAndFilterIndexes : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            // Unique partial index: prevents concurrent import jobs from inserting the same
-            // (source, SKU) pair. Application-level idempotency (seenSku dict) covers the
-            // single-thread case; this index is the DB-level safety net for concurrent jobs.
-            migrationBuilder.CreateIndex(
-                name: "UX_Products_SourceId_SKU",
-                table: "Products",
-                columns: ["ImportedFromSourceId", "SKU"],
-                unique: true,
-                filter: "[ImportedFromSourceId] IS NOT NULL AND [SKU] IS NOT NULL");
+        // Unique partial index: DB-level safety net against concurrent import jobs inserting
+        // the same (source, SKU) pair. Application-level seenSku dict covers single-thread case.
+        migrationBuilder.Sql(@"CREATE UNIQUE INDEX IF NOT EXISTS ""UX_Products_SourceId_SKU""
+            ON ""Products"" (""ImportedFromSourceId"", ""SKU"")
+            WHERE ""ImportedFromSourceId"" IS NOT NULL AND ""SKU"" IS NOT NULL;");
 
-            // Composite covering index for filtered product lists (admin + customer category pages).
-            // Covers: WHERE IsDeleted=0 AND CategoryId=? ORDER BY Price ASC/DESC
-            migrationBuilder.CreateIndex(
-                name: "IX_Products_IsDeleted_CategoryId_Price",
-                table: "Products",
-                columns: ["IsDeleted", "CategoryId", "Price"]);
-        }
+        // Covering index for filtered product lists (admin + customer category pages)
+        migrationBuilder.Sql(@"CREATE INDEX IF NOT EXISTS ""IX_Products_IsDeleted_CategoryId_Price""
+            ON ""Products"" (""IsDeleted"", ""CategoryId"", ""Price"");");
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropIndex(name: "UX_Products_SourceId_SKU", table: "Products");
-            migrationBuilder.DropIndex(name: "IX_Products_IsDeleted_CategoryId_Price", table: "Products");
-        }
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql(@"DROP INDEX IF EXISTS ""UX_Products_SourceId_SKU"";");
+        migrationBuilder.Sql(@"DROP INDEX IF EXISTS ""IX_Products_IsDeleted_CategoryId_Price"";");
     }
 }

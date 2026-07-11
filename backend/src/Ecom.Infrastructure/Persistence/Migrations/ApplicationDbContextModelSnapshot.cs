@@ -1123,6 +1123,61 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.ToTable("ImportJobs");
                 });
 
+            modelBuilder.Entity("Ecom.Domain.Entities.PreviewJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DataSource")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ExternalSourceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ProcessedPages")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TotalPages")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalSourceId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("PreviewJobs");
+                });
+
             modelBuilder.Entity("Ecom.Domain.Entities.Invoice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3047,6 +3102,17 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.ImportJob", b =>
+                {
+                    b.HasOne("Ecom.Domain.Entities.ExternalSource", "ExternalSource")
+                        .WithMany()
+                        .HasForeignKey("ExternalSourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExternalSource");
+                });
+
+            modelBuilder.Entity("Ecom.Domain.Entities.PreviewJob", b =>
                 {
                     b.HasOne("Ecom.Domain.Entities.ExternalSource", "ExternalSource")
                         .WithMany()

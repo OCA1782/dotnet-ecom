@@ -26,6 +26,8 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             options.AddInterceptors(sp.GetRequiredService<SlowQueryInterceptor>());
+            // Snapshot may be ahead of the DB during migrations — suppress the model-mismatch warning
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             if (dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
                 options.UseNpgsql(connStr, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
             else

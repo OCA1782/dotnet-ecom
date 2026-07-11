@@ -1,60 +1,44 @@
-using System;
+using Ecom.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Ecom.Infrastructure.Persistence.Migrations
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260711150000_AddPreviewJobs")]
+public partial class AddPreviewJobs : Migration
 {
-    /// <inheritdoc />
-    public partial class AddPreviewJobs : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.CreateTable(
-                name: "PreviewJobs",
-                columns: table => new
-                {
-                    Id              = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    ExternalSourceId= table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RequestedByUserId=table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    Status          = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Queued"),
-                    TotalPages      = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    ProcessedPages  = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    TotalRows       = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    ErrorMessage    = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    StartedAt       = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CompletedAt     = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedDate     = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    UpdatedDate     = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsDeleted       = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PreviewJobs", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_PreviewJobs_ExternalSources_ExternalSourceId",
-                        column: x => x.ExternalSourceId,
-                        principalTable: "ExternalSources",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+        migrationBuilder.Sql(@"
+CREATE TABLE IF NOT EXISTS ""PreviewJobs"" (
+    ""Id""               uuid                        NOT NULL DEFAULT gen_random_uuid(),
+    ""ExternalSourceId"" uuid                        NOT NULL,
+    ""RequestedByUserId"" uuid                       NULL,
+    ""Status""           text                        NOT NULL DEFAULT 'Queued',
+    ""TotalPages""       integer                     NOT NULL DEFAULT 0,
+    ""ProcessedPages""   integer                     NOT NULL DEFAULT 0,
+    ""TotalRows""        integer                     NOT NULL DEFAULT 0,
+    ""ErrorMessage""     text                        NULL,
+    ""StartedAt""        timestamp with time zone    NULL,
+    ""CompletedAt""      timestamp with time zone    NULL,
+    ""DataSource""       text                        NULL,
+    ""IsDeleted""        boolean                     NOT NULL DEFAULT false,
+    ""CreatedDate""      timestamp with time zone    NOT NULL DEFAULT now(),
+    ""UpdatedDate""      timestamp with time zone    NULL,
+    CONSTRAINT ""PK_PreviewJobs"" PRIMARY KEY (""Id""),
+    CONSTRAINT ""FK_PreviewJobs_ExternalSources"" FOREIGN KEY (""ExternalSourceId"")
+        REFERENCES ""ExternalSources""(""Id"") ON DELETE CASCADE
+);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_PreviewJobs_ExternalSourceId",
-                table: "PreviewJobs",
-                column: "ExternalSourceId");
+CREATE INDEX IF NOT EXISTS ""IX_PreviewJobs_ExternalSourceId"" ON ""PreviewJobs""(""ExternalSourceId"");
+CREATE INDEX IF NOT EXISTS ""IX_PreviewJobs_Status"" ON ""PreviewJobs""(""Status"");
+");
+    }
 
-            migrationBuilder.CreateIndex(
-                name: "IX_PreviewJobs_Status",
-                table: "PreviewJobs",
-                column: "Status");
-        }
-
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropTable(name: "PreviewJobs");
-        }
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql(@"DROP TABLE IF EXISTS ""PreviewJobs"";");
     }
 }
