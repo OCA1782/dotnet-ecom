@@ -6,9 +6,10 @@ import { api } from "@/lib/api";
 import {
   Plus, Pencil, Trash2, RefreshCw, Upload, Download, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, History, Database, FileSpreadsheet, Clock, Zap,
-  CheckCircle, AlertCircle, X,
+  CheckCircle, AlertCircle, X, AlertTriangle,
 } from "lucide-react";
 import { exportToExcel, readExcelFile } from "@/lib/excel";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface ExternalSource {
   id: string;
@@ -338,6 +339,11 @@ export default function DisKaynaklarPage() {
   const [previewJobMap, setPreviewJobMap] = useState<Record<string, PreviewJobStatus | null>>({});
   const previewJobPollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmFetchImport, setConfirmFetchImport] = useState<{
+    sourceId: string; sourceName: string; estimated?: number | null;
+    syncDelete: boolean; conflict: string; target: string;
+    mapping: Record<string, string>; mode: "fetchAndImport" | "notImported";
+  } | null>(null);
   const toastId = useRef(0);
 
   // Refs for auto-refresh interval (avoids stale closure in setInterval)
@@ -1045,12 +1051,18 @@ export default function DisKaynaklarPage() {
     }
 
     const estimated = totalAvailable[sourceId];
-    const syncMsg = syncDelete ? "\n\n⚠️ Kaynakta bulunmayan ürünler silinecek (Sync Delete aktif)." : "";
-    const confirmed = window.confirm(
-      `Sunucu tarafında tüm kayıtlar çekilip aktarılacak${estimated ? ` (yaklaşık ${estimated.toLocaleString("tr-TR")} kayıt)` : ""}.${syncMsg}\nDevam edilsin mi?`
-    );
-    if (!confirmed) return;
+    const sourceName = sources.find(s => s.id === sourceId)?.name ?? sourceId;
+    setConfirmFetchImport({
+      sourceId, sourceName, estimated, syncDelete, conflict, target, mapping,
+      mode: forceConflict === "skip" ? "notImported" : "fetchAndImport",
+    });
+  }
 
+  async function executeFetchAndImport(
+    sourceId: string, target: string, mapping: Record<string, string>,
+    conflict: string, syncDelete: boolean, estimated?: number | null,
+  ) {
+    setConfirmFetchImport(null);
     setImporting(sourceId);
     try {
       const { jobId } = await api.post<{ jobId: string }>(
@@ -2587,6 +2599,42 @@ export default function DisKaynaklarPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Çek & Aktar onay modalı */}
+      {confirmFetchImport && (
+        <ConfirmModal
+          title={confirmFetchImport.mode === "notImported" ? "Aktarılmamışları Aktar" : "Çek & Aktar Onayı"}
+          message={
+            confirmFetchImport.mode === "notImported"
+              ? `"${confirmFetchImport.sourceName}" kaynağı yeniden çekilecek; sistemde henüz bulunmayan satırlar aktarılacak. Mevcut kayıtlar atlanır.`
+              : `"${confirmFetchImport.sourceName}" kaynağındaki tüm kayıtlar sunucu tarafında çekilip aktarılacak${confirmFetchImport.estimated ? ` (yaklaşık ${confirmFetchImport.estimated.toLocaleString("tr-TR")} kayıt)` : ""}.`
+          }
+          confirmLabel={confirmFetchImport.mode === "notImported" ? "Aktarılmamışları Aktar" : "Çek & Aktar"}
+          cancelLabel="Vazgeç"
+          danger={confirmFetchImport.syncDelete}
+          icon={
+            confirmFetchImport.syncDelete
+              ? <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+              : <Zap size={18} className="text-indigo-500 shrink-0" />
+          }
+          onConfirm={() => executeFetchAndImport(
+            confirmFetchImport.sourceId,
+            confirmFetchImport.target,
+            confirmFetchImport.mapping,
+            confirmFetchImport.conflict,
+            confirmFetchImport.syncDelete,
+            confirmFetchImport.estimated,
+          )}
+          onCancel={() => setConfirmFetchImport(null)}
+        >
+          {confirmFetchImport.syncDelete && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800">
+              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+              <span><strong>Sync Delete aktif:</strong> Kaynakta artık bulunmayan ürünler sistemden arşivlenecek.</span>
+            </div>
+          )}
+        </ConfirmModal>
       )}
     </div>
   );
