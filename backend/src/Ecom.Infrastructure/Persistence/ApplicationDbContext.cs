@@ -40,6 +40,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ExternalSource> ExternalSources => Set<ExternalSource>();
     public DbSet<ExternalSourceImportLog> ExternalSourceImportLogs => Set<ExternalSourceImportLog>();
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+    public DbSet<PreviewJob> PreviewJobs => Set<PreviewJob>();
     public DbSet<VisitorLog> VisitorLogs => Set<VisitorLog>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();

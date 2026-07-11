@@ -37,6 +37,7 @@ public interface IApplicationDbContext
     DbSet<ExternalSource> ExternalSources { get; }
     DbSet<ExternalSourceImportLog> ExternalSourceImportLogs { get; }
     DbSet<ImportJob> ImportJobs { get; }
+    DbSet<PreviewJob> PreviewJobs { get; }
     DbSet<VisitorLog> VisitorLogs { get; }
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<UserRefreshToken> UserRefreshTokens { get; }

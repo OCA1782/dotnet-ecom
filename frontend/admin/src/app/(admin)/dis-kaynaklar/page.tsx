@@ -65,6 +65,18 @@ interface ServerPreviewPage {
   loading?: boolean;
 }
 
+interface PreviewJobStatus {
+  id: string;
+  status: string; // Queued | Processing | Completed | Failed | Cancelled
+  totalPages: number;
+  processedPages: number;
+  totalRows: number;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdDate: string;
+}
+
 interface Toast { id: number; ok: boolean; text: string; }
 
 interface ImportProgress {
@@ -322,6 +334,9 @@ export default function DisKaynaklarPage() {
   const [partialFetchPages, setPartialFetchPages] = useState<Record<string, string>>({});
   // Server-side paginated display for large sources (rows not kept in browser memory)
   const [serverPreviewPage, setServerPreviewPage] = useState<Record<string, ServerPreviewPage>>({});
+  // Server-side PreviewJob: per-source job status (for "Arka Planda Çek" feature)
+  const [previewJobMap, setPreviewJobMap] = useState<Record<string, PreviewJobStatus | null>>({});
+  const previewJobPollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -419,6 +434,7 @@ export default function DisKaynaklarPage() {
   useEffect(() => {
     const pollTimersSnapshot = pollTimers.current;
     const logPollTimersSnapshot = logPollTimers.current;
+    const previewJobPollTimersSnapshot = previewJobPollTimers.current;
     const loadTimer = window.setTimeout(() => {
       void load();
     }, 0);
@@ -427,6 +443,7 @@ export default function DisKaynaklarPage() {
       window.clearTimeout(loadTimer);
       Object.values(pollTimersSnapshot).forEach(clearInterval);
       Object.values(logPollTimersSnapshot).forEach(clearTimeout);
+      Object.values(previewJobPollTimersSnapshot).forEach(clearInterval);
     };
   }, [load]);
 
@@ -585,6 +602,20 @@ export default function DisKaynaklarPage() {
     setActiveTab(prev => ({ ...prev, [id]: prev[id] ?? (hasLiveJob ? "history" : "preview") }));
     // Restore preview from server if not in memory (handles page refresh)
     if (source) loadServerPreview(source);
+    // Check if there is an active preview job and resume polling (survives page refresh)
+    if (source?.type === "RestApi" && !previewJobPollTimers.current[id]) {
+      api.get<{ job: PreviewJobStatus | null }>(`/api/admin/external-sources/${id}/preview-job`)
+        .then(res => {
+          const bgJob = res.job;
+          if (bgJob && (bgJob.status === "Queued" || bgJob.status === "Processing")) {
+            setPreviewJobMap(prev => ({ ...prev, [id]: bgJob }));
+            previewJobPollTimers.current[id] = setInterval(() => {
+              void pollPreviewJob(id, bgJob.id);
+            }, 2000);
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   function applyPreview(id: string, data: PreviewData, defaultTarget = "Product") {
@@ -742,6 +773,82 @@ export default function DisKaynaklarPage() {
       setTotalAvailable(prev => ({ ...prev, [sourceId]: res.totalAvailable ?? null }));
       if (res.error) toast(false, res.error);
     } catch { toast(false, "Sayım alınamadı."); }
+  }
+
+  async function pollPreviewJob(sourceId: string, jobId: string) {
+    try {
+      const res = await api.get<{ job: PreviewJobStatus | null }>(
+        `/api/admin/external-sources/${sourceId}/preview-job`
+      );
+      const job = res.job;
+      setPreviewJobMap(prev => ({ ...prev, [sourceId]: job }));
+
+      if (!job || job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled") {
+        clearInterval(previewJobPollTimers.current[sourceId]);
+        delete previewJobPollTimers.current[sourceId];
+
+        if (job?.status === "Completed") {
+          // Preview is ready on server — load first page
+          await loadServerPreviewPage(sourceId, 1);
+          const firstPage = await api.get<{ columns: string[]; rows: Record<string, string>[]; totalCount: number; totalPages: number; page: number; }>(
+            `/api/admin/external-sources/${sourceId}/preview-page?page=1&pageSize=${SERVER_PAGE_SIZE}`
+          );
+          if (firstPage.totalCount > 0) {
+            const target = targetMapRef.current[sourceId] || "Product";
+            setPreviewMap(prev => ({
+              ...prev,
+              [sourceId]: { columns: firstPage.columns, rows: [], serverPaginated: true, totalCount: firstPage.totalCount },
+            }));
+            const auto = autoMap(target, firstPage.columns);
+            if (Object.keys(auto).length > 0)
+              setMappingState(prev => ({ ...prev, [sourceId]: { ...(prev[sourceId] ?? {}), ...auto } }));
+            setPendingAutoCheck(sourceId);
+          }
+          load(); // refresh card to show updated lastFetchedAt
+          toast(true, `Sunucu tarafında çekim tamamlandı — ${job.totalRows.toLocaleString("tr-TR")} satır.`);
+        } else if (job?.status === "Failed") {
+          toast(false, `Sunucu çekimi başarısız: ${job.errorMessage ?? "Bilinmeyen hata"}`);
+        }
+      }
+    } catch { /* silent poll failure */ }
+  }
+
+  async function handleStartServerPreview(source: ExternalSource) {
+    try {
+      const res = await api.post<{ jobId: string }>(
+        `/api/admin/external-sources/${source.id}/start-preview`, {}
+      );
+      const jobId = res.jobId;
+      setPreviewJobMap(prev => ({
+        ...prev,
+        [source.id]: {
+          id: jobId, status: "Queued", totalPages: 0, processedPages: 0,
+          totalRows: 0, createdDate: new Date().toISOString(),
+        },
+      }));
+
+      // Poll every 2 seconds until job completes
+      clearInterval(previewJobPollTimers.current[source.id]);
+      previewJobPollTimers.current[source.id] = setInterval(() => {
+        void pollPreviewJob(source.id, jobId);
+      }, 2000);
+
+      toast(true, "Arka planda çekim başlatıldı — bu sayfada kalmak zorunda değilsiniz.");
+    } catch { toast(false, "Arka planda çekim başlatılamadı."); }
+  }
+
+  async function handleCancelServerPreview(sourceId: string, jobId: string) {
+    try {
+      await api.post(`/api/admin/external-sources/preview-jobs/${jobId}/cancel`, {});
+      clearInterval(previewJobPollTimers.current[sourceId]);
+      delete previewJobPollTimers.current[sourceId];
+      setPreviewJobMap(prev => {
+        const j = prev[sourceId];
+        if (!j) return prev;
+        return { ...prev, [sourceId]: { ...j, status: "Cancelled" } };
+      });
+      toast(true, "Çekim iptal edildi.");
+    } catch { toast(false, "İptal işlemi başarısız."); }
   }
 
   async function handleCheckImported(sourceId: string) {
@@ -1383,6 +1490,40 @@ export default function DisKaynaklarPage() {
                         </button>
                       </div>
                     )}
+                    {/* REST API: server-side background fetch — durably runs on the server */}
+                    {source.type === "RestApi" && (() => {
+                      const bgJob = previewJobMap[source.id];
+                      const bgActive = bgJob?.status === "Queued" || bgJob?.status === "Processing";
+                      if (bgActive && bgJob) {
+                        return (
+                          <div className="flex items-center gap-1.5 border border-blue-200 bg-blue-50 rounded-xl px-2.5 py-1.5">
+                            <RefreshCw size={11} className="animate-spin text-blue-500" />
+                            <span className="text-[10px] text-blue-600 tabular-nums whitespace-nowrap">
+                              {bgJob.totalPages > 0
+                                ? `${bgJob.processedPages}/${bgJob.totalPages} sayfa`
+                                : "Başlıyor..."}
+                            </span>
+                            <button
+                              onClick={() => handleCancelServerPreview(source.id, bgJob.id)}
+                              title="Arka planda çekimi iptal et"
+                              className="text-red-400 hover:text-red-600 transition ml-0.5"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => handleStartServerPreview(source)}
+                          disabled={fetching === source.id || !!fetchingMore[source.id]}
+                          title="Tüm sayfaları sunucu tarafında arka planda çeker — sekmeyi kapatabilirsiniz"
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          <Database size={11} /> Arka Planda
+                        </button>
+                      );
+                    })()}
                     {/* REST API: quick count — labeled button */}
                     {source.type === "RestApi" && (
                       <button

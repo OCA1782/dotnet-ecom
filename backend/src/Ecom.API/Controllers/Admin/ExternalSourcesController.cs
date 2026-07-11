@@ -399,6 +399,67 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         return ok ? Ok() : NotFound();
     }
 
+    // Server-side preview fetch: queues a PreviewJob that fetches all pages server-side and writes preview.json
+    [HttpPost("{id:guid}/start-preview")]
+    public async Task<IActionResult> StartPreviewJob(
+        Guid id,
+        [FromServices] IApplicationDbContext db,
+        [FromServices] IEventPublisher eventPublisher,
+        CancellationToken ct)
+    {
+        var source = await db.ExternalSources.FindAsync([id], ct);
+        if (source is null) return NotFound();
+        if (source.Type != "RestApi") return BadRequest(new { error = "Sadece REST API kaynakları için geçerlidir." });
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userGuid = userId != null && Guid.TryParse(userId, out var g) ? g : null;
+
+        var job = new Ecom.Domain.Entities.PreviewJob
+        {
+            ExternalSourceId = id,
+            RequestedByUserId = userGuid,
+            Status = "Queued",
+        };
+        db.PreviewJobs.Add(job);
+        await db.SaveChangesAsync(ct);
+        await eventPublisher.PublishAsync(new Ecom.Application.Events.PreviewJobQueuedMessage(job.Id), ct);
+        return Ok(new { jobId = job.Id });
+    }
+
+    // Get the latest PreviewJob status for a source (frontend polls this)
+    [HttpGet("{id:guid}/preview-job")]
+    public async Task<IActionResult> GetPreviewJobStatus(
+        Guid id,
+        [FromServices] IApplicationDbContext db,
+        CancellationToken ct)
+    {
+        var job = await db.PreviewJobs
+            .Where(j => j.ExternalSourceId == id)
+            .OrderByDescending(j => j.CreatedDate)
+            .Select(j => new {
+                j.Id, j.Status, j.TotalPages, j.ProcessedPages, j.TotalRows,
+                j.ErrorMessage, j.StartedAt, j.CompletedAt, j.CreatedDate,
+            })
+            .FirstOrDefaultAsync(ct);
+        return job is null ? Ok(new { job = (object?)null }) : Ok(new { job });
+    }
+
+    // Cancel a running PreviewJob
+    [HttpPost("preview-jobs/{jobId:guid}/cancel")]
+    public async Task<IActionResult> CancelPreviewJob(
+        Guid jobId,
+        [FromServices] IApplicationDbContext db,
+        CancellationToken ct)
+    {
+        var job = await db.PreviewJobs.FindAsync([jobId], ct);
+        if (job is null) return NotFound();
+        if (job.Status != "Queued" && job.Status != "Processing") return BadRequest(new { error = "İş zaten tamamlandı veya iptal edildi." });
+        job.Status = "Cancelled";
+        job.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return Ok();
+    }
+
     // Quick count: fetches page=1 to extract totalCount metadata — no full pagination
     [HttpGet("{id:guid}/count")]
     public async Task<IActionResult> GetSourceCount(Guid id,

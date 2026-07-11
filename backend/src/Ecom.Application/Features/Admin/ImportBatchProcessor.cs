@@ -187,6 +187,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         foreach (var row in rows)
         {
+            ct.ThrowIfCancellationRequested();
             var name = Map(row, fm, "Name");
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
             var slug = Map(row, fm, "Slug") ?? Slugify(name);
@@ -224,6 +225,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         foreach (var row in rows)
         {
+            ct.ThrowIfCancellationRequested();
             var name = Map(row, fm, "Name");
             if (string.IsNullOrWhiteSpace(name)) { skip++; Bump(reasons, "İsim boş"); continue; }
             var desc = Map(row, fm, "Description");
@@ -303,6 +305,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         foreach (var row in rows)
         {
+            ct.ThrowIfCancellationRequested();
             var name = Map(row, fm, "Name");
             var sku = Map(row, fm, "SKU") ?? Map(row, fm, "Sku");
             if (string.IsNullOrWhiteSpace(sku))
@@ -583,6 +586,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
         foreach (var row in rows)
         {
+            ct.ThrowIfCancellationRequested();
             var key = Map(row, fm, "SKU") ?? Map(row, fm, "Sku") ?? Map(row, fm, "ProductName");
             var qtyStr = Map(row, fm, "Quantity");
             if (string.IsNullOrWhiteSpace(key)) { skip++; Bump(reasons, "SKU / ürün kodu boş"); continue; }

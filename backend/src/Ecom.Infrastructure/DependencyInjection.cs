@@ -105,6 +105,7 @@ public static class DependencyInjection
             x.AddConsumer<PaymentCompletedConsumer>();
             x.AddConsumer<OrderStatusChangedConsumer>();
             x.AddConsumer<ImportJobConsumer>();
+            x.AddConsumer<PreviewJobConsumer>();
 
             x.AddSagaStateMachine<OrderProcessingStateMachine, Ecom.Infrastructure.Messaging.Sagas.OrderSagaState>()
                 .EntityFrameworkRepository(r =>

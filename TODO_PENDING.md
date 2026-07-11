@@ -133,14 +133,30 @@
 | Tab badge + filtre sayaçları: `previewTotalCount` kullanır (serverPaginated aware) | ✅ |
 
 **Kapsam dışı bırakılanlar (büyük mimari değişiklikler):**
-- Durable PreviewJob + ImportJob entity state machine (haftalık iş)
 - Cursor/keyset pagination (offset yeterli mevcut yapı için)
 - RabbitMQ quorum queue / publisher confirms
-- Idempotency key unique index (migration gerektirir)
+
+### ✅ Dış Kaynaklar — Durable PreviewJob + Kooperatif İptal + İdempotency İndeksi (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| `PreviewJob` domain entity (Status, TotalPages, ProcessedPages, TotalRows, StartedAt, CompletedAt) | ✅ |
+| `PreviewJobQueuedMessage` event — RabbitMQ üzerinden MassTransit'e iletilir | ✅ |
+| `PreviewJobConsumer` — sunucu tarafında tüm REST sayfaları çeker, preview.json yazar | ✅ |
+| `POST /{id}/start-preview` — PreviewJob oluşturur ve kuyruğa ekler, jobId döner | ✅ |
+| `GET /{id}/preview-job` — en son PreviewJob durumunu döner (frontend polling) | ✅ |
+| `POST /preview-jobs/{jobId}/cancel` — çalışan işi iptal eder | ✅ |
+| Migration: `PreviewJobs` tablosu + `IX_PreviewJobs_ExternalSourceId/Status` indeksleri | ✅ |
+| `IApplicationDbContext.PreviewJobs` arayüze eklendi | ✅ |
+| Frontend: "Arka Planda" butonu — REST API kaynaklarda görünür, sunucu tarafı çekim başlatır | ✅ |
+| Frontend: polling — 2 saniyede bir `preview-job` sorgulanır, ilerleme göstergesi güncellenir | ✅ |
+| Frontend: sayfa yenileme sonrası — `toggleExpand`'de aktif job kontrol edilir, polling yeniden başlar | ✅ |
+| `ImportBatchProcessor`: 4 foreach döngüsüne `ct.ThrowIfCancellationRequested()` eklendi | ✅ |
+| DB idempotency: `UX_Products_SourceId_SKU` — partial unique index (ImportedFromSourceId + SKU WHERE NOT NULL) | ✅ |
+| DB covering: `IX_Products_IsDeleted_CategoryId_Price` — kategori + fiyat sorguları | ✅ |
 
 ### 📋 Kalan Görevler
 
-- [ ] Composite index: `Products(IsDeleted, CategoryId, Price)` — filtreli ürün listesi (henüz bekleniyor)
 - [ ] SlowQueryInterceptor log analizi — 500ms+ sorgular tespit ve optimize
 - [ ] `GetProductsQuery` — search COUNT büyük sonuç setlerinde (~9K) yaklaşık sayım seçeneği
 
