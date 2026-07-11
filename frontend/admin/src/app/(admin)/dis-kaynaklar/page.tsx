@@ -926,6 +926,44 @@ export default function DisKaynaklarPage() {
     setImporting(null);
   }
 
+  // Import only rows that haven't been imported yet (based on importedSet).
+  // Requires "Aktarım Durumunu Kontrol Et" to have been run first.
+  async function handleImportNotImported(sourceId: string) {
+    const preview = previewMap[sourceId];
+    if (!preview?.rows.length) return;
+    const target = targetMap[sourceId] || "Product";
+    const mapping = mappingState[sourceId] || {};
+    const conflict = conflictMap[sourceId] || "skip";
+    const selCols = selectedCols[sourceId] ?? new Set(preview.columns);
+    const impSet = importedSet[sourceId];
+    const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
+
+    const notImportedRows = (identCol && impSet)
+      ? preview.rows.filter(row => !impSet.has(row[identCol] ?? ""))
+      : preview.rows;
+
+    if (!notImportedRows.length) {
+      toast(false, "Tüm satırlar zaten aktarılmış.");
+      return;
+    }
+
+    const rowsToImport = notImportedRows.map(row => {
+      const out: Record<string, string> = {};
+      for (const col of Array.from(selCols)) {
+        if (row[col] !== undefined) out[col] = row[col];
+      }
+      return out;
+    });
+
+    setImporting(sourceId);
+    if (rowsToImport.length > ASYNC_THRESHOLD) {
+      await handleAsyncImport(sourceId, rowsToImport, target, mapping, conflict);
+    } else {
+      await handleChunkedImport(sourceId, rowsToImport, target, mapping, conflict);
+    }
+    setImporting(null);
+  }
+
   async function handleChunkedImport(
     sourceId: string,
     rows: Record<string, string>[],
@@ -2079,7 +2117,40 @@ export default function DisKaynaklarPage() {
                                 </button>
                               </div>
 
-                              {/* Scenario 2: Import all visible rows (small sources only) */}
+                              {/* Scenario 2: Import not-imported rows — visible when import status is known */}
+                              {impSet && (() => {
+                                const notCount = impIdentCol
+                                  ? preview!.rows.filter(row => !impSet.has(row[impIdentCol] ?? "")).length
+                                  : 0;
+                                if (!impIdentCol || notCount === 0) return null;
+                                const isAsync = notCount > ASYNC_THRESHOLD;
+                                return (
+                                  <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap bg-violet-50/50">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-violet-800 flex items-center gap-1.5">
+                                        Aktarılmamışları Aktar
+                                        {isAsync && <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>}
+                                      </p>
+                                      <p className="text-[11px] text-violet-600 mt-0.5">
+                                        Sisteme henüz aktarılmamış {notCount.toLocaleString("tr-TR")} satırı aktarır
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleImportNotImported(source.id)}
+                                      disabled={importing === source.id}
+                                      title={`Aktarılmamış ${notCount.toLocaleString("tr-TR")} satırı aktar`}
+                                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-40 shadow-sm bg-violet-600 hover:bg-violet-700 text-white shrink-0 disabled:cursor-not-allowed"
+                                    >
+                                      {importing === source.id
+                                        ? <><RefreshCw size={14} className="animate-spin" /> İşleniyor...</>
+                                        : <>{isAsync ? <Zap size={14} /> : <Download size={14} />} Aktarılmamışları Aktar <span className="text-[11px] opacity-80">({notCount.toLocaleString("tr-TR")})</span></>
+                                      }
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Scenario 3: Import all visible rows (small sources only) */}
                               {(() => {
                                 const allCount = preview?.rows.length ?? 0;
                                 const allAsync = allCount > ASYNC_THRESHOLD;
