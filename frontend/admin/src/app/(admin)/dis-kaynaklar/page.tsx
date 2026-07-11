@@ -636,7 +636,13 @@ export default function DisKaynaklarPage() {
   }
 
   // pageLimit: if set, fetch at most this many pages (partial fetch). Undefined = fetch all.
+  // Full fetch on REST sources always goes through the durable server-side PreviewJob so that
+  // progress survives page refresh and the browser tab is not required to stay open.
   async function handleFetch(source: ExternalSource, pageLimit?: number) {
+    if (source.type === "RestApi" && pageLimit === undefined) {
+      await handleStartServerPreview(source);
+      return;
+    }
     setFetching(source.id);
     let fetchWarning: string | null = null;
     try {
@@ -833,7 +839,7 @@ export default function DisKaynaklarPage() {
         void pollPreviewJob(source.id, jobId);
       }, 2000);
 
-      toast(true, "Arka planda çekim başlatıldı — bu sayfada kalmak zorunda değilsiniz.");
+      toast(true, "Çekim sunucuda başlatıldı — sayfayı kapatabilir veya yenileyebilirsiniz, işlem devam eder.");
     } catch { toast(false, "Arka planda çekim başlatılamadı."); }
   }
 
@@ -1446,66 +1452,22 @@ export default function DisKaynaklarPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* REST API: Fetch ALL data button */}
-                    {source.type === "RestApi" && (
-                      <button
-                        onClick={() => handleFetch(source)}
-                        disabled={fetching === source.id || !!fetchingMore[source.id]}
-                        title="Tüm sayfaları sırayla çek ve önbelleğe kaydet"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {(fetching === source.id || fetchingMore[source.id])
-                          ? <><RefreshCw size={12} className="animate-spin" /> Çekiliyor...</>
-                          : <><RefreshCw size={12} /> Tümünü Çek</>}
-                        {fetchingMore[source.id] && (
-                          <span className="text-[10px] text-teal-500 tabular-nums">
-                            {fetchingMore[source.id]!.loaded.toLocaleString("tr-TR")} / {fetchingMore[source.id]!.total.toLocaleString("tr-TR")}
-                          </span>
-                        )}
-                      </button>
-                    )}
-                    {/* REST API: Partial fetch — user specifies page count */}
-                    {source.type === "RestApi" && (
-                      <div className="flex items-center gap-0.5">
-                        <input
-                          type="number"
-                          min="1"
-                          max="9999"
-                          value={partialFetchPages[source.id] ?? "5"}
-                          onChange={e => setPartialFetchPages(prev => ({ ...prev, [source.id]: e.target.value }))}
-                          disabled={fetching === source.id || !!fetchingMore[source.id]}
-                          title="Çekilecek sayfa sayısı"
-                          className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center tabular-nums bg-white focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50"
-                        />
-                        <button
-                          onClick={() => {
-                            const n = parseInt(partialFetchPages[source.id] ?? "5", 10);
-                            if (n > 0) handleFetch(source, n);
-                          }}
-                          disabled={fetching === source.id || !!fetchingMore[source.id]}
-                          title={`İlk ${partialFetchPages[source.id] ?? 5} sayfayı çek`}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                        >
-                          <RefreshCw size={11} /> Sayfalı Çek
-                        </button>
-                      </div>
-                    )}
-                    {/* REST API: server-side background fetch — durably runs on the server */}
+                    {/* REST API: Fetch ALL → durable server-side job; shows progress on refresh */}
                     {source.type === "RestApi" && (() => {
                       const bgJob = previewJobMap[source.id];
                       const bgActive = bgJob?.status === "Queued" || bgJob?.status === "Processing";
                       if (bgActive && bgJob) {
                         return (
-                          <div className="flex items-center gap-1.5 border border-blue-200 bg-blue-50 rounded-xl px-2.5 py-1.5">
-                            <RefreshCw size={11} className="animate-spin text-blue-500" />
-                            <span className="text-[10px] text-blue-600 tabular-nums whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 border border-teal-200 bg-teal-50 rounded-xl px-2.5 py-1.5">
+                            <RefreshCw size={12} className="animate-spin text-teal-500" />
+                            <span className="text-[10px] text-teal-600 tabular-nums whitespace-nowrap">
                               {bgJob.totalPages > 0
                                 ? `${bgJob.processedPages}/${bgJob.totalPages} sayfa`
                                 : "Başlıyor..."}
                             </span>
                             <button
                               onClick={() => handleCancelServerPreview(source.id, bgJob.id)}
-                              title="Arka planda çekimi iptal et"
+                              title="Çekimi iptal et"
                               className="text-red-400 hover:text-red-600 transition ml-0.5"
                             >
                               <X size={11} />
@@ -1515,15 +1477,41 @@ export default function DisKaynaklarPage() {
                       }
                       return (
                         <button
-                          onClick={() => handleStartServerPreview(source)}
+                          onClick={() => handleFetch(source)}
                           disabled={fetching === source.id || !!fetchingMore[source.id]}
-                          title="Tüm sayfaları sunucu tarafında arka planda çeker — sekmeyi kapatabilirsiniz"
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          title="Tüm sayfaları sunucu tarafında çek — sayfa yenilenince devam eder"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Database size={11} /> Arka Planda
+                          <RefreshCw size={12} /> Tümünü Çek
                         </button>
                       );
                     })()}
+                    {/* REST API: Partial fetch — user specifies page count */}
+                    {source.type === "RestApi" && (
+                      <div className="flex items-center gap-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max="9999"
+                          value={partialFetchPages[source.id] ?? "5"}
+                          onChange={e => setPartialFetchPages(prev => ({ ...prev, [source.id]: e.target.value }))}
+                          disabled={fetching === source.id || !!fetchingMore[source.id] || !!(previewJobMap[source.id]?.status === "Queued" || previewJobMap[source.id]?.status === "Processing")}
+                          title="Çekilecek sayfa sayısı"
+                          className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center tabular-nums bg-white focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50"
+                        />
+                        <button
+                          onClick={() => {
+                            const n = parseInt(partialFetchPages[source.id] ?? "5", 10);
+                            if (n > 0) handleFetch(source, n);
+                          }}
+                          disabled={fetching === source.id || !!fetchingMore[source.id] || !!(previewJobMap[source.id]?.status === "Queued" || previewJobMap[source.id]?.status === "Processing")}
+                          title={`İlk ${partialFetchPages[source.id] ?? 5} sayfayı çek`}
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          <RefreshCw size={11} /> Sayfalı Çek
+                        </button>
+                      </div>
+                    )}
                     {/* REST API: quick count — labeled button */}
                     {source.type === "RestApi" && (
                       <button
@@ -1623,7 +1611,7 @@ export default function DisKaynaklarPage() {
                           </div>
                         ) : (
                       <>
-                        {/* Progressive fetch progress banner */}
+                        {/* Client-side partial fetch progress banner (Sayfalı Çek) */}
                         {fetchingMore[source.id] && (
                           <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-200 text-xs text-violet-700">
                             <RefreshCw size={12} className="animate-spin shrink-0" />
@@ -1633,6 +1621,24 @@ export default function DisKaynaklarPage() {
                             </span>
                           </div>
                         )}
+                        {/* Server-side PreviewJob progress banner (Tümünü Çek) — survives page refresh */}
+                        {(() => {
+                          const bgJob = previewJobMap[source.id];
+                          if (!bgJob || (bgJob.status !== "Queued" && bgJob.status !== "Processing")) return null;
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 rounded-xl border border-teal-200 text-xs text-teal-700">
+                              <RefreshCw size={12} className="animate-spin shrink-0" />
+                              <span>
+                                Sunucu tarafında çekiliyor
+                                {bgJob.totalPages > 0
+                                  ? ` — ${bgJob.processedPages} / ${bgJob.totalPages} sayfa`
+                                  : "..."}
+                                {bgJob.totalRows > 0 && ` · ${bgJob.totalRows.toLocaleString("tr-TR")} satır`}
+                              </span>
+                              <span className="ml-auto text-teal-400 text-[10px]">Sayfayı kapatabilirsiniz</span>
+                            </div>
+                          );
+                        })()}
                         {/* Grid toolbar */}
                         <div className="space-y-2">
                           {/* Import status filter + text filter row */}

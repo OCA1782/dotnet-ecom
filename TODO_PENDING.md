@@ -155,6 +155,19 @@
 | DB idempotency: `UX_Products_SourceId_SKU` — partial unique index (ImportedFromSourceId + SKU WHERE NOT NULL) | ✅ |
 | DB covering: `IX_Products_IsDeleted_CategoryId_Price` — kategori + fiyat sorguları | ✅ |
 
+### ✅ Dış Kaynaklar — Tümünü Çek Sayfa Yenileme Sonrası Devam (2026-07-11 — TAMAMLANDI)
+
+| Görev | Durum |
+|---|---|
+| "Tümünü Çek" (REST) → `handleStartServerPreview` yönlendirmesi (durable PreviewJob) | ✅ |
+| Sayfa yenileme sonrası `toggleExpand` aktif job'ı tespit eder, polling devam eder | ✅ |
+| "Tümünü Çek" butonu job aktifken progress + iptal gösterir (`previewJobMap` state) | ✅ |
+| "Arka Planda" ayrı butonu kaldırıldı (artık "Tümünü Çek" ile aynı mekanizma) | ✅ |
+| "Sayfalı Çek" disabled guard'ına server job kontrolü eklendi | ✅ |
+| Preview panelinde server job progress banner eklendi ("Sayfayı kapatabilirsiniz") | ✅ |
+
+**Analiz:** `C:\PROJECTS\DOTNET\DOCUMENTS\ECOM\ANALIZ\Yuksek_Hacimli_Veri_Onizleme_ve_Ice_Aktarma_Mimarisi.pdf` dokümanı ile mevcut yapı kıyaslandı. PDF Bölüm 8.2: "JobId URL'de taşınmalı, reload sonrası DB'den durum restore edilmeli." Mevcut `toggleExpand` zaten `GET /{id}/preview-job` ile aktif job'ı DB'den restore ediyor — eksik olan yalnızca "Tümünü Çek"in server-side mekanizmayı kullanmasıydı.
+
 ### 📋 Kalan Görevler
 
 - [ ] SlowQueryInterceptor log analizi — 500ms+ sorgular tespit ve optimize
