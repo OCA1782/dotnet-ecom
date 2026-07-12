@@ -113,6 +113,7 @@ const FIELD_SYNONYMS: Record<string, Record<string, string[]>> = {
   Product:  {
     Name: ["name","ad","urun adi","urun adı","ürün adi","ürün adı","urun","title","baslik","başlık"],
     SKU: ["sku","kod","barkod","urun kodu","ürün kodu","urun kod","ürün kod"],
+    FallbackSku: ["id","uuid","urun_id","product_id","kaynak_id","source_id","kaynakid","sourceid"],
     Price: ["price","fiyat","tutar","birim fiyat","pricecurrent","price_current","current_price","fiyat_guncel"],
     Description: ["description","açıklama","shortdescription","short_description","kisa_aciklama","kisaaciklama"],
     Category: ["category","kategori","categorypath","category_path","kategori_yolu"],
@@ -500,20 +501,32 @@ export default function DisKaynaklarPage() {
     if (!preview?.columns?.length) return;
     const target = targetMapRef.current[sourceId] || "Product";
     const mapping = mappingStateRef.current[sourceId] || {};
-    const identCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
+
+    let identCol: string | undefined;
+    let fallbackCol: string | undefined;
+    if (target === "Product" || target === "Stock") {
+      identCol = mapping["SKU"] || mapping["FallbackSku"];
+      if (mapping["SKU"] && mapping["FallbackSku"]) fallbackCol = mapping["FallbackSku"];
+    } else {
+      identCol = mapping["Name"];
+    }
     if (!identCol) return;
 
     let identifiers: string[];
     if (preview.serverPaginated) {
-      // Large source: fetch identifiers from server-stored preview.json
       try {
+        const qs = new URLSearchParams({ field: identCol });
+        if (fallbackCol) qs.set("fallbackField", fallbackCol);
         const res = await api.get<{ identifiers: string[] }>(
-          `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identCol)}`
+          `/api/admin/external-sources/${sourceId}/preview-identifiers?${qs}`
         );
         identifiers = res.identifiers;
       } catch { return; }
     } else {
-      identifiers = [...new Set(preview.rows.map(r => r[identCol] ?? "").filter(Boolean))];
+      identifiers = [...new Set(preview.rows.map(r => {
+        const v = r[identCol!] ?? "";
+        return (!v && fallbackCol) ? (r[fallbackCol] ?? "") : v;
+      }).filter(Boolean))];
     }
 
     if (!identifiers.length) return;
@@ -874,21 +887,31 @@ export default function DisKaynaklarPage() {
     const mapping = mappingState[sourceId] || {};
 
     let identifierSourceCol: string | undefined;
-    if (target === "Product" || target === "Stock") identifierSourceCol = mapping["SKU"];
-    else if (target === "Brand" || target === "Category") identifierSourceCol = mapping["Name"];
-    if (!identifierSourceCol) { toast(false, "Alan eşlemesinde tanımlayıcı alan (SKU / Ad) bulunamadı."); return; }
+    let fallbackCol: string | undefined;
+    if (target === "Product" || target === "Stock") {
+      identifierSourceCol = mapping["SKU"] || mapping["FallbackSku"];
+      // fallbackCol only needed when primary SKU col is set (composite: SKU || FallbackSku per row)
+      if (mapping["SKU"] && mapping["FallbackSku"]) fallbackCol = mapping["FallbackSku"];
+    } else if (target === "Brand" || target === "Category") {
+      identifierSourceCol = mapping["Name"];
+    }
+    if (!identifierSourceCol) { toast(false, "Alan eşlemesinde tanımlayıcı alan (SKU / Ad / FallbackSku) bulunamadı."); return; }
 
     setCheckingImport(sourceId);
     try {
       let identifiers: string[];
       if (preview.serverPaginated) {
-        // Large source: fetch unique identifier values from server-stored preview.json
+        const qs = new URLSearchParams({ field: identifierSourceCol });
+        if (fallbackCol) qs.set("fallbackField", fallbackCol);
         const res = await api.get<{ identifiers: string[]; totalCount: number }>(
-          `/api/admin/external-sources/${sourceId}/preview-identifiers?field=${encodeURIComponent(identifierSourceCol)}`
+          `/api/admin/external-sources/${sourceId}/preview-identifiers?${qs}`
         );
         identifiers = res.identifiers;
       } else {
-        identifiers = [...new Set(preview.rows.map(r => r[identifierSourceCol!] ?? "").filter(Boolean))];
+        identifiers = [...new Set(preview.rows.map(r => {
+          const v = r[identifierSourceCol!] ?? "";
+          return (!v && fallbackCol) ? (r[fallbackCol] ?? "") : v;
+        }).filter(Boolean))];
       }
 
       if (!identifiers.length) { toast(false, "Tanımlayıcı değer bulunamadı."); setCheckingImport(null); return; }
@@ -897,7 +920,8 @@ export default function DisKaynaklarPage() {
       setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
       setPreviewIdentifierCount(prev => ({ ...prev, [sourceId]: identifiers.length }));
       const notImported = identifiers.length - imported.size;
-      toast(true, `${imported.size.toLocaleString("tr-TR")} aktarılmış · ${notImported.toLocaleString("tr-TR")} aktarılmamış (${identifiers.length.toLocaleString("tr-TR")} takipli satır)`);
+      const fallbackNote = fallbackCol ? " (SKU + FallbackSku)" : "";
+      toast(true, `${imported.size.toLocaleString("tr-TR")} aktarılmış · ${notImported.toLocaleString("tr-TR")} aktarılmamış (${identifiers.length.toLocaleString("tr-TR")} takipli satır${fallbackNote})`);
     } catch { toast(false, "Aktarım durumu kontrol edilemedi."); }
     setCheckingImport(null);
   }
@@ -1410,7 +1434,15 @@ export default function DisKaynaklarPage() {
             const filterTxt = (filterText[source.id] ?? "").toLowerCase().trim();
             const impFilter = importFilter[source.id] ?? "all";
             const impSet = importedSet[source.id];
-            const impIdentCol = (target === "Product" || target === "Stock") ? mapping["SKU"] : mapping["Name"];
+            // For Products/Stock: primary identifier is SKU; FallbackSku handles SKU-less rows.
+            // When SKU is not mapped but FallbackSku is, all rows use FallbackSku as their identifier.
+            const impIdentCol = (target === "Product" || target === "Stock")
+              ? (mapping["SKU"] || mapping["FallbackSku"])
+              : mapping["Name"];
+            // fallbackSkuCol is only needed when SKU is mapped — rows missing SKU fall back to this column
+            const fallbackSkuCol = (target === "Product" || target === "Stock") && mapping["SKU"]
+              ? mapping["FallbackSku"]
+              : undefined;
 
             // Large source: rows are on server, display uses server-paginated page
             const isLargeSource = preview?.serverPaginated === true;
@@ -1752,7 +1784,7 @@ export default function DisKaynaklarPage() {
                             <button
                               onClick={() => handleCheckImported(source.id)}
                               disabled={checkingImport === source.id || !impIdentCol}
-                              title={!impIdentCol ? "Önce alan eşlemesinde SKU / Ad alanını eşleyin" : "Hangi satırların daha önce sisteme aktarıldığını kontrol et"}
+                              title={!impIdentCol ? "Önce alan eşlemesinde SKU / FallbackSku / Ad alanını eşleyin" : "Hangi satırların daha önce sisteme aktarıldığını kontrol et"}
                               className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
                                 impSet
                                   ? "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100"
@@ -1772,11 +1804,13 @@ export default function DisKaynaklarPage() {
                             if (!identTotal) return null;
                             const untrackable = previewTotalCount - identTotal;
                             if (untrackable <= 0) return null;
+                            const hasFallback = !!(target === "Product" && mapping["FallbackSku"]);
                             return (
                               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 px-0.5">
                                 <AlertCircle size={11} className="shrink-0 text-slate-300" />
                                 <span>
                                   <strong className="text-slate-500">{untrackable.toLocaleString("tr-TR")}</strong> satırın SKU&apos;su boş — aktarım durumu takip edilemiyor (toplam: {previewTotalCount.toLocaleString("tr-TR")}, takipli: {identTotal.toLocaleString("tr-TR")})
+                                  {!hasFallback && <span className="text-violet-400 ml-1">· Alan eşlemesinde <strong>FallbackSku</strong> eşlenirse tüm satırlar takipli olur.</span>}
                                 </span>
                               </div>
                             );
@@ -2049,7 +2083,17 @@ export default function DisKaynaklarPage() {
                                 const activeCols = (preview?.columns ?? []).filter(c => isLargeSource || (selColSet ? selColSet.has(c) : true));
                                 return (
                                   <div key={field}>
-                                    <label className="block text-[10px] font-medium text-slate-500 mb-0.5">{field}</label>
+                                    <label className="block text-[10px] font-medium text-slate-500 mb-0.5 flex items-center gap-1">
+                                      {field}
+                                      {field === "FallbackSku" && (
+                                        <span
+                                          title="SKU'su boş satırlar için yedek tanımlayıcı (ör: id). Eşlenirse SKU'suz satırlar da takip edilebilir ve aktarılabilir olur."
+                                          className="text-[9px] px-1 py-0 rounded bg-violet-100 text-violet-600 font-semibold cursor-help leading-4"
+                                        >
+                                          yedek
+                                        </span>
+                                      )}
+                                    </label>
                                     <select value={mapping[field] || ""}
                                       onChange={e => setMapping(source.id, field, e.target.value)}
                                       className={`w-full border rounded-xl px-2 py-1.5 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 ${
@@ -2145,7 +2189,7 @@ export default function DisKaynaklarPage() {
                                             <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full font-semibold">Arka planda</span>
                                           </p>
                                           <p className="text-[11px] text-violet-600 mt-0.5">
-                                            Kaynak yeniden çekilir; {impSet.size.toLocaleString("tr-TR")} aktarılmış, {notCount.toLocaleString("tr-TR")} SKU'lu satır henüz aktarılmamış
+                                            Kaynak yeniden çekilir; {impSet.size.toLocaleString("tr-TR")} aktarılmış, {notCount.toLocaleString("tr-TR")} takipli satır henüz aktarılmamış
                                           </p>
                                         </div>
                                         <button
@@ -2161,7 +2205,8 @@ export default function DisKaynaklarPage() {
                                       <div className="px-4 py-3 flex items-center gap-2 text-xs text-teal-700 bg-teal-50/60 border-t border-teal-100">
                                         <CheckCircle size={13} className="shrink-0 text-teal-500" />
                                         Takip edilebilir tüm satırlar ({identTotal.toLocaleString("tr-TR")}) sisteme aktarılmış.
-                                        {noIdentRows > 0 && <span className="text-slate-400 ml-1">{noIdentRows.toLocaleString("tr-TR")} satırın SKU&apos;su boş — takip dışı.</span>}
+                                        {noIdentRows > 0 && !mapping["FallbackSku"] && <span className="text-slate-400 ml-1">{noIdentRows.toLocaleString("tr-TR")} satırın SKU&apos;su boş — takip dışı. Alan eşlemesinde <strong>FallbackSku</strong> eşlenirse bunlar da takipli olur.</span>}
+                                        {noIdentRows > 0 && mapping["FallbackSku"] && <span className="text-slate-400 ml-1">{noIdentRows.toLocaleString("tr-TR")} satır ne SKU ne FallbackSku değerine sahip — takip dışı.</span>}
                                       </div>
                                     )}
                                   </>

@@ -252,6 +252,7 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         [FromServices] IWebHostEnvironment env,
         CancellationToken ct,
         string field = "SKU",
+        string? fallbackField = null,
         int limit = 100000)
     {
         var previewPath = Path.Combine(env.ContentRootPath, "uploads", "external-sources", $"{id}-preview.json");
@@ -263,18 +264,26 @@ public class ExternalSourcesController(IMediator mediator) : ControllerBase
         try { doc = JsonDocument.Parse(json); }
         catch { return BadRequest(new { error = "Önizleme dosyası bozuk." }); }
 
-        // Case-insensitive field lookup: source columns may differ in casing from mapping key
+        static string GetFieldValue(JsonElement row, string f)
+        {
+            if (row.TryGetProperty(f, out var exact)) return exact.ToString();
+            foreach (var prop in row.EnumerateObject())
+                if (string.Equals(prop.Name, f, StringComparison.OrdinalIgnoreCase))
+                    return prop.Value.ToString();
+            return "";
+        }
+
+        // When fallbackField is set: use primary field value; if empty, use fallback field value.
+        // This enables composite identifier tracking for sources with mixed SKU presence.
         var identifiers = doc.RootElement
             .GetProperty("rows")
             .EnumerateArray()
             .Select(r =>
             {
-                if (r.TryGetProperty(field, out var exact)) return exact.ToString();
-                // Fallback: case-insensitive scan
-                foreach (var prop in r.EnumerateObject())
-                    if (string.Equals(prop.Name, field, StringComparison.OrdinalIgnoreCase))
-                        return prop.Value.ToString();
-                return "";
+                var val = GetFieldValue(r, field);
+                if (string.IsNullOrEmpty(val) && fallbackField != null)
+                    val = GetFieldValue(r, fallbackField);
+                return val;
             })
             .Where(v => !string.IsNullOrEmpty(v))
             .Distinct()
