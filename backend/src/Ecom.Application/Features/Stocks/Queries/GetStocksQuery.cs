@@ -36,7 +36,7 @@ public class GetStocksQueryHandler(IApplicationDbContext db, ICurrentUserService
     {
         var query = db.Stocks
             .IgnoreQueryFilters()
-            .Where(s => !s.IsDeleted)
+            .Where(s => !s.IsDeleted && (s.Product == null || !s.Product.IsDeleted))
             .Include(s => s.Product)
             .Include(s => s.ProductVariant)
             .AsQueryable();

@@ -220,7 +220,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
     {
         int ins = 0, upd = 0, skip = 0;
         var reasons = new Dictionary<string, int>();
-        var seen = (await db.Brands.ToListAsync(ct))
+        // IgnoreQueryFilters: soft-deleted brands must be visible to avoid slug unique index violations on re-import
+        var seen = (await db.Brands.IgnoreQueryFilters().ToListAsync(ct))
             .GroupBy(b => b.Name.ToLower()).ToDictionary(g => g.Key, g => g.First());
 
         foreach (var row in rows)
@@ -232,6 +233,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
             if (seen.TryGetValue(name.ToLower(), out var brand))
             {
+                if (brand.IsDeleted) brand.IsDeleted = false;
+
                 // Idempotency: skip if nothing changed
                 if (SameStr(brand.Description, desc))
                 { skip++; Bump(reasons, "Zaten güncel (değişiklik yok)"); continue; }
@@ -279,6 +282,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Where(p => p.SKU != null && batchSkus.Contains(p.SKU))
+                .OrderBy(p => p.IsDeleted) // active (false=0) before soft-deleted (true=1)
                 .ToListAsync(ct);
             foreach (var p in dbProds) seenSku.TryAdd(p.SKU!, p);
         }
@@ -400,8 +404,9 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 {
                     if (existing.IsDeleted)
                     {
-                        // Soft-deleted product has same data — just restore it
-                        var restoredAttached = await db.Products.FindAsync([existing.Id], ct);
+                        // Soft-deleted product has same data — just restore it.
+                        // IgnoreQueryFilters: FindAsync applies global filters and returns null for IsDeleted=true.
+                        var restoredAttached = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == existing.Id, ct);
                         if (restoredAttached != null) { restoredAttached.IsDeleted = false; rst++; }
                     }
                     else
@@ -414,7 +419,7 @@ public class ImportBatchProcessor(IApplicationDbContext db)
 
                 if (conflict == "update")
                 {
-                    var attached = await db.Products.FindAsync([existing.Id], ct);
+                    var attached = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == existing.Id, ct);
                     if (attached != null)
                     {
                         attached.Name = name;
@@ -446,7 +451,8 @@ public class ImportBatchProcessor(IApplicationDbContext db)
                 {
                     // Soft-deleted product: always restore even on conflict=skip.
                     // "Skip" means don't overwrite active records; restoring archived ones is always safe.
-                    var attached = await db.Products.FindAsync([existing.Id], ct);
+                    // IgnoreQueryFilters: FindAsync applies global filters and returns null for IsDeleted=true.
+                    var attached = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == existing.Id, ct);
                     if (attached != null)
                     {
                         attached.Name = name; attached.Price = price;

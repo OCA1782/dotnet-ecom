@@ -17,6 +17,21 @@ public class CategoriesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:guid}/products")]
+    [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
+    public async Task<IActionResult> GetProducts(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string sortBy = "name",
+        [FromQuery] string sortDir = "asc",
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetCategoryProductsQuery(id, page, pageSize, search, sortBy, sortDir), ct);
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "SuperAdmin,Admin,ProductManager,ContentManager")]
     public async Task<IActionResult> Create([FromBody] CreateCategoryCommand command, CancellationToken ct)
@@ -38,9 +53,9 @@ public class CategoriesController(IMediator mediator) : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] bool cascade = false, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new DeleteCategoryCommand(id), ct);
+        var result = await mediator.Send(new DeleteCategoryCommand(id, cascade), ct);
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return NoContent();
     }

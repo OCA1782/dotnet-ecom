@@ -35,6 +35,20 @@ const CAT_ACTION_COLORS: Record<string, string> = {
 };
 import ImageUpload from "@/components/ImageUpload";
 
+interface CategoryProduct {
+  id: string;
+  name: string;
+  sku?: string;
+  price: number;
+  isActive: boolean;
+}
+
+interface CategoryProductsResult {
+  items: CategoryProduct[];
+  totalCount: number;
+  subcategoryCount: number;
+}
+
 interface Category {
   id: string;
   name: string;
@@ -177,6 +191,14 @@ export default function KategorilerPage() {
   const [dataSourceFilter, setDataSourceFilter] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteProds, setDeleteProds] = useState<CategoryProduct[]>([]);
+  const [deleteProdTotal, setDeleteProdTotal] = useState(0);
+  const [deleteSubcatCount, setDeleteSubcatCount] = useState(0);
+  const [deleteProdPage, setDeleteProdPage] = useState(1);
+  const [deleteProdSearch, setDeleteProdSearch] = useState("");
+  const [deleteProdSort, setDeleteProdSort] = useState("name");
+  const [deleteProdSortDir, setDeleteProdSortDir] = useState<"asc" | "desc">("asc");
+  const [deleteProdLoading, setDeleteProdLoading] = useState(false);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
@@ -344,17 +366,53 @@ export default function KategorilerPage() {
     finally { setImporting(false); e.target.value = ""; }
   }
 
+  const DELPROD_PAGE_SIZE = 15;
+
+  const loadDeleteProducts = useCallback(async (catId: string, page: number, search: string, sortBy: string, sortDir: string) => {
+    setDeleteProdLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page), pageSize: String(DELPROD_PAGE_SIZE),
+        sortBy, sortDir,
+        ...(search ? { search } : {}),
+      });
+      const data = await api.get<CategoryProductsResult>(`/api/categories/${catId}/products?${params}`);
+      setDeleteProds(data.items);
+      setDeleteProdTotal(data.totalCount);
+      setDeleteSubcatCount(data.subcategoryCount);
+    } catch {
+      setDeleteProds([]);
+      setDeleteProdTotal(0);
+    } finally { setDeleteProdLoading(false); }
+  }, []);
+
+  function openDeleteModal(cat: Category) {
+    setDeleteTarget(cat);
+    setDeleteProdPage(1);
+    setDeleteProdSearch("");
+    setDeleteProdSort("name");
+    setDeleteProdSortDir("asc");
+    void loadDeleteProducts(cat.id, 1, "", "name", "asc");
+  }
+
+  function closeDeleteModal() {
+    setDeleteTarget(null);
+    setDeleteProds([]);
+    setDeleteProdTotal(0);
+    setDeleteSubcatCount(0);
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await api.delete(`/api/categories/${deleteTarget.id}`);
+      await api.delete(`/api/categories/${deleteTarget.id}?cascade=true`);
       setMsg({ text: `"${deleteTarget.name}" ${t("msg.deleted", "Başarıyla silindi")}`, ok: true });
-      setDeleteTarget(null);
+      closeDeleteModal();
       await fetchData();
     } catch (e: unknown) {
       setMsg({ text: e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"), ok: false });
-      setDeleteTarget(null);
+      closeDeleteModal();
     } finally { setDeleting(false); }
   }
 
@@ -710,7 +768,7 @@ export default function KategorilerPage() {
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                             <Pencil size={18} />
                           </button>
-                          <button onClick={() => setDeleteTarget(cat)} title={t("action.delete", "Sil")}
+                          <button onClick={() => openDeleteModal(cat)} title={t("action.delete", "Sil")}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                             <Trash2 size={18} />
                           </button>
@@ -787,7 +845,7 @@ export default function KategorilerPage() {
                               className="w-8 h-8 flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-500 hover:text-white shadow-sm hover:shadow-teal-200 hover:shadow-md transition-all duration-150 active:scale-95">
                               <Pencil size={16} />
                             </button>
-                            <button onClick={() => setDeleteTarget(sub)} title={t("action.delete", "Sil")}
+                            <button onClick={() => openDeleteModal(sub)} title={t("action.delete", "Sil")}
                               className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm hover:shadow-red-200 hover:shadow-md transition-all duration-150 active:scale-95">
                               <Trash2 size={16} />
                             </button>
@@ -830,38 +888,164 @@ export default function KategorilerPage() {
         </div>
       )}
 
-      {/* Delete modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="px-6 py-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                  <Trash2 size={18} className="text-red-600" />
+      {/* Delete modal — enhanced with product list */}
+      {deleteTarget && (() => {
+        const target = deleteTarget;
+        const delTotalPages = Math.max(1, Math.ceil(deleteProdTotal / DELPROD_PAGE_SIZE));
+        const delPageNums = buildPageNums(delTotalPages, deleteProdPage);
+        function delSort(field: string) {
+          if (deleteProdSort === field) {
+            const next = deleteProdSortDir === "asc" ? "desc" : "asc";
+            setDeleteProdSortDir(next);
+            void loadDeleteProducts(target.id, deleteProdPage, deleteProdSearch, field, next);
+          } else {
+            setDeleteProdSort(field);
+            setDeleteProdSortDir("asc");
+            setDeleteProdPage(1);
+            void loadDeleteProducts(target.id, 1, deleteProdSearch, field, "asc");
+          }
+        }
+        function delGoPage(p: number) {
+          setDeleteProdPage(p);
+          void loadDeleteProducts(target.id, p, deleteProdSearch, deleteProdSort, deleteProdSortDir);
+        }
+        function delSearch(val: string) {
+          setDeleteProdSearch(val);
+          setDeleteProdPage(1);
+          void loadDeleteProducts(target.id, 1, val, deleteProdSort, deleteProdSortDir);
+        }
+        function DelSortIcon({ field }: { field: string }) {
+          if (deleteProdSort !== field) return <ChevronsUpDown size={11} className="opacity-30 ml-0.5 inline-block" />;
+          return deleteProdSortDir === "asc"
+            ? <ChevronUp size={11} className="text-red-400 ml-0.5 inline-block" />
+            : <ChevronDown size={11} className="text-red-400 ml-0.5 inline-block" />;
+        }
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-200 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                      <Trash2 size={18} className="text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{t("ui.deleteCategory", "Kategoriyi Sil")}</h3>
+                      <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
+                    </div>
+                  </div>
+                  <button onClick={closeDeleteModal} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900">{t("ui.deleteCategory", "Kategoriyi Sil")}</h3>
-                  <p className="text-xs text-slate-500">{t("msg.irreversible", "Bu işlem geri alınamaz.")}</p>
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm">
+                  <span className="font-semibold text-slate-900">&quot;{target.name}&quot;</span>
+                  <span className="text-slate-600"> kategorisi</span>
+                  {deleteSubcatCount > 0 && <span className="text-red-700 font-medium"> ve {deleteSubcatCount} alt kategorisi</span>}
+                  {deleteProdTotal > 0 && <span className="text-red-700 font-medium">, {deleteProdTotal} ürünüyle birlikte</span>}
+                  <span className="text-slate-700 font-semibold"> kalıcı olarak silinecek.</span>
                 </div>
               </div>
-              <div className="space-y-2 text-sm text-slate-700">
-                <p className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                  <strong>&quot;{deleteTarget.name}&quot;</strong> {t("ui.willBeDeleted", "kategorisi silinecek.")}
-                </p>
-                <p className="text-xs text-slate-500 px-1">{t("ui.categoryDeleteWarning", "Alt kategorisi veya aktif ürünü olan kategoriler silinemez.")}</p>
+
+              {/* Product list */}
+              <div className="flex flex-col flex-1 min-h-0">
+                {/* Search */}
+                <div className="px-6 py-3 border-b border-slate-100 shrink-0 flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={deleteProdSearch}
+                      onChange={e => delSearch(e.target.value)}
+                      placeholder="Ürün adı veya SKU ara..."
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
+                    {deleteProdTotal} ürün
+                    {deleteSubcatCount > 0 ? `, ${deleteSubcatCount} alt kategori` : ""}
+                  </span>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-y-auto flex-1 min-h-0">
+                  {deleteProdLoading ? (
+                    <div className="flex items-center justify-center py-12 text-slate-400">
+                      <Loader2 size={20} className="animate-spin mr-2" /> Yükleniyor...
+                    </div>
+                  ) : deleteProds.length === 0 ? (
+                    <p className="py-12 text-center text-slate-400 text-sm">
+                      {deleteProdSearch ? "Aramanızla eşleşen ürün bulunamadı." : "Bu kategoride ürün bulunmuyor."}
+                    </p>
+                  ) : (
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                        <tr>
+                          <th className="text-left px-4 py-2.5 text-slate-500 font-medium cursor-pointer select-none" onClick={() => delSort("name")}>
+                            Ürün Adı <DelSortIcon field="name" />
+                          </th>
+                          <th className="text-left px-4 py-2.5 text-slate-500 font-medium cursor-pointer select-none w-36" onClick={() => delSort("sku")}>
+                            SKU <DelSortIcon field="sku" />
+                          </th>
+                          <th className="text-right px-4 py-2.5 text-slate-500 font-medium cursor-pointer select-none w-28" onClick={() => delSort("price")}>
+                            Fiyat <DelSortIcon field="price" />
+                          </th>
+                          <th className="text-center px-4 py-2.5 text-slate-500 font-medium cursor-pointer select-none w-24" onClick={() => delSort("isActive")}>
+                            Durum <DelSortIcon field="isActive" />
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {deleteProds.map(p => (
+                          <tr key={p.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-2.5 text-slate-800 font-medium">{p.name}</td>
+                            <td className="px-4 py-2.5 text-slate-500 font-mono">{p.sku ?? "—"}</td>
+                            <td className="px-4 py-2.5 text-slate-700 text-right">{p.price.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`px-2 py-0.5 rounded-full font-semibold ${p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                                {p.isActive ? "Aktif" : "Pasif"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Pagination */}
+                {delTotalPages > 1 && (
+                  <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-center gap-1 shrink-0">
+                    <button onClick={() => delGoPage(1)} disabled={deleteProdPage === 1} className="px-2 py-1 rounded text-xs border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">«</button>
+                    <button onClick={() => delGoPage(deleteProdPage - 1)} disabled={deleteProdPage === 1} className="px-2 py-1 rounded text-xs border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">‹</button>
+                    {delPageNums.map((n, i) =>
+                      n === "…" ? <span key={`e${i}`} className="px-1 text-slate-400 text-xs">…</span>
+                        : <button key={n} onClick={() => delGoPage(n as number)}
+                            className={`w-7 h-7 rounded text-xs font-medium transition ${deleteProdPage === n ? "bg-red-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                            {n}
+                          </button>
+                    )}
+                    <button onClick={() => delGoPage(deleteProdPage + 1)} disabled={deleteProdPage === delTotalPages} className="px-2 py-1 rounded text-xs border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">›</button>
+                    <button onClick={() => delGoPage(delTotalPages)} disabled={deleteProdPage === delTotalPages} className="px-2 py-1 rounded text-xs border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30">»</button>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="px-6 pb-5 flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition">{t("action.cancel", "İptal")}</button>
-              <button onClick={handleDelete} disabled={deleting}
-                className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
-                {deleting ? t("action.deleting", "Siliniyor...") : t("action.yes", "Evet")}
-              </button>
+
+              {/* Footer actions */}
+              <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+                <button onClick={closeDeleteModal}
+                  className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition">
+                  {t("action.cancel", "İptal")}
+                </button>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="px-5 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2">
+                  {deleting && <Loader2 size={14} className="animate-spin" />}
+                  {deleting ? t("action.deleting", "Siliniyor...") : "Kategoriyi ve Tüm İçeriği Sil"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Category History Modal */}
       {historyTarget && (

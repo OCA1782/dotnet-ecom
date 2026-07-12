@@ -46,10 +46,16 @@ public class SystemHealthJob(
         // SMTP bağlantı testi
         var smtpStatus = await CheckSmtpAsync(ct);
 
+        // Try common DB health check names (SqlServer, database, npgsql, postgres) in order
+        var dbItem = new[] { "SqlServer", "database", "npgsql", "postgres", "ef" }
+            .Select(GetItem)
+            .FirstOrDefault(i => i.Status != "Unknown")
+            ?? GetItem("database");
+
         var snapshot = new SystemHealthSnapshot(
             CheckedAt: DateTime.UtcNow,
             ApiStatus: "Healthy",
-            Database: GetItem("SqlServer") is { Status: "Unknown" } ? GetItem("database") : GetItem("SqlServer"),
+            Database: dbItem,
             Redis: GetItem("redis"),
             RabbitMQ: GetItem("rabbitmq"),
             Smtp: smtpStatus);
@@ -74,12 +80,14 @@ public class SystemHealthJob(
         if (string.IsNullOrEmpty(host) || host == "smtp.example.com")
             return new ServiceHealthItem("NotConfigured", 0, "SMTP yapılandırılmamış");
 
+        var port = int.TryParse(config["Email:SmtpPort"], out var p) ? p : 587;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            using var client = new System.Net.Mail.SmtpClient(host,
-                int.TryParse(config["Email:SmtpPort"], out var p) ? p : 587);
-            await Task.Delay(100, ct); // placeholder — SmtpClient connect test
+            using var tcp = new System.Net.Sockets.TcpClient();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            await tcp.ConnectAsync(host, port, cts.Token);
             sw.Stop();
             return new ServiceHealthItem("Healthy", sw.ElapsedMilliseconds, null);
         }
