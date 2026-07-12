@@ -896,7 +896,8 @@ export default function DisKaynaklarPage() {
       const imported = await checkImportedBatched(sourceId, target, identifiers);
       setImportedSet(prev => ({ ...prev, [sourceId]: imported }));
       setPreviewIdentifierCount(prev => ({ ...prev, [sourceId]: identifiers.length }));
-      toast(true, `${imported.size} / ${identifiers.length} kayıt daha önce aktarılmış.`);
+      const notImported = identifiers.length - imported.size;
+      toast(true, `${imported.size.toLocaleString("tr-TR")} aktarılmış · ${notImported.toLocaleString("tr-TR")} aktarılmamış (${identifiers.length.toLocaleString("tr-TR")} takipli satır)`);
     } catch { toast(false, "Aktarım durumu kontrol edilemedi."); }
     setCheckingImport(null);
   }
@@ -1701,10 +1702,19 @@ export default function DisKaynaklarPage() {
                             {/* Import status filter tabs */}
                             <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5">
                               {(["all", "not", "imported"] as const).map(f => {
+                                // For large sources: "not imported" = rows WITH identifier that aren't in DB.
+                                // previewTotalCount includes rows without identifiers — those can never appear
+                                // in impSet, so the old formula (total - imported) inflated the "not" count.
+                                const identTotal = previewIdentifierCount[source.id];
+                                const notImportedCount = impSet
+                                  ? (isLargeSource && identTotal != null
+                                      ? Math.max(0, identTotal - impSet.size)
+                                      : previewTotalCount - impSet.size)
+                                  : null;
                                 const tabCount = f === "all"
                                   ? previewTotalCount
                                   : f === "imported" ? (impSet?.size ?? null)
-                                  : impSet ? (previewTotalCount - impSet.size) : null;
+                                  : notImportedCount;
                                 return (
                                   <button
                                     key={f}
@@ -1755,6 +1765,22 @@ export default function DisKaynaklarPage() {
                               {impSet ? "Aktarım Durumunu Yenile" : "Aktarım Durumunu Kontrol Et"}
                             </button>
                           </div>
+
+                          {/* Untrackable rows note — large source, impSet loaded, rows without identifier exist */}
+                          {isLargeSource && impSet && impIdentCol && (() => {
+                            const identTotal = previewIdentifierCount[source.id];
+                            if (!identTotal) return null;
+                            const untrackable = previewTotalCount - identTotal;
+                            if (untrackable <= 0) return null;
+                            return (
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 px-0.5">
+                                <AlertCircle size={11} className="shrink-0 text-slate-300" />
+                                <span>
+                                  <strong className="text-slate-500">{untrackable.toLocaleString("tr-TR")}</strong> satırın SKU&apos;su boş — aktarım durumu takip edilemiyor (toplam: {previewTotalCount.toLocaleString("tr-TR")}, takipli: {identTotal.toLocaleString("tr-TR")})
+                                </span>
+                              </div>
+                            );
+                          })()}
 
                           {/* Filter input — only for small sources */}
                           {!isLargeSource && (
