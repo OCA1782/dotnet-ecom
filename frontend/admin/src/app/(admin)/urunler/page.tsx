@@ -95,6 +95,143 @@ function slugify(s: string) {
     .trim();
 }
 
+function SearchableSelect({
+  value, onChange, options, placeholder, className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { id: string; name: string }[];
+  placeholder: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const sorted = useMemo(
+    () => [...options].sort((a, b) => a.name.localeCompare(b.name, "tr")).filter(o => o.name.toLowerCase().includes(q.toLowerCase())),
+    [options, q],
+  );
+  const sel = options.find(o => o.id === value);
+  return (
+    <div ref={ref} className={`relative ${className ?? ""}`}>
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setQ(""); }}
+        className="w-full flex items-center justify-between border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-left gap-2"
+      >
+        <span className={sel ? "text-slate-900 truncate" : "text-slate-400 truncate"}>{sel?.name ?? placeholder}</span>
+        <ChevronDown size={14} className="text-slate-400 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full min-w-[160px] bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <input autoFocus type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Ara..." className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            <button type="button" onClick={() => { onChange(""); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-50">{placeholder}</button>
+            {sorted.map(o => (
+              <button key={o.id} type="button" onClick={() => { onChange(o.id); setOpen(false); }}
+                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 ${o.id === value ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-700"}`}>
+                {o.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchableCategorySelect({
+  value, onChange, categories, placeholder, className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: Category[];
+  placeholder: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const tree = useMemo(() => {
+    const s = [...categories].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    return s.filter(c => !c.parentCategoryId).map(r => ({ ...r, children: s.filter(c => c.parentCategoryId === r.id) }));
+  }, [categories]);
+  const flatFiltered = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name, "tr")).filter(c => c.name.toLowerCase().includes(q.toLowerCase())),
+    [categories, q],
+  );
+  const sel = categories.find(c => c.id === value);
+  return (
+    <div ref={ref} className={`relative ${className ?? ""}`}>
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setQ(""); }}
+        className="w-full flex items-center justify-between border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-left gap-2"
+      >
+        <span className={sel ? "text-slate-900 truncate" : "text-slate-400 truncate"}>{sel?.name ?? placeholder}</span>
+        <ChevronDown size={14} className="text-slate-400 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full min-w-[180px] bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <input autoFocus type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Ara..." className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            <button type="button" onClick={() => { onChange(""); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-50">{placeholder}</button>
+            {q ? (
+              flatFiltered.map(c => (
+                <button key={c.id} type="button" onClick={() => { onChange(c.id); setOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 ${c.id === value ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-700"}`}>
+                  {c.parentCategoryId ? `↳ ${c.name}` : c.name}
+                </button>
+              ))
+            ) : (
+              tree.map(parent => (
+                <div key={parent.id}>
+                  <div className="flex items-center">
+                    <button type="button" onClick={() => { onChange(parent.id); setOpen(false); }}
+                      className={`flex-1 text-left px-3 py-1.5 text-sm font-medium hover:bg-teal-50 ${parent.id === value ? "bg-teal-50 text-teal-700" : "text-slate-800"}`}>
+                      {parent.name}
+                    </button>
+                    {parent.children.length > 0 && (
+                      <button type="button" onClick={() => setCollapsed(p => ({ ...p, [parent.id]: !p[parent.id] }))} className="px-2 py-1.5 text-slate-400 hover:text-slate-600">
+                        {collapsed[parent.id] ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                      </button>
+                    )}
+                  </div>
+                  {!collapsed[parent.id] && parent.children.map(sub => (
+                    <button key={sub.id} type="button" onClick={() => { onChange(sub.id); setOpen(false); }}
+                      className={`w-full text-left pl-7 pr-3 py-1.5 text-sm hover:bg-teal-50 ${sub.id === value ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-600"}`}>
+                      ↳ {sub.name}
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Modal({ title, onClose, children, preview, showPreview, onTogglePreview }: {
   title: string;
   onClose: () => void;
@@ -1101,34 +1238,22 @@ export default function AdminProductsPage() {
           </form>
 
           {/* Category filter */}
-          <select
+          <SearchableCategorySelect
             value={filterCategoryId}
-            onChange={e => { setFilterCategoryId(e.target.value); setPage(1); }}
-            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[150px]"
-          >
-            <option value="">{t("filter.allCategories", "Tüm Kategoriler")}</option>
-            {categories.filter(c => !c.parentCategoryId).map(parent => {
-              const subs = categories.filter(c => c.parentCategoryId === parent.id);
-              return subs.length > 0 ? (
-                <optgroup key={parent.id} label={parent.name}>
-                  <option value={parent.id}>{parent.name}</option>
-                  {subs.map(sub => <option key={sub.id} value={sub.id}>↳ {sub.name}</option>)}
-                </optgroup>
-              ) : (
-                <option key={parent.id} value={parent.id}>{parent.name}</option>
-              );
-            })}
-          </select>
+            onChange={v => { setFilterCategoryId(v); setPage(1); }}
+            categories={categories}
+            placeholder={t("filter.allCategories", "Tüm Kategoriler")}
+            className="min-w-[150px]"
+          />
 
           {/* Brand filter */}
-          <select
+          <SearchableSelect
             value={filterBrandId}
-            onChange={e => { setFilterBrandId(e.target.value); setPage(1); }}
-            className="border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[130px]"
-          >
-            <option value="">{t("filter.allBrands", "Tüm Markalar")}</option>
-            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+            onChange={v => { setFilterBrandId(v); setPage(1); }}
+            options={brands}
+            placeholder={t("filter.allBrands", "Tüm Markalar")}
+            className="min-w-[130px]"
+          />
 
           {/* Page size */}
           <div className="flex items-center gap-1.5 ml-auto">
@@ -1488,18 +1613,22 @@ export default function AdminProductsPage() {
                 ))}
               </div>
               {bpTarget === "category" && (
-                <select value={bpCategoryId} onChange={e => { setBpCategoryId(e.target.value); setBpPreviewCount(null); }}
-                  className="mt-2 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
-                  <option value="">— Kategori Seçin —</option>
-                  {flattenCategories(categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <SearchableCategorySelect
+                  value={bpCategoryId}
+                  onChange={v => { setBpCategoryId(v); setBpPreviewCount(null); }}
+                  categories={categories}
+                  placeholder="— Kategori Seçin —"
+                  className="mt-2"
+                />
               )}
               {bpTarget === "brand" && (
-                <select value={bpBrandId} onChange={e => { setBpBrandId(e.target.value); setBpPreviewCount(null); }}
-                  className="mt-2 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
-                  <option value="">— Marka Seçin —</option>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <SearchableSelect
+                  value={bpBrandId}
+                  onChange={v => { setBpBrandId(v); setBpPreviewCount(null); }}
+                  options={brands}
+                  placeholder="— Marka Seçin —"
+                  className="mt-2"
+                />
               )}
             </div>
 
@@ -1678,29 +1807,19 @@ export default function AdminProductsPage() {
                 {bulkAssignModal === "category" ? "Yeni Kategori" : "Yeni Marka"}
               </label>
               {bulkAssignModal === "category" ? (
-                <select
-                  className={SELECT}
+                <SearchableCategorySelect
                   value={bulkAssignId}
-                  onChange={e => setBulkAssignId(e.target.value)}
-                >
-                  <option value="">— Kategori seçin —</option>
-                  {flattenCategories(categories).map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.parentCategoryId ? `  ↳ ${c.name}` : c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={v => setBulkAssignId(v)}
+                  categories={categories}
+                  placeholder="— Kategori seçin —"
+                />
               ) : (
-                <select
-                  className={SELECT}
+                <SearchableSelect
                   value={bulkAssignId}
-                  onChange={e => setBulkAssignId(e.target.value)}
-                >
-                  <option value="">— Marka seçin —</option>
-                  {brands.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                  onChange={v => setBulkAssignId(v)}
+                  options={brands}
+                  placeholder="— Marka seçin —"
+                />
               )}
             </div>
             <div className="flex justify-end gap-3 pt-1">
@@ -2105,26 +2224,20 @@ export default function AdminProductsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <Field label={`${t("auto.kategoriSec", "Kategori Seç")} *`}>
-                <select className={SELECT} value={form.categoryId} onChange={e => setField("categoryId", e.target.value)}>
-                  <option value="">{t("auto.seciniz", "Seçiniz...")}</option>
-                  {categories.filter(c => !c.parentCategoryId).map(parent => {
-                    const subs = categories.filter(c => c.parentCategoryId === parent.id);
-                    return subs.length > 0 ? (
-                      <optgroup key={parent.id} label={parent.name}>
-                        <option value={parent.id}>{parent.name}</option>
-                        {subs.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
-                      </optgroup>
-                    ) : (
-                      <option key={parent.id} value={parent.id}>{parent.name}</option>
-                    );
-                  })}
-                </select>
+                <SearchableCategorySelect
+                  value={form.categoryId}
+                  onChange={v => setField("categoryId", v)}
+                  categories={categories}
+                  placeholder={t("auto.seciniz", "Seçiniz...")}
+                />
               </Field>
               <Field label={t("auto.markaSec", "Marka Seç")}>
-                <select className={SELECT} value={form.brandId} onChange={e => setField("brandId", e.target.value)}>
-                  <option value="">{t("auto.seciniz", "Seçiniz...")}</option>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <SearchableSelect
+                  value={form.brandId}
+                  onChange={v => setField("brandId", v)}
+                  options={brands}
+                  placeholder={t("auto.seciniz", "Seçiniz...")}
+                />
               </Field>
             </div>
 

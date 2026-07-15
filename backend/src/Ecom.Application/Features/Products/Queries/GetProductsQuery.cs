@@ -115,19 +115,16 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         }
 
         // Vehicle model search — sequential two-tier strategy:
-        // Tier 1: VehicleModel indexed column (sub-millisecond prefix search)
-        // Tier 2: Name LIKE fallback — only runs if Tier 1 returns 0 results
-        //   (avoids 74K row full-scan when VehicleModel is already populated)
+        // Tier 1: VehicleModel indexed column — exact model prefix only.
+        //   No base-model fallback: "Yaris P1" must NOT match generic VehicleModel="Yaris" products.
+        // Tier 2: Name word-boundary fallback — only runs when Tier 1 returns 0 results.
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
         {
             var vm = request.VehicleModel.Trim();
-            var baseVm = StripGenerationCode(vm); // "A Serisi W176" → "A Serisi"
 
             var tier1Query = query.Where(p =>
-                p.VehicleModel != null && (
-                    EF.Functions.ILike(p.VehicleModel, vm + "%") ||
-                    (baseVm != vm && EF.Functions.ILike(p.VehicleModel, baseVm + "%"))
-                ));
+                p.VehicleModel != null &&
+                EF.Functions.ILike(p.VehicleModel, vm + "%"));
 
             var tier1Count = await tier1Query.CountAsync(cancellationToken);
 
@@ -137,7 +134,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             }
             else
             {
-                // Fallback: Name ILike for products not yet tagged with VehicleModel
+                // Tier 2: Name word-boundary fallback for products not yet tagged with VehicleModel.
                 query = query.Where(p =>
                     p.Name == vm ||
                     p.Name.StartsWith(vm + " ") ||
@@ -345,13 +342,4 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
     }
 
     private record AttrPair(string Key, string Value);
-
-    // Mirrors frontend extractBaseModel: "A Serisi W176" → "A Serisi", "3 Serisi E90" → "3 Serisi"
-    private static string StripGenerationCode(string vehicleModel)
-    {
-        return System.Text.RegularExpressions.Regex.Replace(
-            vehicleModel.Trim(),
-            @"\s+([A-Z]\d+[A-Za-z]?|[IVXLC]{1,6}|[A-Z]{1,2}\d*)$",
-            "").Trim();
-    }
 }

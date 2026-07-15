@@ -10,7 +10,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
     {
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.Slug).IsUnique();
-        builder.HasIndex(x => x.SKU).IsUnique();
+        builder.HasIndex(x => x.SKU).IsUnique().HasFilter("[SKU] IS NOT NULL");
         builder.Property(x => x.Name).HasMaxLength(300).IsRequired();
         builder.Property(x => x.Slug).HasMaxLength(300).IsRequired();
         builder.Property(x => x.SKU).HasMaxLength(100).IsRequired(false);

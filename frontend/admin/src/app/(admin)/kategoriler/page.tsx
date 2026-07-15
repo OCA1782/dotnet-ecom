@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
@@ -133,6 +133,41 @@ const IMAGIN_ANGLES = [
   { v: "4", l: "Arka" }, { v: "29", l: "Ön-Yan" }, { v: "13", l: "Arka-Yan" },
 ];
 
+const G = (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`;
+const BRAND_LOGO_MAP: Record<string, string> = {
+  opel:           G("opel.com"),
+  chevrolet:      G("chevrolet.com"),
+  bmw:            G("bmw.com"),
+  "mercedes-benz":G("mercedes-benz.com"),
+  volkswagen:     G("vw.com"),
+  audi:           G("audi.com"),
+  ford:           G("ford.com"),
+  seat:           G("seat.com"),
+  skoda:          G("skoda-auto.com"),
+  renault:        G("renault.com"),
+  peugeot:        G("peugeot.com"),
+  citroen:        G("citroen.com"),
+  fiat:           G("fiat.com"),
+  toyota:         G("toyota.com"),
+  hyundai:        G("hyundai.com"),
+  kia:            G("kia.com"),
+  honda:          G("honda.com"),
+  nissan:         G("nissan.com"),
+  mazda:          G("mazda.com"),
+  volvo:          G("volvocars.com"),
+  mitsubishi:     G("mitsubishicars.com"),
+  suzuki:         G("suzuki.com"),
+  jeep:           G("jeep.com"),
+  "land-rover":   G("landrover.com"),
+  "alfa-romeo":   G("alfaromeo.com"),
+  dacia:          G("dacia.com"),
+  porsche:        G("porsche.com"),
+  subaru:         G("subaru.com"),
+  saab:           G("saab.com"),
+  lexus:          G("lexus.com"),
+  // tofas: Google Favicons erişilemiyor → cat.imageUrl fallback
+};
+
 const PAGE_SIZES = [10, 25, 50] as const;
 type PageSize = typeof PAGE_SIZES[number];
 
@@ -199,6 +234,26 @@ export default function KategorilerPage() {
   const [deleteProdSort, setDeleteProdSort] = useState("name");
   const [deleteProdSortDir, setDeleteProdSortDir] = useState<"asc" | "desc">("asc");
   const [deleteProdLoading, setDeleteProdLoading] = useState(false);
+  const [deleteProdError, setDeleteProdError] = useState<string | null>(null);
+  const [moveSelectedIds, setMoveSelectedIds] = useState<Set<string>>(new Set());
+  const [moveCatId, setMoveCatId] = useState("");
+  const [moving, setMoving] = useState(false);
+  const [moveMsg, setMoveMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [moveCatOpen, setMoveCatOpen] = useState(false);
+  const [moveCatFilter, setMoveCatFilter] = useState("");
+  const [moveCatCollapsed, setMoveCatCollapsed] = useState<Set<string>>(new Set());
+  const moveCatDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moveCatOpen) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (moveCatDropdownRef.current && !moveCatDropdownRef.current.contains(e.target as Node)) {
+        setMoveCatOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [moveCatOpen]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
@@ -239,7 +294,7 @@ export default function KategorilerPage() {
   async function handleBulkDelete() {
     const ids = [...selectedIds];
     setBulkLoading(true);
-    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/categories/${id}`)));
+    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/categories/${id}?cascade=true`)));
     const ok = results.filter(r => r.status === "fulfilled").length;
     const fail = ids.length - ok;
     setMsg({ text: `${ok} kategori silindi${fail > 0 ? ` (${fail} hata)` : ""}`, ok: ok > 0 });
@@ -380,9 +435,12 @@ export default function KategorilerPage() {
       setDeleteProds(data.items);
       setDeleteProdTotal(data.totalCount);
       setDeleteSubcatCount(data.subcategoryCount);
+      setDeleteProdError(null);
     } catch {
       setDeleteProds([]);
       setDeleteProdTotal(0);
+      setDeleteSubcatCount(0);
+      setDeleteProdError("Ürün listesi yüklenemedi.");
     } finally { setDeleteProdLoading(false); }
   }, []);
 
@@ -392,6 +450,13 @@ export default function KategorilerPage() {
     setDeleteProdSearch("");
     setDeleteProdSort("name");
     setDeleteProdSortDir("asc");
+    setDeleteProdError(null);
+    setMoveSelectedIds(new Set());
+    setMoveCatId("");
+    setMoveMsg(null);
+    setMoveCatOpen(false);
+    setMoveCatFilter("");
+    setMoveCatCollapsed(new Set());
     void loadDeleteProducts(cat.id, 1, "", "name", "asc");
   }
 
@@ -400,6 +465,13 @@ export default function KategorilerPage() {
     setDeleteProds([]);
     setDeleteProdTotal(0);
     setDeleteSubcatCount(0);
+    setDeleteProdError(null);
+    setMoveSelectedIds(new Set());
+    setMoveCatId("");
+    setMoveMsg(null);
+    setMoveCatOpen(false);
+    setMoveCatFilter("");
+    setMoveCatCollapsed(new Set());
   }
 
   async function handleDelete() {
@@ -660,6 +732,7 @@ export default function KategorilerPage() {
                 </th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Görünüm</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.status", "Durum")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Ürünler</th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("createdDate")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.createdAt", "Oluşturma")} <SortIcon field="createdDate" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("dataSource")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.source", "Kaynak")} <SortIcon field="dataSource" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.createdBy", "Oluşturan")}</th>
@@ -693,20 +766,38 @@ export default function KategorilerPage() {
                             <span className="w-[15px]" />
                           )}
                           {/* Icon */}
-                          {cat.imageUrl
-                            ? (
-                              <button onClick={e => { e.stopPropagation(); setZoomUrl(cat.imageUrl!); }} className="relative group shrink-0" title="Resmi büyüt">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={cat.imageUrl} alt={cat.name} className="w-8 h-8 object-cover rounded-lg" />
-                                <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <ZoomIn size={12} className="text-white" />
-                                </span>
-                              </button>
-                            )
-                            : (expanded
+                          {(() => {
+                            const brandLogo = (cat.showInVehicleNav && !cat.parentCategoryId)
+                              ? (BRAND_LOGO_MAP[cat.slug] ?? null)
+                              : null;
+                            const displayImg = brandLogo ?? cat.imageUrl ?? null;
+                            if (displayImg) {
+                              return (
+                                <button onClick={e => { e.stopPropagation(); setZoomUrl(displayImg); }} className="relative group shrink-0" title="Resmi büyüt">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={displayImg}
+                                    alt={cat.name}
+                                    className={`w-8 h-8 rounded-lg object-contain ${brandLogo ? "bg-white border border-slate-200 p-0.5" : "object-cover"}`}
+                                    onError={e => {
+                                      const img = e.target as HTMLImageElement;
+                                      if (brandLogo && cat.imageUrl && img.src !== cat.imageUrl) {
+                                        img.src = cat.imageUrl;
+                                      } else {
+                                        img.style.display = "none";
+                                      }
+                                    }}
+                                  />
+                                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ZoomIn size={12} className="text-white" />
+                                  </span>
+                                </button>
+                              );
+                            }
+                            return expanded
                               ? <FolderOpen size={18} className="text-teal-500 shrink-0" />
-                              : <Folder size={18} className="text-teal-400 shrink-0" />)
-                          }
+                              : <Folder size={18} className="text-teal-400 shrink-0" />;
+                          })()}
                           <span className="text-slate-800">{cat.name}</span>
                           {visibleKids.length > 0 && (
                             <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold shrink-0">
@@ -746,6 +837,11 @@ export default function KategorilerPage() {
                             {cat.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                           </span>
                         </button>
+                      </td>
+                      <td className="px-5 py-3">
+                        {(cat.productCount ?? 0) > 0
+                          ? <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{cat.productCount}</span>
+                          : <span className="text-xs text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {cat.createdDate ? new Date(cat.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -824,6 +920,11 @@ export default function KategorilerPage() {
                               {sub.isActive ? t("status.active", "Aktif") : t("status.passive", "Pasif")}
                             </span>
                           </button>
+                        </td>
+                        <td className="px-5 py-2.5">
+                          {(sub.productCount ?? 0) > 0
+                            ? <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{sub.productCount}</span>
+                            : <span className="text-xs text-slate-300">—</span>}
                         </td>
                         <td className="px-5 py-2.5 text-xs text-slate-500">
                           {sub.createdDate ? new Date(sub.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -920,6 +1021,48 @@ export default function KategorilerPage() {
             ? <ChevronUp size={11} className="text-red-400 ml-0.5 inline-block" />
             : <ChevronDown size={11} className="text-red-400 ml-0.5 inline-block" />;
         }
+
+        const allPageSelected = deleteProds.length > 0 && deleteProds.every(p => moveSelectedIds.has(p.id));
+        function toggleMoveSelect(id: string) {
+          setMoveSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+          });
+        }
+        function toggleMoveSelectAll() {
+          if (allPageSelected) {
+            setMoveSelectedIds(prev => {
+              const next = new Set(prev);
+              deleteProds.forEach(p => next.delete(p.id));
+              return next;
+            });
+          } else {
+            setMoveSelectedIds(prev => new Set([...prev, ...deleteProds.map(p => p.id)]));
+          }
+        }
+
+        async function handleMoveProducts() {
+          if (!moveCatId) return;
+          setMoving(true);
+          setMoveMsg(null);
+          try {
+            const hasSelection = moveSelectedIds.size > 0;
+            const body = hasSelection
+              ? { productIds: [...moveSelectedIds], action: "set-category", newCategoryId: moveCatId }
+              : { categoryId: target.id, action: "set-category", newCategoryId: moveCatId };
+            await api.post("/api/products/bulk", body);
+            const count = hasSelection ? moveSelectedIds.size : deleteProdTotal;
+            setMoveMsg({ text: `${count} ürün taşındı.`, ok: true });
+            setMoveSelectedIds(new Set());
+            void loadDeleteProducts(target.id, deleteProdPage, deleteProdSearch, deleteProdSort, deleteProdSortDir);
+          } catch (e: unknown) {
+            setMoveMsg({ text: e instanceof Error ? e.message : "Taşıma başarısız.", ok: false });
+          } finally {
+            setMoving(false);
+          }
+        }
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -972,6 +1115,18 @@ export default function KategorilerPage() {
                     <div className="flex items-center justify-center py-12 text-slate-400">
                       <Loader2 size={20} className="animate-spin mr-2" /> Yükleniyor...
                     </div>
+                  ) : deleteProdError ? (
+                    <div className="py-10 px-6 flex flex-col items-center gap-3 text-center">
+                      <p className="text-sm font-semibold text-red-600">Ürün listesi yüklenemedi</p>
+                      <p className="text-xs text-slate-500">Silme işlemi yine de gerçekleştirilebilir.</p>
+                      <button
+                        type="button"
+                        onClick={() => void loadDeleteProducts(target.id, deleteProdPage, deleteProdSearch, deleteProdSort, deleteProdSortDir)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition"
+                      >
+                        <RefreshCw size={12} /> Yeniden Dene
+                      </button>
+                    </div>
                   ) : deleteProds.length === 0 ? (
                     <p className="py-12 text-center text-slate-400 text-sm">
                       {deleteProdSearch ? "Aramanızla eşleşen ürün bulunamadı." : "Bu kategoride ürün bulunmuyor."}
@@ -980,6 +1135,11 @@ export default function KategorilerPage() {
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                         <tr>
+                          <th className="px-3 py-2.5 w-8">
+                            <button onClick={toggleMoveSelectAll} className="text-slate-400 hover:text-teal-600 transition">
+                              {allPageSelected ? <CheckSquare size={14} className="text-teal-600" /> : <Square size={14} />}
+                            </button>
+                          </th>
                           <th className="text-left px-4 py-2.5 text-slate-500 font-medium cursor-pointer select-none" onClick={() => delSort("name")}>
                             Ürün Adı <DelSortIcon field="name" />
                           </th>
@@ -996,7 +1156,12 @@ export default function KategorilerPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {deleteProds.map(p => (
-                          <tr key={p.id} className="hover:bg-slate-50">
+                          <tr key={p.id} className={`hover:bg-slate-50 ${moveSelectedIds.has(p.id) ? "bg-teal-50/60" : ""}`}>
+                            <td className="px-3 py-2.5">
+                              <button onClick={() => toggleMoveSelect(p.id)} className="text-slate-300 hover:text-teal-600 transition">
+                                {moveSelectedIds.has(p.id) ? <CheckSquare size={13} className="text-teal-600" /> : <Square size={13} />}
+                              </button>
+                            </td>
                             <td className="px-4 py-2.5 text-slate-800 font-medium">{p.name}</td>
                             <td className="px-4 py-2.5 text-slate-500 font-mono">{p.sku ?? "—"}</td>
                             <td className="px-4 py-2.5 text-slate-700 text-right">{p.price.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</td>
@@ -1029,6 +1194,160 @@ export default function KategorilerPage() {
                   </div>
                 )}
               </div>
+
+              {/* Move products panel */}
+              {deleteProdTotal > 0 && !deleteProdError && (() => {
+                // Build alphabetically sorted + grouped tree for the dropdown
+                const rootCats = categories
+                  .filter(c => !c.parentCategoryId && c.id !== target.id && c.isActive)
+                  .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+                const catTree = rootCats.map(root => ({
+                  ...root,
+                  children: categories
+                    .filter(c => c.parentCategoryId === root.id && c.id !== target.id && c.isActive)
+                    .sort((a, b) => a.name.localeCompare(b.name, "tr")),
+                }));
+
+                const filterLower = moveCatFilter.toLowerCase();
+                const filteredTree = filterLower
+                  ? catTree
+                    .map(root => ({
+                      ...root,
+                      children: root.children.filter(c => c.name.toLowerCase().includes(filterLower)),
+                    }))
+                    .filter(root =>
+                      root.name.toLowerCase().includes(filterLower) || root.children.length > 0
+                    )
+                  : catTree;
+
+                const selectedCatName = moveCatId
+                  ? (categories.find(c => c.id === moveCatId)?.name ?? "")
+                  : "";
+
+                function toggleMoveCatCollapse(id: string) {
+                  setMoveCatCollapsed(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  });
+                }
+
+                return (
+                  <div className="px-6 py-3 border-t border-slate-200 bg-slate-50/60 shrink-0 space-y-2">
+                    <p className="text-xs font-semibold text-slate-600">
+                      Kategoriyi Değiştir
+                      {moveSelectedIds.size > 0
+                        ? <span className="ml-1.5 text-teal-600">({moveSelectedIds.size} seçili)</span>
+                        : <span className="ml-1.5 text-slate-400 font-normal">— seçim yoksa tüm ürünler taşınır</span>}
+                    </p>
+                    {moveMsg && (
+                      <div className={`text-xs px-3 py-1.5 rounded-lg flex items-center justify-between ${moveMsg.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-600"}`}>
+                        {moveMsg.text}
+                        <button onClick={() => setMoveMsg(null)}><X size={12} /></button>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2">
+                      {/* Custom searchable collapsible dropdown */}
+                      <div className="flex-1 relative" ref={moveCatDropdownRef}>
+                        {/* Trigger */}
+                        <button
+                          type="button"
+                          onClick={() => { setMoveCatOpen(o => !o); setMoveCatFilter(""); }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg border bg-white transition focus:outline-none focus:ring-2 focus:ring-teal-400 ${moveCatId ? "border-teal-400 text-slate-800" : "border-slate-300 text-slate-400"}`}
+                        >
+                          <span className="truncate">{selectedCatName || "Hedef kategori seçin..."}</span>
+                          <div className="flex items-center gap-1 ml-1 shrink-0">
+                            {moveCatId && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={e => { e.stopPropagation(); setMoveCatId(""); }}
+                                onKeyDown={e => { if (e.key === "Enter") { e.stopPropagation(); setMoveCatId(""); } }}
+                                className="text-slate-300 hover:text-slate-500"
+                              ><X size={11} /></span>
+                            )}
+                            <ChevronDown size={11} className={`text-slate-400 transition-transform ${moveCatOpen ? "rotate-180" : ""}`} />
+                          </div>
+                        </button>
+
+                        {/* Dropdown panel */}
+                        {moveCatOpen && (
+                          <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 flex flex-col" style={{ maxHeight: 260 }}>
+                            {/* Search */}
+                            <div className="p-2 border-b border-slate-100 shrink-0">
+                              <div className="relative">
+                                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={moveCatFilter}
+                                  onChange={e => setMoveCatFilter(e.target.value)}
+                                  placeholder="Kategori ara..."
+                                  className="w-full pl-6 pr-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                />
+                              </div>
+                            </div>
+
+                            {/* List */}
+                            <div className="overflow-y-auto flex-1">
+                              {filteredTree.length === 0 ? (
+                                <p className="px-3 py-4 text-xs text-slate-400 text-center">Sonuç bulunamadı</p>
+                              ) : filteredTree.map(root => {
+                                const isCollapsed = moveCatCollapsed.has(root.id) && !filterLower;
+                                const hasChildren = root.children.length > 0;
+                                return (
+                                  <div key={root.id}>
+                                    {/* Root row */}
+                                    <div className="flex items-center">
+                                      {hasChildren && (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleMoveCatCollapse(root.id)}
+                                          className="pl-2 pr-1 py-1.5 text-slate-400 hover:text-slate-600 shrink-0"
+                                        >
+                                          {isCollapsed ? <ChevronRight size={11} /> : <ChevronDown size={11} />}
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => { setMoveCatId(root.id); setMoveCatOpen(false); setMoveCatFilter(""); }}
+                                        className={`flex-1 text-left px-2 py-1.5 text-xs font-semibold hover:bg-teal-50 transition ${!hasChildren ? "pl-3" : ""} ${moveCatId === root.id ? "text-teal-700 bg-teal-50" : "text-slate-700"}`}
+                                      >
+                                        {root.name}
+                                      </button>
+                                    </div>
+                                    {/* Children */}
+                                    {!isCollapsed && root.children.map(child => (
+                                      <button
+                                        key={child.id}
+                                        type="button"
+                                        onClick={() => { setMoveCatId(child.id); setMoveCatOpen(false); setMoveCatFilter(""); }}
+                                        className={`w-full text-left pl-8 pr-3 py-1.5 text-xs hover:bg-teal-50 transition ${moveCatId === child.id ? "text-teal-700 bg-teal-50" : "text-slate-600"}`}
+                                      >
+                                        <span className="text-slate-300 mr-1">↳</span>{child.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleMoveProducts}
+                        disabled={!moveCatId || moving}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition disabled:opacity-40 shrink-0"
+                      >
+                        {moving ? <Loader2 size={12} className="animate-spin" /> : null}
+                        {moveSelectedIds.size > 0 ? "Seçilenleri Taşı" : "Tümünü Taşı"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Footer actions */}
               <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">

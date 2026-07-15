@@ -22,7 +22,8 @@ public record CategoryDto(
     DateTime CreatedDate = default,
     string? DataSource = null,
     string? CreatedByAdminEmail = null,
-    bool ShowInVehicleNav = false
+    bool ShowInVehicleNav = false,
+    int ProductCount = 0
 );
 
 public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService cache, ICurrentUserService currentUser) : IRequestHandler<GetCategoriesQuery, List<CategoryDto>>
@@ -61,12 +62,18 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             ? await db.Users.Where(u => adminIds.Contains(u.Id)).Select(u => new { u.Id, u.Email }).ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken)
             : new Dictionary<Guid, string>();
 
-        var result = BuildTree(all, null, sourceNames, adminEmails, request.ShowInVehicleNav);
+        var productCounts = await db.Products
+            .Where(p => !p.IsDeleted)
+            .GroupBy(p => p.CategoryId)
+            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
+
+        var result = BuildTree(all, null, sourceNames, adminEmails, request.ShowInVehicleNav, productCounts);
         await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
         return result;
     }
 
-    private static List<CategoryDto> BuildTree(List<Category> all, Guid? parentId, Dictionary<Guid, string> sourceNames, Dictionary<Guid, string> adminEmails, bool? vehicleNavFilter = null)
+    private static List<CategoryDto> BuildTree(List<Category> all, Guid? parentId, Dictionary<Guid, string> sourceNames, Dictionary<Guid, string> adminEmails, bool? vehicleNavFilter = null, Dictionary<Guid, int>? productCounts = null)
         => all
             .Where(c => c.ParentCategoryId == parentId)
             // ShowInVehicleNav filtresi yalnızca root seviyesinde (parentId == null) uygulanır
@@ -74,11 +81,12 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             .Select(c => new CategoryDto(
                 c.Id, c.ParentCategoryId, c.Name, c.Slug,
                 c.Description, c.ImageUrl, c.SortOrder, c.IsActive, c.ShowInMenu,
-                BuildTree(all, c.Id, sourceNames, adminEmails, null),
+                BuildTree(all, c.Id, sourceNames, adminEmails, null, productCounts),
                 c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
                 c.CreatedDate,
                 c.DataSource,
                 c.CreatedByAdminId.HasValue && adminEmails.TryGetValue(c.CreatedByAdminId.Value, out var e) ? e : null,
-                c.ShowInVehicleNav))
+                c.ShowInVehicleNav,
+                productCounts?.GetValueOrDefault(c.Id) ?? 0))
             .ToList();
 }

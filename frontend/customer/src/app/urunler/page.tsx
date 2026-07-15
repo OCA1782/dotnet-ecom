@@ -36,15 +36,6 @@ async function getCategories(): Promise<Category[]> {
   catch { return []; }
 }
 
-async function getVehicleCategories(vehicleModel: string): Promise<Category[]> {
-  try {
-    const data = await api.get<{ id: string; name: string; slug: string; count: number }[]>(
-      `/api/products/vehicle-categories?vehicleModel=${encodeURIComponent(vehicleModel)}`
-    );
-    return data.map(c => ({ id: c.id, name: `${c.name} (${c.count})`, slug: c.slug, subCategories: [] }));
-  } catch { return []; }
-}
-
 async function getBrands(): Promise<Brand[]> {
   try {
     const data = await api.get<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=true&sortBy=name");
@@ -136,9 +127,8 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [allCategories, vehicleCats, brands, products, lang, settings] = await Promise.all([
+  const [allCategories, brands, products, lang, settings] = await Promise.all([
     getCategories(),
-    params.arac ? getVehicleCategories(params.arac) : Promise.resolve([]),
     getBrands(), getProducts(params), getServerLang(), getSettings(),
   ]);
 
@@ -150,7 +140,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     ? await getSuggestedProducts(baseModel !== params.arac ? baseModel : baseModel.split(" ")[0])
     : [];
 
-  const categories = params.arac && vehicleCats.length > 0 ? vehicleCats : allCategories;
+  const categories = params.arac ? [] : allCategories;
   const t = (key: string) => translate(lang, key);
   const isSP = settings.CustomerTemplate === "spareparts";
 
