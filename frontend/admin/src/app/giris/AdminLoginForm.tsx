@@ -60,6 +60,17 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
     }
   }, []);
 
+  // "Beni hatırla" durumu değiştiğinde veya email güncellendiğinde anında kaydet
+  useEffect(() => {
+    if (rememberMe && email) {
+      localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+      localStorage.setItem(REMEMBER_ME_KEY, "1");
+    } else if (!rememberMe) {
+      localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      localStorage.removeItem(REMEMBER_ME_KEY);
+    }
+  }, [rememberMe, email]);
+
   function handlePasswordKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     setCapsOn(e.getModifierState("CapsLock"));
   }
@@ -118,7 +129,7 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
               <input
                 type="email"
                 required
-                autoComplete="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
