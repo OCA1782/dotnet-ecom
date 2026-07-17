@@ -171,7 +171,7 @@ const BRAND_LOGO_MAP: Record<string, string> = {
 const PAGE_SIZES = [10, 25, 50] as const;
 type PageSize = typeof PAGE_SIZES[number];
 
-type SortField = "createdDate" | "dataSource";
+type SortField = "createdDate" | "dataSource" | "name";
 
 function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: "asc" | "desc" }) {
   if (sortField !== field) return <ChevronsUpDown size={12} className="opacity-30 ml-1 inline-block" />;
@@ -257,8 +257,8 @@ export default function KategorilerPage() {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortField, setSortField] = useState<SortField | null>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [toggling, setToggling] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -269,7 +269,7 @@ export default function KategorilerPage() {
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir("desc"); }
+    else { setSortField(field); setSortDir(field === "name" ? "asc" : "desc"); }
     setPage(1);
   }
 
@@ -506,9 +506,10 @@ export default function KategorilerPage() {
   const sortedCats = sortField
     ? [...filteredCats].sort((a, b) => {
         let aVal = "", bVal = "";
-        if (sortField === "createdDate") { aVal = a.createdDate ?? ""; bVal = b.createdDate ?? ""; }
+        if (sortField === "name") { aVal = a.name; bVal = b.name; }
+        else if (sortField === "createdDate") { aVal = a.createdDate ?? ""; bVal = b.createdDate ?? ""; }
         else if (sortField === "dataSource") { aVal = a.dataSource ?? a.importedFromSourceName ?? ""; bVal = b.dataSource ?? b.importedFromSourceName ?? ""; }
-        const cmp = aVal.localeCompare(bVal);
+        const cmp = aVal.localeCompare(bVal, "tr");
         return sortDir === "asc" ? cmp : -cmp;
       })
     : filteredCats;
@@ -723,7 +724,7 @@ export default function KategorilerPage() {
                     {allPageSelected ? <CheckSquare size={16} className="text-teal-600" /> : <Square size={16} />}
                   </button>
                 </th>
-                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">{t("col.category", "Kategori")}</th>
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs"><button onClick={() => handleSort("name")} className="flex items-center gap-0.5 hover:text-teal-600 transition select-none">{t("col.category", "Kategori")} <SortIcon field="name" sortField={sortField} sortDir={sortDir} /></button></th>
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">
                   <span className="flex items-center gap-1">
                     Slug
@@ -839,9 +840,7 @@ export default function KategorilerPage() {
                         </button>
                       </td>
                       <td className="px-5 py-3">
-                        {(cat.productCount ?? 0) > 0
-                          ? <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{cat.productCount}</span>
-                          : <span className="text-xs text-slate-300">—</span>}
+                        <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{cat.productCount ?? 0}</span>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {cat.createdDate ? new Date(cat.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -851,7 +850,7 @@ export default function KategorilerPage() {
                           ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.dataSource}</span>
                           : cat.importedFromSourceName
                           ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{cat.importedFromSourceName}</span>
-                          : <span className="text-xs text-slate-300">—</span>}
+                          : <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-500 whitespace-nowrap">Manuel</span>}
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-400 max-w-[140px] truncate" title={cat.createdByAdminEmail}>{cat.createdByAdminEmail ?? "—"}</td>
                       <td className="px-4 py-3">
@@ -922,9 +921,7 @@ export default function KategorilerPage() {
                           </button>
                         </td>
                         <td className="px-5 py-2.5">
-                          {(sub.productCount ?? 0) > 0
-                            ? <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{sub.productCount}</span>
-                            : <span className="text-xs text-slate-300">—</span>}
+                          <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{sub.productCount ?? 0}</span>
                         </td>
                         <td className="px-5 py-2.5 text-xs text-slate-500">
                           {sub.createdDate ? new Date(sub.createdDate).toLocaleDateString("tr-TR") : "—"}
@@ -934,7 +931,7 @@ export default function KategorilerPage() {
                             ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{sub.dataSource}</span>
                             : sub.importedFromSourceName
                             ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700 whitespace-nowrap">{sub.importedFromSourceName}</span>
-                            : <span className="text-xs text-slate-300">—</span>}
+                            : <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-500 whitespace-nowrap">Manuel</span>}
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1.5 justify-end">
