@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { Eye, EyeOff, TriangleAlert } from "lucide-react";
+
+const REMEMBER_EMAIL_KEY = "admin_remember_email";
+const REMEMBER_ME_KEY    = "admin_remember_me";
 
 interface Props {
   siteTitle: string;
@@ -30,9 +34,18 @@ function LoginBrandName({ title }: { title: string }) {
 }
 
 export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
-  const [email, setEmail] = useState("admin@ecom.com");
+  const [email, setEmail] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const saved = localStorage.getItem(REMEMBER_ME_KEY) === "1";
+    return saved ? (localStorage.getItem(REMEMBER_EMAIL_KEY) ?? "") : "";
+  });
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(REMEMBER_ME_KEY) === "1";
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsOn, setCapsOn] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAdminAuth();
@@ -47,12 +60,27 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
     }
   }, []);
 
+  function handlePasswordKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    setCapsOn(e.getModifierState("CapsLock"));
+  }
+
+  function handlePasswordBlur() {
+    setCapsOn(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
       await login(email, password, rememberMe);
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+        localStorage.setItem(REMEMBER_ME_KEY, "1");
+      } else {
+        localStorage.removeItem(REMEMBER_EMAIL_KEY);
+        localStorage.removeItem(REMEMBER_ME_KEY);
+      }
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Giriş başarısız");
@@ -90,6 +118,7 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -97,13 +126,33 @@ export default function AdminLoginForm({ siteTitle, logoUrl }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Şifre</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handlePasswordKeyDown}
+                  onBlur={handlePasswordBlur}
+                  className="w-full border border-zinc-300 rounded-lg px-3 py-2 pr-10 text-sm text-slate-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 transition"
+                  aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {capsOn && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-amber-600 text-xs">
+                  <TriangleAlert size={13} />
+                  <span>Caps Lock açık</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2.5">
               <input

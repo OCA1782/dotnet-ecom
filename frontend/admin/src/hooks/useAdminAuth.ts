@@ -20,6 +20,15 @@ interface LoginResult {
   avatarUrl?: string;
 }
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number };
+    return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export function useAdminAuth() {
   const [user, setUser] = useState<AuthUser | null>(() => {
     if (typeof window === "undefined") return null;
@@ -47,54 +56,6 @@ export function useAdminAuth() {
   });
   const loading = false;
   const initialUserRef = useRef(user);
-
-  useEffect(() => {
-    if (!initialUserRef.current) return;
-    // Token yoksa arka plan çağrısı yapma — useState initializer zaten null döndürdü
-    if (!localStorage.getItem(TOKEN_KEY)) {
-      localStorage.removeItem(USER_KEY);
-      return;
-    }
-    // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
-    api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
-      .then(data => {
-        setUser(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev, name: data.name, surname: data.surname, avatarUrl: data.avatarUrl ?? prev.avatarUrl };
-          localStorage.setItem(USER_KEY, JSON.stringify(updated));
-          return updated;
-        });
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    async function onAvatarChanged(e: Event) {
-      const detail = (e as CustomEvent<{ userId?: string; avatarUrl?: string }>).detail;
-      // Sadece kendi avatarı değiştiyse header'ı güncelle
-      const storedRaw = localStorage.getItem(USER_KEY);
-      if (storedRaw && detail?.userId) {
-        try {
-          const stored = JSON.parse(storedRaw) as { userId?: string };
-          if (stored.userId !== detail.userId) return;
-        } catch { return; }
-      }
-      try {
-        const data = await api.get<{ avatarUrl?: string | null }>("/api/users/me");
-        const freshUrl = data.avatarUrl ?? undefined;
-        setUser(prev => {
-          if (!prev || prev.avatarUrl === freshUrl) return prev;
-          const updated = { ...prev, avatarUrl: freshUrl };
-          localStorage.setItem(USER_KEY, JSON.stringify(updated));
-          return updated;
-        });
-      } catch {
-        // ignore — header stays as-is on network error
-      }
-    }
-    window.addEventListener("ecom:avatar-changed", onAvatarChanged);
-    return () => window.removeEventListener("ecom:avatar-changed", onAvatarChanged);
-  }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const data = await api.post<LoginResult>("/api/auth/login", { email, password, rememberMe });
@@ -135,6 +96,73 @@ export function useAdminAuth() {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(null);
+  }, []);
+
+  // Uygulama yüklendiğinde: token süresi dolmuşsa ve refresh token varsa sessizce yenile (beni hatırla)
+  useEffect(() => {
+    if (!initialUserRef.current) return;
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      localStorage.removeItem(USER_KEY);
+      return;
+    }
+
+    if (isTokenExpired(token)) {
+      const hasRefresh = !!localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (!hasRefresh) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        setUser(null);
+        return;
+      }
+      refreshSession().catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        setUser(null);
+      });
+      return;
+    }
+
+    // Arka planda profil tazelemesi — farklı sekmede yapılan ad/soyad güncellemelerini yakalar
+    api.get<{ name: string; surname: string; avatarUrl?: string | null }>("/api/users/me")
+      .then(data => {
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, name: data.name, surname: data.surname, avatarUrl: data.avatarUrl ?? prev.avatarUrl };
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch(() => {});
+  }, [refreshSession]);
+
+  useEffect(() => {
+    async function onAvatarChanged(e: Event) {
+      const detail = (e as CustomEvent<{ userId?: string; avatarUrl?: string }>).detail;
+      // Sadece kendi avatarı değiştiyse header'ı güncelle
+      const storedRaw = localStorage.getItem(USER_KEY);
+      if (storedRaw && detail?.userId) {
+        try {
+          const stored = JSON.parse(storedRaw) as { userId?: string };
+          if (stored.userId !== detail.userId) return;
+        } catch { return; }
+      }
+      try {
+        const data = await api.get<{ avatarUrl?: string | null }>("/api/users/me");
+        const freshUrl = data.avatarUrl ?? undefined;
+        setUser(prev => {
+          if (!prev || prev.avatarUrl === freshUrl) return prev;
+          const updated = { ...prev, avatarUrl: freshUrl };
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      } catch {
+        // ignore — header stays as-is on network error
+      }
+    }
+    window.addEventListener("ecom:avatar-changed", onAvatarChanged);
+    return () => window.removeEventListener("ecom:avatar-changed", onAvatarChanged);
   }, []);
 
   return { user, loading, login, logout, refreshSession, isAuthenticated: !!user };
