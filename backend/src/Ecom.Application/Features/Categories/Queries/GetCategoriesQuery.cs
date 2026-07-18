@@ -78,15 +78,21 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             .Where(c => c.ParentCategoryId == parentId)
             // ShowInVehicleNav filtresi yalnızca root seviyesinde (parentId == null) uygulanır
             .Where(c => parentId != null || !vehicleNavFilter.HasValue || c.ShowInVehicleNav == vehicleNavFilter.Value)
-            .Select(c => new CategoryDto(
-                c.Id, c.ParentCategoryId, c.Name, c.Slug,
-                c.Description, c.ImageUrl, c.SortOrder, c.IsActive, c.ShowInMenu,
-                BuildTree(all, c.Id, sourceNames, adminEmails, null, productCounts),
-                c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
-                c.CreatedDate,
-                c.DataSource,
-                c.CreatedByAdminId.HasValue && adminEmails.TryGetValue(c.CreatedByAdminId.Value, out var e) ? e : null,
-                c.ShowInVehicleNav,
-                productCounts?.GetValueOrDefault(c.Id) ?? 0))
+            .Select(c =>
+            {
+                var subs = BuildTree(all, c.Id, sourceNames, adminEmails, null, productCounts);
+                var directCount = productCounts?.GetValueOrDefault(c.Id) ?? 0;
+                var totalCount = directCount + subs.Sum(s => s.ProductCount);
+                return new CategoryDto(
+                    c.Id, c.ParentCategoryId, c.Name, c.Slug,
+                    c.Description, c.ImageUrl, c.SortOrder, c.IsActive, c.ShowInMenu,
+                    subs,
+                    c.ImportedFromSourceId.HasValue && sourceNames.TryGetValue(c.ImportedFromSourceId.Value, out var n) ? n : null,
+                    c.CreatedDate,
+                    c.DataSource,
+                    c.CreatedByAdminId.HasValue && adminEmails.TryGetValue(c.CreatedByAdminId.Value, out var e) ? e : null,
+                    c.ShowInVehicleNav,
+                    totalCount);
+            })
             .ToList();
 }
