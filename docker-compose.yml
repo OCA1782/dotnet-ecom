@@ -1,4 +1,50 @@
 services:
+  # ── PostgreSQL (primary database) ─────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: EcomDb
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER zorunludur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD zorunludur}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c work_mem=32MB
+      -c effective_cache_size=4GB
+      -c maintenance_work_mem=128MB
+      -c max_connections=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d EcomDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── SQL Server — DISABLED (PostgreSQL is primary; ECOM-0181) ──────────────
+  # To re-enable: uncomment and add profile "mssql" removal, then set SA_PASSWORD.
+  # db:
+  #   image: mcr.microsoft.com/mssql/server:2022-latest
+  #   profiles: ["mssql"]
+  #   environment:
+  #     SA_PASSWORD: ${SA_PASSWORD}
+  #     ACCEPT_EULA: "Y"
+  #     MSSQL_PID: "Express"
+  #   ports:
+  #     - "127.0.0.1:1433:1433"
+  #   volumes:
+  #     - sqldata:/var/opt/mssql
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${SA_PASSWORD}\" -Q 'SELECT 1' -C"]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 10
+  #     start_period: 30s
+
   redis:
     image: redis:7-alpine
     # no public ports — internal Docker network only
@@ -26,27 +72,6 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD zorunludur}
-      ACCEPT_EULA: "Y"
-      MSSQL_PID: "Express"
-    ports:
-      - "127.0.0.1:1433:1433"
-    volumes:
-      - sqldata:/var/opt/mssql
-    deploy:
-      resources:
-        limits:
-          memory: ${MSSQL_MEMORY_LIMIT_MB:-1500}m
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${SA_PASSWORD}\" -Q 'SELECT 1' -C"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
   licence:
     build:
       context: ../EcomLicence
@@ -55,10 +80,10 @@ services:
       - "127.0.0.1:15125:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - ConnectionStrings__DefaultConnection=Server=db;Database=EcomDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=EcomLicenceDb;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};SSL Mode=Disable;
       - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
@@ -70,7 +95,8 @@ services:
       - "127.0.0.1:15124:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - ConnectionStrings__DefaultConnection=Server=db;Database=EcomDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+      - Database__Provider=PostgreSQL
+      - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=EcomDb;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};SSL Mode=Disable;
       - Jwt__Key=${JWT_KEY:?JWT_KEY zorunludur}
       - Jwt__Issuer=EcomAPI
       - Jwt__Audience=EcomClient
@@ -107,7 +133,7 @@ services:
       retries: 10
       start_period: 60s
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -151,6 +177,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqldata:
+  pgdata:
   uploads:
   docs:
+  # sqldata: — removed with MSSQL passivation (ECOM-0181)

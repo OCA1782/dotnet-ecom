@@ -18,24 +18,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var dbProvider = configuration["Database:Provider"] ?? "SqlServer";
-        var connStr = dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase)
-            ? (configuration.GetConnectionString("PostgreSQL") ?? configuration.GetConnectionString("DefaultConnection") ?? "")
-            : (configuration.GetConnectionString("DefaultConnection") ?? "");
+        var dbProvider = configuration["Database:Provider"] ?? "PostgreSQL";
+        if (dbProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "SQL Server provider is disabled. Set Database:Provider=PostgreSQL and configure ConnectionStrings:PostgreSQL.");
+        var connStr = configuration.GetConnectionString("PostgreSQL") ?? "";
         services.AddSingleton<SlowQueryInterceptor>();
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             options.AddInterceptors(sp.GetRequiredService<SlowQueryInterceptor>());
             // Snapshot may be ahead of the DB during migrations — suppress the model-mismatch warning
             options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-            if (dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
-                options.UseNpgsql(connStr, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
-            else
-                options.UseSqlServer(connStr, sql =>
-                {
-                    sql.CommandTimeout(120);
-                    sql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
-                });
+            options.UseNpgsql(connStr, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
         });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
