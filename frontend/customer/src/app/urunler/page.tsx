@@ -140,7 +140,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     ? await getSuggestedProducts(baseModel !== params.arac ? baseModel : baseModel.split(" ")[0])
     : [];
 
-  const categories = params.arac ? [] : allCategories;
+  const categories = (params.arac || params.marka) ? [] : allCategories;
   const t = (key: string) => translate(lang, key);
   const isSP = settings.CustomerTemplate === "spareparts";
 
