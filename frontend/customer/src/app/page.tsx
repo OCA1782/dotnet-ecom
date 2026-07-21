@@ -134,8 +134,8 @@ export default async function HomePage() {
     const siteName = settings.SiteName || "Yedek Parça";
     const b2bText   = settings.Spareparts_B2BText     || "Servis ve bayi hesabı açın — özel fiyatlar, hızlı sipariş ve öncelikli destek";
     const phone     = settings.Spareparts_Phone        || "0850 XXX XX XX";
-    const heroCount = settings.Spareparts_HeroCount    || "700+";
-    const heroCountUnit = settings.Spareparts_HeroCountUnit || "BİN ÜRÜN";
+    const heroCount = settings.Spareparts_HeroCount    || "";
+    const heroCountUnit = settings.Spareparts_HeroCountUnit || "";
     const heroSlogan = settings.Spareparts_HeroSlogan  || "TÜRKİYE'NİN EN BÜYÜK OTO PARÇA MAĞAZASI";
     const promo1Title   = settings.Spareparts_Promo1Title   || "Filtre & Yağ Seti";
     const promo1Desc    = settings.Spareparts_Promo1Desc    || "Aracınıza uygun orijinal filtre setleri";
@@ -214,13 +214,17 @@ export default async function HomePage() {
                     <span className="inline-block bg-orange-500/20 text-orange-400 text-[10px] font-extrabold px-3 py-0.5 rounded-full mb-3 uppercase tracking-widest">
                       Stokta Hazır
                     </span>
+                    {heroCount && (
                     <div className="flex items-baseline gap-2 mb-1.5">
                       <span className="text-orange-500 text-6xl font-black leading-none">{heroCount}</span>
+                      {heroCountUnit && (
                       <div className="flex flex-col leading-tight">
                         <span className="text-white text-2xl font-black">{heroCountUnit}</span>
                         <span className="text-orange-300 text-xs font-bold tracking-wide">İLE</span>
                       </div>
+                      )}
                     </div>
+                    )}
                     <p className="text-white text-sm font-extrabold leading-snug mb-1">{siteName.toUpperCase()}</p>
                     <p className="text-gray-400 text-xs leading-relaxed mb-5">{heroSlogan}</p>
                     <div className="flex items-center gap-2 flex-wrap">
