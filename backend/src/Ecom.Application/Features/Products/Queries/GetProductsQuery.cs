@@ -114,41 +114,27 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 || (matchingSourceIds.Count > 0 && p.ImportedFromSourceId.HasValue && matchingSourceIds.Contains(p.ImportedFromSourceId.Value)));
         }
 
-        // Vehicle model search — sequential two-tier strategy:
-        // Tier 1: VehicleModel indexed column — exact model prefix only.
-        //   No base-model fallback: "Yaris P1" must NOT match generic VehicleModel="Yaris" products.
-        // Tier 2: Name word-boundary fallback — only runs when Tier 1 returns 0 results.
+        // Vehicle model search — combined VehicleModel column + name word-boundary.
+        // VehicleModel indexed column is checked first (fast); name patterns cover products
+        // whose VehicleModel field is not yet populated. Both conditions run in a single query.
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
         {
             var vm = request.VehicleModel.Trim();
 
-            var tier1Query = query.Where(p =>
-                p.VehicleModel != null &&
-                EF.Functions.ILike(p.VehicleModel, vm + "%"));
-
-            var tier1Count = await tier1Query.CountAsync(cancellationToken);
-
-            if (tier1Count > 0)
-            {
-                query = tier1Query;
-            }
-            else
-            {
-                // Tier 2: Name word-boundary fallback for products not yet tagged with VehicleModel.
-                query = query.Where(p =>
-                    p.Name == vm ||
-                    p.Name.StartsWith(vm + " ") ||
-                    p.Name.StartsWith(vm + "/") ||
-                    p.Name.StartsWith(vm + "-") ||
-                    EF.Functions.ILike(p.Name, $"% {vm} %") ||
-                    EF.Functions.ILike(p.Name, $"% {vm}") ||
-                    EF.Functions.ILike(p.Name, $"% {vm}/%") ||
-                    EF.Functions.ILike(p.Name, $"% {vm}-%") ||
-                    EF.Functions.ILike(p.Name, $"% {vm}(%") ||
-                    EF.Functions.ILike(p.Name, $"% {vm}|%") ||
-                    EF.Functions.ILike(p.Name, $"% {vm},%")
-                );
-            }
+            query = query.Where(p =>
+                (p.VehicleModel != null && EF.Functions.ILike(p.VehicleModel, vm + "%"))
+                || p.Name == vm
+                || p.Name.StartsWith(vm + " ")
+                || p.Name.StartsWith(vm + "/")
+                || p.Name.StartsWith(vm + "-")
+                || EF.Functions.ILike(p.Name, $"% {vm} %")
+                || EF.Functions.ILike(p.Name, $"% {vm}")
+                || EF.Functions.ILike(p.Name, $"% {vm}/%")
+                || EF.Functions.ILike(p.Name, $"% {vm}-%")
+                || EF.Functions.ILike(p.Name, $"% {vm}(%")
+                || EF.Functions.ILike(p.Name, $"% {vm}|%")
+                || EF.Functions.ILike(p.Name, $"% {vm},%")
+            );
         }
 
         // OEM search: checks OemPartNumber field (future imports) AND Name (existing data)
