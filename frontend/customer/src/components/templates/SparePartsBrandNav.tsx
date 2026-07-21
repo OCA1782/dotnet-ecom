@@ -518,6 +518,12 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     };
   }, [updateScroll]);
 
+  // Re-check scroll state after brands populate the pill container.
+  useEffect(() => {
+    const t = setTimeout(updateScroll, 0);
+    return () => clearTimeout(t);
+  }, [navBrands.length, updateScroll]);
+
   function scrollPills(dir: "left" | "right") {
     if (!pillRef.current) return;
     pillRef.current.scrollBy({ left: dir === "left" ? -240 : 240, behavior: "smooth" });
