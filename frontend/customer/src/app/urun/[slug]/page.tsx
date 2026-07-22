@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { serverFetch } from "@/lib/server-fetch";
 import type { ProductDetail } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import AddToCartButton from "./AddToCartButton";
@@ -14,7 +14,7 @@ import { getSettings } from "@/lib/settings";
 
 async function getProduct(slug: string): Promise<ProductDetail | null> {
   try {
-    return await api.get<ProductDetail>(`/api/products/${slug}`);
+    return await serverFetch<ProductDetail>(`/api/products/${slug}`, 60);
   } catch {
     return null;
   }

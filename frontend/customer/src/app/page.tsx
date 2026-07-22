@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
-import { api } from "@/lib/api";
+import { serverFetch } from "@/lib/server-fetch";
 import { formatPrice } from "@/lib/utils";
 import type { Category, ProductListItem, PaginatedList, Campaign } from "@/types";
 import ProductCard from "@/components/ProductCard";
@@ -59,40 +59,40 @@ const FALLBACK_CATEGORIES: Category[] = [
 ];
 
 async function getCategories(): Promise<Category[]> {
-  try { return await api.get<Category[]>("/api/categories"); }
+  try { return await serverFetch<Category[]>("/api/categories", 300); }
   catch { return []; }
 }
 
 async function getFeaturedProducts(): Promise<ProductListItem[]> {
   try {
-    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=8&featured=true");
+    const data = await serverFetch<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=8&featured=true", 120);
     return data.items;
   } catch { return []; }
 }
 
 async function getDiscountProducts(): Promise<ProductListItem[]> {
   try {
-    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=4&onSale=true");
+    const data = await serverFetch<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=4&onSale=true", 120);
     return data.items;
   } catch { return []; }
 }
 
 async function getTopDiscountProducts(): Promise<ProductListItem[]> {
   try {
-    const data = await api.get<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=5&onSale=true&sortBy=discount-desc");
+    const data = await serverFetch<PaginatedList<ProductListItem>>("/api/products?page=1&pageSize=5&onSale=true&sortBy=discount-desc", 120);
     return data.items;
   } catch { return []; }
 }
 
 async function getAnnouncements(): Promise<AnnouncementItem[]> {
   try {
-    const data = await api.get<{ items: AnnouncementItem[] }>("/api/announcements?pageSize=20");
+    const data = await serverFetch<{ items: AnnouncementItem[] }>("/api/announcements?pageSize=20", 60);
     return data.items;
   } catch { return []; }
 }
 
 async function getFeaturedCampaigns(): Promise<Campaign[]> {
-  try { return await api.get<Campaign[]>("/api/campaigns?featured=true"); }
+  try { return await serverFetch<Campaign[]>("/api/campaigns?featured=true", 300); }
   catch { return []; }
 }
 
