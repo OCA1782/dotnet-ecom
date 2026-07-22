@@ -46,7 +46,12 @@ export default function ProductFilters({
   const [max, setMax] = useState(maxFiyat ?? "");
   const [selectedBrands, setSelectedBrands] = useState<string[]>(activeBrandIds);
   const [attributes, setAttributes] = useState<Record<string, string[]>>({});
+  const [sortOpen, setSortOpen] = useState(true);
   const [catOpen, setCatOpen] = useState(true);
+  const [priceOpen, setPriceOpen] = useState(true);
+  const [brandsOpen, setBrandsOpen] = useState(true);
+  const [ratingOpen, setRatingOpen] = useState(true);
+  const [attrOpen, setAttrOpen] = useState<Record<string, boolean>>({});
   const [brandSearch, setBrandSearch] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -190,22 +195,30 @@ export default function ProductFilters({
 
       {/* Sort */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.sort.label")}</h3>
-        <div className="space-y-1">
-          {SORT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => navigate(buildUrl({ siralama: opt.value || undefined, sayfa: "1" }))}
-              className={`w-full text-left text-sm px-3 py-1.5 rounded-xl transition ${
-                (activeSiralama ?? "") === opt.value
-                  ? "bg-teal-100 text-teal-700 font-semibold"
-                  : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setSortOpen(o => !o)}
+          className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+        >
+          <span>{t("prod2.sort.label")}</span>
+          <ChevronDown size={14} className={`transition-transform duration-200 ${sortOpen ? "" : "-rotate-90"}`} />
+        </button>
+        {sortOpen && (
+          <div className="space-y-1">
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => navigate(buildUrl({ siralama: opt.value || undefined, sayfa: "1" }))}
+                className={`w-full text-left text-sm px-3 py-1.5 rounded-xl transition ${
+                  (activeSiralama ?? "") === opt.value
+                    ? "bg-teal-100 text-teal-700 font-semibold"
+                    : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Categories */}
@@ -265,109 +278,148 @@ export default function ProductFilters({
 
       {/* Price range */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.price_range")}</h3>
-        <div className="flex gap-2 items-center">
-          <input
-            type="number"
-            placeholder="Min ₺"
-            value={min}
-            onChange={e => setMin(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
-            className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
-          />
-          <span className="text-slate-400 text-sm shrink-0">–</span>
-          <input
-            type="number"
-            placeholder="Max ₺"
-            value={max}
-            onChange={e => setMax(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
-            className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
-          />
-        </div>
         <button
-          onClick={() => navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
-          className="mt-2 w-full py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium text-sm rounded-xl transition"
+          onClick={() => setPriceOpen(o => !o)}
+          className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
         >
-          {t("prod2.filter.apply")}
+          <span>{t("prod2.filter.price_range")}</span>
+          <ChevronDown size={14} className={`transition-transform duration-200 ${priceOpen ? "" : "-rotate-90"}`} />
         </button>
+        {priceOpen && (
+          <>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                placeholder="Min ₺"
+                value={min}
+                onChange={e => setMin(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
+                className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              />
+              <span className="text-slate-400 text-sm shrink-0">–</span>
+              <input
+                type="number"
+                placeholder="Max ₺"
+                value={max}
+                onChange={e => setMax(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
+                className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              />
+            </div>
+            <button
+              onClick={() => navigate(buildUrl({ minFiyat: min || undefined, maxFiyat: max || undefined, sayfa: "1" }))}
+              className="mt-2 w-full py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium text-sm rounded-xl transition"
+            >
+              {t("prod2.filter.apply")}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Brands */}
       {brands.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.brand")}</h3>
-          {brands.length > 5 && (
-            <input
-              type="text"
-              value={brandSearch}
-              onChange={e => setBrandSearch(e.target.value)}
-              placeholder="Marka ara..."
-              className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
-            />
+          <button
+            onClick={() => setBrandsOpen(o => !o)}
+            className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+          >
+            <span>{t("prod2.filter.brand")}</span>
+            <ChevronDown size={14} className={`transition-transform duration-200 ${brandsOpen ? "" : "-rotate-90"}`} />
+          </button>
+          {brandsOpen && (
+            <>
+              {brands.length > 5 && (
+                <input
+                  type="text"
+                  value={brandSearch}
+                  onChange={e => setBrandSearch(e.target.value)}
+                  placeholder="Marka ara..."
+                  className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
+                />
+              )}
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {filteredBrands.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2 text-center">Marka bulunamadı</p>
+                ) : (
+                  filteredBrands.map(brand => (
+                    <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.includes(brand.id)}
+                        onChange={() => toggleBrand(brand.id)}
+                        className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
+                      />
+                      <span className="text-sm text-slate-600 group-hover:text-teal-700 transition">{brand.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </>
           )}
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {filteredBrands.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2 text-center">Marka bulunamadı</p>
-            ) : (
-              filteredBrands.map(brand => (
-                <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={selectedBrands.includes(brand.id)}
-                    onChange={() => toggleBrand(brand.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
-                  />
-                  <span className="text-sm text-slate-600 group-hover:text-teal-700 transition">{brand.name}</span>
-                </label>
-              ))
-            )}
-          </div>
         </div>
       )}
 
       {/* Attribute filters */}
-      {Object.entries(attributes).map(([key, values]) => (
-        <div key={key}>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{key}</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {values.map(val => {
-              const isActive = activeAttrPairs.some(p => p.key === key && p.value === val);
-              return (
-                <button
-                  key={val}
-                  onClick={() => toggleAttr(key, val)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition font-medium ${
-                    isActive
-                      ? "bg-teal-600 text-white border-teal-600"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-teal-400 hover:text-teal-700"
-                  }`}
-                >
-                  {val}
-                </button>
-              );
-            })}
+      {Object.entries(attributes).map(([key, values]) => {
+        const open = attrOpen[key] !== false;
+        return (
+          <div key={key}>
+            <button
+              onClick={() => setAttrOpen(prev => ({ ...prev, [key]: !open }))}
+              className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+            >
+              <span>{key}</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+            </button>
+            {open && (
+              <div className="flex flex-wrap gap-1.5">
+                {values.map(val => {
+                  const isActive = activeAttrPairs.some(p => p.key === key && p.value === val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => toggleAttr(key, val)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition font-medium ${
+                        isActive
+                          ? "bg-teal-600 text-white border-teal-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-teal-400 hover:text-teal-700"
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Rating filter */}
       <div>
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.min_rating")}</h3>
-        <div className="space-y-1">
-          {RATINGS.map(r => (
-            <button
-              key={r}
-              onClick={() => navigate(buildUrl({ puan: activeRating === r ? undefined : String(r), sayfa: "1" }))}
-              className={`w-full text-left flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl transition ${
-                activeRating === r ? "bg-amber-100 text-amber-700 font-semibold" : "text-slate-600 hover:bg-amber-50 hover:text-amber-600"
-              }`}
-            >
-              <span className="text-amber-400 tracking-tight">{"★".repeat(r)}{"☆".repeat(5 - r)}</span>
-              <span>ve üzeri</span>
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setRatingOpen(o => !o)}
+          className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+        >
+          <span>{t("prod2.filter.min_rating")}</span>
+          <ChevronDown size={14} className={`transition-transform duration-200 ${ratingOpen ? "" : "-rotate-90"}`} />
+        </button>
+        {ratingOpen && (
+          <div className="space-y-1">
+            {RATINGS.map(r => (
+              <button
+                key={r}
+                onClick={() => navigate(buildUrl({ puan: activeRating === r ? undefined : String(r), sayfa: "1" }))}
+                className={`w-full text-left flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl transition ${
+                  activeRating === r ? "bg-amber-100 text-amber-700 font-semibold" : "text-slate-600 hover:bg-amber-50 hover:text-amber-600"
+                }`}
+              >
+                <span className="text-amber-400 tracking-tight">{"★".repeat(r)}{"☆".repeat(5 - r)}</span>
+                <span>ve üzeri</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* İndirimli toggle */}
