@@ -221,8 +221,8 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Categories */}
-      {categories.length > 0 && (
+      {/* Categories + Brands (nested) */}
+      {(categories.length > 0 || brands.length > 0) && (
         <div>
           <button
             onClick={() => setCatOpen(o => !o)}
@@ -232,46 +232,93 @@ export default function ProductFilters({
             <ChevronDown size={14} className={`transition-transform duration-200 ${catOpen ? "" : "-rotate-90"}`} />
           </button>
           {catOpen && (
-            <ul className="space-y-1">
-              <li>
-                <button
-                  onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
-                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                    !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                  }`}
-                >
-                  {t("prod2.filter.all_categories")}
-                </button>
-              </li>
-              {categories.map(cat => (
-                <li key={cat.id}>
+            <div className="space-y-0.5">
+              {categories.length > 0 && (
+                <ul className="space-y-1 mb-3">
+                  <li>
+                    <button
+                      onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
+                      className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                        !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                      }`}
+                    >
+                      {t("prod2.filter.all_categories")}
+                    </button>
+                  </li>
+                  {categories.map(cat => (
+                    <li key={cat.id}>
+                      <button
+                        onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
+                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
+                          activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                      {cat.subCategories?.length > 0 && (
+                        <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
+                          {cat.subCategories.map(sub => (
+                            <li key={sub.id}>
+                              <button
+                                onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
+                                className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
+                                  activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
+                                }`}
+                              >
+                                {sub.name}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Brands nested inside Categories */}
+              {brands.length > 0 && (
+                <div className="border-t border-teal-50 pt-3">
                   <button
-                    onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
-                    className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
-                      activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
-                    }`}
+                    onClick={() => setBrandsOpen(o => !o)}
+                    className="flex items-center justify-between w-full text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
                   >
-                    {cat.name}
+                    <span>{t("prod2.filter.brand")}</span>
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${brandsOpen ? "" : "-rotate-90"}`} />
                   </button>
-                  {cat.subCategories?.length > 0 && (
-                    <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
-                      {cat.subCategories.map(sub => (
-                        <li key={sub.id}>
-                          <button
-                            onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
-                            className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
-                              activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
-                            }`}
-                          >
-                            {sub.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                  {brandsOpen && (
+                    <>
+                      {brands.length > 5 && (
+                        <input
+                          type="text"
+                          value={brandSearch}
+                          onChange={e => setBrandSearch(e.target.value)}
+                          placeholder="Marka ara..."
+                          className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
+                        />
+                      )}
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {filteredBrands.length === 0 ? (
+                          <p className="text-xs text-slate-400 py-2 text-center">Marka bulunamadı</p>
+                        ) : (
+                          filteredBrands.map(brand => (
+                            <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={selectedBrands.includes(brand.id)}
+                                onChange={() => toggleBrand(brand.id)}
+                                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-teal-700 transition">{brand.name}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </>
                   )}
-                </li>
-              ))}
-            </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -316,48 +363,6 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Brands */}
-      {brands.length > 0 && (
-        <div>
-          <button
-            onClick={() => setBrandsOpen(o => !o)}
-            className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
-          >
-            <span>{t("prod2.filter.brand")}</span>
-            <ChevronDown size={14} className={`transition-transform duration-200 ${brandsOpen ? "" : "-rotate-90"}`} />
-          </button>
-          {brandsOpen && (
-            <>
-              {brands.length > 5 && (
-                <input
-                  type="text"
-                  value={brandSearch}
-                  onChange={e => setBrandSearch(e.target.value)}
-                  placeholder="Marka ara..."
-                  className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
-                />
-              )}
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {filteredBrands.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-2 text-center">Marka bulunamadı</p>
-                ) : (
-                  filteredBrands.map(brand => (
-                    <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={selectedBrands.includes(brand.id)}
-                        onChange={() => toggleBrand(brand.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
-                      />
-                      <span className="text-sm text-slate-600 group-hover:text-teal-700 transition">{brand.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Attribute filters */}
       {Object.entries(attributes).map(([key, values]) => {
