@@ -87,9 +87,9 @@ export default async function KarsilastirPage({ searchParams }: { searchParams: 
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-        <table className="w-full border-collapse min-w-[480px]">
+        <table className="w-full border-collapse min-w-[300px]">
           <colgroup>
-            <col style={{ width: "140px" }} />
+            <col style={{ width: "100px" }} />
             {products.map((_, i) => <col key={i} style={{ width: colWidth }} />)}
           </colgroup>
           <tbody>

@@ -264,7 +264,7 @@ export default function HesabimPage() {
                 <button
                   onClick={() => fileRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-300 flex items-center justify-center shadow hover:bg-slate-50 transition text-slate-600 disabled:opacity-50"
+                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-white border border-slate-300 flex items-center justify-center shadow hover:bg-slate-50 transition text-slate-600 disabled:opacity-50"
                   title={t("account.profile.photo_title")}
                 >
                   {uploadingAvatar ? (

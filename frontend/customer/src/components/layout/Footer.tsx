@@ -213,7 +213,7 @@ export default async function Footer() {
                   : `/urunler?s=${encodeURIComponent(brand)}`;
                 return (
                   <Link key={brand} href={href}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-orange-400 transition-colors duration-150 py-0.5 truncate">
+                    className="text-xs font-semibold text-slate-500 hover:text-orange-400 transition-colors duration-150 py-1 truncate">
                     {brand}
                   </Link>
                 );

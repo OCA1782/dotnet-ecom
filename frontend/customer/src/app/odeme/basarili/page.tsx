@@ -28,16 +28,16 @@ export default async function PaymentSuccessPage() {
         <p className="text-slate-600">{desc}</p>
       </div>
 
-      <div className="flex gap-3 justify-center pt-2">
+      <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
         <Link
           href="/hesabim/siparisler"
-          className="bg-teal-600 text-white px-6 py-2.5 rounded-xl hover:bg-teal-700 transition text-sm font-semibold"
+          className="w-full sm:w-auto bg-teal-600 text-white px-6 py-3 rounded-xl hover:bg-teal-700 transition text-sm font-semibold text-center"
         >
           {orders}
         </Link>
         <Link
           href="/urunler"
-          className="border border-slate-300 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm"
+          className="w-full sm:w-auto border border-slate-300 text-slate-700 px-6 py-3 rounded-xl hover:bg-slate-50 transition text-sm text-center"
         >
           {continueLabel}
         </Link>

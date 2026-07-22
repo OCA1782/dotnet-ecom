@@ -599,7 +599,7 @@ export default async function HomePage() {
               <h3 className="text-sm font-extrabold text-gray-900">{t("home2.mp.cats.title")}</h3>
               <Link href="/urunler" className="text-xs font-bold text-[#FF6000] hover:underline">{t("home2.mp.cats.all")}</Link>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-8 gap-2">
               {MKT_CATS.map(cat => (
                 <Link key={cat.slug} href={`/urunler?kategori=${cat.slug}`}
                   className="group flex flex-col items-center gap-2 py-3 rounded-xl hover:bg-gray-50 transition-all duration-150">
@@ -822,7 +822,7 @@ export default async function HomePage() {
               <h3 className="text-sm font-extrabold text-gray-900">{t("home2.mp.cats.title")}</h3>
               <Link href="/urunler" className="text-xs font-bold text-[#cc0000] hover:underline">{t("home2.mp.cats.all")}</Link>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
               {TECH_CATS.map(cat => (
                 <Link key={cat.slug} href={`/urunler?kategori=${cat.slug}`}
                   className="group rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-2.5 py-5 px-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer"

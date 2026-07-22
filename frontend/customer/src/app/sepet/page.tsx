@@ -101,22 +101,22 @@ function CartItemRow({
             <button
               onClick={() => onUpdate(item.cartItemId, item.quantity - 1)}
               disabled={item.quantity <= 1}
-              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition disabled:opacity-25 disabled:cursor-not-allowed"
+              className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition disabled:opacity-25 disabled:cursor-not-allowed"
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
             <button
               onClick={() => onUpdate(item.cartItemId, item.quantity + 1)}
               disabled={item.quantity >= item.availableStock}
-              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition disabled:opacity-25 disabled:cursor-not-allowed"
+              className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition disabled:opacity-25 disabled:cursor-not-allowed"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
           <button
             onClick={onDelete}
-            className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+            className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
             title={t('cart.item.remove_title')}
           >
             <Trash2 className="w-3.5 h-3.5" />

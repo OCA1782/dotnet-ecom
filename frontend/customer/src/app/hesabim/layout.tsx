@@ -35,7 +35,30 @@ export default function HesabimLayout({ children }: { children: React.ReactNode 
     href === "/hesabim" ? pathname === href : pathname.startsWith(href);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+      {/* Mobile nav — horizontal scroll tabs */}
+      <nav className="md:hidden flex gap-1 overflow-x-auto pb-3 mb-4 scrollbar-hide">
+        {NAV_LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 transition ${
+              isActive(l.href) ? "bg-teal-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+            }`}
+          >
+            <span className="text-base leading-none">{l.icon}</span>
+            <span>{l.label}</span>
+          </Link>
+        ))}
+        <button
+          onClick={logout}
+          className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 bg-white border border-red-200 text-red-500 hover:bg-red-50 transition"
+        >
+          <span className="text-base leading-none">🚪</span>
+          <span>Çıkış</span>
+        </button>
+      </nav>
+
       <div className="flex gap-8 items-start">
         <aside className="hidden md:block w-52 shrink-0">
           <nav className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

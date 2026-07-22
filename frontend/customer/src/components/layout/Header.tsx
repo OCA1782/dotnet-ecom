@@ -42,6 +42,8 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -340,6 +342,14 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
 
             <div className="flex items-center gap-4" data-slot="actions">
               {languageSwitcherEnabled && <LanguageSwitcher />}
+              {/* Mobile search toggle */}
+              <button
+                className="sm:hidden p-1.5 rounded-xl text-slate-600 hover:text-teal-600 transition"
+                onClick={() => setMobileSearchOpen(o => !o)}
+                aria-label="Arama"
+              >
+                <Search size={22} />
+              </button>
               {mounted && user ? (
                 <button ref={buttonRef} onClick={openMenu} className="flex items-center gap-1.5 text-sm transition">
                   <User size={20} />
@@ -362,6 +372,64 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
               </Link>
             </div>
           </div>
+
+          {/* Mobile search bar — slides in below header row */}
+          {mobileSearchOpen && (
+            <div ref={mobileSearchRef} className="sm:hidden pb-3">
+              <form onSubmit={(e) => { handleSearch(e); setMobileSearchOpen(false); }}>
+                <div ref={searchRef} className="relative w-full">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
+                    placeholder={t("nav.search_placeholder")}
+                    autoComplete="off"
+                    className="w-full pl-4 pr-12 py-3 rounded-2xl text-sm bg-white text-slate-900 placeholder-slate-400 border-2 border-teal-200 focus:outline-none focus:border-teal-400 transition"
+                  />
+                  <button type="submit" className="absolute right-3 top-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl p-1.5 transition">
+                    {suggestLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                  </button>
+                  {suggestOpen && mounted && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] overflow-hidden max-h-72 overflow-y-auto">
+                      {suggestions.filter(s => s.type === "product").slice(0, 5).map((item, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { handleSuggestionClick(item); setMobileSearchOpen(false); }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition border-b border-slate-50 last:border-b-0"
+                        >
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} width={36} height={36} className="w-9 h-9 rounded-lg object-cover shrink-0 bg-slate-100" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
+                              <Search size={13} className="text-slate-300" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                            {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}
+                          </div>
+                          {item.price != null && (
+                            <span className="text-sm font-semibold text-teal-600 shrink-0">
+                              {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { setSuggestOpen(false); router.push(`/urunler?s=${encodeURIComponent(search)}`); setMobileSearchOpen(false); }}
+                        className="w-full text-center text-xs font-semibold text-teal-600 hover:text-teal-800 py-2.5 border-t border-slate-100 transition"
+                      >
+                        Tüm sonuçları gör →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </header>
       {dropdown}

@@ -43,7 +43,7 @@ function OrderStepper({ status }: { status: number }) {
     );
   return (
     <div className="bg-white border border-slate-200 rounded-xl px-4 py-4 overflow-x-auto">
-      <div className="flex items-center min-w-[420px]">
+      <div className="flex items-center min-w-[320px]">
         {STEPS.map((step, i) => {
           const active = status >= step.minStatus;
           return (

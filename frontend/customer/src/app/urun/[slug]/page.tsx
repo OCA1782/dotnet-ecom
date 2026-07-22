@@ -105,11 +105,11 @@ export default async function ProductDetailPage({
           {product.brandName && (
             <p className={`text-sm font-medium uppercase tracking-wide ${isSP ? "text-orange-500" : "text-slate-500"}`}>{product.brandName}</p>
           )}
-          <h1 className="text-2xl font-bold text-slate-900">{product.name}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{product.name}</h1>
 
           {/* Price */}
           <div className="flex items-baseline gap-3">
-            <span className={`text-3xl font-bold ${isSP ? "text-orange-600" : "text-slate-900"}`}>{formatPrice(displayPrice)}</span>
+            <span className={`text-2xl sm:text-3xl font-bold ${isSP ? "text-orange-600" : "text-slate-900"}`}>{formatPrice(displayPrice)}</span>
             {product.discountPrice && (
               <span className="text-lg text-slate-400 line-through">{formatPrice(product.price)}</span>
             )}
