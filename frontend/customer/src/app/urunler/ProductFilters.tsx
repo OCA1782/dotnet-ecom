@@ -55,6 +55,8 @@ export default function ProductFilters({
   const [ratingOpen, setRatingOpen] = useState(true);
   const [attrOpen, setAttrOpen] = useState<Record<string, boolean>>({});
   const [brandSearch, setBrandSearch] = useState("");
+  const [modelSearch, setModelSearch] = useState("");
+  const [vehicleModelsOpen, setVehicleModelsOpen] = useState(true);
   const [isPending, setIsPending] = useState(false);
 
   // Sync local state when URL-derived props change (e.g. nav brand click)
@@ -236,30 +238,58 @@ export default function ProductFilters({
           {catOpen && (
             <div className="space-y-0.5">
               {vehicleModels && vehicleModels.length > 0 ? (
-                <ul className="space-y-1 mb-3 max-h-72 overflow-y-auto pr-1">
-                  <li>
-                    <button
-                      onClick={() => navigate(`/urunler?marka=${encodeURIComponent(vehicleBrand!)}`)}
-                      className="text-sm w-full text-left px-3 py-1.5 rounded-xl transition text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                    >
-                      Tüm {vehicleBrand} Ürünleri
-                    </button>
-                  </li>
-                  {vehicleModels.map(model => (
-                    <li key={model}>
-                      <button
-                        onClick={() => navigate(`/urunler?arac=${encodeURIComponent(model)}&marka=${encodeURIComponent(vehicleBrand!)}`)}
-                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                          activeVehicleModel === model
-                            ? "bg-teal-100 text-teal-700 font-semibold"
-                            : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                        }`}
-                      >
-                        {model}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mb-3">
+                  <button
+                    onClick={() => setVehicleModelsOpen(o => !o)}
+                    className="flex items-center justify-between w-full text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+                  >
+                    <span>{vehicleBrand} Modelleri</span>
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${vehicleModelsOpen ? "" : "-rotate-90"}`} />
+                  </button>
+                  {vehicleModelsOpen && (
+                    <>
+                      {vehicleModels.length > 5 && (
+                        <input
+                          type="text"
+                          value={modelSearch}
+                          onChange={e => setModelSearch(e.target.value)}
+                          placeholder="Model ara..."
+                          className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
+                        />
+                      )}
+                      <ul className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                        <li>
+                          <button
+                            onClick={() => navigate(`/urunler?marka=${encodeURIComponent(vehicleBrand!)}`)}
+                            className="text-sm w-full text-left px-3 py-1.5 rounded-xl transition text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                          >
+                            Tüm {vehicleBrand} Ürünleri
+                          </button>
+                        </li>
+                        {(modelSearch.trim()
+                          ? vehicleModels.filter(m => m.toLowerCase().includes(modelSearch.toLowerCase()))
+                          : vehicleModels
+                        ).map(model => (
+                          <li key={model}>
+                            <button
+                              onClick={() => navigate(`/urunler?arac=${encodeURIComponent(model)}&marka=${encodeURIComponent(vehicleBrand!)}`)}
+                              className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                                activeVehicleModel === model
+                                  ? "bg-teal-100 text-teal-700 font-semibold"
+                                  : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                              }`}
+                            >
+                              {model}
+                            </button>
+                          </li>
+                        ))}
+                        {modelSearch.trim() && vehicleModels.filter(m => m.toLowerCase().includes(modelSearch.toLowerCase())).length === 0 && (
+                          <li className="text-xs text-slate-400 py-2 text-center">Model bulunamadı</li>
+                        )}
+                      </ul>
+                    </>
+                  )}
+                </div>
               ) : (
                 categories.length > 0 && (
                   <ul className="space-y-1 mb-3">
