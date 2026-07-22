@@ -36,9 +36,11 @@ async function getCategories(): Promise<Category[]> {
   catch { return []; }
 }
 
-async function getBrands(): Promise<Brand[]> {
+async function getBrands(categorySlug?: string): Promise<Brand[]> {
   try {
-    const data = await serverFetch<{ items: Brand[] }>("/api/brands?pageSize=200&onlyActive=true&sortBy=name", 300);
+    const qs = new URLSearchParams({ pageSize: "200", onlyActive: "true", sortBy: "name" });
+    if (categorySlug) qs.set("categorySlug", categorySlug);
+    const data = await serverFetch<{ items: Brand[] }>(`/api/brands?${qs}`, 120);
     return data.items ?? [];
   } catch { return []; }
 }
@@ -129,7 +131,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const params = await searchParams;
   const [allCategories, brands, products, lang, settings] = await Promise.all([
     getCategories(),
-    getBrands(), getProducts(params), getServerLang(), getSettings(),
+    getBrands(params.kategori), getProducts(params), getServerLang(), getSettings(),
   ]);
 
   // Araç modeli araması sıfır sonuç döndürürse daha geniş önerileri çek

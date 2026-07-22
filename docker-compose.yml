@@ -125,6 +125,8 @@ services:
       - GitHub__DocsPath=
       - LicenceService__BaseUrl=http://licence:8080
       - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - uploads:/app/wwwroot/uploads
       - docs:/app/docs

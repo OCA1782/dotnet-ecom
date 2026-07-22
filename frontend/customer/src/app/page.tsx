@@ -386,7 +386,7 @@ export default async function HomePage() {
                           ? Math.round(((p.price - p.discountPrice) / p.price) * 100)
                           : 0;
                         return (
-                          <Link key={p.id} href={`/urunler/${p.slug}`}
+                          <Link key={p.id} href={`/urun/${p.slug}`}
                             className="flex items-center gap-3 py-2.5 group hover:bg-orange-50/40 rounded-xl transition-colors duration-150 px-1">
                             {/* Sıra numarası */}
                             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
