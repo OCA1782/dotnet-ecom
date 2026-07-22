@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import type { Brand, Category } from "@/types";
 import { useI18n } from "@/contexts/I18nContext";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
@@ -46,6 +46,7 @@ export default function ProductFilters({
   const [max, setMax] = useState(maxFiyat ?? "");
   const [selectedBrands, setSelectedBrands] = useState<string[]>(activeBrandIds);
   const [attributes, setAttributes] = useState<Record<string, string[]>>({});
+  const [catOpen, setCatOpen] = useState(true);
   const [brandSearch, setBrandSearch] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -210,47 +211,55 @@ export default function ProductFilters({
       {/* Categories */}
       {categories.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("prod2.filter.category")}</h3>
-          <ul className="space-y-1">
-            <li>
-              <button
-                onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
-                className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                  !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                }`}
-              >
-                {t("prod2.filter.all_categories")}
-              </button>
-            </li>
-            {categories.map(cat => (
-              <li key={cat.id}>
+          <button
+            onClick={() => setCatOpen(o => !o)}
+            className="flex items-center justify-between w-full text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 hover:text-teal-600 transition-colors"
+          >
+            <span>{t("prod2.filter.category")}</span>
+            <ChevronDown size={14} className={`transition-transform duration-200 ${catOpen ? "" : "-rotate-90"}`} />
+          </button>
+          {catOpen && (
+            <ul className="space-y-1">
+              <li>
                 <button
-                  onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
-                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
-                    activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                  onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
+                  className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                    !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
                   }`}
                 >
-                  {cat.name}
+                  {t("prod2.filter.all_categories")}
                 </button>
-                {cat.subCategories?.length > 0 && (
-                  <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
-                    {cat.subCategories.map(sub => (
-                      <li key={sub.id}>
-                        <button
-                          onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
-                          className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
-                            activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
-                          }`}
-                        >
-                          {sub.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </li>
-            ))}
-          </ul>
+              {categories.map(cat => (
+                <li key={cat.id}>
+                  <button
+                    onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
+                    className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
+                      activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                  {cat.subCategories?.length > 0 && (
+                    <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
+                      {cat.subCategories.map(sub => (
+                        <li key={sub.id}>
+                          <button
+                            onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
+                            className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
+                              activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
+                            }`}
+                          >
+                            {sub.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
