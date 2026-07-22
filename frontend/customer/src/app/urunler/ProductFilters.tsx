@@ -25,6 +25,8 @@ export interface ProductFiltersProps {
   activeIndirimli?: boolean;
   activeNitelikler?: string;
   categorySlug?: string;
+  vehicleBrand?: string;
+  vehicleModels?: string[];
   /** Called right after a filter action triggers navigation (e.g. to close a mobile sheet) */
   onNavigate?: () => void;
   /** Override the outer wrapper className (defaults to desktop card styling) */
@@ -37,7 +39,7 @@ export default function ProductFilters({
   categories, brands, activeCategory, minFiyat, maxFiyat, searchTerm,
   activeVehicleModel, activeOemNo, activeChassis, activeMotor,
   activeBrandIds, activeRating, activeSiralama, activeIndirimli,
-  activeNitelikler, categorySlug, onNavigate, className,
+  activeNitelikler, categorySlug, vehicleBrand, vehicleModels, onNavigate, className,
 }: ProductFiltersProps) {
   const { t } = useI18n();
   const router = useRouter();
@@ -222,7 +224,7 @@ export default function ProductFilters({
       </div>
 
       {/* Categories + Brands (nested) */}
-      {(categories.length > 0 || brands.length > 0) && (
+      {((vehicleModels && vehicleModels.length > 0) || categories.length > 0 || brands.length > 0) && (
         <div>
           <button
             onClick={() => setCatOpen(o => !o)}
@@ -233,47 +235,74 @@ export default function ProductFilters({
           </button>
           {catOpen && (
             <div className="space-y-0.5">
-              {categories.length > 0 && (
-                <ul className="space-y-1 mb-3">
+              {vehicleModels && vehicleModels.length > 0 ? (
+                <ul className="space-y-1 mb-3 max-h-72 overflow-y-auto pr-1">
                   <li>
                     <button
-                      onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
-                      className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                        !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                      }`}
+                      onClick={() => navigate(`/urunler?marka=${encodeURIComponent(vehicleBrand!)}`)}
+                      className="text-sm w-full text-left px-3 py-1.5 rounded-xl transition text-slate-600 hover:bg-teal-50 hover:text-teal-600"
                     >
-                      {t("prod2.filter.all_categories")}
+                      Tüm {vehicleBrand} Ürünleri
                     </button>
                   </li>
-                  {categories.map(cat => (
-                    <li key={cat.id}>
+                  {vehicleModels.map(model => (
+                    <li key={model}>
                       <button
-                        onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
-                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
-                          activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                        onClick={() => navigate(`/urunler?arac=${encodeURIComponent(model)}&marka=${encodeURIComponent(vehicleBrand!)}`)}
+                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                          activeVehicleModel === model
+                            ? "bg-teal-100 text-teal-700 font-semibold"
+                            : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
                         }`}
                       >
-                        {cat.name}
+                        {model}
                       </button>
-                      {cat.subCategories?.length > 0 && (
-                        <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
-                          {cat.subCategories.map(sub => (
-                            <li key={sub.id}>
-                              <button
-                                onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
-                                className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
-                                  activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
-                                }`}
-                              >
-                                {sub.name}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
                     </li>
                   ))}
                 </ul>
+              ) : (
+                categories.length > 0 && (
+                  <ul className="space-y-1 mb-3">
+                    <li>
+                      <button
+                        onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
+                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                          !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                        }`}
+                      >
+                        {t("prod2.filter.all_categories")}
+                      </button>
+                    </li>
+                    {categories.map(cat => (
+                      <li key={cat.id}>
+                        <button
+                          onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
+                          className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
+                            activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                        {cat.subCategories?.length > 0 && (
+                          <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
+                            {cat.subCategories.map(sub => (
+                              <li key={sub.id}>
+                                <button
+                                  onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
+                                  className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
+                                    activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
+                                  }`}
+                                >
+                                  {sub.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )
               )}
 
               {/* Brands nested inside Categories */}

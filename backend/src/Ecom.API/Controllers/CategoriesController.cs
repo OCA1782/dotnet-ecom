@@ -11,9 +11,9 @@ namespace Ecom.API.Controllers;
 public class CategoriesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] bool onlyActive = true, [FromQuery] bool onlyMenu = false, [FromQuery] bool? showInVehicleNav = null, CancellationToken ct = default)
+    public async Task<IActionResult> GetAll([FromQuery] bool onlyActive = true, [FromQuery] bool onlyMenu = false, [FromQuery] bool? showInVehicleNav = null, [FromQuery] string? vehicleModel = null, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetCategoriesQuery(onlyActive, onlyMenu, showInVehicleNav), ct);
+        var result = await mediator.Send(new GetCategoriesQuery(onlyActive, onlyMenu, showInVehicleNav, vehicleModel), ct);
         return Ok(result);
     }
 

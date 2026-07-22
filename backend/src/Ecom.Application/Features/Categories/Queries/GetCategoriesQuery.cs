@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ecom.Application.Features.Categories.Queries;
 
-public record GetCategoriesQuery(bool OnlyActive = true, bool OnlyMenu = false, bool? ShowInVehicleNav = null) : IRequest<List<CategoryDto>>;
+public record GetCategoriesQuery(bool OnlyActive = true, bool OnlyMenu = false, bool? ShowInVehicleNav = null, string? VehicleModel = null) : IRequest<List<CategoryDto>>;
 
 public record CategoryDto(
     Guid Id,
@@ -31,7 +31,8 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
     public async Task<List<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
         var tenantId = (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId : null;
-        var cacheKey = $"categories:{request.OnlyActive}:{request.OnlyMenu}:{request.ShowInVehicleNav}:{tenantId}";
+        var vehicleModel = request.VehicleModel?.Trim();
+        var cacheKey = $"categories:{request.OnlyActive}:{request.OnlyMenu}:{request.ShowInVehicleNav}:{tenantId}:{vehicleModel ?? ""}";
         var cached = await cache.GetAsync<List<CategoryDto>>(cacheKey, cancellationToken);
         if (cached is not null) return cached;
 
@@ -67,6 +68,24 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
             .GroupBy(p => p.CategoryId)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
+
+        if (!string.IsNullOrEmpty(vehicleModel))
+        {
+            var matchingCatIds = await db.Products
+                .Where(p => !p.IsDeleted && p.VehicleModel != null &&
+                       EF.Functions.Like(p.VehicleModel, $"%{vehicleModel}%"))
+                .Select(p => p.CategoryId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var parentIds = all
+                .Where(c => matchingCatIds.Contains(c.Id) && c.ParentCategoryId.HasValue)
+                .Select(c => c.ParentCategoryId!.Value)
+                .ToHashSet();
+
+            var relevantIds = matchingCatIds.Union(parentIds).ToHashSet();
+            all = all.Where(c => relevantIds.Contains(c.Id)).ToList();
+        }
 
         var result = BuildTree(all, null, sourceNames, adminEmails, request.ShowInVehicleNav, productCounts);
         await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);

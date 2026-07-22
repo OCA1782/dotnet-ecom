@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { serverFetch } from "@/lib/server-fetch";
+import { getVehicleModels } from "@/lib/vehicle-models";
 import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import ProductFilters from "./ProductFilters";
@@ -31,9 +32,11 @@ type SearchParams = Promise<{
   nitelikler?: string; // comma-sep key:value pairs, e.g. "Renk:Kırmızı,Beden:M"
 }>;
 
-async function getCategories(): Promise<Category[]> {
-  try { return await serverFetch<Category[]>("/api/categories", 300); }
-  catch { return []; }
+async function getCategories(vehicleModel?: string): Promise<Category[]> {
+  try {
+    const qs = vehicleModel ? `?vehicleModel=${encodeURIComponent(vehicleModel)}` : "";
+    return await serverFetch<Category[]>(`/api/categories${qs}`, 120);
+  } catch { return []; }
 }
 
 async function getBrands(categorySlug?: string): Promise<Brand[]> {
@@ -130,7 +133,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const [allCategories, brands, products, lang, settings] = await Promise.all([
-    getCategories(),
+    getCategories(params.arac),
     getBrands(params.kategori), getProducts(params), getServerLang(), getSettings(),
   ]);
 
@@ -142,7 +145,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     ? await getSuggestedProducts(baseModel !== params.arac ? baseModel : baseModel.split(" ")[0])
     : [];
 
-  const categories = (params.arac || params.marka) ? [] : allCategories;
+  // allCategories is filtered by vehicleModel when params.arac is set; otherwise all categories.
+  const categories = allCategories;
+  const vehicleModels = params.marka ? getVehicleModels(params.marka) : undefined;
   const t = (key: string) => translate(lang, key);
   const isSP = settings.CustomerTemplate === "spareparts";
 
@@ -243,6 +248,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             activeIndirimli={params.indirimli === "true"}
             activeNitelikler={params.nitelikler}
             categorySlug={params.kategori}
+            vehicleBrand={params.marka}
+            vehicleModels={vehicleModels}
           />
         </aside>
 
@@ -267,6 +274,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             activeIndirimli={params.indirimli === "true"}
             activeNitelikler={params.nitelikler}
             categorySlug={params.kategori}
+            vehicleBrand={params.marka}
+            vehicleModels={vehicleModels}
           />
 
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
