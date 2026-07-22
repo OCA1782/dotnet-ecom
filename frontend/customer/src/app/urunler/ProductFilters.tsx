@@ -55,6 +55,8 @@ export default function ProductFilters({
   const [ratingOpen, setRatingOpen] = useState(true);
   const [attrOpen, setAttrOpen] = useState<Record<string, boolean>>({});
   const [brandSearch, setBrandSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [modelSearch, setModelSearch] = useState("");
   const [vehicleModelsOpen, setVehicleModelsOpen] = useState(true);
   const [isPending, setIsPending] = useState(false);
@@ -65,6 +67,13 @@ export default function ProductFilters({
   useEffect(() => { setMax(maxFiyat ?? ""); }, [maxFiyat]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setSelectedBrands(activeBrandIds); }, [activeBrandIds.join(",")]);
+  // Auto-expand parent of active subcategory
+  useEffect(() => {
+    if (!activeCategory) return;
+    const parent = categories.find(c => c.subCategories?.some(s => s.slug === activeCategory));
+    if (parent) setOpenCats(prev => ({ ...prev, [parent.id]: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
 
   // Detect navigation completion: when server re-renders with new props, clear pending
   const brandsKey = activeBrandIds.join(",");
@@ -291,48 +300,87 @@ export default function ProductFilters({
                   )}
                 </div>
               ) : (
-                categories.length > 0 && (
-                  <ul className="space-y-1 mb-3">
-                    <li>
-                      <button
-                        onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
-                        className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
-                          !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
-                        }`}
-                      >
-                        {t("prod2.filter.all_categories")}
-                      </button>
-                    </li>
-                    {categories.map(cat => (
-                      <li key={cat.id}>
-                        <button
-                          onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
-                          className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
-                            activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
-                          }`}
-                        >
-                          {cat.name}
-                        </button>
-                        {cat.subCategories?.length > 0 && (
-                          <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
-                            {cat.subCategories.map(sub => (
-                              <li key={sub.id}>
-                                <button
-                                  onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
-                                  className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
-                                    activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
-                                  }`}
-                                >
-                                  {sub.name}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                categories.length > 0 && (() => {
+                  const catSearchTerm = categorySearch.trim().toLowerCase();
+                  const filteredCats = catSearchTerm
+                    ? categories.map(cat => {
+                        const parentMatch = cat.name.toLowerCase().includes(catSearchTerm);
+                        const matchingSubs = (cat.subCategories ?? []).filter(s =>
+                          s.name.toLowerCase().includes(catSearchTerm)
+                        );
+                        if (!parentMatch && matchingSubs.length === 0) return null;
+                        return { ...cat, subCategories: parentMatch ? (cat.subCategories ?? []) : matchingSubs };
+                      }).filter((c): c is Category => c !== null)
+                    : categories;
+                  return (
+                    <div className="mb-3">
+                      {categories.length > 3 && (
+                        <input
+                          type="text"
+                          value={categorySearch}
+                          onChange={e => setCategorySearch(e.target.value)}
+                          placeholder="Kategori ara..."
+                          className="w-full border border-teal-100 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-teal-300 bg-slate-50 placeholder-slate-400"
+                        />
+                      )}
+                      <ul className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                        <li>
+                          <button
+                            onClick={() => navigate(buildUrl({ kategori: "", sayfa: "1" }))}
+                            className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition ${
+                              !activeCategory ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-600 hover:bg-teal-50 hover:text-teal-600"
+                            }`}
+                          >
+                            {t("prod2.filter.all_categories")}
+                          </button>
+                        </li>
+                        {filteredCats.map(cat => (
+                          <li key={cat.id}>
+                            {(cat.subCategories?.length ?? 0) > 0 ? (
+                              <button
+                                onClick={() => setOpenCats(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}
+                                className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium flex items-center justify-between ${
+                                  activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                                }`}
+                              >
+                                <span>{cat.name}</span>
+                                <ChevronDown size={13} className={`shrink-0 transition-transform duration-200 ${(openCats[cat.id] || !!catSearchTerm) ? "" : "-rotate-90"}`} />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => navigate(buildUrl({ kategori: cat.slug, sayfa: "1" }))}
+                                className={`text-sm w-full text-left px-3 py-1.5 rounded-xl transition font-medium ${
+                                  activeCategory === cat.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-700 hover:bg-teal-50 hover:text-teal-600"
+                                }`}
+                              >
+                                {cat.name}
+                              </button>
+                            )}
+                            {(openCats[cat.id] || !!catSearchTerm) && (cat.subCategories?.length ?? 0) > 0 && (
+                              <ul className="mt-0.5 ml-3 border-l-2 border-teal-100 pl-2 space-y-0.5">
+                                {cat.subCategories.map(sub => (
+                                  <li key={sub.id}>
+                                    <button
+                                      onClick={() => navigate(buildUrl({ kategori: sub.slug, sayfa: "1" }))}
+                                      className={`text-xs w-full text-left px-2.5 py-1.5 rounded-lg transition ${
+                                        activeCategory === sub.slug ? "bg-teal-100 text-teal-700 font-semibold" : "text-slate-500 hover:bg-teal-50 hover:text-teal-600"
+                                      }`}
+                                    >
+                                      {sub.name}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
+                        {catSearchTerm && filteredCats.length === 0 && (
+                          <li className="text-xs text-slate-400 py-2 text-center">Kategori bulunamadı</li>
                         )}
-                      </li>
-                    ))}
-                  </ul>
-                )
+                      </ul>
+                    </div>
+                  );
+                })()
               )}
 
               {/* Brands nested inside Categories */}
