@@ -8,9 +8,9 @@ host = os.environ['DEPLOY_SSH_HOST']
 user = os.environ['DEPLOY_SSH_USER']
 password = os.environ['DEPLOY_SSH_PASSWORD']
 
-PG_USER = "ecom"
-PG_PASS = "ecom_dev_2026"
-PG_DB   = "EcomDb"
+PG_USER = os.environ['POSTGRES_USER']
+PG_PASS = os.environ['POSTGRES_PASSWORD']
+PG_DB   = os.environ.get('POSTGRES_DB', 'EcomDb')
 PG_CONN = f"Host=ecom-postgres-1;Port=5432;Database={PG_DB};Username={PG_USER};Password={PG_PASS};SSL Mode=Disable;"
 
 client = paramiko.SSHClient()
