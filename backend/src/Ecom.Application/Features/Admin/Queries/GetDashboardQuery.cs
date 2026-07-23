@@ -96,16 +96,16 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
         {
             // Dapper: faster for global aggregates
             todaySales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
-                "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                @"SELECT COALESCE(SUM(""GrandTotal""),0) FROM ""Orders"" WHERE ""CreatedDate"" >= @from AND ""Status"" NOT IN (8,11) AND ""IsDeleted""=false",
                 new { from = todayStart }, cancellationToken) ?? 0m;
             todayOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
-                "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                @"SELECT COUNT(*) FROM ""Orders"" WHERE ""CreatedDate"" >= @from AND ""Status"" NOT IN (8,11) AND ""IsDeleted""=false",
                 new { from = todayStart }, cancellationToken);
             monthSales = await dapper.QueryFirstOrDefaultAsync<decimal?>(
-                "SELECT ISNULL(SUM(GrandTotal),0) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                @"SELECT COALESCE(SUM(""GrandTotal""),0) FROM ""Orders"" WHERE ""CreatedDate"" >= @from AND ""Status"" NOT IN (8,11) AND ""IsDeleted""=false",
                 new { from = monthStart }, cancellationToken) ?? 0m;
             monthOrderCount = await dapper.QueryFirstOrDefaultAsync<int>(
-                "SELECT COUNT(*) FROM Orders WHERE CreatedDate >= @from AND Status NOT IN (8,11) AND IsDeleted=0",
+                @"SELECT COUNT(*) FROM ""Orders"" WHERE ""CreatedDate"" >= @from AND ""Status"" NOT IN (8,11) AND ""IsDeleted""=false",
                 new { from = monthStart }, cancellationToken);
         }
         else

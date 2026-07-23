@@ -11,11 +11,16 @@ public class DapperQueryService(IConfiguration configuration) : IDapperQueryServ
 {
     private DbConnection CreateConnection()
     {
-        var connStr = configuration.GetConnectionString("DefaultConnection") ?? "";
-        var provider = configuration["Database:Provider"] ?? "SqlServer";
+        var provider = configuration["Database:Provider"] ?? "PostgreSQL";
         if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+        {
+            var connStr = configuration.GetConnectionString("PostgreSQL")
+                       ?? configuration.GetConnectionString("DefaultConnection")
+                       ?? "";
             return new NpgsqlConnection(connStr);
-        return new SqlConnection(connStr);
+        }
+        var sqlConnStr = configuration.GetConnectionString("DefaultConnection") ?? "";
+        return new SqlConnection(sqlConnStr);
     }
 
     public async Task<IEnumerable<T>> QueryAsync<T>(string sql, object? param = null, CancellationToken ct = default)
