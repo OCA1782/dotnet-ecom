@@ -13,7 +13,7 @@ import {
   Truck, FileText, Megaphone, User, KeyRound, Shield, Rocket, Clock,
   Image, FolderOpen, Gift, ShieldCheck, HelpCircle, Info,
   Lightbulb, MousePointer2, ListChecks, Sparkles, GraduationCap,
-  Mail,
+  Mail, Menu,
 } from "lucide-react";
 import { getPageGuides } from "@/lib/pageGuides";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -193,6 +193,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const userDropRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pageGuides = useMemo(() => getPageGuides(lang), [lang]);
   useEffect(() => {
     const id = window.setTimeout(() => setMounted(true), 0);
@@ -205,7 +206,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [helpOpen]);
   useEffect(() => {
-    const id = window.setTimeout(() => setHelpOpen(false), 0);
+    const id = window.setTimeout(() => { setHelpOpen(false); setMobileNavOpen(false); }, 0);
     return () => window.clearTimeout(id);
   }, [pathname]);
   useEffect(() => {
@@ -361,7 +362,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className={`${sidebarWidth} bg-[#1c2044] flex flex-col shrink-0 transition-all duration-200`}>
+      {/* Mobile overlay */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+      <aside className={
+        mobileNavOpen
+          ? "fixed inset-y-0 left-0 z-50 w-64 bg-[#1c2044] flex flex-col"
+          : `hidden md:flex ${sidebarWidth} bg-[#1c2044] flex-col shrink-0 transition-all duration-200`
+      }>
         {/* Logo / Header */}
         <div className={`border-b border-white/10 ${collapsed ? "px-3 py-4 flex justify-center" : "px-5 py-4"}`}>
           {collapsed ? (
@@ -578,16 +590,25 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           .no-screenshot img { pointer-events: none; -webkit-user-drag: none; }
           .no-screenshot { -webkit-user-select: text; user-select: text; }
         `}</style>
-        <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
-          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-            {(() => {
-              const n = navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"));
-              if (n) return t("nav." + n.href, n.label);
-              if (pathname === SETTINGS_ITEM.href) return t("nav." + SETTINGS_ITEM.href, SETTINGS_ITEM.label);
-              if (pathname === TEST_ITEM.href) return t("nav." + TEST_ITEM.href, TEST_ITEM.label);
-              return "";
-            })()}
-          </span>
+        <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-3 md:px-6">
+          <div className="flex items-center gap-2">
+            <button
+              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
+              onClick={() => setMobileNavOpen(o => !o)}
+              aria-label="Menü"
+            >
+              <Menu size={19} />
+            </button>
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+              {(() => {
+                const n = navItems.find(n => pathname === n.href || pathname.startsWith(n.href + "/"));
+                if (n) return t("nav." + n.href, n.label);
+                if (pathname === SETTINGS_ITEM.href) return t("nav." + SETTINGS_ITEM.href, SETTINGS_ITEM.label);
+                if (pathname === TEST_ITEM.href) return t("nav." + TEST_ITEM.href, TEST_ITEM.label);
+                return "";
+              })()}
+            </span>
+          </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <EnvBadge />
@@ -702,7 +723,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           </div>,
           document.body
         )}
-        <main className="flex-1 overflow-y-auto p-8 no-screenshot relative"
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 no-screenshot relative"
           onContextMenu={e => { e.preventDefault(); }}
         >
           <ErrorBoundary>{children}</ErrorBoundary>
@@ -739,7 +760,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 onClick={() => setHelpOpen(false)}
               />
               {/* Slide-over */}
-              <div className="fixed top-0 right-0 h-full w-[22rem] z-[9999] bg-white shadow-2xl flex flex-col" style={{ borderLeft: "1px solid #e0e7ff" }}>
+              <div className="fixed top-0 right-0 h-full w-full sm:w-[22rem] z-[9999] bg-white shadow-2xl flex flex-col" style={{ borderLeft: "1px solid #e0e7ff" }}>
 
                 {/* Header — gradient banner */}
                 <div className="relative px-5 pt-5 pb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)" }}>

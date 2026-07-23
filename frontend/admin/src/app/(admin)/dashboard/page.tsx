@@ -668,7 +668,7 @@ export default function DashboardPage() {
           <div className="flex-1 h-px bg-slate-300" />
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Toplam Ürün */}
           <HeroCard
             value={String(totalProductAnim)}
@@ -747,7 +747,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sipariş KPI kartları */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <HeroCard
             value={String(periodOrdersAnim)}
             label={`${PERIOD_LABELS[period]} ${t("ui.order", "Sipariş")}`}
@@ -872,7 +872,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Gelir KPI kartları */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <HeroCard
             value={formatPrice(periodSalesAnim)}
             label={`${PERIOD_LABELS[period]} ${t("ui.revenue", "Geliri")}`}
