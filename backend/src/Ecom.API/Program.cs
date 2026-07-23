@@ -19,6 +19,10 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+// PostgreSQL: DateTime.Kind=Unspecified parametrelerini UTC olarak kabul et
+// (SQL Server'dan geçişte tüm DateTime'ları tek tek düzeltmeyi önler)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Lisans doğrulama & JWT anahtar türetme ─────────────────────────────────
