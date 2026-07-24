@@ -24,7 +24,10 @@ interface CategoryItem { slug: string; subCategories?: CategoryItem[] }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const res = await fetch(url, {
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(5000),
+    });
     if (!res.ok) return null;
     return res.json() as Promise<T>;
   } catch {
