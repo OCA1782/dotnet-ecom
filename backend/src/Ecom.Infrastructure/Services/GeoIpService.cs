@@ -1,9 +1,10 @@
 using Ecom.Application.Common.Interfaces;
+using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
 namespace Ecom.Infrastructure.Services;
 
-public class GeoIpService(HttpClient http) : IGeoIpService
+public class GeoIpService(HttpClient http, IMemoryCache cache) : IGeoIpService
 {
     private static readonly string[] LOOPBACK = ["::1", "127.0.0.1", "localhost"];
 
@@ -12,6 +13,11 @@ public class GeoIpService(HttpClient http) : IGeoIpService
         if (string.IsNullOrWhiteSpace(ip) || LOOPBACK.Contains(ip))
             return null;
 
+        var cacheKey = $"geo:{ip}";
+        if (cache.TryGetValue(cacheKey, out GeoLocation? cached))
+            return cached;
+
+        GeoLocation? result = null;
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -24,7 +30,7 @@ public class GeoIpService(HttpClient http) : IGeoIpService
 
             if (root.TryGetProperty("status", out var status) && status.GetString() == "success")
             {
-                return new GeoLocation(
+                result = new GeoLocation(
                     Country: root.TryGetProperty("country", out var c) ? c.GetString() : null,
                     City: root.TryGetProperty("city", out var ci) ? ci.GetString() : null,
                     Lat: root.TryGetProperty("lat", out var lat) ? lat.GetDouble() : null,
@@ -34,6 +40,8 @@ public class GeoIpService(HttpClient http) : IGeoIpService
         }
         catch { /* geo lookup is best-effort */ }
 
-        return null;
+        // Cache result (including null) for 30 min — stays within ip-api.com free tier
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+        return result;
     }
 }

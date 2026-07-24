@@ -1,3 +1,4 @@
+using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Features.Admin.Queries;
 using Ecom.Application.Features.Visitor.Commands;
 using MediatR;
@@ -8,16 +9,28 @@ namespace Ecom.API.Controllers;
 
 [ApiController]
 [Route("api")]
-public class VisitorController(IMediator mediator) : ControllerBase
+public class VisitorController(IMediator mediator, ICurrentUserService currentUser, IServiceScopeFactory scopeFactory) : ControllerBase
 {
     public record LogRequest(string? Page, string? Referrer, double? Latitude, double? Longitude);
 
     [HttpPost("visitor/log")]
     [AllowAnonymous]
-    public async Task<IActionResult> Log([FromBody] LogRequest req, CancellationToken ct)
+    public IActionResult Log([FromBody] LogRequest req)
     {
-        await mediator.Send(new LogVisitorCommand(req.Page, req.Referrer, req.Latitude, req.Longitude), ct);
-        return Ok();
+        // Capture request-scoped values before response is sent
+        var ip        = currentUser.IpAddress;
+        var ua        = currentUser.UserAgent;
+        var sessionId = currentUser.SessionId;
+        var userId    = currentUser.UserId;
+
+        _ = Task.Run(async () =>
+        {
+            using var scope = scopeFactory.CreateScope();
+            var m = scope.ServiceProvider.GetRequiredService<IMediator>();
+            await m.Send(new LogVisitorCommand(req.Page, req.Referrer, req.Latitude, req.Longitude, ip, ua, sessionId, userId));
+        });
+
+        return NoContent();
     }
 
     [HttpGet("admin/visitor-logs")]
