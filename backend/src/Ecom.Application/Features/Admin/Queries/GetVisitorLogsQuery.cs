@@ -12,7 +12,12 @@ public record GetVisitorLogsQuery(
     string? Page2 = null,
     DateTime? From = null,
     DateTime? To = null,
-    string? Country = null
+    string? Country = null,
+    string? City = null,
+    string? UserFullName = null,
+    string? Referrer = null,
+    string? SortBy = null,
+    string? SortDir = null
 ) : IRequest<GetVisitorLogsResult>;
 
 public record VisitorLogDto(
@@ -77,13 +82,40 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
             where.Add("v.\"Country\" = @Country");
             param.Add("Country", request.Country);
         }
+        if (!string.IsNullOrWhiteSpace(request.City))
+        {
+            where.Add("v.\"City\" ILIKE @City");
+            param.Add("City", $"%{request.City}%");
+        }
+        if (!string.IsNullOrWhiteSpace(request.UserFullName))
+        {
+            where.Add("(u.\"Name\" || ' ' || u.\"Surname\") ILIKE @UserFullName");
+            param.Add("UserFullName", $"%{request.UserFullName}%");
+        }
+        if (!string.IsNullOrWhiteSpace(request.Referrer))
+        {
+            where.Add("v.\"Referrer\" ILIKE @Referrer");
+            param.Add("Referrer", $"%{request.Referrer}%");
+        }
+
+        var sortColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["createdDate"]  = "v.\"CreatedDate\"",
+            ["ipAddress"]    = "v.\"IpAddress\"",
+            ["page"]         = "v.\"Page\"",
+            ["country"]      = "v.\"Country\"",
+            ["city"]         = "v.\"City\"",
+            ["userFullName"] = "u.\"Name\"",
+        };
+        var sortCol = sortColumns.TryGetValue(request.SortBy ?? "", out var sc) ? sc : "v.\"CreatedDate\"";
+        var sortDir = string.Equals(request.SortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
 
         var whereClause = string.Join(" AND ", where);
         var offset = (request.Page - 1) * request.PageSize;
         param.Add("Offset", offset);
         param.Add("PageSize", request.PageSize);
 
-        var countSql = $"SELECT COUNT(*) FROM \"VisitorLogs\" v WHERE {whereClause}";
+        var countSql = $"SELECT COUNT(*) FROM \"VisitorLogs\" v LEFT JOIN \"Users\" u ON u.\"Id\" = v.\"UserId\" WHERE {whereClause}";
         var dataSql = $@"
             SELECT v.""Id"", v.""SessionId"", v.""UserId"",
                    u.""Name"" || ' ' || u.""Surname"" AS UserFullName,
@@ -93,7 +125,7 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
             FROM ""VisitorLogs"" v
             LEFT JOIN ""Users"" u ON u.""Id"" = v.""UserId""
             WHERE {whereClause}
-            ORDER BY v.""CreatedDate"" DESC
+            ORDER BY {sortCol} {sortDir}
             LIMIT @PageSize OFFSET @Offset";
 
         var total = await dapper.QueryFirstOrDefaultAsync<int>(countSql, param, cancellationToken);

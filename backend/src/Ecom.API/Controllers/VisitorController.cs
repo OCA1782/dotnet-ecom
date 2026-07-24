@@ -44,10 +44,15 @@ public class VisitorController(IMediator mediator, ICurrentUserService currentUs
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
         [FromQuery] string? country = null,
+        [FromQuery] string? city = null,
+        [FromQuery] string? userFullName = null,
+        [FromQuery] string? referrer = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDir = null,
         CancellationToken ct = default)
     {
         var result = await mediator.Send(
-            new GetVisitorLogsQuery(page, pageSize, ipAddress, userId, pageFilter, from, to, country), ct);
+            new GetVisitorLogsQuery(page, pageSize, ipAddress, userId, pageFilter, from, to, country, city, userFullName, referrer, sortBy, sortDir), ct);
         return Ok(result);
     }
 }
