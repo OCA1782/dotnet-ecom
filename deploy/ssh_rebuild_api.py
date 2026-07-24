@@ -65,8 +65,9 @@ cloudinary_url = read_env_var('CLOUDINARY_URL')
 storage_url    = read_env_var('STORAGE_PUBLIC_BASE_URL')
 github_token   = read_env_var('GITHUB_TOKEN')
 aspnet_env     = read_env_var('ASPNETCORE_ENVIRONMENT')
-licence_key    = read_env_var('LICENCE_SERVICE_KEY')
-host_ip        = read_env_var('DOCKER_HOST_IP') or '127.0.0.1'
+licence_key      = read_env_var('LICENCE_SERVICE_KEY')
+catalogiq_key    = read_env_var('CATALOGIQ_API_KEY') or 'catalogiq-dev-key-2026'
+host_ip          = read_env_var('DOCKER_HOST_IP') or '127.0.0.1'
 network_name   = run("docker inspect ecom-rabbitmq-1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}'").strip()
 
 # 5. Yeni container baslat
@@ -108,6 +109,7 @@ run_cmd = (
     f'-e "GitHub__Owner=OCA1782" '
     f'-e "GitHub__Repo=dotnet-ecom-docs" '
     f'-e "GitHub__DocsPath=" '
+    f'-e "CatalogIQ__ApiKey={catalogiq_key}" '
     f"ecom-api-new:latest"
 )
 result = run(run_cmd, timeout=30)

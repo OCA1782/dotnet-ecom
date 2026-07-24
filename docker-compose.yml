@@ -11,7 +11,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     command: >
       postgres
-      -c shared_buffers=4GB
+      -c shared_buffers=1GB
       -c work_mem=64MB
       -c effective_cache_size=10GB
       -c maintenance_work_mem=512MB
@@ -125,6 +125,7 @@ services:
       - GitHub__DocsPath=
       - LicenceService__BaseUrl=http://licence:8080
       - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
+      - CatalogIQ__ApiKey=${CATALOGIQ_API_KEY:-catalogiq-dev-key-2026}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -154,10 +155,12 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
+        NEXT_PUBLIC_FALLBACK_TEMPLATE: ${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
     ports:
       - "${DOCKER_HOST_IP:-127.0.0.1}:13000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
+      - NEXT_PUBLIC_FALLBACK_TEMPLATE=${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
       - INTERNAL_API_URL=http://api:8080
     depends_on:
       api:
