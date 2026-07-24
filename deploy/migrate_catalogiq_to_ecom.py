@@ -23,7 +23,7 @@ import requests
 CATALOGIQ_DSN = "host=127.0.0.1 port=5436 dbname=catalogiq user=catalogiq password=catalogiq"
 SITE_ID       = "bc87db68-ebd1-4a35-8656-75ba5b422d72"   # onlineyedekparca.com
 
-ECOM_URL      = "http://178.105.230.111:5124/api/products/import"
+ECOM_URL      = "http://31.210.40.242:15124/api/products/import"
 CATALOGIQ_KEY = "catalogiq-dev-key-2026"
 HEADERS       = {"X-CatalogIQ-Key": CATALOGIQ_KEY, "Content-Type": "application/json"}
 
