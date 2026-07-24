@@ -38,43 +38,43 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
 {
     public async Task<GetVisitorLogsResult> Handle(GetVisitorLogsQuery request, CancellationToken cancellationToken)
     {
-        var where = new List<string> { "v.IsDeleted = 0" };
+        var where = new List<string> { "v.\"IsDeleted\" = false" };
         var param = new DynamicParameters();
 
         if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
         {
-            where.Add("(v.UserId IS NULL OR u.CreatedByAdminId = @TenantAdminId OR v.UserId = @TenantAdminId)");
+            where.Add("(v.\"UserId\" IS NULL OR u.\"CreatedByAdminId\" = @TenantAdminId OR v.\"UserId\" = @TenantAdminId)");
             param.Add("TenantAdminId", currentUser.UserId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(request.IpAddress))
         {
-            where.Add("v.IpAddress = @IpAddress");
+            where.Add("v.\"IpAddress\" = @IpAddress");
             param.Add("IpAddress", request.IpAddress);
         }
         if (request.UserId.HasValue)
         {
-            where.Add("v.UserId = @UserId");
+            where.Add("v.\"UserId\" = @UserId");
             param.Add("UserId", request.UserId.Value);
         }
         if (!string.IsNullOrWhiteSpace(request.Page2))
         {
-            where.Add("v.Page LIKE @PageFilter");
+            where.Add("v.\"Page\" ILIKE @PageFilter");
             param.Add("PageFilter", $"%{request.Page2}%");
         }
         if (request.From.HasValue)
         {
-            where.Add("v.CreatedDate >= @From");
+            where.Add("v.\"CreatedDate\" >= @From");
             param.Add("From", request.From.Value);
         }
         if (request.To.HasValue)
         {
-            where.Add("v.CreatedDate <= @To");
+            where.Add("v.\"CreatedDate\" <= @To");
             param.Add("To", request.To.Value);
         }
         if (!string.IsNullOrWhiteSpace(request.Country))
         {
-            where.Add("v.Country = @Country");
+            where.Add("v.\"Country\" = @Country");
             param.Add("Country", request.Country);
         }
 
@@ -83,18 +83,18 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
         param.Add("Offset", offset);
         param.Add("PageSize", request.PageSize);
 
-        var countSql = $"SELECT COUNT(*) FROM VisitorLogs v WHERE {whereClause}";
+        var countSql = $"SELECT COUNT(*) FROM \"VisitorLogs\" v WHERE {whereClause}";
         var dataSql = $@"
-            SELECT v.Id, v.SessionId, v.UserId,
-                   u.Name + ' ' + u.Surname AS UserFullName,
-                   v.IpAddress, v.UserAgent, v.Page,
-                   v.Country, v.City, v.Latitude, v.Longitude,
-                   v.Referrer, v.CreatedDate
-            FROM VisitorLogs v
-            LEFT JOIN Users u ON u.Id = v.UserId
+            SELECT v.""Id"", v.""SessionId"", v.""UserId"",
+                   u.""Name"" || ' ' || u.""Surname"" AS UserFullName,
+                   v.""IpAddress"", v.""UserAgent"", v.""Page"",
+                   v.""Country"", v.""City"", v.""Latitude"", v.""Longitude"",
+                   v.""Referrer"", v.""CreatedDate""
+            FROM ""VisitorLogs"" v
+            LEFT JOIN ""Users"" u ON u.""Id"" = v.""UserId""
             WHERE {whereClause}
-            ORDER BY v.CreatedDate DESC
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            ORDER BY v.""CreatedDate"" DESC
+            LIMIT @PageSize OFFSET @Offset";
 
         var total = await dapper.QueryFirstOrDefaultAsync<int>(countSql, param, cancellationToken);
         var rows = await dapper.QueryAsync<VisitorLogRow>(dataSql, param, cancellationToken);

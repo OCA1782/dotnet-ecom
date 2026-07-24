@@ -30,26 +30,27 @@ public class GetVisitorStatsQueryHandler(IDapperQueryService dapper, ICacheServi
         param.Add("Since", since);
 
         var topPages = await dapper.QueryAsync<PageVisitDto>(
-            @"SELECT TOP 20 Page, COUNT(*) AS Visits
-              FROM VisitorLogs
-              WHERE IsDeleted = 0 AND CreatedDate >= @Since AND Page IS NOT NULL
-              GROUP BY Page
-              ORDER BY Visits DESC",
+            @"SELECT ""Page"" AS Page, COUNT(*) AS Visits
+              FROM ""VisitorLogs""
+              WHERE ""IsDeleted"" = false AND ""CreatedDate"" >= @Since AND ""Page"" IS NOT NULL
+              GROUP BY ""Page""
+              ORDER BY Visits DESC
+              LIMIT 20",
             param, cancellationToken);
 
         var countries = await dapper.QueryAsync<CountryVisitDto>(
-            @"SELECT ISNULL(Country, 'Bilinmiyor') AS Country, COUNT(*) AS Visits
-              FROM VisitorLogs
-              WHERE IsDeleted = 0 AND CreatedDate >= @Since
-              GROUP BY ISNULL(Country, 'Bilinmiyor')
+            @"SELECT COALESCE(""Country"", 'Bilinmiyor') AS Country, COUNT(*) AS Visits
+              FROM ""VisitorLogs""
+              WHERE ""IsDeleted"" = false AND ""CreatedDate"" >= @Since
+              GROUP BY COALESCE(""Country"", 'Bilinmiyor')
               ORDER BY Visits DESC",
             param, cancellationToken);
 
         var dailyVisits = await dapper.QueryAsync<DailyVisitDto>(
-            @"SELECT CONVERT(varchar(10), CreatedDate, 120) AS Day, COUNT(*) AS Visits
-              FROM VisitorLogs
-              WHERE IsDeleted = 0 AND CreatedDate >= @Since
-              GROUP BY CONVERT(varchar(10), CreatedDate, 120)
+            @"SELECT TO_CHAR(""CreatedDate"", 'YYYY-MM-DD') AS Day, COUNT(*) AS Visits
+              FROM ""VisitorLogs""
+              WHERE ""IsDeleted"" = false AND ""CreatedDate"" >= @Since
+              GROUP BY TO_CHAR(""CreatedDate"", 'YYYY-MM-DD')
               ORDER BY Day",
             param, cancellationToken);
 
