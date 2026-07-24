@@ -79,6 +79,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                         property.SetColumnType("text");
                     else if (colType.StartsWith("decimal(", StringComparison.OrdinalIgnoreCase))
                         property.SetColumnType(colType.Replace("decimal(", "numeric(", StringComparison.OrdinalIgnoreCase));
+                    else if (colType.Equals("datetime2", StringComparison.OrdinalIgnoreCase)
+                          || colType.Equals("datetime", StringComparison.OrdinalIgnoreCase))
+                        property.SetColumnType("timestamp without time zone");
                 }
 
                 // Index filters: T-SQL bracket syntax → PostgreSQL double-quote syntax

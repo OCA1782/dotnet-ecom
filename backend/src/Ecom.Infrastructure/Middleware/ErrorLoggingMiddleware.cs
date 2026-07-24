@@ -2,10 +2,11 @@ using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Ecom.Infrastructure.Middleware;
 
-public class ErrorLoggingMiddleware(RequestDelegate next)
+public class ErrorLoggingMiddleware(RequestDelegate next, ILogger<ErrorLoggingMiddleware> logger)
 {
     private const int MaxPayloadBytes = 4096;
 
@@ -34,6 +35,8 @@ public class ErrorLoggingMiddleware(RequestDelegate next)
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Unhandled exception on {Method} {Path}", context.Request.Method, context.Request.Path);
+
             var reqPayload  = await ReadRequestPayloadAsync(context.Request);
             await LogAsync(context, "Error", ex.Message, context.Request.Path, ex.StackTrace,
                 ex.GetType().Name, reqPayload: reqPayload);
