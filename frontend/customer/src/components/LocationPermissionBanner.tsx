@@ -1,51 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/contexts/I18nContext";
 
 const STORAGE_KEY = "location_permission";
-
-function readVisible() {
-  if (typeof window === "undefined") return false;
-  return !localStorage.getItem(STORAGE_KEY);
-}
+const LAT_KEY = "visitor_lat";
+const LON_KEY = "visitor_lon";
 
 export default function LocationPermissionBanner() {
   const { t } = useI18n();
-  const [visible, setVisible] = useState<boolean>(() => readVisible());
+  const [visible, setVisible] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(STORAGE_KEY);
+  });
 
-  useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) === "granted") void sendLog(null, null);
-  }, []);
+  async function handleAllow() {
+    setVisible(false);
+    localStorage.setItem(STORAGE_KEY, "granted");
 
-  async function sendLog(lat: number | null, lon: number | null) {
-    try {
-      await api.post("/api/visitor/log", {
+    const sendWithCoords = (lat: number | null, lon: number | null) => {
+      if (lat !== null && lon !== null) {
+        sessionStorage.setItem(LAT_KEY, String(lat));
+        sessionStorage.setItem(LON_KEY, String(lon));
+      }
+      void api.post("/api/visitor/log", {
         page: window.location.pathname,
         referrer: document.referrer || null,
         latitude: lat,
         longitude: lon,
-      });
-    } catch {
-      // silent
-    }
-  }
+      }).catch(() => {});
+    };
 
-  function handleAllow() {
-    setVisible(false);
-    localStorage.setItem(STORAGE_KEY, "granted");
-    if (!navigator.geolocation) { void sendLog(null, null); return; }
+    if (!navigator.geolocation) { sendWithCoords(null, null); return; }
     navigator.geolocation.getCurrentPosition(
-      (pos) => void sendLog(pos.coords.latitude, pos.coords.longitude),
-      () => void sendLog(null, null)
+      (pos) => sendWithCoords(pos.coords.latitude, pos.coords.longitude),
+      () => sendWithCoords(null, null)
     );
   }
 
   function handleDeny() {
     setVisible(false);
     localStorage.setItem(STORAGE_KEY, "denied");
-    void sendLog(null, null);
   }
 
   if (!visible) return null;

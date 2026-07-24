@@ -9,6 +9,7 @@ import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 export const dynamic = "force-dynamic";
 import ChatWidget from "@/components/ChatWidget";
 import LocationPermissionBanner from "@/components/LocationPermissionBanner";
+import VisitorTracker from "@/components/VisitorTracker";
 import ThemeProvider from "@/components/ThemeProvider";
 import CompareBar from "@/components/CompareBar";
 import GoogleProvider from "@/components/GoogleProvider";
@@ -126,6 +127,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main className="flex-1">{children}</main>
           <Footer />
           <ChatWidget />
+          <VisitorTracker />
           <LocationPermissionBanner />
           <ThemeProvider />
           <CompareBar />
