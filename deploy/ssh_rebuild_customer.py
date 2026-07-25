@@ -15,10 +15,6 @@ host     = os.environ['DEPLOY_SSH_HOST']
 user     = os.environ['DEPLOY_SSH_USER']
 password = os.environ['DEPLOY_SSH_PASSWORD']
 
-PG_USER = os.environ['POSTGRES_USER']
-PG_PASS = os.environ['POSTGRES_PASSWORD']
-PG_DB   = os.environ.get('POSTGRES_DB', 'EcomDb')
-
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(host, username=user, password=password, timeout=15)
@@ -37,6 +33,8 @@ print("=== 1. Git pull ===")
 print(run("cd /opt/ecom && git fetch origin main && git reset --hard origin/main 2>&1", timeout=60))
 
 # 2. DB'den aktif CustomerTemplate oku (kritik: deploy sonrasi sablon kaymasin)
+PG_USER = read_env_var('POSTGRES_USER') or 'ecom'
+PG_DB   = read_env_var('POSTGRES_DB') or 'EcomDb'
 print("\n=== 2. Aktif template DB'den okunuyor ===")
 import tempfile, io
 
