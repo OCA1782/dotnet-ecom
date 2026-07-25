@@ -122,49 +122,49 @@ export default function ProductCard({ product, initialLiked = false, variant = "
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
-        <div className="h-44 bg-gradient-to-b from-[#F0FBFA] to-white flex items-center justify-center overflow-hidden">
+        <div className="aspect-square bg-gradient-to-b from-[#F0FBFA] to-white flex items-center justify-center overflow-hidden">
           {product.imageUrl ? (
-            <Image src={product.imageUrl} alt={product.name} width={200} height={176} className="object-contain w-full h-full p-4" />
+            <Image src={product.imageUrl} alt={product.name} width={300} height={300} className="object-contain w-full h-full p-3 sm:p-4" />
           ) : (
             <span className="text-5xl">📦</span>
           )}
         </div>
       </Link>
 
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
         {product.brandName && (
-          <p className={`text-xs font-semibold mb-1 ${isSP ? "text-orange-500" : "text-teal-500"}`}>{product.brandName}</p>
+          <p className={`text-[11px] sm:text-xs font-semibold mb-0.5 sm:mb-1 truncate ${isSP ? "text-orange-500" : "text-teal-500"}`}>{product.brandName}</p>
         )}
         <Link href={`/urun/${product.slug}`} className="flex-1">
-          <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm group-hover:text-teal-700 transition-colors leading-snug">
+          <h3 className="font-semibold text-slate-800 line-clamp-2 text-xs sm:text-sm group-hover:text-teal-700 transition-colors leading-snug">
             {product.name}
           </h3>
         </Link>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {product.discountPrice ? (
             <>
-              <span className={`font-bold text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.discountPrice)}</span>
-              <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
+              <span className={`font-bold text-sm sm:text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.discountPrice)}</span>
+              <span className="text-[11px] sm:text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
             </>
           ) : (
-            <span className={`font-bold text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.price)}</span>
+            <span className={`font-bold text-sm sm:text-base ${isSP ? "text-orange-600" : "text-[#008F86]"}`}>{formatPrice(product.price)}</span>
           )}
         </div>
 
         {product.availableStock > 0 && product.price >= 500 && (
-          <p className="text-xs text-teal-600 font-semibold mt-2">{t("product.free_shipping")}</p>
+          <p className="text-[11px] sm:text-xs text-teal-600 font-semibold mt-1.5 sm:mt-2">{t("product.free_shipping")}</p>
         )}
         {cartError && (
-          <p className="text-xs text-red-500 mt-2 leading-tight">{cartError}</p>
+          <p className="text-xs text-red-500 mt-1.5 leading-tight">{cartError}</p>
         )}
         {product.availableStock === 0 ? (
-          <p className="text-xs text-red-500 mt-3 font-medium">{t("product.out_of_stock_short")}</p>
+          <p className="text-xs text-red-500 mt-2 font-medium">{t("product.out_of_stock_short")}</p>
         ) : (
           <button
             onClick={handleAddToCart}
             disabled={adding}
-            className={`mt-3 w-full text-white text-xs font-semibold py-2.5 rounded-xl transition ${
+            className={`mt-2 sm:mt-3 w-full text-white text-[11px] sm:text-xs font-semibold py-2 sm:py-2.5 rounded-xl transition ${
               added
                 ? "bg-green-600 hover:bg-green-700"
                 : cartError

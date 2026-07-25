@@ -160,6 +160,14 @@ html[data-template="showcase"] [data-product-grid] > * > div:first-child {
   height: 22rem !important;
   min-height: 22rem !important;
 }
+@media (max-width: 639px) {
+  html[data-template="showcase"] .product-card > a > div,
+  html[data-template="showcase"] [data-product-grid] > * > div:first-child {
+    height: auto !important;
+    min-height: unset !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════
    6. LUXE — 3 sütun, 2 satırlı ortalanmış başlık, altın
@@ -322,6 +330,7 @@ html[data-template="instagram"] [data-product-grid] > * > div:first-child {
 }
 /* Metin bölümü: hover'da overlay */
 html[data-template="instagram"] .product-card > div.p-4,
+html[data-template="instagram"] .product-card > div.p-3,
 html[data-template="instagram"] [data-product-grid] > * > div:nth-child(2) {
   position: absolute !important;
   inset: 0 !important;
@@ -336,17 +345,22 @@ html[data-template="instagram"] [data-product-grid] > * > div:nth-child(2) {
   text-align: center !important;
 }
 html[data-template="instagram"] .product-card:hover > div.p-4,
+html[data-template="instagram"] .product-card:hover > div.p-3,
 html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) {
   opacity: 1 !important;
   background: rgba(0,0,0,0.62) !important;
 }
 /* Overlay metin renkleri */
 html[data-template="instagram"] .product-card:hover > div.p-4 *,
+html[data-template="instagram"] .product-card:hover > div.p-3 *,
 html[data-template="instagram"] [data-product-grid] > *:hover > div:nth-child(2) * { color: #ffffff !important; }
 html[data-template="instagram"] .product-card:hover > div.p-4 .text-teal-500,
-html[data-template="instagram"] .product-card:hover > div.p-4 .text-\[\#008F86\] { color: #5eead4 !important; }
+html[data-template="instagram"] .product-card:hover > div.p-3 .text-teal-500,
+html[data-template="instagram"] .product-card:hover > div.p-4 .text-\[\#008F86\],
+html[data-template="instagram"] .product-card:hover > div.p-3 .text-\[\#008F86\] { color: #5eead4 !important; }
 /* Sepet butonu */
-html[data-template="instagram"] .product-card:hover > div.p-4 button {
+html[data-template="instagram"] .product-card:hover > div.p-4 button,
+html[data-template="instagram"] .product-card:hover > div.p-3 button {
   background: rgba(255,255,255,0.95) !important;
   color: #0d9488 !important;
   border-radius: 9999px !important;
