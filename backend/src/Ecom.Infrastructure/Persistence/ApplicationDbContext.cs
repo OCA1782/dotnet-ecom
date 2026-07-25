@@ -60,6 +60,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<MailTemplate> MailTemplates => Set<MailTemplate>();
     public DbSet<AiTask> AiTasks => Set<AiTask>();
     public DbSet<AiTaskImage> AiTaskImages => Set<AiTaskImage>();
+    public DbSet<StockNotification> StockNotifications => Set<StockNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

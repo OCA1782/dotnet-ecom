@@ -137,6 +137,7 @@ public static class DependencyInjection
         services.AddSingleton<IJobRunner, QueueMonitorJob>();
         services.AddSingleton<IJobRunner, FrontendHealthJob>();
         services.AddSingleton<IJobRunner, StockAlertJob>();
+        services.AddSingleton<IJobRunner, BackInStockNotificationJob>();
         services.AddSingleton<IJobRunner, OutboxRetryJob>();
         services.AddSingleton<IJobRunner, SessionCleanupJob>();
         services.AddSingleton<IJobRunner, TokenCleanupJob>();

@@ -5,6 +5,7 @@ import { serverFetch } from "@/lib/server-fetch";
 import type { ProductDetail } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import AddToCartButton from "./AddToCartButton";
+import StockNotificationForm from "./StockNotificationForm";
 import ReviewSection from "./ReviewSection";
 import ProductImageGallery from "./ProductImageGallery";
 import ProductTabs from "./ProductTabs";
@@ -69,6 +70,9 @@ export default async function ProductDetailPage({
 
   const displayPrice = product.discountPrice ?? product.price;
   const isSP = settings.CustomerTemplate === "spareparts";
+  const effectiveStock = product.variants.length > 0
+    ? product.variants.reduce((sum, v) => sum + v.availableStock, 0)
+    : product.availableStock;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -140,7 +144,7 @@ export default async function ProductDetailPage({
           )}
 
           {/* Stock status */}
-          {product.availableStock === 0 ? (
+          {effectiveStock === 0 ? (
             <span className="inline-block text-sm text-red-600 font-medium">{t("prod2.detail.out_of_stock")}</span>
           ) : (
             <span className="inline-block text-sm text-green-600 font-medium">{t("prod2.detail.in_stock")}</span>
@@ -152,6 +156,11 @@ export default async function ProductDetailPage({
             variants={product.variants ?? []}
             availableStock={product.availableStock}
           />
+
+          {/* Stok bildirimi — sadece stok yoksa */}
+          {effectiveStock === 0 && (
+            <StockNotificationForm productId={product.id} />
+          )}
 
           {/* Inline description — non-spareparts only */}
           {!isSP && product.description && (

@@ -56,6 +56,7 @@ public interface IApplicationDbContext
     DbSet<MailTemplate> MailTemplates { get; }
     DbSet<AiTask> AiTasks { get; }
     DbSet<AiTaskImage> AiTaskImages { get; }
+    DbSet<StockNotification> StockNotifications { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

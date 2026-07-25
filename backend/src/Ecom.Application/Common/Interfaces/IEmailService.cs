@@ -16,4 +16,5 @@ public interface IEmailService
     Task SendLicenseAssignmentAsync(string toEmail, string toName, string licenseToken, string viewPassword, string issuer, string expiresAt, CancellationToken ct = default);
     Task SendVerificationReminderAsync(string toEmail, string toName, string code, CancellationToken ct = default);
     Task SendPasswordReminderAsync(string toEmail, string toName, int daysSinceLastChange, CancellationToken ct = default);
+    Task SendBackInStockAsync(string toEmail, string productName, string productUrl, CancellationToken ct = default);
 }

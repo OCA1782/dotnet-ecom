@@ -70,6 +70,14 @@ public class EmailService(IConfiguration configuration, ILogger<EmailService> lo
         await SendAsync(toEmail, toName, subject, body, "PasswordReminder", ct);
     }
 
+    public async Task SendBackInStockAsync(string toEmail, string productName, string productUrl, CancellationToken ct = default)
+    {
+        var subject = $"Stok Bildirimi: {productName} tekrar mevcut!";
+        var body = EmailTemplates.BackInStock(productName, productUrl);
+        await SendAsync(toEmail, toEmail, subject, body, "BackInStock", ct,
+            new() { ["productName"] = productName, ["productUrl"] = productUrl });
+    }
+
     public async Task SendPasswordResetAsync(string toEmail, string toName, string resetToken, CancellationToken ct = default)
     {
         var resetUrl = $"{_resetBaseUrl}?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";

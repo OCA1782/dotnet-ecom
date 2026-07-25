@@ -2960,6 +2960,41 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.ToTable("WishlistItems");
                 });
 
+            modelBuilder.Entity("Ecom.Domain.Entities.StockNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsNotified")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsNotified");
+
+                    b.HasIndex("ProductId", "Email");
+
+                    b.ToTable("StockNotifications");
+                });
+
             modelBuilder.Entity("Ecom.Infrastructure.Messaging.Sagas.OrderSagaState", b =>
                 {
                     b.Property<Guid>("CorrelationId")
@@ -3389,6 +3424,17 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ecom.Domain.Entities.StockNotification", b =>
+                {
+                    b.HasOne("Ecom.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Ecom.Domain.Entities.AiTask", b =>

@@ -245,6 +245,23 @@ public static class EmailTemplates
             <p style="color:#64748b;font-size:13px">Gönderim zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>
         """);
 
+    public static string BackInStock(string productName, string productUrl) =>
+        Wrap("Ürün Tekrar Stokta", $"""
+            <h2 style="color:#18181b;margin:0 0 16px;">Müjde! Aradığınız ürün stokta.</h2>
+            <p style="color:#3f3f46;line-height:1.6;">
+              Stok bildirimi talebiniz üzerine sizi bilgilendiriyoruz:<br>
+              <strong>{productName}</strong> tekrar stoklarımıza girdi.
+            </p>
+            <div style="margin:24px 0;">
+              <a href="{productUrl}" style="display:inline-block;background:#f97316;color:#fff;font-weight:bold;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;">
+                Ürüne Git →
+              </a>
+            </div>
+            <p style="color:#71717a;font-size:13px;line-height:1.6;">
+              Stoklar sınırlı olabilir. Bu fırsatı kaçırmamak için hemen inceleyin.
+            </p>
+        """);
+
     public static string AlertSample() =>
         Wrap("Sistem Uyarısı", """
             <h2 style="color:#b91c1c">⚠ Sistem Uyarısı</h2>

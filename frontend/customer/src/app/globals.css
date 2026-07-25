@@ -1180,10 +1180,20 @@ html[data-template="spareparts"] .acct-input,
 html[data-template="spareparts"] .acct-input-otp { border-color: #d1d5db; border-radius: 4px !important; }
 html[data-template="spareparts"] .btn-ghost { background: #f3f4f6; border-color: #d1d5db; color: #111827; }
 html[data-template="spareparts"] .badge-ok { background: #fff7ed; border-color: #f9731640; color: #c2410c; }
-/* Ürün grid — 4 kolon */
+/* Ürün grid — responsive: mobil 2, sm 3, lg 4 kolon */
 html[data-template="spareparts"] [data-product-grid] {
-  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-columns: repeat(2, 1fr) !important;
   gap: 0.75rem !important;
+}
+@media (min-width: 640px) {
+  html[data-template="spareparts"] [data-product-grid] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+@media (min-width: 1024px) {
+  html[data-template="spareparts"] [data-product-grid] {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
 }
 /* Ürün kartı — beyaz, yuvarlak, turuncu hover */
 html[data-template="spareparts"] .product-card,
