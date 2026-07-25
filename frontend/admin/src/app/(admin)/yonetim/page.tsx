@@ -111,6 +111,7 @@ const DEFAULTS: SiteSettings = {
   PaymentSanalPosApiKey: "",
   PaymentSanalPosApiSecret: "",
   PaymentSanalPosTestMode: "true",
+  PaymentCashOnDeliveryEnabled: "true",
   // Footer
   Footer_Tagline: "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.",
   // Sayfa içerikleri
@@ -3653,6 +3654,25 @@ export default function YonetimPage() {
                 <CreditCard size={14} /> {t("auto.canliModAktifKart", "Canlı mod aktif — gerçek kart bilgileri işlenecek. Entegrasyon testini tamamladığınızdan emin olun.")}
               </div>
             )}
+          </Section>
+
+          {/* Kapıda Ödeme */}
+          <Section title={t("auto.kapidaOdeme", "Kapıda Ödeme")} icon={<Package size={16} />}
+            subtitle={t("auto.kapidaOdemeAciklama", "Müşteriler ürün tesliminde kapıda nakit veya kartla ödeme yapabilir.")}>
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">{t("auto.kapidaOdemeSecenegi", "Kapıda Ödeme Seçeneği")}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {settings.PaymentCashOnDeliveryEnabled === "true"
+                    ? t("auto.kapidaOdemeAktif", "Aktif — ödeme seçeneklerinde görünür.")
+                    : t("auto.kapidaOdemePasif", "Pasif — ödeme seçeneklerinde gösterilmez.")}
+                </p>
+              </div>
+              <button onClick={() => set("PaymentCashOnDeliveryEnabled", settings.PaymentCashOnDeliveryEnabled === "true" ? "false" : "true")}
+                className={`relative w-12 h-6 rounded-full transition-colors ${settings.PaymentCashOnDeliveryEnabled === "true" ? "bg-teal-500" : "bg-slate-300"}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.PaymentCashOnDeliveryEnabled === "true" ? "left-7" : "left-1"}`} />
+              </button>
+            </div>
           </Section>
         </div>
       )}
