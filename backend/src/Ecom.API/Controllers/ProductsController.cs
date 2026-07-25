@@ -119,14 +119,14 @@ public class ProductsController(IMediator mediator) : ControllerBase
         [FromServices] IApplicationDbContext db,
         CancellationToken ct)
     {
-        // Find (Name, Price) pairs with more than 1 non-deleted product
+        // Duplicate criterion: same Name + same DataSource (aligned with deduplicate endpoint)
         var dupKeys = await db.Products
             .Where(p => !p.IsDeleted)
-            .GroupBy(p => new { p.Name, p.Price })
+            .GroupBy(p => new { p.Name, p.DataSource })
             .Where(g => g.Count() > 1)
             .OrderByDescending(g => g.Count())
             .Take(300)
-            .Select(g => new { g.Key.Name, g.Key.Price, Count = g.Count() })
+            .Select(g => new { g.Key.Name, g.Key.DataSource, Count = g.Count() })
             .ToListAsync(ct);
 
         if (!dupKeys.Any())
@@ -142,19 +142,20 @@ public class ProductsController(IMediator mediator) : ControllerBase
             .Select(p => new {
                 p.Id, p.Name, p.Price, p.DiscountPrice, p.SKU,
                 p.IsActive, p.IsPublished, p.CreatedDate,
+                p.DataSource,
                 ImageUrl = p.Images.Any() ? p.Images.First().ImageUrl : (string?)null,
                 Stock = p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
             })
             .ToListAsync(ct);
 
-        var dupKeySet = dupKeys.Select(k => (k.Name, k.Price)).ToHashSet();
+        var dupKeySet = dupKeys.Select(k => (k.Name, k.DataSource)).ToHashSet();
 
         var result = allProds
-            .Where(p => dupKeySet.Contains((p.Name, p.Price)))
-            .GroupBy(p => new { p.Name, p.Price })
+            .Where(p => dupKeySet.Contains((p.Name, p.DataSource)))
+            .GroupBy(p => new { p.Name, p.DataSource })
             .Select(g => new {
                 g.Key.Name,
-                g.Key.Price,
+                Price = g.First().Price,
                 Count = g.Count(),
                 Products = g.ToList(),
             })
