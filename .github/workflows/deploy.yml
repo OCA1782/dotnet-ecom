@@ -1,47 +1,24 @@
-name: Deploy to Hetzner
+# Deploy artık Admin paneli üzerinden yönetilmektedir (Admin > Deploy > Sunucular).
+# Bu workflow devre dışıdır; otomatik tetiklenmez.
+# Gerekirse GitHub UI'dan "Run workflow" ile manuel başlatılabilir.
+
+name: Deploy (Devre Dışı)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'frontend/admin/**'
-      - 'frontend/customer/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deploy sebebi'
+        required: false
+        default: 'Manuel deploy'
 
 jobs:
   deploy:
-    name: Deploy to Hetzner Dev Server
+    name: Deploy (Admin panelinden yönetilir)
     runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-hetzner
-      cancel-in-progress: true
-
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: ${{ secrets.HETZNER_USER }}
-          password: ${{ secrets.HETZNER_PASSWORD }}
-          script: |
-            set -e
-            cd /opt/ecom
-
-            echo "→ Pulling latest changes..."
-            git fetch origin main
-            git reset --hard origin/main
-
-            echo "→ Building and restarting containers..."
-            docker compose build --no-cache
-            docker compose up -d
-
-            echo "→ Removing unused images..."
-            docker image prune -f
-
-            echo "→ Verifying health..."
-            sleep 10
-            curl -sf http://localhost:5124/health || (echo "API health check failed" && exit 1)
-
-            echo "✓ Deploy completed successfully"
+      - name: Bilgi
+        run: |
+          echo "Deploy işlemleri Admin paneli üzerinden yapılmaktadır."
+          echo "Admin > Deploy > Sunucular bölümünden ilgili sunucuyu seçip Deploy butonuna basın."
+          echo "Sebep: ${{ github.event.inputs.reason }}"
