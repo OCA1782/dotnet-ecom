@@ -144,10 +144,10 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
             .Where(s => s.Key == "SiteUrl" || s.Key == "SiteName")
             .ToListAsync(ct);
 
-        var siteUrl  = settings.FirstOrDefault(s => s.Key == "SiteUrl")?.Value
-                       ?? "http://localhost:3000";
-        var siteName = settings.FirstOrDefault(s => s.Key == "SiteName")?.Value
-                       ?? "Mağaza";
+        var siteUrl  = settings.FirstOrDefault(s => s.Key == "SiteUrl")?.Value;
+        if (string.IsNullOrWhiteSpace(siteUrl)) siteUrl = "http://localhost:3000";
+        var siteName = settings.FirstOrDefault(s => s.Key == "SiteName")?.Value;
+        if (string.IsNullOrWhiteSpace(siteName)) siteName = "Mağaza";
 
         return (siteUrl.TrimEnd('/'), siteName);
     }
