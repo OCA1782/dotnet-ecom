@@ -144,7 +144,7 @@ def ensure_tracking_table(ciq_cur, target: str):
     table = f'migration_log_{target}'
     ciq_cur.execute(f'''
         CREATE TABLE IF NOT EXISTS "{table}" (
-            normalized_product_id BIGINT      PRIMARY KEY,
+            normalized_product_id UUID        PRIMARY KEY,
             ecom_product_id       UUID,
             ecom_sku              VARCHAR(100),
             action                VARCHAR(30),
@@ -163,7 +163,7 @@ def load_migrated_ids(ciq_cur, target: str) -> set:
     return set(r[0] for r in ciq_cur.fetchall())
 
 
-def log_migration(log_cur, target: str, ciq_id: int, ecom_id: str, sku, action: str):
+def log_migration(log_cur, target: str, ciq_id: str, ecom_id: str, sku, action: str):
     table = f'migration_log_{target}'
     log_cur.execute(f'''
         INSERT INTO "{table}"
