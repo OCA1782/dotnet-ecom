@@ -47,21 +47,27 @@ public class ImportExternalSourceCommandHandler(IApplicationDbContext db, Import
             error = ex.Message;
         }
 
-        db.ExternalSourceImportLogs.Add(new ExternalSourceImportLog
+        // Scheduled runs (no user) that produce zero changes don't need a log entry
+        bool isScheduled = request.ImportedByUserId is null;
+        bool hasChanges = inserted > 0 || updated > 0 || error is not null;
+        if (!isScheduled || hasChanges)
         {
-            ExternalSourceId = request.SourceId,
-            TargetEntity = request.TargetEntity,
-            InsertedCount = inserted,
-            UpdatedCount = updated,
-            SkippedCount = skipped,
-            ErrorMessage = error,
-            ImportedByUserId = request.ImportedByUserId,
-            TotalRows = request.Rows.Count,
-            ConflictStrategy = request.ConflictStrategy,
-            SkipDiagnosticsJson = skipReasons is { Count: > 0 }
-                ? JsonSerializer.Serialize(skipReasons) : null,
-        });
-        await db.SaveChangesAsync(cancellationToken);
+            db.ExternalSourceImportLogs.Add(new ExternalSourceImportLog
+            {
+                ExternalSourceId = request.SourceId,
+                TargetEntity = request.TargetEntity,
+                InsertedCount = inserted,
+                UpdatedCount = updated,
+                SkippedCount = skipped,
+                ErrorMessage = error,
+                ImportedByUserId = request.ImportedByUserId,
+                TotalRows = request.Rows.Count,
+                ConflictStrategy = request.ConflictStrategy,
+                SkipDiagnosticsJson = skipReasons is { Count: > 0 }
+                    ? JsonSerializer.Serialize(skipReasons) : null,
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         return new ImportExternalSourceResult(inserted, updated, skipped, error, skipReasons);
     }
