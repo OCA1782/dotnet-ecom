@@ -173,6 +173,7 @@ export default function AnalizPage() {
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [loadingV, setLoadingV] = useState(false);
   const [loadingP, setLoadingP] = useState(false);
+  const [loadingD, setLoadingD] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -180,6 +181,7 @@ export default function AnalizPage() {
     if (showRefreshing) setRefreshing(true);
     setLoadingV(true);
     setLoadingP(true);
+    setLoadingD(true);
     try {
       const [v, p, d] = await Promise.allSettled([
         api.get<VisitorStats>(`/api/admin/reports/visitor-stats?days=${days}`),
@@ -193,6 +195,7 @@ export default function AnalizPage() {
     } finally {
       setLoadingV(false);
       setLoadingP(false);
+      setLoadingD(false);
       setRefreshing(false);
     }
   }, [days, topN]);
@@ -377,10 +380,12 @@ export default function AnalizPage() {
             <TrendingUp className="w-4 h-4 text-emerald-500" />
             Aylık Gelir Trendi
           </h2>
-          {!dashStats ? (
+          {loadingD ? (
             <div className="h-20 flex items-center justify-center">
               <div className="w-full h-16 bg-slate-100 rounded animate-pulse" />
             </div>
+          ) : !dashStats ? (
+            <div className="h-20 flex items-center justify-center text-xs text-slate-300">Veri yok</div>
           ) : (
             <>
               <SvgAreaChart data={monthlyRevenueData} stroke="#10b981" fill="rgba(16,185,129,0.10)" height={80} />

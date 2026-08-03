@@ -193,6 +193,30 @@ const JOB_META: Record<string, Record<UiLang, { title: string; description: stri
     de: { title: "Outbox-Wiederholungsjob", description: "Stellt fehlgeschlagene Outbox-Nachrichten erneut in die Warteschlange." },
     es: { title: "Reintento de outbox", description: "Vuelve a encolar mensajes fallidos de outbox." },
   },
+  VisitorLogRetentionJob: {
+    tr: { title: "Ziyaretçi log temizleme", description: "Eski ziyaretçi log kayıtlarını temizler." },
+    en: { title: "Visitor log retention", description: "Cleans old visitor log records." },
+    de: { title: "Besucherprotokoll-Aufbewahrung", description: "Bereinigt alte Besucherprotokoll-Einträge." },
+    es: { title: "Retención de logs de visitantes", description: "Limpia registros antiguos de visitantes." },
+  },
+  JobLogRetentionJob: {
+    tr: { title: "Job log temizleme", description: "Eski job log kayıtlarını temizler." },
+    en: { title: "Job log retention", description: "Cleans old job log records." },
+    de: { title: "Job-Protokoll-Aufbewahrung", description: "Bereinigt alte Job-Protokoll-Einträge." },
+    es: { title: "Retención de logs de job", description: "Limpia registros antiguos de logs de job." },
+  },
+  BackInStockNotificationJob: {
+    tr: { title: "Stok geldi bildirimi", description: "Stoğa dönen ürünler için bekleyen bildirimleri gönderir." },
+    en: { title: "Back-in-stock notification", description: "Sends pending notifications for products back in stock." },
+    de: { title: "Wieder-auf-Lager-Benachrichtigung", description: "Sendet ausstehende Benachrichtigungen für wieder verfügbare Produkte." },
+    es: { title: "Notificación de reposición de stock", description: "Envía notificaciones pendientes para productos con stock repuesto." },
+  },
+  ImportLogRetentionJob: {
+    tr: { title: "Aktarım log temizleme", description: "Eski dış kaynak aktarım loglarını temizler." },
+    en: { title: "Import log retention", description: "Cleans old external source import logs." },
+    de: { title: "Import-Protokoll-Aufbewahrung", description: "Bereinigt alte Import-Protokolle externer Quellen." },
+    es: { title: "Retención de logs de importación", description: "Limpia registros antiguos de importación de fuentes externas." },
+  },
   TestSyncJob: {
     tr: { title: "Test senkronizasyonu", description: "Test ekranındaki endpoint listesini kodla senkronize eder." },
     en: { title: "Test sync", description: "Synchronizes the endpoint list with code for the Test screen." },
