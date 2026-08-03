@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import BrandLogo from "@/components/BrandLogo";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/contexts/I18nContext";
+import { formatPrice } from "@/lib/utils";
 
 type SuggestionItem = {
   type: "product" | "brand" | "category";
@@ -313,7 +314,7 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
                                     </div>
                                     {item.price != null && (
                                       <span className="text-sm font-semibold text-teal-600 shrink-0">
-                                        {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                                        {formatPrice(item.price)}
                                       </span>
                                     )}
                                   </button>
@@ -413,7 +414,7 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
                           </div>
                           {item.price != null && (
                             <span className="text-sm font-semibold text-teal-600 shrink-0">
-                              {item.price.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                              {formatPrice(item.price)}
                             </span>
                           )}
                         </button>
