@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import type { AdminProduct, PaginatedList } from "@/types";
-import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle, FolderInput, Tag, Package } from "lucide-react";
+import { Search, Plus, Pencil, X, Star, Trash2, Download, Upload, ImagePlus, Clock, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Info, CheckSquare, Square, ToggleLeft, ToggleRight, Percent, Loader2, Copy, Eye, EyeOff, AlertTriangle, FolderInput, Tag, Package, ShoppingBag, ExternalLink, Check } from "lucide-react";
 import { useRef } from "react";
 import { exportToExcel, downloadTemplate, readExcelFile } from "@/lib/excel";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -385,6 +385,12 @@ export default function AdminProductsPage() {
   const [purgeTyped, setPurgeTyped] = useState("");
   const [purging, setPurging] = useState(false);
 
+  // Google Merchant
+  const [merchantModal, setMerchantModal] = useState(false);
+  const [merchantStats, setMerchantStats] = useState<{ productCount: number; feedUrl: string } | null>(null);
+  const [merchantCopied, setMerchantCopied] = useState(false);
+  const [csvDownloading, setCsvDownloading] = useState(false);
+
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
@@ -748,6 +754,43 @@ export default function AdminProductsPage() {
     } finally { setDeduplicating(false); }
   }
 
+  async function openMerchantModal() {
+    setMerchantModal(true);
+    setMerchantStats(null);
+    try {
+      const data = await api.get<{ productCount: number; feedUrl: string }>("/api/admin/merchant/stats");
+      setMerchantStats(data);
+    } catch { /* stats opsiyonel */ }
+  }
+
+  async function handleCopyFeedUrl() {
+    const url = merchantStats?.feedUrl ?? `${window.location.origin.replace(/:\d+$/, ":5124")}/api/merchant/feed.xml`;
+    await navigator.clipboard.writeText(url);
+    setMerchantCopied(true);
+    setTimeout(() => setMerchantCopied(false), 2000);
+  }
+
+  async function handleDownloadCsv() {
+    setCsvDownloading(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
+      const res = await fetch(`${apiBase}/api/admin/merchant/export.csv`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("İndirme başarısız");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `google-merchant-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMsg({ text: e instanceof Error ? e.message : "CSV indirilemedi", ok: false });
+    } finally { setCsvDownloading(false); }
+  }
+
   async function openPurgeModal() {
     setPurgeStep(1);
     setPurgePreviewCount(null);
@@ -1058,6 +1101,11 @@ export default function AdminProductsPage() {
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
           >
             <Package size={14} /> Koşullu Stok
+          </button>
+          <button onClick={openMerchantModal}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
+            title="Google Merchant Center'a aktar">
+            <ShoppingBag size={14} /> Google Merchant
           </button>
           <button onClick={openCreate}
             className="flex items-center gap-2 bg-[#12304A] hover:bg-[#0d2438] text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow">
@@ -2491,6 +2539,88 @@ export default function AdminProductsPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Google Merchant Modalı */}
+      {merchantModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <ShoppingBag size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800 text-base">Google Merchant Center</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {merchantStats ? `${merchantStats.productCount.toLocaleString("tr-TR")} aktif ürün feed'e dahil` : "Yükleniyor..."}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setMerchantModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* XML Feed URL */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Otomatik Feed URL</p>
+              <p className="text-xs text-slate-500">Google Merchant Center &gt; Ürünler &gt; Feed'ler &gt; yeni feed &gt; bu URL'yi yapıştırın.</p>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <code className="text-xs text-slate-700 flex-1 truncate">
+                  {merchantStats?.feedUrl ?? "yükleniyor..."}
+                </code>
+                <button
+                  onClick={handleCopyFeedUrl}
+                  className="shrink-0 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition"
+                >
+                  {merchantCopied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
+                  {merchantCopied ? "Kopyalandı" : "Kopyala"}
+                </button>
+              </div>
+            </div>
+
+            {/* Manuel Export */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Manuel Export</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleDownloadCsv}
+                  disabled={csvDownloading}
+                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                >
+                  {csvDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  TSV İndir
+                </button>
+                <a
+                  href={merchantStats?.feedUrl ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                >
+                  <ExternalLink size={14} />
+                  XML Önizle
+                </a>
+              </div>
+            </div>
+
+            {/* Bilgi */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800 space-y-1">
+              <p className="font-semibold">Google Merchant Center Kurulumu</p>
+              <ol className="list-decimal ml-4 space-y-0.5">
+                <li>merchant.google.com adresine gidin ve hesap açın</li>
+                <li>Ürünler &gt; Feed'ler &gt; "+" ile yeni feed ekleyin</li>
+                <li>Feed türü: <strong>Zamanlanmış getirme</strong></li>
+                <li>Yukarıdaki Feed URL&apos;sini yapıştırın</li>
+                <li>Güncelleme sıklığı: <strong>Günlük</strong> önerilir</li>
+              </ol>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={() => setMerchantModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50 transition">Kapat</button>
+            </div>
           </div>
         </div>
       )}
