@@ -140,7 +140,15 @@ def load_indexes(cur) -> tuple[dict, dict, set]:
         if slug:
             slug_set.add(slug)
 
-    print(f'  SKU index: {len(sku_index):,} | Name index: {len(name_index):,} | Slug set: {len(slug_set):,} | {time.time()-t0:.1f}s', flush=True)
+    # ProductVariants SKU'larini yukle — unique_sku_suffix variant conflict onlemek icin
+    cur.execute('SELECT UPPER("SKU") FROM "ProductVariants" WHERE "IsDeleted" = false AND "SKU" IS NOT NULL')
+    variant_sku_count = 0
+    for (sku_up,) in cur.fetchall():
+        if sku_up and sku_up not in sku_index:
+            sku_index[sku_up] = {'id': '__variant__', 'name': ''}
+            variant_sku_count += 1
+
+    print(f'  SKU index: {len(sku_index):,} (variant-only: {variant_sku_count:,}) | Name index: {len(name_index):,} | Slug set: {len(slug_set):,} | {time.time()-t0:.1f}s', flush=True)
     return sku_index, name_index, slug_set
 
 
@@ -266,13 +274,75 @@ def unique_slug(base: str, slug_set: set) -> str:
     return slug
 
 
+# -- Basliktan parca kodu / arac bilgisi cikarici ------------------------------
+_SKIP_WORDS = {
+    've', 'ile', 'icin', 'on', 'arka', 'sol', 'sag', 'adet', 'takim',
+    'kiti', 'seti', 'marka', 'orijinal', 'urun', 'komple',
+    'model', 'sonrasi', 'oncesi', 'arasi', 'serisi', 'benzinli',
+    'dizel', 'turbo', 'otomatik', 'manuel', 'cift', 'tek',
+}
+
+def extract_part_code(base_sku: str, name: str):
+    """
+    Baslik formatindan parca kodu ya da arac bilgisi cikarir.
+    "FEBI BILSTEIN 39677 | Rot Takimi On Sol BMW"  ->  "39677"
+    "MANN W712-95 | Seat Leon Yag Filtresi"        ->  "SEAT-LEON"  (base SKU ile ayni ise arac bilgisi)
+    """
+    if not name:
+        return None
+    name = name.strip()
+    if '|' in name:
+        before = name.split('|')[0].strip()
+        after  = name.split('|', 1)[1].strip()
+        tokens = before.split()
+        if tokens:
+            last = tokens[-1].strip('()[].,')
+            if last and last.upper() != base_sku.upper() and len(last) >= 2:
+                if not (len(last) <= 2 and last.isdigit()):
+                    return last
+        tokens_after = [t.strip('()[].,/-') for t in after.split()]
+        meaningful = []
+        for t in tokens_after:
+            if (len(t) >= 3
+                    and not t.replace('.', '').replace('-', '').isdigit()
+                    and t.lower() not in _SKIP_WORDS):
+                meaningful.append(t.upper())
+            if len(meaningful) >= 2:
+                break
+        if meaningful:
+            return '-'.join(meaningful)
+    tokens = name.split()
+    meaningful = []
+    for t in tokens[:8]:
+        t2 = t.strip('()[].,|/-')
+        if (len(t2) >= 3
+                and not t2.replace('.', '').replace('-', '').isdigit()
+                and t2.lower() not in _SKIP_WORDS):
+            meaningful.append(t2.upper())
+        if len(meaningful) >= 2:
+            break
+    return '-'.join(meaningful) if meaningful else None
+
+
 # -- Benzersiz SKU uretici (in-memory) ----------------------------------------
-def unique_sku_suffix(base_sku: str, sku_index: dict, sku_counter: dict) -> str:
+def unique_sku_suffix(base_sku: str, name: str, sku_index: dict, sku_counter: dict) -> str:
+    """
+    Cakisan SKU icin anlamli suffix uretir:
+      - Once basliktan parca kodu / arac bilgisi cikarir
+      - Ornek: BILSTEIN-39677-v3  |  W712-95-SEAT-LEON-v2
+      - Parca kodu cikarlamazsa sadece -v{n} kullani
+    """
+    part_code = extract_part_code(base_sku, name)
     sku_counter[base_sku] = sku_counter.get(base_sku, 1) + 1
-    candidate = f'{base_sku}-v{sku_counter[base_sku]}'
+
+    def make(n):
+        c = f'{base_sku}-{part_code}-v{n}' if part_code else f'{base_sku}-v{n}'
+        return c[:100]
+
+    candidate = make(sku_counter[base_sku])
     while candidate.upper() in sku_index:
         sku_counter[base_sku] += 1
-        candidate = f'{base_sku}-v{sku_counter[base_sku]}'
+        candidate = make(sku_counter[base_sku])
     return candidate
 
 
@@ -313,7 +383,7 @@ def upsert_product(prod_cur, row: dict, brand_id, cat_id,
                 return pid, actual_sku, 'update_sku'
             else:
                 # Farkli urun, ayni SKU -> yeni suffix
-                actual_sku = unique_sku_suffix(raw_sku, sku_index, sku_counter)
+                actual_sku = unique_sku_suffix(raw_sku, name, sku_index, sku_counter)
 
     # --- Katman 2: Name + DataSource kontrolu (in-memory) ---
     name_key = name.lower()
