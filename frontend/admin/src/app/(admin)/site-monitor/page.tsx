@@ -150,6 +150,24 @@ export default function SiteMonitorPage() {
   const [nginxPathInput, setNginxPathInput] = useState("");
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("uptime");
+  const sseActiveRef = useRef(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/site-monitor/status`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { available: boolean } & MonitorEvent;
+      if (!data.available) return;
+      if (data.checkedAt === lastCheckedAtRef.current) return;
+      lastCheckedAtRef.current = data.checkedAt;
+      setStatus(data);
+      if (!sseActiveRef.current) {
+        setLiveEvents(prev => prev.some(e => e.checkedAt === data.checkedAt) ? prev : [data, ...prev].slice(0, 50));
+      }
+    } catch { /**/ }
+  }, []);
 
   const fetchLogs = useCallback(async (p: number, ps: number, f: UptimeFilter, sb: string, sd: SortDir) => {
     setLogsLoading(true);
@@ -212,47 +230,55 @@ export default function SiteMonitorPage() {
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
-      try {
-        const res = await fetch(`${API}/api/admin/site-monitor/stream`, {
-          headers: { Authorization: `Bearer ${getToken()}` }, signal: ctrl.signal,
-        });
-        if (!res.body) return;
-        setConnected(true);
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const parts = buf.split("\n\n");
-          buf = parts.pop() ?? "";
-          for (const part of parts) {
-            const line = part.startsWith("data: ") ? part.slice(6) : part;
-            if (!line.trim()) continue;
-            try {
-              const evt: MonitorEvent = JSON.parse(line);
-              lastCheckedAtRef.current = evt.checkedAt;
-              setStatus(evt);
-              setLiveEvents(prev => [evt, ...prev].slice(0, 50));
-              fetchLogs(1, 50, "all", "checkedAt", "desc");
-            } catch { /**/ }
+      while (!ctrl.signal.aborted) {
+        try {
+          const res = await fetch(`${API}/api/admin/site-monitor/stream`, {
+            headers: { Authorization: `Bearer ${getToken()}` }, signal: ctrl.signal,
+          });
+          if (!res.body) { await new Promise(r => setTimeout(r, 5000)); continue; }
+          setConnected(true);
+          sseActiveRef.current = true;
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const parts = buf.split("\n\n");
+            buf = parts.pop() ?? "";
+            for (const part of parts) {
+              const line = part.startsWith("data: ") ? part.slice(6) : part;
+              if (!line.trim()) continue;
+              try {
+                const evt: MonitorEvent = JSON.parse(line);
+                lastCheckedAtRef.current = evt.checkedAt;
+                setStatus(evt);
+                setLiveEvents(prev => [evt, ...prev].slice(0, 50));
+                fetchLogs(1, 50, "all", "checkedAt", "desc");
+              } catch { /**/ }
+            }
           }
-        }
-      } catch { /**/ } finally { setConnected(false); }
+        } catch { /**/ }
+        setConnected(false);
+        sseActiveRef.current = false;
+        if (!ctrl.signal.aborted) await new Promise(r => setTimeout(r, 5000));
+      }
     })();
     return () => ctrl.abort();
-  }, []); // eslint-disable-line
+  }, [fetchLogs]); // eslint-disable-line
 
   useEffect(() => {
     const id = setInterval(() => {
+      fetchStatus();
       fetchLogs(page, pageSize, uptimeFilter, sortBy, sortDir);
       if (activeTab === "nginx") fetchNginxLogs(nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath);
     }, 27_000);
     return () => clearInterval(id);
-  }, [fetchLogs, fetchNginxLogs, activeTab, page, pageSize, uptimeFilter, sortBy, sortDir, nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath]);
+  }, [fetchStatus, fetchLogs, fetchNginxLogs, activeTab, page, pageSize, uptimeFilter, sortBy, sortDir, nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath]);
 
   useEffect(() => {
+    fetchStatus();
     fetchLogs(1, 50, "all", "checkedAt", "desc");
     fetchNginxLogs(1, 100, "", "", "");
   }, []); // eslint-disable-line
