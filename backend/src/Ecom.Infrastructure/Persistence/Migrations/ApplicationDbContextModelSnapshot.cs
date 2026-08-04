@@ -2639,6 +2639,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<string>("GoogleId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("HasFullDataAccess")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 

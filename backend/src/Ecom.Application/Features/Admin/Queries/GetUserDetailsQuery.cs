@@ -19,6 +19,7 @@ public record AdminUserDetailsDto(
     DateTime CreatedDate,
     DateTime? LastLoginDate,
     bool CommercialConsent,
+    bool HasFullDataAccess,
     IEnumerable<string> Roles,
     IEnumerable<AdminUserAddressDto> Addresses,
     IEnumerable<AdminUserOrderDto> RecentOrders,
@@ -67,7 +68,7 @@ public class GetUserDetailsHandler(IApplicationDbContext db, ICurrentUserService
             {
                 u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl,
                 u.IsActive, u.EmailConfirmed, u.FailedLoginCount, u.LockoutUntil,
-                u.CreatedDate, u.LastLoginDate, u.CommercialConsent
+                u.CreatedDate, u.LastLoginDate, u.CommercialConsent, u.HasFullDataAccess
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -103,7 +104,7 @@ public class GetUserDetailsHandler(IApplicationDbContext db, ICurrentUserService
         return new AdminUserDetailsDto(
             user.Id, user.Name, user.Surname, user.Email, user.PhoneNumber, user.AvatarUrl,
             user.IsActive, user.EmailConfirmed, user.FailedLoginCount, user.LockoutUntil,
-            user.CreatedDate, user.LastLoginDate, user.CommercialConsent,
+            user.CreatedDate, user.LastLoginDate, user.CommercialConsent, user.HasFullDataAccess,
             roles, addresses, orders,
             stats?.Count ?? 0, stats?.Total ?? 0m
         );

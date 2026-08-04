@@ -62,7 +62,7 @@ public class GetModuleStatsQueryHandler(IApplicationDbContext db, ICurrentUserSe
 {
     public async Task<ModuleStatsDto> Handle(GetModuleStatsQuery request, CancellationToken cancellationToken)
     {
-        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var isSuperAdmin = currentUser.HasEffectiveFullAccess;
         var adminId = currentUser.UserId;
 
         var now = DateTime.UtcNow;

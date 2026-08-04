@@ -6,11 +6,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate, resolveMediaUrl } from "@/lib/utils";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, ShieldCheck,
   Package, MapPin, ToggleLeft, ToggleRight, AlertTriangle,
   ChevronRight, Clock, CheckCircle2, XCircle, ShieldAlert,
-  Banknote, Star,
+  Banknote, Star, Database,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -28,6 +29,7 @@ interface UserDetails {
   createdDate: string;
   lastLoginDate?: string;
   commercialConsent: boolean;
+  hasFullDataAccess: boolean;
   roles: string[];
   addresses: AddressItem[];
   recentOrders: OrderItem[];
@@ -92,12 +94,16 @@ export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
   const userId = params.id as string;
+  const { user: authUser } = useAdminAuth();
+  const viewerIsSuperAdmin = authUser?.roles?.includes("SuperAdmin") ?? false;
 
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggleModal, setToggleModal] = useState(false);
   const [, setToggling] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [dataAccessModal, setDataAccessModal] = useState(false);
+  const [dataAccessLoading, setDataAccessLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -131,6 +137,22 @@ export default function UserDetailPage() {
     } finally {
       setToggling(false);
       setToggleModal(false);
+    }
+  }
+
+  async function handleToggleDataAccess() {
+    if (!user) return;
+    setDataAccessLoading(true);
+    try {
+      await api.patch(`/api/admin/users/${user.id}/full-data-access`, { grant: !user.hasFullDataAccess });
+      const granted = !user.hasFullDataAccess;
+      setMsg({ text: granted ? "Tam veri erişimi verildi." : "Tam veri erişimi kaldırıldı.", ok: true });
+      setUser(prev => prev ? { ...prev, hasFullDataAccess: granted } : prev);
+    } catch (e: unknown) {
+      setMsg({ text: e instanceof Error ? e.message : "İşlem başarısız.", ok: false });
+    } finally {
+      setDataAccessLoading(false);
+      setDataAccessModal(false);
     }
   }
 
@@ -234,6 +256,12 @@ export default function UserDetailPage() {
                   <Mail size={12} />
                   {user.emailConfirmed ? "E-posta Doğrulandı" : "E-posta Doğrulanmamış"}
                 </div>
+                {user.hasFullDataAccess && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">
+                    <Database size={12} />
+                    Tam Veri Erişimi Aktif
+                  </div>
+                )}
                 {isLocked && (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
                     <ShieldAlert size={12} />
@@ -268,6 +296,20 @@ export default function UserDetailPage() {
                   <ShieldCheck size={15} />
                   Rol Yönetimi
                 </Link>
+                {viewerIsSuperAdmin && user.roles.includes("Admin") && (
+                  <button
+                    onClick={() => setDataAccessModal(true)}
+                    disabled={dataAccessLoading}
+                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition ${
+                      user.hasFullDataAccess
+                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    }`}
+                  >
+                    <Database size={15} />
+                    {user.hasFullDataAccess ? "Tam Erişimi Kaldır" : "Tam Veri Erişimi Ver"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -399,6 +441,22 @@ export default function UserDetailPage() {
           confirmLabel={user.isActive ? "Pasife Al" : "Aktif Et"}
           onConfirm={() => { void handleToggleActive(); }}
           onCancel={() => setToggleModal(false)}
+        />
+      )}
+
+      {/* Full Data Access Confirm Modal */}
+      {dataAccessModal && (
+        <ConfirmModal
+          title={user.hasFullDataAccess ? "Tam Veri Erişimini Kaldır" : "Tam Veri Erişimi Ver"}
+          message={
+            user.hasFullDataAccess
+              ? `${user.name} ${user.surname} kullanıcısının tüm verilere erişimi kaldırılacak. Bu kullanıcı yalnızca kendi oluşturduğu verileri görecek.`
+              : `${user.name} ${user.surname} kullanıcısına tüm ürün, sipariş ve müşteri verilerine erişim verilecek. Bu kullanıcının tekrar giriş yapması gerekir.`
+          }
+          danger={user.hasFullDataAccess}
+          confirmLabel={user.hasFullDataAccess ? "Erişimi Kaldır" : "Erişim Ver"}
+          onConfirm={() => { void handleToggleDataAccess(); }}
+          onCancel={() => setDataAccessModal(false)}
         />
       )}
     </div>

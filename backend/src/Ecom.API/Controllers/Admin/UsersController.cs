@@ -74,6 +74,15 @@ public class UsersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("{id:guid}/full-data-access")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> ToggleFullDataAccess(Guid id, [FromBody] ToggleFullDataAccessRequest req, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ToggleFullDataAccessCommand(id, req.Grant), ct);
+        if (!result.Succeeded) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
@@ -86,4 +95,9 @@ public class UsersController(IMediator mediator) : ControllerBase
 public class UpdateUserRolesRequest
 {
     public IEnumerable<string> Roles { get; set; } = [];
+}
+
+public class ToggleFullDataAccessRequest
+{
+    public bool Grant { get; set; }
 }

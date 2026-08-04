@@ -47,6 +47,11 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         GetClaimValues("isSuperAdmin").Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase)) ||
         Roles.Any(r => r.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase));
 
+    public bool HasFullDataAccess =>
+        GetClaimValues("hasFullDataAccess").Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase));
+
+    public bool HasEffectiveFullAccess => IsSuperAdmin || HasFullDataAccess;
+
     public string? IpAddress
     {
         get

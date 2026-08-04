@@ -7,6 +7,8 @@ public interface ICurrentUserService
     IEnumerable<string> Roles { get; }
     bool IsAuthenticated { get; }
     bool IsSuperAdmin { get; }
+    bool HasFullDataAccess { get; }
+    bool HasEffectiveFullAccess { get; }
     string? IpAddress { get; }
     string? SessionId { get; }
     string? UserAgent { get; }

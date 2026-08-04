@@ -32,6 +32,11 @@ public class JwtService(IConfiguration configuration, LicenseJwtKey licenseKey) 
             claims.Add(new Claim("isSuperAdmin", "true"));
         }
 
+        if (user.HasFullDataAccess)
+        {
+            claims.Add(new Claim("hasFullDataAccess", "true"));
+        }
+
         var expireMinutes = int.Parse(configuration["Jwt:ExpireMinutes"] ?? "60");
         var token = new JwtSecurityToken(
             issuer: configuration["Jwt:Issuer"],

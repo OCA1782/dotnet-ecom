@@ -68,7 +68,7 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         else if (request.OnlyActive == true)
             query = query.Where(p => p.IsActive);
 
-        if (request.AdminView && !currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (request.AdminView && !currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             query = query.Where(p => p.ImportedFromSourceId != null || p.CreatedByAdminId == currentUser.UserId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))

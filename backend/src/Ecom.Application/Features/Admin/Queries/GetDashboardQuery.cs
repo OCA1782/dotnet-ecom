@@ -59,7 +59,7 @@ public class GetDashboardHandler(IApplicationDbContext db, IDapperQueryService d
 
     public async Task<DashboardDto> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
     {
-        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var isSuperAdmin = currentUser.HasEffectiveFullAccess;
         var adminId = currentUser.UserId;
         var cacheUserKey = isSuperAdmin ? "super" : adminId?.ToString() ?? "unknown";
         var cacheKey = $"dashboard:stats:{cacheUserKey}";
