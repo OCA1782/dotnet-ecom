@@ -1479,7 +1479,7 @@ export default function AdminProductsPage() {
                       <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                         {p.imageUrl
                           ? <img src={p.imageUrl} alt={p.name} className="object-contain w-full h-full p-0.5" /> // eslint-disable-line @next/next/no-img-element
-                          : <span className="text-base">📦</span>}
+                          : <img src="/autoforcepart-no-image.png" alt="Görsel yok" className="object-contain w-full h-full p-0.5" />} {/* eslint-disable-line @next/next/no-img-element */}
                       </div>
                       <p className="font-medium text-slate-900 max-w-[180px] truncate text-xs">{p.name}</p>
                     </div>

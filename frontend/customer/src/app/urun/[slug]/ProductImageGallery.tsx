@@ -76,8 +76,9 @@ export default function ProductImageGallery({ images, productName }: Props) {
 
   if (images.length === 0) {
     return (
-      <div className="aspect-square bg-slate-100 rounded-2xl flex items-center justify-center">
-        <span className="text-6xl">📦</span>
+      <div className="aspect-square bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-8" />
       </div>
     );
   }
@@ -93,9 +94,9 @@ export default function ProductImageGallery({ images, productName }: Props) {
           onTouchEnd={onTouchEnd}
         >
           {imgError ? (
-            <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-slate-300">
-              <span className="text-5xl">📦</span>
-              <span className="text-xs">Görsel yüklenemedi</span>
+            <div className="flex items-center justify-center w-full h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/autoforcepart-no-image.png" alt="Görsel yüklenemedi" className="object-contain w-full h-full p-8" />
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

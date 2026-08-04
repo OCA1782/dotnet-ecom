@@ -76,7 +76,8 @@ export default function ProductPreview({ form, images, brands, initialStock }: P
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={mainImage} alt={form.name} className="object-contain w-full h-full p-4" />
                 ) : (
-                  <span className="text-4xl">📦</span>
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
                 )}
               </div>
             </div>
@@ -140,7 +141,8 @@ export default function ProductPreview({ form, images, brands, initialStock }: P
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={mainImage} alt={form.name} className="object-contain w-full h-full p-4" />
               ) : (
-                <span className="text-5xl">📦</span>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
               )}
             </div>
 
