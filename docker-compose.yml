@@ -133,6 +133,7 @@ services:
       - uploads:/app/wwwroot/uploads
       - docs:/app/docs
       - /opt/ecom/.git:/app/.git:ro
+      - /var/log/nginx:/var/log/nginx:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 15s

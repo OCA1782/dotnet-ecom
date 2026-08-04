@@ -104,6 +104,7 @@ export default function SiteMonitorPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [logsLoading, setLogsLoading] = useState(false);
   const [lastPoll, setLastPoll] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState(POLL_MS / 1000);
   const histPageRef = useRef(1);
 
   // ── Polling (birincil güncelleme yöntemi) ─────────────────────────────
@@ -166,6 +167,18 @@ export default function SiteMonitorPage() {
       clearInterval(id);
     };
   }, []); // tek seferlik mount
+
+  // ── Countdown — her saniye geri say, poll sonrası sıfırla ────────────
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setCountdown(prev => (prev <= 1 ? POLL_MS / 1000 : prev - 1));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
+    if (lastPoll) setCountdown(POLL_MS / 1000);
+  }, [lastPoll]);
 
   // ── Geçmiş sayfa değişince yenile ─────────────────────────────────────
   useEffect(() => {
@@ -249,11 +262,6 @@ export default function SiteMonitorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {lastPoll && (
-            <span className="text-xs text-slate-400">
-              Son güncelleme: {fmtTime(lastPoll.toISOString())}
-            </span>
-          )}
           {connected ? (
             <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -262,7 +270,7 @@ export default function SiteMonitorPage() {
           ) : (
             <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              Polling (25s)
+              Polling ({countdown}s)
             </span>
           )}
         </div>
