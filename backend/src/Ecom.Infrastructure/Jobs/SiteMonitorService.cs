@@ -12,12 +12,12 @@ public class SiteMonitorService(
     IServiceScopeFactory scopeFactory,
     ILogger<SiteMonitorService> logger) : BackgroundService
 {
-    private const string TargetUrl = "https://www.autoforcepart.com/";
+    private const string TargetBaseUrl = "https://www.autoforcepart.com/";
     private const int IntervalSeconds = 25;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("SiteMonitorService başladı — {Url} her {Interval}s kontrol edilecek", TargetUrl, IntervalSeconds);
+        logger.LogInformation("SiteMonitorService başladı — {Url} her {Interval}s kontrol edilecek", TargetBaseUrl, IntervalSeconds);
 
         // Başlangıç gecikmesi: diğer servisler hazırlanırken bekle
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
@@ -39,14 +39,28 @@ public class SiteMonitorService(
 
         try
         {
+            // Timestamp query param → Cloudflare cache miss every time (origin'e ulaşmak zorunda kalır)
+            var url = $"{TargetBaseUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true, NoStore = true };
+            req.Headers.Add("Pragma", "no-cache");
+
             using var client = httpFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(10));
-            var resp = await client.GetAsync(TargetUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             sw.Stop();
             httpCode = (int)resp.StatusCode;
             isUp = resp.IsSuccessStatusCode;
+
+            // CF cache durumunu loga ekle (HIT = origin'e ulaşılmadı uyarısı)
+            if (resp.Headers.TryGetValues("CF-Cache-Status", out var cfVals))
+            {
+                var cfStatus = string.Join(",", cfVals);
+                if (cfStatus is "HIT" or "STALE")
+                    errorMsg = $"CF-Cache-Status: {cfStatus} (origin kontrolü yapılamadı)";
+            }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -70,7 +84,7 @@ public class SiteMonitorService(
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             db.SiteUptimeLogs.Add(new SiteUptimeLog
             {
-                Url = TargetUrl,
+                Url = TargetBaseUrl,
                 IsUp = isUp,
                 HttpStatusCode = httpCode,
                 ResponseTimeMs = sw.ElapsedMilliseconds,

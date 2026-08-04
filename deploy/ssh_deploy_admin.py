@@ -23,8 +23,8 @@ print("\n=== docker compose build admin ===")
 r = run("cd /opt/ecom && docker compose build admin 2>&1 | tail -30", timeout=900)
 print(r)
 
-print("\n=== docker compose up -d admin ===")
-r = run("cd /opt/ecom && docker compose up -d admin 2>&1", timeout=60)
+print("\n=== docker compose up -d --no-deps admin ===")
+r = run("cd /opt/ecom && docker compose up -d --no-deps admin 2>&1", timeout=60)
 print(r)
 
 print("\n=== Container durumu ===")
