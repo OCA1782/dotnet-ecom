@@ -151,6 +151,12 @@ export default function SiteMonitorPage() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("uptime");
   const sseActiveRef = useRef(false);
+  const [countdown, setCountdown] = useState(25);
+  const countdownRef = useRef(25);
+  const resetCountdown = useCallback(() => {
+    countdownRef.current = 25;
+    setCountdown(25);
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -163,11 +169,12 @@ export default function SiteMonitorPage() {
       if (data.checkedAt === lastCheckedAtRef.current) return;
       lastCheckedAtRef.current = data.checkedAt;
       setStatus(data);
+      resetCountdown();
       if (!sseActiveRef.current) {
         setLiveEvents(prev => prev.some(e => e.checkedAt === data.checkedAt) ? prev : [data, ...prev].slice(0, 50));
       }
     } catch { /**/ }
-  }, []);
+  }, [resetCountdown]);
 
   const fetchLogs = useCallback(async (p: number, ps: number, f: UptimeFilter, sb: string, sd: SortDir) => {
     setLogsLoading(true);
@@ -254,6 +261,7 @@ export default function SiteMonitorPage() {
                 const evt: MonitorEvent = JSON.parse(line);
                 lastCheckedAtRef.current = evt.checkedAt;
                 setStatus(evt);
+                resetCountdown();
                 setLiveEvents(prev => [evt, ...prev].slice(0, 50));
                 fetchLogs(1, 50, "all", "checkedAt", "desc");
               } catch { /**/ }
@@ -266,7 +274,7 @@ export default function SiteMonitorPage() {
       }
     })();
     return () => ctrl.abort();
-  }, [fetchLogs]); // eslint-disable-line
+  }, [fetchLogs, resetCountdown]); // eslint-disable-line
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -282,6 +290,15 @@ export default function SiteMonitorPage() {
     fetchLogs(1, 50, "all", "checkedAt", "desc");
     fetchNginxLogs(1, 100, "", "", "");
   }, []); // eslint-disable-line
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = Math.max(0, countdownRef.current - 1);
+      countdownRef.current = next;
+      setCountdown(next);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const uptimePct = totalCount > 0 ? ((upCount / totalCount) * 100).toFixed(2) : null;
   const totalPages = Math.ceil(total / pageSize);
@@ -301,11 +318,15 @@ export default function SiteMonitorPage() {
         </div>
         {connected ? (
           <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Canlı
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Canlı
+            <span className="font-mono tabular-nums text-emerald-500">{countdown}s</span>
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Bağlanıyor...
+          <span className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
+            <RefreshCw size={11} className="animate-spin" />
+            Polling
+            <span className="font-mono tabular-nums text-blue-400">{countdown}s</span>
           </span>
         )}
       </div>
