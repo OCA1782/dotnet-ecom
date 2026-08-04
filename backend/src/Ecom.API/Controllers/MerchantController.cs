@@ -20,15 +20,15 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
         var (siteUrl, siteName) = await GetSiteInfoAsync(ct);
         var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl), ct);
 
-        var sb = new StringBuilder();
-        var settings = new XmlWriterSettings
+        using var ms = new MemoryStream();
+        var xmlSettings = new XmlWriterSettings
         {
             Encoding = Encoding.UTF8,
             Indent = false,
             OmitXmlDeclaration = false
         };
 
-        using (var writer = XmlWriter.Create(sb, settings))
+        using (var writer = XmlWriter.Create(ms, xmlSettings))
         {
             writer.WriteStartDocument();
             writer.WriteStartElement("rss");
@@ -78,7 +78,7 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
             writer.WriteEndDocument();
         }
 
-        return Content(sb.ToString(), "application/rss+xml", Encoding.UTF8);
+        return File(ms.ToArray(), "application/rss+xml; charset=utf-8");
     }
 
     // ── CSV Export (Admin auth) ────────────────────────────────────────────────
@@ -141,11 +141,11 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
     {
         var settings = await db.SiteSettings
             .AsNoTracking()
-            .Where(s => s.Key == "SiteUrl" || s.Key == "SiteName")
+            .Where(s => s.Key == "CustomerBaseUrl" || s.Key == "SiteName")
             .ToListAsync(ct);
 
-        var siteUrl  = settings.FirstOrDefault(s => s.Key == "SiteUrl")?.Value;
-        if (string.IsNullOrWhiteSpace(siteUrl)) siteUrl = "http://localhost:3000";
+        var siteUrl  = settings.FirstOrDefault(s => s.Key == "CustomerBaseUrl")?.Value;
+        if (string.IsNullOrWhiteSpace(siteUrl)) siteUrl = "https://www.autoforcepart.com";
         var siteName = settings.FirstOrDefault(s => s.Key == "SiteName")?.Value;
         if (string.IsNullOrWhiteSpace(siteName)) siteName = "Mağaza";
 
