@@ -23,6 +23,7 @@ type SuggestionItem = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
+const NO_IMAGE_URL = "/autoforcepart-no-image.png";
 
 export default function Header({ logoNamed, logoIcon, siteName, languageSwitcherEnabled = true }: { logoNamed?: string; logoIcon?: string; siteName?: string; languageSwitcherEnabled?: boolean }) {
   const { t } = useI18n();
@@ -315,13 +316,8 @@ export default function Header({ logoNamed, logoIcon, siteName, languageSwitcher
                                     onClick={() => handleSuggestionClick(item)}
                                     className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition ${activeIdx === globalIdx ? "bg-slate-50" : ""}`}
                                   >
-                                    {item.imageUrl ? (
-                                      <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
-                                        <Search size={14} className="text-slate-300" />
-                                      </div>
-                                    )}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={item.imageUrl || NO_IMAGE_URL} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-100" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
                                       {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}
@@ -415,13 +411,8 @@ export default function Header({ logoNamed, logoIcon, siteName, languageSwitcher
                           onClick={() => { handleSuggestionClick(item); setMobileSearchOpen(false); }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition border-b border-slate-50 last:border-b-0"
                         >
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} width={36} height={36} className="w-9 h-9 rounded-lg object-cover shrink-0 bg-slate-100" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center">
-                              <Search size={13} className="text-slate-300" />
-                            </div>
-                          )}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.imageUrl || NO_IMAGE_URL} alt={item.name} width={36} height={36} className="w-9 h-9 rounded-lg object-cover shrink-0 bg-slate-100" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
                             {item.subText && <p className="text-xs text-slate-400 truncate">{item.subText}</p>}

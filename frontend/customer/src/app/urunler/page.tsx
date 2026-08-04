@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
+
+const NO_IMAGE_URL = "/autoforcepart-no-image.png";
 import { serverFetch } from "@/lib/server-fetch";
 import { getVehicleModels } from "@/lib/vehicle-models";
 import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";
@@ -409,11 +411,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                               isSP ? "bg-orange-500" : "bg-gradient-to-r from-orange-400 to-pink-500"
                             }`}>{t("prod2.list.on_sale")}</span>
                           )}
-                          {product.imageUrl ? (
-                            <Image src={product.imageUrl} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" />
-                          ) : (
-                            <span className="text-4xl">📦</span>
-                          )}
+                          <Image src={product.imageUrl || NO_IMAGE_URL} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" unoptimized={!product.imageUrl} />
                         </div>
                         <div className="p-3">
                           {product.brandName && (
@@ -464,11 +462,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     {isSP && product.availableStock > 0 && (
                       <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Stokta</span>
                     )}
-                    {product.imageUrl ? (
-                      <Image src={product.imageUrl} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" />
-                    ) : (
-                      <span className="text-4xl">📦</span>
-                    )}
+                    <Image src={product.imageUrl || NO_IMAGE_URL} alt={product.name} width={200} height={200} className="object-contain w-full h-full p-4" unoptimized={!product.imageUrl} />
                   </div>
                   <div className="p-3">
                     {product.brandName && (

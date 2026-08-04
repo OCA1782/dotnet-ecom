@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
+
+const NO_IMAGE_URL = "/autoforcepart-no-image.png";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -123,11 +125,13 @@ export default function ProductCard({ product, initialLiked = false, variant = "
           </svg>
         </button>
         <div className="aspect-square bg-gradient-to-b from-[#F0FBFA] to-white flex items-center justify-center overflow-hidden">
-          {product.imageUrl ? (
-            <Image src={product.imageUrl} alt={product.name} width={300} height={300} className="object-contain w-full h-full p-3 sm:p-4" />
-          ) : (
-            <span className="text-5xl">📦</span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.imageUrl || NO_IMAGE_URL}
+            alt={product.name}
+            className="object-contain w-full h-full p-3 sm:p-4"
+            onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }}
+          />
         </div>
       </Link>
 
