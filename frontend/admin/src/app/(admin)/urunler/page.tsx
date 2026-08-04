@@ -12,6 +12,10 @@ import { PreviewPanel, PreviewToggleButton } from "@/components/previews/Preview
 import ProductPreview from "@/components/previews/ProductPreview";
 import { useI18n } from "@/contexts/I18nContext";
 
+const NO_IMAGE_URL = "/autoforcepart-no-image.png";
+const STALE_PLACEHOLDER = "https://www.onlineyedekparca.com/img/product-no-image.png";
+function safeImg(url?: string | null) { return (!url || url === STALE_PLACEHOLDER) ? NO_IMAGE_URL : url; }
+
 interface Category { id: string; name: string; slug: string; parentCategoryId?: string; subCategories?: Category[]; }
 
 function flattenCategories(cats: Category[]): Category[] {
@@ -1245,7 +1249,7 @@ export default function AdminProductsPage() {
                             </button>
                           )}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.imageUrl || "/autoforcepart-no-image.png"} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
+                          <img src={safeImg(p.imageUrl)} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
                           <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
                           {isCanonical && <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded shrink-0">Tut</span>}
                           <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
@@ -1478,7 +1482,7 @@ export default function AdminProductsPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.imageUrl || "/autoforcepart-no-image.png"} alt={p.name} className="object-contain w-full h-full p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
+                        <img src={safeImg(p.imageUrl)} alt={p.name} className="object-contain w-full h-full p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
                       </div>
                       <p className="font-medium text-slate-900 max-w-[180px] truncate text-xs">{p.name}</p>
                     </div>
@@ -2389,14 +2393,17 @@ export default function AdminProductsPage() {
                 <p className="text-xs font-semibold text-slate-700">{t("auto.fotograflar", "Fotoğraflar")}</p>
 
                 {productImages.length === 0 ? (
-                  <p className="text-xs text-slate-400">{t("auto.henuzFotografEklenmemis", "Henüz fotoğraf eklenmemiş.")}</p>
+                  <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center max-w-[120px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={NO_IMAGE_URL} alt="Görsel yok" className="object-contain w-full h-full p-2" />
+                  </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     {productImages.map(img => (
                       <div key={img.id} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${img.isMain ? "border-teal-400 bg-teal-50" : "border-slate-200 bg-white"}`}>
                         <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={img.imageUrl} alt={img.altText || ""} className="object-contain w-full h-full p-1" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
+                          <img src={safeImg(img.imageUrl)} alt={img.altText || ""} className="object-contain w-full h-full p-1" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
                         </div>
                         {img.isMain && (
                           <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">

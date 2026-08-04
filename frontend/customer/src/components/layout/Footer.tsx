@@ -54,7 +54,7 @@ function FooterBrandName({ name }: { name: string }) {
   const sub = words.length >= 3 ? words[words.length - 1] : null;
   return (
     <span className="flex flex-col" style={{ gap: "2px" }}>
-      <span style={{ fontFamily: "var(--font-pacifico, Georgia, serif)", fontWeight: 400, fontSize: "1.125rem", color: "#ffffff", lineHeight: 1.1 }}>
+      <span style={{ fontFamily: "var(--font-pacifico, Georgia, serif)", fontWeight: 400, fontSize: "1.5rem", color: "#ffffff", lineHeight: 1.1 }}>
         {main}
       </span>
       {sub && (
@@ -135,16 +135,20 @@ export default async function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5 mb-3 hover:opacity-85 transition-opacity">
+            <Link href="/" className="flex items-center gap-3 mb-3 hover:opacity-85 transition-opacity">
               {logoNamed ? (
-                // Named logo contains brand text — show it large without extra text
-                <div className="h-16 w-auto max-w-[220px] flex items-center shrink-0">
-                  <FooterLogoImg src={logoNamed} alt={siteName} />
-                </div>
+                // Named logo — 50% bigger: h-24 (96px)
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoNamed}
+                  alt={siteName}
+                  className="h-24 w-auto max-w-[240px] object-contain"
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
               ) : logoIcon ? (
                 // Icon logo — show icon + brand name text
                 <>
-                  <div className="h-14 w-14 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="h-20 w-20 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                     <FooterLogoImg src={logoIcon} alt={siteName} />
                   </div>
                   <FooterBrandName name={siteName} />

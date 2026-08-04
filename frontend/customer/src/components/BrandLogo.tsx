@@ -14,7 +14,7 @@ function parseBrandName(name: string): { main: string; sub: string | null } {
 const FONT_SIZE: Record<string, string> = {
   sm: "1.125rem",
   md: "1.5rem",
-  lg: "2rem",
+  lg: "2.5rem",
 };
 
 export default function BrandLogo({ name, size = "md" }: Props) {

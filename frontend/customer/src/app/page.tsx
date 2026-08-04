@@ -205,7 +205,7 @@ export default async function HomePage() {
             {/* ── Sağ içerik ── */}
             <div className="flex-1 min-w-0 flex flex-col gap-4">
 
-              {/* ── Hero Banner (onlineyedekparca.com stili) ── */}
+              {/* ── Hero Banner ── */}
               <div className="rounded-2xl overflow-hidden shadow-sm"
                 style={{ background: "linear-gradient(135deg, #0d1b2a 0%, #1a2744 55%, #0f3460 100%)" }}>
                 <div className="flex items-center justify-between px-6 py-7 lg:px-8 lg:py-8 relative">
@@ -441,7 +441,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* ── Güvence şeridi (referans: onlineyedekparca trust bar) ── */}
+        {/* ── Güvence şeridi ── */}
         <div className="bg-[#1c1f2e] border-t border-white/5">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
