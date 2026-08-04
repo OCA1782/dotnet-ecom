@@ -33,6 +33,7 @@ Kullanim:
 import argparse, re, time, logging, uuid, socket, threading, sys as _sys
 
 import psycopg2
+import psycopg2.errors
 
 # -- Konfigurasyon -------------------------------------------------------------
 CATALOGIQ_DSN = "host=127.0.0.1 port=5436 dbname=catalogiq user=catalogiq password=catalogiq"
@@ -441,20 +442,29 @@ def upsert_product(prod_cur, row: dict, brand_id, cat_id,
 
     slug = unique_slug(slugify(name), slug_set)
     pid  = str(uuid.uuid4())
-    prod_cur.execute('''
-        INSERT INTO "Products"
-          ("Id","Name","Slug","SKU","Barcode","Description","ShortDescription",
-           "BrandId","CategoryId","Price","Currency","TaxRate",
-           "ProductType","IsActive","IsPublished","IsFeatured","IsDeleted",
-           "DataSource","CreatedDate")
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,true,true,false,false,'catalogiq',NOW())
-        ON CONFLICT ("SKU") DO NOTHING
-        RETURNING "Id"
-    ''', (pid, name, slug, actual_sku or None, row.get('barcode'),
-          row.get('long_description'), row.get('short_description'),
-          brand_id, cat_id, price, row.get('currency') or 'TRY'))
 
-    inserted_row = prod_cur.fetchone()
+    inserted_row = None
+    for _slug_attempt in range(5):
+        try:
+            prod_cur.execute('''
+                INSERT INTO "Products"
+                  ("Id","Name","Slug","SKU","Barcode","Description","ShortDescription",
+                   "BrandId","CategoryId","Price","Currency","TaxRate",
+                   "ProductType","IsActive","IsPublished","IsFeatured","IsDeleted",
+                   "DataSource","CreatedDate")
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,true,true,false,false,'catalogiq',NOW())
+                ON CONFLICT ("SKU") DO NOTHING
+                RETURNING "Id"
+            ''', (pid, name, slug, actual_sku or None, row.get('barcode'),
+                  row.get('long_description'), row.get('short_description'),
+                  brand_id, cat_id, price, row.get('currency') or 'TRY'))
+            inserted_row = prod_cur.fetchone()
+            break
+        except psycopg2.errors.UniqueViolation:
+            # Slug çakışması — yeni suffix ile tekrar dene
+            slug_set.discard(slug)
+            slug = unique_slug(slugify(name) + '-alt', slug_set)
+            pid  = str(uuid.uuid4())
 
     if inserted_row:
         pid = str(inserted_row[0])
