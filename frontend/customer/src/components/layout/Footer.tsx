@@ -115,7 +115,7 @@ export default async function Footer() {
   ]);
 
   const siteName = settings.SiteName || "";
-  const logoUrl = settings.CustomerLogoIcon || settings.CustomerLogoNamed || undefined;
+  const logoUrl = settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined;
   const tagline = settings.Footer_Tagline || taglineLabel;
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
@@ -134,14 +134,14 @@ export default async function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-3">
+            <Link href="/" className="flex items-center gap-2.5 mb-3 hover:opacity-85 transition-opacity">
               {logoUrl && (
-                <div className="w-9 h-9 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                <div className="h-12 w-auto max-w-[160px] bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0 px-2">
                   <FooterLogoImg src={logoUrl} alt={siteName} />
                 </div>
               )}
               <FooterBrandName name={siteName} />
-            </div>
+            </Link>
             <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
               {tagline}
             </p>

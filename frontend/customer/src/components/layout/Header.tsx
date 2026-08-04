@@ -45,6 +45,7 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
   const [activeIdx, setActiveIdx] = useState(-1);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const [logoLoadError, setLogoLoadError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -212,13 +213,13 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4 gap-6 flex-wrap" data-header-inner>
             <Link href="/" data-slot="logo" className="flex-shrink-0 flex items-center gap-2">
-              {logoUrl ? (
+              {logoUrl && !logoLoadError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoUrl}
                   alt={siteName ?? "Mağaza"}
-                  style={{ height: "72px", width: "auto", maxWidth: "280px", objectFit: "contain" }}
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  style={{ height: "80px", width: "auto", maxWidth: "300px", objectFit: "contain" }}
+                  onError={() => setLogoLoadError(true)}
                 />
               ) : (
                 <BrandLogo name={siteName ?? ""} size="md" />
