@@ -24,7 +24,7 @@ type SuggestionItem = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
-export default function Header({ logoUrl, siteName, languageSwitcherEnabled = true }: { logoUrl?: string; siteName?: string; languageSwitcherEnabled?: boolean }) {
+export default function Header({ logoNamed, logoIcon, siteName, languageSwitcherEnabled = true }: { logoNamed?: string; logoIcon?: string; siteName?: string; languageSwitcherEnabled?: boolean }) {
   const { t } = useI18n();
   const { itemCount, fetchCart } = useCart();
   const { user, logout } = useAuth();
@@ -213,16 +213,29 @@ export default function Header({ logoUrl, siteName, languageSwitcherEnabled = tr
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4 gap-6 flex-wrap" data-header-inner>
             <Link href="/" data-slot="logo" className="flex-shrink-0 flex items-center gap-2">
-              {logoUrl && !logoLoadError ? (
+              {logoNamed && !logoLoadError ? (
+                // Named logo (includes brand text) — show large, no extra text
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={logoUrl}
+                  src={logoNamed}
                   alt={siteName ?? "Mağaza"}
-                  style={{ height: "80px", width: "auto", maxWidth: "300px", objectFit: "contain" }}
+                  className="h-16 sm:h-24 w-auto max-w-[300px] sm:max-w-[360px] object-contain"
                   onError={() => setLogoLoadError(true)}
                 />
+              ) : logoIcon ? (
+                // Icon logo — show icon + brand name text side by side
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoIcon}
+                    alt={siteName ?? "Mağaza"}
+                    className="h-14 sm:h-20 w-auto object-contain"
+                    onError={() => setLogoLoadError(true)}
+                  />
+                  <BrandLogo name={siteName ?? ""} size="md" />
+                </>
               ) : (
-                <BrandLogo name={siteName ?? ""} size="md" />
+                <BrandLogo name={siteName ?? ""} size="lg" />
               )}
             </Link>
 

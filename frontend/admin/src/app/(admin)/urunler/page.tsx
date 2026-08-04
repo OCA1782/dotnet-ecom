@@ -1245,7 +1245,7 @@ export default function AdminProductsPage() {
                             </button>
                           )}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          {p.imageUrl && <img src={p.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" />}
+                          <img src={p.imageUrl || "/autoforcepart-no-image.png"} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
                           <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
                           {isCanonical && <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded shrink-0">Tut</span>}
                           <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
@@ -1477,9 +1477,8 @@ export default function AdminProductsPage() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-                        {p.imageUrl
-                          ? <img src={p.imageUrl} alt={p.name} className="object-contain w-full h-full p-0.5" /> // eslint-disable-line @next/next/no-img-element
-                          : <img src="/autoforcepart-no-image.png" alt="Görsel yok" className="object-contain w-full h-full p-0.5" />} {/* eslint-disable-line @next/next/no-img-element */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.imageUrl || "/autoforcepart-no-image.png"} alt={p.name} className="object-contain w-full h-full p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
                       </div>
                       <p className="font-medium text-slate-900 max-w-[180px] truncate text-xs">{p.name}</p>
                     </div>
@@ -2397,7 +2396,7 @@ export default function AdminProductsPage() {
                       <div key={img.id} className={`rounded-xl border p-2 flex flex-col gap-1.5 ${img.isMain ? "border-teal-400 bg-teal-50" : "border-slate-200 bg-white"}`}>
                         <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={img.imageUrl} alt={img.altText || ""} className="object-contain w-full h-full p-1" />
+                          <img src={img.imageUrl} alt={img.altText || ""} className="object-contain w-full h-full p-1" onError={e => { (e.currentTarget as HTMLImageElement).src = "/autoforcepart-no-image.png"; }} />
                         </div>
                         {img.isMain && (
                           <span className="flex items-center gap-1 text-xs font-semibold text-teal-600">

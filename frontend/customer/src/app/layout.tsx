@@ -101,7 +101,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Spareparts şablonunda Header + araç nav şeridi birlikte sabitlenir */}
           <div className={template === "spareparts" ? "sticky top-0 z-50" : undefined}>
             <Header
-              logoUrl={settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined}
+              logoNamed={settings.CustomerLogoNamed || undefined}
+              logoIcon={settings.CustomerLogoIcon || undefined}
               siteName={siteName}
               languageSwitcherEnabled={languageSwitcherEnabled}
             />

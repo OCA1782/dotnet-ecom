@@ -115,7 +115,8 @@ export default async function Footer() {
   ]);
 
   const siteName = settings.SiteName || "";
-  const logoUrl = settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined;
+  const logoNamed = settings.CustomerLogoNamed || undefined;
+  const logoIcon = settings.CustomerLogoIcon || undefined;
   const tagline = settings.Footer_Tagline || taglineLabel;
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
@@ -135,12 +136,22 @@ export default async function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-3 hover:opacity-85 transition-opacity">
-              {logoUrl && (
-                <div className="h-12 w-auto max-w-[160px] bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0 px-2">
-                  <FooterLogoImg src={logoUrl} alt={siteName} />
+              {logoNamed ? (
+                // Named logo contains brand text — show it large without extra text
+                <div className="h-16 w-auto max-w-[220px] flex items-center shrink-0">
+                  <FooterLogoImg src={logoNamed} alt={siteName} />
                 </div>
+              ) : logoIcon ? (
+                // Icon logo — show icon + brand name text
+                <>
+                  <div className="h-14 w-14 bg-white rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                    <FooterLogoImg src={logoIcon} alt={siteName} />
+                  </div>
+                  <FooterBrandName name={siteName} />
+                </>
+              ) : (
+                <FooterBrandName name={siteName} />
               )}
-              <FooterBrandName name={siteName} />
             </Link>
             <p className="text-sm text-slate-400 mb-5 leading-relaxed whitespace-pre-line">
               {tagline}
