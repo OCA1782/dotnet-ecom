@@ -98,8 +98,10 @@ export default function SiteMonitorPage() {
   const [upCount, setUpCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [sseActive, setSseActive] = useState(false);
   const streamRef = useRef<AbortController | null>(null);
   const logListRef = useRef<HTMLDivElement>(null);
+  const lastCheckedAtRef = useRef<string | null>(null);
 
   const fetchLogs = useCallback(async (p: number) => {
     setLogsLoading(true);
@@ -129,11 +131,22 @@ export default function SiteMonitorPage() {
       });
       if (!res.ok) return;
       const data = await res.json() as { available: boolean } & MonitorEvent;
-      if (data.available) setStatus(data);
+      if (data.available && data.checkedAt !== lastCheckedAtRef.current) {
+        lastCheckedAtRef.current = data.checkedAt;
+        setStatus(data);
+        // SSE çalışmıyorsa polling ile de liveEvents güncelle
+        if (!sseActive) {
+          setLiveEvents(prev => {
+            const alreadyHas = prev.some(e => e.checkedAt === data.checkedAt);
+            if (alreadyHas) return prev;
+            return [data as MonitorEvent, ...prev].slice(0, 50);
+          });
+        }
+      }
     } catch {
       // ignore
     }
-  }, []);
+  }, [sseActive]);
 
   // SSE stream
   useEffect(() => {
@@ -149,6 +162,7 @@ export default function SiteMonitorPage() {
         });
         if (!res.body) return;
         setConnected(true);
+        setSseActive(true);
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -165,9 +179,9 @@ export default function SiteMonitorPage() {
             if (!line.trim()) continue;
             try {
               const evt: MonitorEvent = JSON.parse(line);
+              lastCheckedAtRef.current = evt.checkedAt;
               setStatus(evt);
               setLiveEvents(prev => [evt, ...prev].slice(0, 50));
-              // Silently refresh logs after each check
               fetchLogs(1);
             } catch {
               // ignore parse errors
@@ -178,11 +192,21 @@ export default function SiteMonitorPage() {
         // ignore
       } finally {
         setConnected(false);
+        setSseActive(false);
       }
     })();
 
     return () => ctrl.abort();
   }, [fetchLogs]);
+
+  // Polling fallback — her 27 saniyede bir /status ve /logs güncelle
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchStatus();
+      fetchLogs(1);
+    }, 27_000);
+    return () => clearInterval(id);
+  }, [fetchStatus, fetchLogs]);
 
   // Initial data load
   useEffect(() => {
@@ -214,7 +238,12 @@ export default function SiteMonitorPage() {
           {connected ? (
             <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Canlı
+              SSE Canlı
+            </span>
+          ) : status ? (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Polling (27s)
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
