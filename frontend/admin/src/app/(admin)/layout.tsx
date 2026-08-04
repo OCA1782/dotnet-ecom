@@ -72,6 +72,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/dokuman",      label: "Dokümanlar",    icon: BookOpen,        group: "sistem" },
   { href: "/deploy",       label: "Deploy",        icon: Rocket,          group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
   { href: "/ai-gorevler", label: "AI Görevler",   icon: Sparkles,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
+  { href: "/site-monitor", label: "Site İzleme",  icon: Activity,        group: "sistem",  allowedRoles: ["SuperAdmin","Admin"] },
 ];
 
 type NavGroup = { id: NavItem["group"]; label: string; iconName?: string };

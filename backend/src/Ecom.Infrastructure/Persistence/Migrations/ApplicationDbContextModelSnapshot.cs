@@ -2998,6 +2998,40 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.ToTable("StockNotifications");
                 });
 
+            modelBuilder.Entity("Ecom.Domain.Entities.SiteUptimeLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("HttpStatusCode")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsUp")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("ResponseTimeMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckedAt");
+
+                    b.HasIndex("IsUp");
+
+                    b.ToTable("SiteUptimeLogs");
+                });
+
             modelBuilder.Entity("Ecom.Infrastructure.Messaging.Sagas.OrderSagaState", b =>
                 {
                     b.Property<Guid>("CorrelationId")

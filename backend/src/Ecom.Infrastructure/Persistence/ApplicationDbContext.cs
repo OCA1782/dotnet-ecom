@@ -61,6 +61,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AiTask> AiTasks => Set<AiTask>();
     public DbSet<AiTaskImage> AiTaskImages => Set<AiTaskImage>();
     public DbSet<StockNotification> StockNotifications => Set<StockNotification>();
+    public DbSet<SiteUptimeLog> SiteUptimeLogs => Set<SiteUptimeLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

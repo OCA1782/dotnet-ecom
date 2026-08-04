@@ -57,6 +57,7 @@ public interface IApplicationDbContext
     DbSet<AiTask> AiTasks { get; }
     DbSet<AiTaskImage> AiTaskImages { get; }
     DbSet<StockNotification> StockNotifications { get; }
+    DbSet<SiteUptimeLog> SiteUptimeLogs { get; }
 
     void ClearChangeTracker();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
