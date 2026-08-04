@@ -137,14 +137,10 @@ export default async function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-3 hover:opacity-85 transition-opacity">
               {logoNamed ? (
-                // Named logo — 50% bigger: h-24 (96px)
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoNamed}
-                  alt={siteName}
-                  className="h-24 w-auto max-w-[240px] object-contain"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
+                // Named logo — 50% bigger: h-24 (96px), client component handles onError
+                <div className="h-24 flex items-center shrink-0">
+                  <FooterLogoImg src={logoNamed} alt={siteName} imgClassName="max-h-full w-auto object-contain max-w-[240px]" />
+                </div>
               ) : logoIcon ? (
                 // Icon logo — show icon + brand name text
                 <>
