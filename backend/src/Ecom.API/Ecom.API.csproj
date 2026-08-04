@@ -24,4 +24,10 @@
     <ProjectReference Include="..\Ecom.Application\Ecom.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Assets\autoforcepart-no-image.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

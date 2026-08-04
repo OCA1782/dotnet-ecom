@@ -12,7 +12,7 @@ import { PreviewPanel, PreviewToggleButton } from "@/components/previews/Preview
 import ProductPreview from "@/components/previews/ProductPreview";
 import { useI18n } from "@/contexts/I18nContext";
 
-const NO_IMAGE_URL = "/autoforcepart-no-image.png";
+const NO_IMAGE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124"}/uploads/autoforcepart-no-image.png`;
 const STALE_PLACEHOLDER = "https://www.onlineyedekparca.com/img/product-no-image.png";
 function safeImg(url?: string | null) { return (!url || url === STALE_PLACEHOLDER) ? NO_IMAGE_URL : url; }
 

@@ -243,6 +243,10 @@ app.UseMiddleware<ErrorLoggingMiddleware>();
 
 var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(Path.Combine(webRootPath, "uploads"));
+var noImageSrc = Path.Combine(app.Environment.ContentRootPath, "Assets", "autoforcepart-no-image.png");
+var noImageDst = Path.Combine(webRootPath, "uploads", "autoforcepart-no-image.png");
+if (File.Exists(noImageSrc) && !File.Exists(noImageDst))
+    File.Copy(noImageSrc, noImageDst);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath),
