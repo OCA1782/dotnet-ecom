@@ -7,6 +7,7 @@ using Ecom.Infrastructure.Messaging.Sagas;
 using Ecom.Infrastructure.Persistence;
 using Ecom.Infrastructure.Services;
 using MassTransit;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
