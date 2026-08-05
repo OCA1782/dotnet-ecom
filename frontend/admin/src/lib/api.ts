@@ -78,6 +78,16 @@ async function request<T>(path: string, options: RequestInit = {}, isRetry = fal
     }
   }
 
+  if (res.status === 429 && !isRetry) {
+    const retryAfterHeader = res.headers.get("Retry-After");
+    const waitSeconds = retryAfterHeader ? Math.min(parseInt(retryAfterHeader, 10), 30) : 5;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("api-rate-limited", { detail: { waitSeconds } }));
+    }
+    await new Promise<void>(r => setTimeout(r, waitSeconds * 1000));
+    return request<T>(path, options, true);
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as Record<string, string>;
     throw new Error(friendlyError(res.status, body));

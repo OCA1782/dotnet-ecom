@@ -195,6 +195,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [rateLimitVisible, setRateLimitVisible] = useState(false);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageGuides = useMemo(() => getPageGuides(lang), [lang]);
   useEffect(() => {
     const id = window.setTimeout(() => setMounted(true), 0);
@@ -210,6 +212,20 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const id = window.setTimeout(() => { setHelpOpen(false); setMobileNavOpen(false); }, 0);
     return () => window.clearTimeout(id);
   }, [pathname]);
+
+  useEffect(() => {
+    function onRateLimited(e: Event) {
+      const waitSeconds = (e as CustomEvent<{ waitSeconds: number }>).detail?.waitSeconds ?? 5;
+      setRateLimitVisible(true);
+      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+      rateLimitTimerRef.current = setTimeout(() => setRateLimitVisible(false), (waitSeconds + 3) * 1000);
+    }
+    window.addEventListener("api-rate-limited", onRateLimited);
+    return () => {
+      window.removeEventListener("api-rate-limited", onRateLimited);
+      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+    };
+  }, []);
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const t = e.target as Node;
@@ -837,6 +853,30 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           );
         })()}
       </div>
+      {rateLimitVisible && mounted && createPortal(
+        <div style={{
+          position: "fixed", bottom: "1.5rem", right: "1.5rem", zIndex: 99997,
+          background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "0.875rem",
+          padding: "0.75rem 1rem", boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+          display: "flex", alignItems: "center", gap: "0.625rem", maxWidth: "22rem",
+        }}>
+          <div style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", background: "#fed7aa",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Clock size={14} style={{ color: "#c2410c" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: "0.8125rem", fontWeight: 600, color: "#9a3412" }}>İstek Kısıtlandı</p>
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "#c2410c", lineHeight: 1.4 }}>Otomatik olarak tekrar deneniyor...</p>
+          </div>
+          <button
+            onClick={() => setRateLimitVisible(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#c2410c", padding: "0.25rem", borderRadius: "0.375rem", display: "flex" }}
+          >
+            <X size={14} />
+          </button>
+        </div>,
+        document.body
+      )}
       <SessionTimeoutWarning
         onRefresh={refreshSession}
         onLogout={() => { logout(); router.push("/giris"); }}

@@ -133,7 +133,7 @@ export default async function HomePage() {
   if (template === "spareparts") {
     const siteName = settings.SiteName || "Yedek Parça";
     const b2bText   = settings.Spareparts_B2BText     || "Servis ve bayi hesabı açın — özel fiyatlar, hızlı sipariş ve öncelikli destek";
-    const phone     = settings.Spareparts_Phone        || "0850 XXX XX XX";
+    const phone     = settings.Spareparts_Phone || settings.ContactPhone || "0850 XXX XX XX";
     const heroCount = settings.Spareparts_HeroCount    || "";
     const heroCountUnit = settings.Spareparts_HeroCountUnit || "";
     const heroSlogan = settings.Spareparts_HeroSlogan  || "TÜRKİYE'NİN EN BÜYÜK OTO PARÇA MAĞAZASI";

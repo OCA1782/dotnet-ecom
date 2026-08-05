@@ -30,10 +30,13 @@ export default function AddToCartButton({ productId, variants, availableStock }:
     return () => clearTimeout(timer);
   }, [message]);
 
-  const effectiveStock =
-    variants.length > 0
-      ? (variants.find((v) => v.id === selectedVariantId)?.availableStock ?? 0)
-      : availableStock;
+  const variantStockTotal = variants.reduce((sum, v) => sum + v.availableStock, 0);
+  const effectiveStock = (() => {
+    if (variants.length === 0) return availableStock;
+    if (variantStockTotal === 0) return availableStock; // all variants out of stock — fall back to product-level stock
+    if (!selectedVariantId) return 0; // must select a variant first
+    return variants.find((v) => v.id === selectedVariantId)?.availableStock ?? 0;
+  })();
 
   const needsVariant = variants.length > 1 && !selectedVariantId;
   const canAdd = effectiveStock > 0 && !needsVariant;

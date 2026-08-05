@@ -109,6 +109,16 @@ builder.Services.AddRateLimiter(opt =>
 {
     opt.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    // Return structured JSON on rejection so frontends can show a user-friendly message.
+    opt.OnRejected = async (ctx, ct) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json";
+        ctx.HttpContext.Response.StatusCode  = StatusCodes.Status429TooManyRequests;
+        await ctx.HttpContext.Response.WriteAsync(
+            "{\"error\":\"rate_limited\",\"message\":\"Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.\"}",
+            ct);
+    };
+
     // Auth endpoint'leri: IP başına 30 istek/dakika (brute-force koruması)
     opt.AddFixedWindowLimiter("auth", o =>
     {
@@ -118,13 +128,14 @@ builder.Services.AddRateLimiter(opt =>
         o.QueueLimit = 0;
     });
 
-    // Genel API: IP başına 120 istek/dakika
+    // Genel API: global 600 istek/dakika (10/sn) — bot ve scraper koruması.
+    // Admin panel 240s aralıklarla istek atar; meşru kullanım bu limiti dolduramaz.
     opt.AddFixedWindowLimiter("api", o =>
     {
-        o.PermitLimit = 120;
+        o.PermitLimit = 600;
         o.Window = TimeSpan.FromMinutes(1);
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit = 5;
+        o.QueueLimit = 10;
     });
 
     // Upload endpoint'i: 20 istek/dakika

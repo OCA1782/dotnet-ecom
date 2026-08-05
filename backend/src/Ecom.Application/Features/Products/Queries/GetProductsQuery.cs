@@ -73,20 +73,22 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var s = request.Search;
-            var sp = $"%{s}%";
+            var s     = request.Search.Trim();
+            var sNorm = TurkishToAscii(s);   // ş→s, ç→c, ğ→g, ü→u, ö→o, ı→i
+            var sp     = $"%{s}%";
+            var spNorm = $"%{sNorm}%";       // same as sp when no Turkish chars
 
             // Pre-fetch matching brand IDs — keeps Products filter as single-table predicate so GIN fires.
             var matchingBrandIds = await db.Brands
                 .AsNoTracking()
-                .Where(b => EF.Functions.ILike(b.Name, sp))
+                .Where(b => EF.Functions.ILike(b.Name, sp) || EF.Functions.ILike(b.Name, spNorm))
                 .Select(b => b.Id)
                 .ToListAsync(cancellationToken);
 
             // Pre-fetch matching category IDs — same pattern, avoids Hash Join.
             var matchingCategoryIds = await db.Categories
                 .AsNoTracking()
-                .Where(c => !c.IsDeleted && EF.Functions.ILike(c.Name, sp))
+                .Where(c => !c.IsDeleted && (EF.Functions.ILike(c.Name, sp) || EF.Functions.ILike(c.Name, spNorm)))
                 .Select(c => c.Id)
                 .ToListAsync(cancellationToken);
 
@@ -100,12 +102,13 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             // Pre-fetch external source IDs by name — covers ImportedFromSourceName column when DataSource is null.
             var matchingSourceIds = await db.ExternalSources
                 .AsNoTracking()
-                .Where(s => EF.Functions.ILike(s.Name, sp))
-                .Select(s => s.Id)
+                .Where(src => EF.Functions.ILike(src.Name, sp) || EF.Functions.ILike(src.Name, spNorm))
+                .Select(src => src.Id)
                 .ToListAsync(cancellationToken);
 
             query = query.Where(p =>
                 EF.Functions.ILike(p.Name, sp)
+                || EF.Functions.ILike(p.Name, spNorm)
                 || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
                 || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value))
                 || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
@@ -117,16 +120,20 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         // Vehicle model search — combined VehicleModel column + name word-boundary.
         // VehicleModel indexed column is checked first (fast); name patterns cover products
         // whose VehicleModel field is not yet populated. Both conditions run in a single query.
+        // All comparisons use ILike (case-insensitive) — EF's == and StartsWith generate
+        // case-sensitive SQL LIKE/= operators in PostgreSQL.
         if (!string.IsNullOrWhiteSpace(request.VehicleModel))
         {
-            var vm = request.VehicleModel.Trim();
+            var vm     = request.VehicleModel.Trim();
+            var vmNorm = TurkishToAscii(vm);
 
             query = query.Where(p =>
                 (p.VehicleModel != null && EF.Functions.ILike(p.VehicleModel, vm + "%"))
-                || p.Name == vm
-                || p.Name.StartsWith(vm + " ")
-                || p.Name.StartsWith(vm + "/")
-                || p.Name.StartsWith(vm + "-")
+                || (vmNorm != vm && p.VehicleModel != null && EF.Functions.ILike(p.VehicleModel, vmNorm + "%"))
+                || EF.Functions.ILike(p.Name, vm)
+                || EF.Functions.ILike(p.Name, vm + " %")
+                || EF.Functions.ILike(p.Name, vm + "/%")
+                || EF.Functions.ILike(p.Name, vm + "-%")
                 || EF.Functions.ILike(p.Name, $"% {vm} %")
                 || EF.Functions.ILike(p.Name, $"% {vm}")
                 || EF.Functions.ILike(p.Name, $"% {vm}/%")
@@ -140,16 +147,16 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
         // OEM search: checks OemPartNumber field (future imports) AND Name (existing data)
         if (!string.IsNullOrWhiteSpace(request.OemPartNo))
         {
-            var oemSearch = request.OemPartNo!;
+            var oemSp = $"%{request.OemPartNo!.Trim()}%";
             query = query.Where(p =>
-                (p.OemPartNumber != null && p.OemPartNumber.Contains(oemSearch))
-                || p.Name.Contains(oemSearch));
+                (p.OemPartNumber != null && EF.Functions.ILike(p.OemPartNumber, oemSp))
+                || EF.Functions.ILike(p.Name, oemSp));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Chassis))
         {
-            var chassisSearch = request.Chassis!;
-            query = query.Where(p => p.Chassis != null && p.Chassis.Contains(chassisSearch));
+            var chassisSp = $"%{request.Chassis!.Trim()}%";
+            query = query.Where(p => p.Chassis != null && EF.Functions.ILike(p.Chassis, chassisSp));
         }
 
         if (request.CategoryId.HasValue)
@@ -337,4 +344,20 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
     }
 
     private record AttrPair(string Key, string Value);
+
+    // Normalizes Turkish-specific characters to their ASCII equivalents so ILike
+    // patterns work when the user types with or without Turkish characters.
+    private static string TurkishToAscii(string value) => value
+        .Replace("İ", "I", StringComparison.Ordinal)
+        .Replace("ı", "i", StringComparison.Ordinal)
+        .Replace("Ş", "S", StringComparison.Ordinal)
+        .Replace("ş", "s", StringComparison.Ordinal)
+        .Replace("Ç", "C", StringComparison.Ordinal)
+        .Replace("ç", "c", StringComparison.Ordinal)
+        .Replace("Ğ", "G", StringComparison.Ordinal)
+        .Replace("ğ", "g", StringComparison.Ordinal)
+        .Replace("Ü", "U", StringComparison.Ordinal)
+        .Replace("ü", "u", StringComparison.Ordinal)
+        .Replace("Ö", "O", StringComparison.Ordinal)
+        .Replace("ö", "o", StringComparison.Ordinal);
 }
