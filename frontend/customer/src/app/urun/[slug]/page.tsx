@@ -70,8 +70,9 @@ export default async function ProductDetailPage({
 
   const displayPrice = product.discountPrice ?? product.price;
   const isSP = settings.CustomerTemplate === "spareparts";
-  const effectiveStock = product.variants.length > 0
-    ? product.variants.reduce((sum, v) => sum + v.availableStock, 0)
+  const variantStockTotal = product.variants.reduce((sum, v) => sum + v.availableStock, 0);
+  const effectiveStock = product.variants.length > 0 && variantStockTotal > 0
+    ? variantStockTotal
     : product.availableStock;
 
   return (
