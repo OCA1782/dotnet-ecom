@@ -60,7 +60,7 @@ function extractBaseModel(vehicleModel: string): string {
 async function getSuggestedProducts(searchTerm: string, limit = 8): Promise<ProductListItem[]> {
   try {
     const data = await serverFetch<PaginatedList<ProductListItem>>(
-      `/api/products?page=1&pageSize=${limit}&search=${encodeURIComponent(searchTerm)}`, 60
+      `/api/products?page=1&pageSize=${limit}&search=${encodeURIComponent(searchTerm)}`, 0
     );
     return data.items;
   } catch { return []; }
@@ -91,7 +91,7 @@ async function getProducts(params: Awaited<SearchParams>): Promise<PaginatedList
     else if (params.siralama === "fiyat-artan") qs.set("sortBy", "price-asc");
     else if (params.siralama === "fiyat-azalan") qs.set("sortBy", "price-desc");
     else if (params.siralama === "indirim") qs.set("sortBy", "discount-desc");
-    return await serverFetch<PaginatedList<ProductListItem>>(`/api/products?${qs}`, 60);
+    return await serverFetch<PaginatedList<ProductListItem>>(`/api/products?${qs}`, 0);
   } catch {
     return { items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false, hasPreviousPage: false };
   }
