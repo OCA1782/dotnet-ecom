@@ -107,7 +107,7 @@ function CanlıAkis() {
 
   useEffect(() => {
     const id = window.setTimeout(() => { void fetch(); }, 0);
-    const timer = setInterval(fetch, 10_000);
+    const timer = setInterval(fetch, 240_000);
     return () => {
       window.clearTimeout(id);
       clearInterval(timer);
