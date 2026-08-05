@@ -55,21 +55,24 @@ public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService
             "dataSource-desc"  => query.OrderByDescending(b => b.DataSource),
             _                  => query.OrderByDescending(b => b.CreatedDate),
         };
-        var items = await orderedQuery
+        var paged = orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(b => new BrandDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.Description, b.IsActive,
-                b.ImportedFromSourceId != null
-                    ? db.ExternalSources.Where(s => s.Id == b.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
-                    : null,
+            .Take(request.PageSize);
+
+        var items = await (
+            from b in paged
+            join s in db.ExternalSources on b.ImportedFromSourceId equals s.Id into sg
+            from s in sg.DefaultIfEmpty()
+            join u in db.Users on b.CreatedByAdminId equals u.Id into ug
+            from u in ug.DefaultIfEmpty()
+            select new BrandDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.Description, b.IsActive,
+                s != null ? s.Name : null,
                 b.CreatedDate,
                 b.DataSource,
-                b.CreatedByAdminId != null
-                    ? db.Users.Where(u => u.Id == b.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
-                    : null,
+                u != null ? u.Email : null,
                 b.ShowInVehicleNav,
-                b.VehicleModelsJson))
-            .ToListAsync(cancellationToken);
+                b.VehicleModelsJson)
+        ).ToListAsync(cancellationToken);
 
         return PaginatedList<BrandDto>.Create(items, total, request.Page, request.PageSize);
     }

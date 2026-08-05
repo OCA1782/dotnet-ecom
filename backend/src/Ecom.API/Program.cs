@@ -109,10 +109,10 @@ builder.Services.AddRateLimiter(opt =>
 {
     opt.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // Auth endpoint'leri: IP başına 10 istek/dakika (brute-force koruması)
+    // Auth endpoint'leri: IP başına 30 istek/dakika (brute-force koruması)
     opt.AddFixedWindowLimiter("auth", o =>
     {
-        o.PermitLimit = 10;
+        o.PermitLimit = 30;
         o.Window = TimeSpan.FromMinutes(1);
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit = 0;

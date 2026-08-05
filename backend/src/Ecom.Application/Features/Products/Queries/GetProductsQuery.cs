@@ -303,26 +303,35 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             _                  => query.OrderByDescending(p => p.CreatedDate),
         };
 
-        var items = await orderedQuery
+        var paged = orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(p => new ProductListItemDto(
+            .Take(request.PageSize);
+
+        var items = await (
+            from p in paged
+            join cat in db.Categories on p.CategoryId equals cat.Id into catg
+            from cat in catg.DefaultIfEmpty()
+            join br in db.Brands on p.BrandId equals br.Id into brg
+            from br in brg.DefaultIfEmpty()
+            join st in db.Stocks on p.Id equals st.ProductId into stg
+            from st in stg.DefaultIfEmpty()
+            join src in db.ExternalSources on p.ImportedFromSourceId equals src.Id into srcg
+            from src in srcg.DefaultIfEmpty()
+            join u in db.Users on p.CreatedByAdminId equals u.Id into ug
+            from u in ug.DefaultIfEmpty()
+            select new ProductListItemDto(
                 p.Id, p.Name, p.Slug, p.ShortDescription, p.SKU,
-                db.Categories.Where(c => c.Id == p.CategoryId).Select(c => c.Name).FirstOrDefault(),
-                db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
+                cat != null ? cat.Name : null,
+                br != null ? br.Name : null,
                 p.Price, p.DiscountPrice, p.Currency,
-                (int?)(db.Stocks.Where(s => s.ProductId == p.Id).Select(s => (int?)(s.Quantity - s.ReservedQuantity)).FirstOrDefault()) ?? 0,
+                st != null ? (int)(st.Quantity - st.ReservedQuantity) : 0,
                 db.ProductImages.Where(i => i.ProductId == p.Id && i.IsMain).Select(i => i.ImageUrl).FirstOrDefault(),
                 p.IsActive, p.IsPublished, p.IsFeatured,
-                p.ImportedFromSourceId != null
-                    ? db.ExternalSources.Where(s => s.Id == p.ImportedFromSourceId).Select(s => s.Name).FirstOrDefault()
-                    : null,
+                src != null ? src.Name : null,
                 p.CreatedDate,
                 p.DataSource,
-                request.AdminView && p.CreatedByAdminId != null
-                    ? db.Users.Where(u => u.Id == p.CreatedByAdminId).Select(u => u.Email).FirstOrDefault()
-                    : null))
-            .ToListAsync(cancellationToken);
+                request.AdminView && u != null ? u.Email : null)
+        ).ToListAsync(cancellationToken);
 
         return PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);
     }
