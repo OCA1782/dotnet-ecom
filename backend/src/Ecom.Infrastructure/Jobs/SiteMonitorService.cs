@@ -54,12 +54,17 @@ public class SiteMonitorService(
             httpCode = (int)resp.StatusCode;
             isUp = resp.IsSuccessStatusCode;
 
-            // CF cache durumunu loga ekle (HIT = origin'e ulaşılmadı uyarısı)
+            // CF-Cache-Status: HIT/STALE → Cloudflare önbellekten yanıt verdi, origin'e ulaşılamadı.
+            // Bu durumda site aslında erişilemez olabilir; isUp=false olarak işaretle.
             if (resp.Headers.TryGetValues("CF-Cache-Status", out var cfVals))
             {
                 var cfStatus = string.Join(",", cfVals);
                 if (cfStatus is "HIT" or "STALE")
-                    errorMsg = $"CF-Cache-Status: {cfStatus} (origin kontrolü yapılamadı)";
+                {
+                    isUp = false;
+                    errorMsg = $"⚠ Cloudflare önbellekten yanıt: CF-Cache-Status={cfStatus}. Origin sunucuya ulaşılamadı — site ziyaretçiler için erişilemez olabilir.";
+                    logger.LogWarning("SiteMonitor: Cloudflare cache hit ({Status}) — origin doğrulanamadı. URL: {Url}", cfStatus, url);
+                }
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)

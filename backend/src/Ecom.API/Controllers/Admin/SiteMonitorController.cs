@@ -128,6 +128,37 @@ public class SiteMonitorController(
         return Ok(new { available = true, total, page, limit, entries = paged });
     }
 
+    [HttpGet("nginx-error-logs")]
+    public IActionResult GetNginxErrorLogs([FromQuery] int limit = 300)
+    {
+        limit = Math.Clamp(limit, 10, 1000);
+        const string logPath = "/var/log/nginx/error.log";
+        if (!System.IO.File.Exists(logPath))
+            return Ok(new { available = false, error = "Nginx hata logu bulunamadı. Docker volume mount kontrol edin.", lines = Array.Empty<object>() });
+
+        var rawLines = ReadLastLines(logPath, limit);
+        var parsed = rawLines.Select(ParseNginxErrorLine).ToList();
+        return Ok(new { available = true, total = parsed.Count, lines = parsed });
+    }
+
+    private static object ParseNginxErrorLine(string line)
+    {
+        // Format: 2024/01/01 12:34:56 [error] 1234#1234: *1 message
+        try
+        {
+            var levelStart = line.IndexOf('[');
+            var levelEnd = line.IndexOf(']', levelStart);
+            var dateTime = levelStart > 1 ? line[..(levelStart - 1)].Trim() : "";
+            var level = levelStart >= 0 && levelEnd > levelStart ? line[(levelStart + 1)..levelEnd] : "info";
+            var message = levelEnd >= 0 ? line[(levelEnd + 1)..].Trim() : line;
+            // Remove the pid#tid: *reqid prefix
+            var colonIdx = message.IndexOf(": ");
+            if (colonIdx > 0 && colonIdx < 40) message = message[(colonIdx + 2)..].Trim();
+            return new { dateTime, level, message, raw = line };
+        }
+        catch { return new { dateTime = "", level = "info", message = line, raw = line }; }
+    }
+
     [HttpGet("stream")]
     public async Task Stream(CancellationToken ct)
     {
