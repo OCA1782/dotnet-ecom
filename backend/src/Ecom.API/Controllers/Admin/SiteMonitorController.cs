@@ -137,25 +137,55 @@ public class SiteMonitorController(
         Response.Headers.Append("X-Accel-Buffering", "no");
 
         var subscriberId = Guid.NewGuid().ToString("N");
+        // SemaphoreSlim ensures heartbeat and event writes don't interleave.
+        var writeLock = new SemaphoreSlim(1, 1);
+
+        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var heartbeatTask = Task.Run(async () =>
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(heartbeatCts.Token))
+                {
+                    await writeLock.WaitAsync(heartbeatCts.Token);
+                    try
+                    {
+                        await Response.WriteAsync(": ping\n\n", heartbeatCts.Token);
+                        await Response.Body.FlushAsync(heartbeatCts.Token);
+                    }
+                    finally { writeLock.Release(); }
+                }
+            }
+            catch (OperationCanceledException) { }
+        }, heartbeatCts.Token);
+
         try
         {
             await foreach (var evt in hub.SubscribeAsync(subscriberId, ct))
             {
-                var json = JsonSerializer.Serialize(new
+                await writeLock.WaitAsync(ct);
+                try
                 {
-                    isUp = evt.IsUp,
-                    httpStatusCode = evt.HttpStatusCode,
-                    responseTimeMs = evt.ResponseTimeMs,
-                    errorMessage = evt.ErrorMessage,
-                    checkedAt = evt.CheckedAt,
-                });
-                await Response.WriteAsync($"data: {json}\n\n", ct);
-                await Response.Body.FlushAsync(ct);
+                    var json = JsonSerializer.Serialize(new
+                    {
+                        isUp = evt.IsUp,
+                        httpStatusCode = evt.HttpStatusCode,
+                        responseTimeMs = evt.ResponseTimeMs,
+                        errorMessage = evt.ErrorMessage,
+                        checkedAt = evt.CheckedAt,
+                    });
+                    await Response.WriteAsync($"data: {json}\n\n", ct);
+                    await Response.Body.FlushAsync(ct);
+                }
+                finally { writeLock.Release(); }
             }
         }
         catch (OperationCanceledException) { }
         finally
         {
+            await heartbeatCts.CancelAsync();
+            await heartbeatTask;
             hub.Unsubscribe(subscriberId);
         }
     }
