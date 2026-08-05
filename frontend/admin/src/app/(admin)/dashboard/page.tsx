@@ -517,6 +517,14 @@ function ModuleSummary({ modules }: { modules: ModuleStats }) {
   );
 }
 
+// Module-level cache — survives SPA route navigation within the session
+interface CacheSlot<T> { data: T; fetchedAt: number }
+const _dashCache: { stats?: CacheSlot<DashboardStats>; modules?: CacheSlot<ModuleStats> } = {};
+const STATS_TTL_MS = 240_000;
+const MODULES_TTL_MS = 300_000;
+const MODULES_STAGGER_MS = 1_200;
+const REFRESH_INTERVAL_S = 240;
+
 type Period = "today" | "week" | "month";
 
 export default function DashboardPage() {
@@ -528,43 +536,77 @@ export default function DashboardPage() {
     month: t("period.month", "Bu Ay"),
   };
 
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [modules, setModules] = useState<ModuleStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(() => _dashCache.stats?.data ?? null);
+  const [modules, setModules] = useState<ModuleStats | null>(() => _dashCache.modules?.data ?? null);
+  const [loading, setLoading] = useState(!_dashCache.stats);
   const [error, setError] = useState("");
-  const [refreshIn, setRefreshIn] = useState(240);
+  const [refreshIn, setRefreshIn] = useState(() => {
+    if (!_dashCache.stats) return REFRESH_INTERVAL_S;
+    return Math.max(Math.ceil((STATS_TTL_MS - (Date.now() - _dashCache.stats.fetchedAt)) / 1000), 1);
+  });
   const [period, setPeriod] = useState<Period>("today");
 
-  const fetchData = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const [data, mods] = await Promise.all([
-        api.get<DashboardStats>("/api/admin/dashboard"),
-        api.get<ModuleStats>("/api/admin/dashboard/modules"),
-      ]);
+      const data = await api.get<DashboardStats>("/api/admin/dashboard");
+      _dashCache.stats = { data, fetchedAt: Date.now() };
       setStats(data);
-      setModules(mods);
       setError("");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t("msg.error", "Bir hata oluştu"));
-    } finally {
-      setLoading(false);
     }
   }, [t]);
 
+  const fetchModules = useCallback(async () => {
+    try {
+      const mods = await api.get<ModuleStats>("/api/admin/dashboard/modules");
+      _dashCache.modules = { data: mods, fetchedAt: Date.now() };
+      setModules(mods);
+    } catch {
+      // keep existing module data on failure
+    }
+  }, []);
+
+  const loadData = useCallback(async (mode: "cache-first" | "force-refresh") => {
+    // Priority 1: Stats (critical — top-of-page KPIs, loads immediately)
+    const statsHit = mode === "cache-first"
+      && !!_dashCache.stats
+      && Date.now() - _dashCache.stats.fetchedAt < STATS_TTL_MS;
+    if (statsHit) {
+      setStats(_dashCache.stats!.data);
+      setError("");
+      setRefreshIn(Math.max(Math.ceil((STATS_TTL_MS - (Date.now() - _dashCache.stats!.fetchedAt)) / 1000), 1));
+    } else {
+      await fetchStats();
+      setRefreshIn(REFRESH_INTERVAL_S);
+    }
+    setLoading(false);
+
+    // Priority 2: Modules (non-critical — bottom section, staggered to avoid burst)
+    await new Promise<void>(resolve => setTimeout(resolve, MODULES_STAGGER_MS));
+    const modulesHit = mode === "cache-first"
+      && !!_dashCache.modules
+      && Date.now() - _dashCache.modules.fetchedAt < MODULES_TTL_MS;
+    if (modulesHit) {
+      setModules(_dashCache.modules!.data);
+    } else {
+      await fetchModules();
+    }
+  }, [fetchStats, fetchModules]);
+
   useEffect(() => {
-    const id = window.setTimeout(() => { void fetchData(); }, 0);
-    return () => window.clearTimeout(id);
-  }, [fetchData]);
+    void loadData("cache-first");
+  }, [loadData]);
 
   useEffect(() => {
     const iv = setInterval(() => {
       setRefreshIn(r => {
-        if (r <= 1) { fetchData(); return 240; }
+        if (r <= 1) { void loadData("force-refresh"); return REFRESH_INTERVAL_S; }
         return r - 1;
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [fetchData]);
+  }, [loadData]);
 
   const weekSalesRaw = (stats?.weeklyOrders ?? []).reduce((s, d) => s + d.revenue, 0);
   const weekOrdersRaw = (stats?.weeklyOrders ?? []).reduce((s, d) => s + d.orderCount, 0);
