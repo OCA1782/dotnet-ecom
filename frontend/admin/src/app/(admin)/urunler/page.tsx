@@ -394,6 +394,8 @@ export default function AdminProductsPage() {
   const [merchantStats, setMerchantStats] = useState<{ productCount: number; feedUrl: string } | null>(null);
   const [merchantCopied, setMerchantCopied] = useState(false);
   const [csvDownloading, setCsvDownloading] = useState(false);
+  const [merchantLimit, setMerchantLimit] = useState<number>(10_000);
+  const [merchantCustomInput, setMerchantCustomInput] = useState("");
 
   // Image management state
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -767,9 +769,13 @@ export default function AdminProductsPage() {
     } catch { /* stats opsiyonel */ }
   }
 
+  function buildFeedUrl(limit: number) {
+    const base = merchantStats?.feedUrl ?? `${window.location.origin.replace(/:\d+$/, ":5124")}/api/merchant/feed.xml`;
+    return `${base}?limit=${limit}`;
+  }
+
   async function handleCopyFeedUrl() {
-    const url = merchantStats?.feedUrl ?? `${window.location.origin.replace(/:\d+$/, ":5124")}/api/merchant/feed.xml`;
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(buildFeedUrl(merchantLimit));
     setMerchantCopied(true);
     setTimeout(() => setMerchantCopied(false), 2000);
   }
@@ -779,7 +785,7 @@ export default function AdminProductsPage() {
     try {
       const token = localStorage.getItem("admin_token");
       const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
-      const res = await fetch(`${apiBase}/api/admin/merchant/export.csv`, {
+      const res = await fetch(`${apiBase}/api/admin/merchant/export.csv?limit=${merchantLimit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error("İndirme başarısız");
@@ -787,7 +793,7 @@ export default function AdminProductsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `google-merchant-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `google-merchant-${merchantLimit}-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -2570,13 +2576,54 @@ export default function AdminProductsPage() {
               </button>
             </div>
 
+            {/* Ürün Sayısı Seçimi */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Aktarılacak Ürün Sayısı</p>
+              {merchantStats && (
+                <p className="text-[11px] text-slate-400">Toplam aktif ürün: <span className="font-semibold text-slate-600">{merchantStats.productCount.toLocaleString("tr-TR")}</span></p>
+              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {[10_000, 25_000, 50_000, 100_000].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => { setMerchantLimit(n); setMerchantCustomInput(""); }}
+                    className={`text-xs px-3 py-1.5 rounded-lg border font-semibold transition ${merchantLimit === n && !merchantCustomInput ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:border-blue-400"}`}
+                  >
+                    {(n / 1000).toFixed(0)}K
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5 flex-1 min-w-[130px]">
+                  <input
+                    type="number"
+                    min={1000}
+                    max={100000}
+                    step={1000}
+                    value={merchantCustomInput}
+                    onChange={e => {
+                      setMerchantCustomInput(e.target.value);
+                      const v = parseInt(e.target.value);
+                      if (!isNaN(v) && v >= 1000) setMerchantLimit(Math.min(100_000, v));
+                    }}
+                    placeholder="Özel sayı..."
+                    className={`text-xs border rounded-lg px-3 py-1.5 w-full focus:outline-none focus:border-blue-400 ${merchantCustomInput ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-blue-600 font-medium">
+                Seçili: {merchantLimit.toLocaleString("tr-TR")} ürün
+                {merchantStats && merchantLimit > merchantStats.productCount && (
+                  <span className="text-amber-600"> (aktif ürün sayısı {merchantStats.productCount.toLocaleString("tr-TR")} — tümü dahil edilecek)</span>
+                )}
+              </p>
+            </div>
+
             {/* XML Feed URL */}
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Otomatik Feed URL</p>
-              <p className="text-xs text-slate-500">Google Merchant Center &gt; Ürünler &gt; Feed'ler &gt; yeni feed &gt; bu URL'yi yapıştırın.</p>
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Feed URL</p>
+              <p className="text-xs text-slate-500">Google Merchant Center &gt; Ürünler &gt; Feed&apos;ler &gt; yeni feed &gt; bu URL&apos;yi yapıştırın.</p>
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 <code className="text-xs text-slate-700 flex-1 truncate">
-                  {merchantStats?.feedUrl ?? "yükleniyor..."}
+                  {merchantStats ? buildFeedUrl(merchantLimit) : "yükleniyor..."}
                 </code>
                 <button
                   onClick={handleCopyFeedUrl}
@@ -2590,7 +2637,7 @@ export default function AdminProductsPage() {
 
             {/* Manuel Export */}
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Manuel Export</p>
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Manuel Export — {merchantLimit.toLocaleString("tr-TR")} ürün</p>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={handleDownloadCsv}
@@ -2601,7 +2648,7 @@ export default function AdminProductsPage() {
                   TSV İndir
                 </button>
                 <a
-                  href={merchantStats?.feedUrl ?? "#"}
+                  href={merchantStats ? buildFeedUrl(merchantLimit) : "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
