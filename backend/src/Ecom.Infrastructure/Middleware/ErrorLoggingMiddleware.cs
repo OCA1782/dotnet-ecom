@@ -33,6 +33,10 @@ public class ErrorLoggingMiddleware(RequestDelegate next, ILogger<ErrorLoggingMi
                     context.Request.Path, null, reqPayload: reqPayload, respPayload: respPayload);
             }
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // Client disconnected — not an application error
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception on {Method} {Path}", context.Request.Method, context.Request.Path);

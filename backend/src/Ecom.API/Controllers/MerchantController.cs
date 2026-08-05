@@ -15,10 +15,11 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
     // ── XML Feed (AllowAnonymous — Google bunu periyodik olarak ceker) ─────────
     [HttpGet("/api/merchant/feed.xml")]
     [AllowAnonymous]
-    public async Task<IActionResult> XmlFeed(CancellationToken ct)
+    public async Task<IActionResult> XmlFeed([FromQuery] int limit = 10_000, CancellationToken ct = default)
     {
+        limit = Math.Clamp(limit, 1_000, 100_000);
         var (siteUrl, siteName) = await GetSiteInfoAsync(ct);
-        var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl), ct);
+        var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl, limit), ct);
 
         using var ms = new MemoryStream();
         var xmlSettings = new XmlWriterSettings
@@ -84,10 +85,11 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
     // ── CSV Export (Admin auth) ────────────────────────────────────────────────
     [HttpGet("/api/admin/merchant/export.csv")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> ExportCsv(CancellationToken ct)
+    public async Task<IActionResult> ExportCsv([FromQuery] int limit = 10_000, CancellationToken ct = default)
     {
+        limit = Math.Clamp(limit, 1_000, 100_000);
         var (siteUrl, _) = await GetSiteInfoAsync(ct);
-        var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl), ct);
+        var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl, limit), ct);
 
         var sb = new StringBuilder();
         sb.AppendLine("id\ttitle\tdescription\tlink\timage_link\tavailability\tprice\tsale_price\tbrand\tcondition\tgtin\tmpn\tgoogle_product_category");

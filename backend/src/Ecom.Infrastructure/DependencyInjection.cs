@@ -29,7 +29,11 @@ public static class DependencyInjection
             options.AddInterceptors(sp.GetRequiredService<SlowQueryInterceptor>());
             // Snapshot may be ahead of the DB during migrations — suppress the model-mismatch warning
             options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-            options.UseNpgsql(connStr, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
+            options.UseNpgsql(connStr, npgsql =>
+        {
+            npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+            npgsql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        });
         });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
@@ -86,7 +90,9 @@ public static class DependencyInjection
         services.AddScoped<IDeployService, DeployService>();
         services.AddScoped<ITotpService, TotpService>();
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-        services.AddDataProtection();
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new System.IO.DirectoryInfo("/app/dataprotection-keys"))
+            .SetApplicationName("Ecom");
 
         var redisConn = configuration.GetConnectionString("Redis");
         if (!string.IsNullOrWhiteSpace(redisConn))

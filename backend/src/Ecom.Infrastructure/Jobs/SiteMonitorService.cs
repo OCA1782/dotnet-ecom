@@ -12,12 +12,14 @@ public class SiteMonitorService(
     IServiceScopeFactory scopeFactory,
     ILogger<SiteMonitorService> logger) : BackgroundService
 {
-    private const string TargetBaseUrl = "https://www.autoforcepart.com/";
-    private const int IntervalSeconds = 25;
+    // /health endpoint: hafif (~2ms), SSR yok, Cloudflare bypass gerekmez
+    private const string HealthUrl = "https://api.autoforcepart.com/health";
+    private const int IntervalSeconds = 60;
+    private const int TimeoutSeconds = 30;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("SiteMonitorService başladı — {Url} her {Interval}s kontrol edilecek", TargetBaseUrl, IntervalSeconds);
+        logger.LogInformation("SiteMonitorService başladı — {Url} her {Interval}s kontrol edilecek", HealthUrl, IntervalSeconds);
 
         // Başlangıç gecikmesi: diğer servisler hazırlanırken bekle
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
@@ -39,39 +41,20 @@ public class SiteMonitorService(
 
         try
         {
-            // Timestamp query param → Cloudflare cache miss every time (origin'e ulaşmak zorunda kalır)
-            var url = $"{TargetBaseUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true, NoStore = true };
-            req.Headers.Add("Pragma", "no-cache");
-
             using var client = httpFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.Timeout = TimeSpan.FromSeconds(TimeoutSeconds);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(10));
-            var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            cts.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
+            var resp = await client.GetAsync(HealthUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             sw.Stop();
             httpCode = (int)resp.StatusCode;
             isUp = resp.IsSuccessStatusCode;
-
-            // CF-Cache-Status: HIT/STALE → Cloudflare önbellekten yanıt verdi, origin'e ulaşılamadı.
-            // Bu durumda site aslında erişilemez olabilir; isUp=false olarak işaretle.
-            if (resp.Headers.TryGetValues("CF-Cache-Status", out var cfVals))
-            {
-                var cfStatus = string.Join(",", cfVals);
-                if (cfStatus is "HIT" or "STALE")
-                {
-                    isUp = false;
-                    errorMsg = $"⚠ Cloudflare önbellekten yanıt: CF-Cache-Status={cfStatus}. Origin sunucuya ulaşılamadı — site ziyaretçiler için erişilemez olabilir.";
-                    logger.LogWarning("SiteMonitor: Cloudflare cache hit ({Status}) — origin doğrulanamadı. URL: {Url}", cfStatus, url);
-                }
-            }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             sw.Stop();
             isUp = false;
-            errorMsg = "Zaman aşımı (10s)";
+            errorMsg = $"Zaman aşımı ({TimeoutSeconds}s)";
         }
         catch (Exception ex)
         {
@@ -89,7 +72,7 @@ public class SiteMonitorService(
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             db.SiteUptimeLogs.Add(new SiteUptimeLog
             {
-                Url = TargetBaseUrl,
+                Url = HealthUrl,
                 IsUp = isUp,
                 HttpStatusCode = httpCode,
                 ResponseTimeMs = sw.ElapsedMilliseconds,
