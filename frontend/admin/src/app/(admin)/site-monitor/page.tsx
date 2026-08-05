@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, Fragment } from "react";
 import {
   Activity, Wifi, WifiOff, Clock, RefreshCw, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, Loader2, Zap, Globe, ChevronUp, ChevronDown,
-  Filter, Shield, Server, Search, X, AlertTriangle, Users, Eye,
+  Filter, Shield, Server, Search, X, AlertTriangle, Users, Eye, Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
 
@@ -59,7 +60,7 @@ interface NginxResponse {
 type SortDir = "asc" | "desc";
 type UptimeFilter = "all" | "up" | "down";
 type ActiveTab = "uptime" | "nginx";
-type NginxView = "list" | "ips";
+type NginxView = "list" | "ips" | "errors";
 
 function fmtTime(dt: string) {
   return new Date(dt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -139,13 +140,272 @@ function parseUA(ua: string): string {
 function categorizeError(log: UptimeLog): { label: string; color: "red" | "amber" | "slate" } {
   if (log.isUp) return { label: "", color: "slate" };
   const msg = (log.errorMessage ?? "").toLowerCase();
-  if (msg.includes("timeout") || msg.includes("timed out")) return { label: "Zaman Aşımı", color: "amber" };
+  if (msg.includes("cloudflare") || msg.includes("cf-cache")) return { label: "Cloudflare Önbellek", color: "amber" };
+  if (msg.includes("timeout") || msg.includes("timed out") || msg.includes("zaman aşımı")) return { label: "Zaman Aşımı", color: "amber" };
   if (msg.includes("refused") || msg.includes("connection")) return { label: "Bağlantı Reddedildi", color: "red" };
   if (msg.includes("dns") || msg.includes("resolve") || msg.includes("host")) return { label: "DNS Hatası", color: "red" };
   if (msg.includes("ssl") || msg.includes("tls") || msg.includes("cert")) return { label: "SSL/TLS Hatası", color: "red" };
   if (log.httpStatusCode && log.httpStatusCode >= 500) return { label: "Sunucu Hatası", color: "red" };
   if (log.httpStatusCode && log.httpStatusCode >= 400) return { label: "İstemci Hatası", color: "amber" };
   return { label: "Ağ Hatası", color: "red" };
+}
+
+function httpStatusDetail(sc: number | null): { meaning: string; description: string } {
+  if (!sc) return { meaning: "HTTP yanıt yok", description: "Sunucuya bağlantı kurulamadı veya istek zaman aşımına uğradı." };
+  if (sc === 200) return { meaning: "Başarılı", description: "İstek başarıyla tamamlandı." };
+  if (sc === 301 || sc === 302) return { meaning: "Yönlendirme", description: "Sayfa kalıcı/geçici olarak başka bir adrese yönlendiriliyor." };
+  if (sc === 400) return { meaning: "Geçersiz İstek", description: "Sunucu isteği anlayamadı." };
+  if (sc === 401) return { meaning: "Kimlik Doğrulama Gerekli", description: "Kaynağa erişim için kimlik doğrulama gerekiyor." };
+  if (sc === 403) return { meaning: "Erişim Engellendi", description: "Sunucu isteği reddetti. Firewall veya izin sorunu olabilir." };
+  if (sc === 404) return { meaning: "Sayfa Bulunamadı", description: "İstenen kaynak bulunamadı. Uygulama başlatılmamış veya yanlış yönlendirme." };
+  if (sc === 429) return { meaning: "Çok Fazla İstek", description: "Rate limiting devreye girdi." };
+  if (sc === 500) return { meaning: "Sunucu Hatası", description: "Uygulama iç hatası. Container çökmüş veya beklenmedik exception oluşmuş olabilir." };
+  if (sc === 502) return { meaning: "Bad Gateway", description: "nginx upstream'den (Docker uygulaması) geçersiz ya da hiç yanıt alamadı. Container durdurulmuş veya port yanlış." };
+  if (sc === 503) return { meaning: "Servis Kullanılamıyor", description: "Sunucu aşırı yük altında veya bakım modunda. Tüm worker'lar meşgul." };
+  if (sc === 504) return { meaning: "Gateway Timeout", description: "nginx, upstream'den belirlenen süre içinde yanıt alamadı. Uzun DB sorgusu veya uygulama askıda." };
+  if (sc >= 500) return { meaning: "Sunucu Hatası", description: `HTTP ${sc}: Sunucu taraflı beklenmedik hata.` };
+  if (sc >= 400) return { meaning: "İstemci Hatası", description: `HTTP ${sc}: İstemci taraflı hata.` };
+  return { meaning: `HTTP ${sc}`, description: "" };
+}
+
+function getErrorDetail(log: UptimeLog): {
+  category: string;
+  explanation: string;
+  causes: string[];
+  severity: "critical" | "high" | "medium";
+  recommendation: string;
+} | null {
+  if (log.isUp) return null;
+  const msg = (log.errorMessage ?? "").toLowerCase();
+
+  if (msg.includes("cloudflare") || msg.includes("cf-cache")) {
+    return {
+      category: "Cloudflare Önbellek (Origin Doğrulanamadı)",
+      explanation: "Cloudflare, origin sunucuya ulaşamadığı için önbellekten yanıt verdi. Site ziyaretçiler için erişilemez olabilir ancak Cloudflare HTTP 200 döndürdüğünden yanlışlıkla 'çevrimiçi' görünüyordu.",
+      causes: [
+        "Docker container durdurulmuş veya yeniden başlatılıyor",
+        "nginx upstream bağlantısı kesildi (502/504)",
+        "Cloudflare 'Always Online' özelliği origin erişilemez olduğunda devreye girdi",
+        "Sunucu kaynak yetersizliği (OOM kill, disk dolu)",
+        "network/firewall kuralı değişikliği",
+      ],
+      severity: "critical",
+      recommendation: "docker ps ve docker stats ile container durumunu kontrol edin. nginx loglarına bakın: sudo tail -100 /var/log/nginx/error.log",
+    };
+  }
+
+  if (msg.includes("timeout") || msg.includes("timed out") || msg.includes("zaman aşımı")) {
+    return {
+      category: "Zaman Aşımı",
+      explanation: "Sunucu belirlenen 10 saniye içinde yanıt vermedi. Bağlantı kurulabildi ancak yanıt gelmedi veya bağlantı hiç kurulamadı.",
+      causes: [
+        "Uygulama (Docker container) kilitlenmiş veya çok yavaş",
+        "Sunucu CPU/bellek aşırı yük altında",
+        "Veritabanı sorgusu askıda — deadlock veya uzun sorgu",
+        "Ağ gecikmesi veya paket kaybı",
+        "nginx proxy_read_timeout çok kısa ayarlanmış",
+      ],
+      severity: "high",
+      recommendation: "docker stats ile CPU/bellek kullanımını kontrol edin. Sonra: docker logs <container> --tail 50 komutunu çalıştırın.",
+    };
+  }
+
+  if (msg.includes("refused") || msg.includes("connection refused")) {
+    return {
+      category: "Bağlantı Reddedildi",
+      explanation: "Sunucu bağlantı isteğini aktif olarak reddetti. Hedef port dinlenmiyor veya firewall engelliyor.",
+      causes: [
+        "Uygulama servisi (Docker container) durmuş veya çökmüş",
+        "nginx durdurulmuş veya yeniden başlatılıyor",
+        "Port çakışması — aynı port başka bir process tarafından kullanılıyor",
+        "Firewall kuralı değiştirildi",
+      ],
+      severity: "critical",
+      recommendation: "docker ps ile container durumunu kontrol edin. Durmuşsa: docker compose up -d veya docker start <container>.",
+    };
+  }
+
+  if (msg.includes("dns") || msg.includes("resolve") || msg.includes("no such host")) {
+    return {
+      category: "DNS Çözümleme Hatası",
+      explanation: "Alan adı IP adresine çevrilemedi. DNS sunucusu cevap vermedi ya da alan adı kaydı bulunamadı.",
+      causes: [
+        "DNS kayıtları silinmiş veya değiştirilmiş",
+        "Alan adı süresi dolmuş (tescil yenilemesi yapılmadı)",
+        "Cloudflare DNS yapılandırması bozulmuş",
+        "İzleme sunucusunun DNS bağlantısı kesildi",
+      ],
+      severity: "critical",
+      recommendation: "Cloudflare dashboard → DNS bölümünü kontrol edin. Alan adı tescil panelinde süre dolmamış olduğunu doğrulayın.",
+    };
+  }
+
+  if (msg.includes("ssl") || msg.includes("tls") || msg.includes("certificate") || msg.includes("cert")) {
+    return {
+      category: "SSL/TLS Sertifika Hatası",
+      explanation: "HTTPS bağlantısı için gerekli SSL/TLS el sıkışması başarısız. Sertifika geçersiz, süresi dolmuş veya alan adıyla uyumsuz.",
+      causes: [
+        "SSL sertifikası süresi dolmuş (Let's Encrypt 90 günde bir yenilenir)",
+        "Certbot cron görevi çalışmıyor",
+        "Sertifika alan adıyla eşleşmiyor",
+        "Ara sertifika (intermediate CA) eksik",
+      ],
+      severity: "critical",
+      recommendation: "certbot certificates ile sertifika durumunu kontrol edin. Gerekirse: sudo certbot renew --force-renewal ve sudo nginx -s reload.",
+    };
+  }
+
+  if (log.httpStatusCode === 502) {
+    return {
+      category: "Bad Gateway (502)",
+      explanation: "nginx upstream'den (uygulamanızdan) geçersiz veya hiç yanıt alamadı. nginx çalışıyor ancak arkasındaki uygulama cevap vermiyor.",
+      causes: [
+        "Docker container çökmüş veya yeniden başlatılıyor",
+        "Uygulama OOM kill kurbanı oldu (bellek yetersiz)",
+        "nginx upstream adresi veya port yanlış yapılandırılmış",
+        "Container henüz başlatılıyor (soğuk başlatma süresi)",
+      ],
+      severity: "critical",
+      recommendation: "docker logs <api-container> --tail 100 ile son logları inceleyin. docker stats ile bellek kullanımını kontrol edin.",
+    };
+  }
+
+  if (log.httpStatusCode === 503) {
+    return {
+      category: "Servis Kullanılamıyor (503)",
+      explanation: "Sunucu isteği işleyecek kapasitede değil. Aşırı yük, bakım modu veya tüm upstream worker'lar meşgul.",
+      causes: [
+        "Sunucu aşırı yük (yüksek CPU veya bellek)",
+        "Bakım modu aktif",
+        "Tüm HTTP işlemciler dolu",
+        "Rate limiting devreye girdi",
+      ],
+      severity: "high",
+      recommendation: "Sunucu kaynak kullanımını kontrol edin: top veya htop. Gerekirse docker restart <container>.",
+    };
+  }
+
+  if (log.httpStatusCode === 504) {
+    return {
+      category: "Gateway Timeout (504)",
+      explanation: "nginx, uygulamanızdan belirlenen süre içinde yanıt alamadı. nginx ve container çalışıyor ancak istek işlenemedi.",
+      causes: [
+        "Uzun süren veritabanı sorgusu veya deadlock",
+        "Background job tüm thread'leri tıkıyor",
+        "nginx proxy_read_timeout çok kısa",
+        "Veritabanı bağlantı havuzu tükendi",
+      ],
+      severity: "high",
+      recommendation: "Veritabanında aktif sorguları kontrol edin. nginx proxy_read_timeout değerini artırmayı değerlendirin.",
+    };
+  }
+
+  if (log.httpStatusCode && log.httpStatusCode >= 500) {
+    return {
+      category: `Sunucu Hatası (${log.httpStatusCode})`,
+      explanation: "Sunucu isteği işlerken beklenmedik bir iç hatayla karşılaştı.",
+      causes: ["Uygulama hatası veya exception", "Eksik yapılandırma / ortam değişkeni", "Veritabanı bağlantı hatası"],
+      severity: "high",
+      recommendation: "docker logs <container> --tail 50 ile uygulama loglarını kontrol edin.",
+    };
+  }
+
+  return {
+    category: "Ağ / Bağlantı Hatası",
+    explanation: "Sunucuya bağlantı kurulamadı veya beklenmedik bir ağ hatası oluştu.",
+    causes: ["Geçici ağ kesintisi", "Sunucu yeniden başlatılıyor", "Ara ağ donanımı sorunu"],
+    severity: "medium",
+    recommendation: "Birkaç kontrol daha bekleyerek tekrarlayan hata olup olmadığını izleyin.",
+  };
+}
+
+function exportToTxt(content: string, filename: string) {
+  const blob = new Blob(["﻿" + content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportUptimeTxt(data: UptimeLog[]) {
+  const lines = [
+    "Site Uptime Log Raporu",
+    `Oluşturulma: ${new Date().toLocaleString("tr-TR")}`,
+    `Toplam kayıt: ${data.length}`,
+    "",
+    ["Tarih/Saat", "Durum", "HTTP", "Yanıt (ms)", "Kategori", "Hata Mesajı"].join("\t"),
+    "─".repeat(100),
+    ...data.map(l => [
+      fmtDateTime(l.checkedAt),
+      l.isUp ? "ÇEVRİMİÇİ" : "ÇEVRİMDIŞI",
+      l.httpStatusCode ?? "-",
+      l.responseTimeMs,
+      categorizeError(l).label || "-",
+      l.errorMessage ?? "",
+    ].join("\t")),
+  ];
+  exportToTxt(lines.join("\n"), `uptime-log-${new Date().toISOString().slice(0, 10)}.txt`);
+}
+
+function exportUptimeXlsx(data: UptimeLog[]) {
+  const rows = data.map(l => ({
+    "Tarih/Saat": fmtDateTime(l.checkedAt),
+    "Durum": l.isUp ? "Çevrimiçi" : "Çevrimdışı",
+    "HTTP Kodu": l.httpStatusCode ?? "",
+    "Yanıt Süresi (ms)": l.responseTimeMs,
+    "Hata Kategorisi": categorizeError(l).label || "",
+    "Hata Mesajı": l.errorMessage ?? "",
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 24 }, { wch: 80 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Uptime Geçmişi");
+  XLSX.writeFile(wb, `uptime-log-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function exportNginxTxt(data: NginxEntry[]) {
+  const lines = [
+    "Nginx Trafik Raporu",
+    `Oluşturulma: ${new Date().toLocaleString("tr-TR")}`,
+    `Toplam kayıt: ${data.length}`,
+    "",
+    ["Tarih/Saat", "Gerçek IP", "Method", "Status", "Path", "Boyut", "Host", "User-Agent", "Tehdit"].join("\t"),
+    "─".repeat(120),
+    ...data.map(e => {
+      const threat = detectThreat(e.path);
+      const realIp = (e.cfIp && e.cfIp !== "-") ? e.cfIp : e.remoteAddr;
+      return [fmtNginxTime(e.timeLocal), realIp, e.method, e.statusCode, e.path, formatBytes(e.bodyBytesSent), e.host !== "-" ? e.host : "", e.userAgent, threat.level ? `${threat.level.toUpperCase()}: ${threat.reason}` : ""].join("\t");
+    }),
+  ];
+  exportToTxt(lines.join("\n"), `nginx-log-${new Date().toISOString().slice(0, 10)}.txt`);
+}
+
+function exportNginxXlsx(data: NginxEntry[]) {
+  const rows = data.map(e => {
+    const threat = detectThreat(e.path);
+    const bot = detectBot(e.userAgent);
+    const realIp = (e.cfIp && e.cfIp !== "-") ? e.cfIp : e.remoteAddr;
+    return {
+      "Tarih/Saat": fmtNginxTime(e.timeLocal),
+      "Gerçek IP": realIp,
+      "nginx $remote_addr": e.remoteAddr,
+      "CF-Connecting-IP": e.cfIp !== "-" ? e.cfIp : "",
+      "Method": e.method,
+      "Path": e.path,
+      "HTTP Status": e.statusCode,
+      "Yanıt Boyutu (B)": e.bodyBytesSent,
+      "Host": e.host !== "-" ? e.host : "",
+      "User-Agent (tam)": e.userAgent,
+      "Tarayıcı/Bot": parseUA(e.userAgent),
+      "Bot Türü": bot ?? "",
+      "Tehdit Seviyesi": threat.level ?? "",
+      "Tehdit Nedeni": threat.reason,
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 8 }, { wch: 60 }, { wch: 10 }, { wch: 14 }, { wch: 24 }, { wch: 80 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 40 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Nginx Trafiği");
+  XLSX.writeFile(wb, `nginx-log-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function Sparkline({ events }: { events: MonitorEvent[] }) {
@@ -214,6 +474,11 @@ export default function SiteMonitorPage() {
   const [nginxPathInput, setNginxPathInput] = useState("");
   const [nginxView, setNginxView] = useState<NginxView>("list");
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [uptimeExpandedRow, setUptimeExpandedRow] = useState<string | null>(null);
+
+  const [nginxErrorLogs, setNginxErrorLogs] = useState<{ dateTime: string; level: string; message: string; raw: string }[]>([]);
+  const [nginxErrorAvailable, setNginxErrorAvailable] = useState<boolean | null>(null);
+  const [nginxErrorLoading, setNginxErrorLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("uptime");
   const sseActiveRef = useRef(false);
@@ -272,6 +537,19 @@ export default function SiteMonitorPage() {
       setNginxLogs(data.entries ?? []);
       setNginxTotal(data.total ?? 0);
     } catch { /**/ } finally { setNginxLoading(false); }
+  }, []);
+
+  const fetchNginxErrorLogs = useCallback(async (limit = 300) => {
+    setNginxErrorLoading(true);
+    try {
+      const res = await fetch(`${API}/api/admin/site-monitor/nginx-error-logs?limit=${limit}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { available: boolean; total: number; lines: { dateTime: string; level: string; message: string; raw: string }[] };
+      setNginxErrorAvailable(data.available ?? true);
+      setNginxErrorLogs(data.lines ?? []);
+    } catch { /**/ } finally { setNginxErrorLoading(false); }
   }, []);
 
   const handleSort = useCallback((field: string, dir: SortDir) => {
@@ -355,6 +633,7 @@ export default function SiteMonitorPage() {
     fetchStatus();
     fetchLogs(1, 50, "all", "checkedAt", "desc");
     fetchNginxLogs(1, 100, "", "", "");
+    fetchNginxErrorLogs();
   }, []); // eslint-disable-line
 
   useEffect(() => {
@@ -423,34 +702,55 @@ export default function SiteMonitorPage() {
       </div>
 
       {/* Status card */}
-      <div className={`rounded-2xl border p-6 flex items-center gap-6 shadow-sm ${!status ? "bg-slate-50 border-slate-200" : status.isUp ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-        <div className={`relative flex items-center justify-center w-20 h-20 rounded-full shrink-0 ${!status ? "bg-slate-200" : status.isUp ? "bg-emerald-500" : "bg-red-500"}`}>
-          {!status ? <Loader2 size={32} className="text-white animate-spin" />
-            : status.isUp ? (<><Wifi size={32} className="text-white" /><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30" /></>)
-            : <WifiOff size={32} className="text-white" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className={`text-3xl font-black tracking-tight ${!status ? "text-slate-400" : status.isUp ? "text-emerald-700" : "text-red-700"}`}>
-            {!status ? "Bekleniyor..." : status.isUp ? "ÇEVRİMİÇİ" : "ÇEVRİMDIŞI"}
+      {(() => {
+        const isCfCache = !status?.isUp && (status?.errorMessage ?? "").toLowerCase().includes("cloudflare");
+        const cardBg = !status ? "bg-slate-50 border-slate-200" : status.isUp ? "bg-emerald-50 border-emerald-200" : isCfCache ? "bg-amber-50 border-amber-300" : "bg-red-50 border-red-200";
+        const iconBg = !status ? "bg-slate-200" : status.isUp ? "bg-emerald-500" : isCfCache ? "bg-amber-500" : "bg-red-500";
+        const labelColor = !status ? "text-slate-400" : status.isUp ? "text-emerald-700" : isCfCache ? "text-amber-700" : "text-red-700";
+        const label = !status ? "Bekleniyor..." : status.isUp ? "ÇEVRİMİÇİ" : isCfCache ? "CLOUDFLARE ÖNBELLEK" : "ÇEVRİMDIŞI";
+        return (
+          <div className={`rounded-2xl border p-6 shadow-sm space-y-3 ${cardBg}`}>
+            <div className="flex items-center gap-6">
+              <div className={`relative flex items-center justify-center w-20 h-20 rounded-full shrink-0 ${iconBg}`}>
+                {!status ? <Loader2 size={32} className="text-white animate-spin" />
+                  : status.isUp ? (<><Wifi size={32} className="text-white" /><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30" /></>)
+                  : isCfCache ? <AlertTriangle size={32} className="text-white" />
+                  : <WifiOff size={32} className="text-white" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-3xl font-black tracking-tight ${labelColor}`}>{label}</div>
+                <div className="text-sm text-slate-500 mt-1">{status ? `Son kontrol: ${fmtTime(status.checkedAt)}` : "İlk kontrol bekleniyor (≤10s)"}</div>
+                {status?.errorMessage && (
+                  <div className={`mt-1 text-sm font-medium ${isCfCache ? "text-amber-700" : "text-red-600"}`}>{status.errorMessage}</div>
+                )}
+                {isCfCache && (
+                  <div className="mt-2 text-xs text-amber-800 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2 max-w-lg">
+                    <strong>Cloudflare önbellekten yanıt geldi.</strong> Origin sunucuya ulaşılamıyor olabilir. Docker container ve nginx durumunu kontrol edin. Ziyaretçiler siteye erişemeyebilir.
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-8 text-center shrink-0">
+                <div>
+                  <div className={`text-2xl font-bold ${status ? latencyColor(status.responseTimeMs) : "text-slate-400"}`}>{status ? `${status.responseTimeMs}ms` : "—"}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Yanıt Süresi</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-700">{status?.httpStatusCode ?? "—"}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">HTTP Kodu</div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${uptimePct && parseFloat(uptimePct) >= 99 ? "text-emerald-600" : "text-amber-600"}`}>{uptimePct ? `${uptimePct}%` : "—"}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Uptime</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 border-t border-slate-200/60 pt-2.5">
+              <Server size={10} className="shrink-0" />
+              <span>Bu kontrol sunucu üzerinden yapılmaktadır. Cloudflare yönlendirme sorunları veya belirli coğrafi bölgelerdeki erişim sorunları tespit edilemeyebilir.</span>
+            </div>
           </div>
-          <div className="text-sm text-slate-500 mt-1">{status ? `Son kontrol: ${fmtTime(status.checkedAt)}` : "İlk kontrol bekleniyor (≤10s)"}</div>
-          {status?.errorMessage && <div className="mt-1 text-sm text-red-600 font-medium">{status.errorMessage}</div>}
-        </div>
-        <div className="grid grid-cols-3 gap-8 text-center shrink-0">
-          <div>
-            <div className={`text-2xl font-bold ${status ? latencyColor(status.responseTimeMs) : "text-slate-400"}`}>{status ? `${status.responseTimeMs}ms` : "—"}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Yanıt Süresi</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-700">{status?.httpStatusCode ?? "—"}</div>
-            <div className="text-xs text-slate-500 mt-0.5">HTTP Kodu</div>
-          </div>
-          <div>
-            <div className={`text-2xl font-bold ${uptimePct && parseFloat(uptimePct) >= 99 ? "text-emerald-600" : "text-amber-600"}`}>{uptimePct ? `${uptimePct}%` : "—"}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Uptime</div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Live events + stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -547,10 +847,31 @@ export default function SiteMonitorPage() {
             )}
           </button>
           <div className="flex-1" />
+          {activeTab === "uptime" && logs.length > 0 && (<>
+            <button onClick={() => exportUptimeTxt(logs)} className="px-3 py-2 flex items-center gap-1 text-slate-400 hover:text-slate-600 transition text-xs" title="TXT olarak indir">
+              <Download size={12} />TXT
+            </button>
+            <button onClick={() => exportUptimeXlsx(logs)} className="px-3 py-2 flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition text-xs font-medium" title="Excel olarak indir">
+              <Download size={12} />Excel
+            </button>
+          </>)}
+          {activeTab === "nginx" && nginxLogs.length > 0 && (<>
+            <button onClick={() => exportNginxTxt(nginxLogs)} className="px-3 py-2 flex items-center gap-1 text-slate-400 hover:text-slate-600 transition text-xs" title="TXT olarak indir">
+              <Download size={12} />TXT
+            </button>
+            <button onClick={() => exportNginxXlsx(nginxLogs)} className="px-3 py-2 flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition text-xs font-medium" title="Excel olarak indir">
+              <Download size={12} />Excel
+            </button>
+          </>)}
+          <div className="w-px h-5 bg-slate-200 self-center mx-1" />
           <button
-            onClick={() => activeTab === "uptime" ? fetchLogs(page, pageSize, uptimeFilter, sortBy, sortDir) : fetchNginxLogs(nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath)}
+            onClick={() => {
+              if (activeTab === "uptime") fetchLogs(page, pageSize, uptimeFilter, sortBy, sortDir);
+              else if (nginxView === "errors") fetchNginxErrorLogs();
+              else fetchNginxLogs(nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath);
+            }}
             className="px-4 text-slate-400 hover:text-slate-600 transition" title="Yenile">
-            <RefreshCw size={14} className={(activeTab === "uptime" ? logsLoading : nginxLoading) ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={(activeTab === "uptime" ? logsLoading : nginxView === "errors" ? nginxErrorLoading : nginxLoading) ? "animate-spin" : ""} />
           </button>
         </div>
 
@@ -593,45 +914,130 @@ export default function SiteMonitorPage() {
                   <tr><td colSpan={5} className="py-12 text-center text-sm text-slate-400">Kayıt bulunamadı.</td></tr>
                 ) : logs.map(log => {
                   const errCat = categorizeError(log);
+                  const errDetail = getErrorDetail(log);
+                  const isExpanded = uptimeExpandedRow === log.id;
+                  const httpDet = httpStatusDetail(log.httpStatusCode);
                   return (
-                    <tr key={log.id} className={`transition-colors ${!log.isUp ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-slate-50/60"}`}>
-                      <td className="px-4 py-2.5">
-                        {log.isUp
-                          ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full"><CheckCircle2 size={10} />Çevrimiçi</span>
-                          : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"><XCircle size={10} />Çevrimdışı</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-600 font-mono text-xs whitespace-nowrap">{fmtDateTime(log.checkedAt)}</td>
-                      <td className="px-4 py-2.5">
-                        {log.httpStatusCode
-                          ? <span className={`font-mono text-xs font-bold ${statusColor(log.httpStatusCode)}`}>{log.httpStatusCode}</span>
-                          : <span className="text-slate-300 text-xs">—</span>}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-mono text-xs font-bold ${latencyColor(log.responseTimeMs)}`}>{log.responseTimeMs}ms</span>
-                          <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${latencyBg(log.responseTimeMs)}`} style={{ width: `${Math.min(100, (log.responseTimeMs / 2000) * 100)}%` }} />
+                    <Fragment key={log.id}>
+                      <tr
+                        className={`transition-colors ${!log.isUp ? "bg-red-50/30 hover:bg-red-50/60 cursor-pointer" : "hover:bg-slate-50/60"}`}
+                        onClick={() => { if (!log.isUp && errDetail) setUptimeExpandedRow(isExpanded ? null : log.id); }}
+                      >
+                        <td className="px-4 py-2.5">
+                          {log.isUp
+                            ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full"><CheckCircle2 size={10} />Çevrimiçi</span>
+                            : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"><XCircle size={10} />Çevrimdışı</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-600 font-mono text-xs whitespace-nowrap">{fmtDateTime(log.checkedAt)}</td>
+                        <td className="px-4 py-2.5">
+                          {log.httpStatusCode
+                            ? <span className={`font-mono text-xs font-bold ${statusColor(log.httpStatusCode)}`}>{log.httpStatusCode}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-mono text-xs font-bold ${latencyColor(log.responseTimeMs)}`}>{log.responseTimeMs}ms</span>
+                            <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${latencyBg(log.responseTimeMs)}`} style={{ width: `${Math.min(100, (log.responseTimeMs / 2000) * 100)}%` }} />
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {!log.isUp ? (
-                          <div className="space-y-1">
-                            {errCat.label && (
-                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                errCat.color === "red" ? "bg-red-100 text-red-700" : errCat.color === "amber" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
-                              }`}>
-                                <AlertTriangle size={9} />{errCat.label}
-                              </span>
-                            )}
-                            {log.errorMessage && (
-                              <div className="text-xs text-red-600 max-w-sm leading-relaxed">{log.errorMessage}</div>
-                            )}
-                            {!log.errorMessage && !errCat.label && <span className="text-slate-300 text-xs">—</span>}
-                          </div>
-                        ) : <span className="text-slate-200 text-xs">—</span>}
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {!log.isUp ? (
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="space-y-1 min-w-0">
+                                {errCat.label && (
+                                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    errCat.color === "red" ? "bg-red-100 text-red-700" : errCat.color === "amber" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+                                  }`}>
+                                    <AlertTriangle size={9} />{errCat.label}
+                                  </span>
+                                )}
+                                {log.errorMessage && (
+                                  <div className="text-xs text-red-600 max-w-sm leading-relaxed line-clamp-2">{log.errorMessage}</div>
+                                )}
+                                {!log.errorMessage && !errCat.label && <span className="text-slate-300 text-xs">—</span>}
+                              </div>
+                              {errDetail && (
+                                <span className="text-[10px] text-slate-400 hover:text-blue-500 shrink-0 font-medium">
+                                  {isExpanded ? "▲ Kapat" : "▼ Detay"}
+                                </span>
+                              )}
+                            </div>
+                          ) : <span className="text-slate-200 text-xs">—</span>}
+                        </td>
+                      </tr>
+
+                      {isExpanded && errDetail && (
+                        <tr className="bg-red-50/20">
+                          <td colSpan={5} className="px-5 pb-4 pt-0">
+                            <div className="bg-white rounded-xl border border-red-200 shadow-sm overflow-hidden mt-1">
+                              {/* Header */}
+                              <div className={`flex items-start gap-3 px-4 py-3 border-b ${errDetail.severity === "critical" ? "bg-red-50 border-red-200" : errDetail.severity === "high" ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+                                <AlertTriangle size={16} className={`mt-0.5 shrink-0 ${errDetail.severity === "critical" ? "text-red-600" : errDetail.severity === "high" ? "text-amber-600" : "text-slate-500"}`} />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-xs font-bold ${errDetail.severity === "critical" ? "text-red-700" : errDetail.severity === "high" ? "text-amber-700" : "text-slate-700"}`}>
+                                      {errDetail.category}
+                                    </span>
+                                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${errDetail.severity === "critical" ? "bg-red-200 text-red-800" : errDetail.severity === "high" ? "bg-amber-200 text-amber-800" : "bg-slate-200 text-slate-600"}`}>
+                                      {errDetail.severity === "critical" ? "Kritik" : errDetail.severity === "high" ? "Yüksek" : "Orta"}
+                                    </span>
+                                    {log.httpStatusCode && (
+                                      <span className="text-[10px] text-slate-500 font-mono">HTTP {log.httpStatusCode} — {httpDet.meaning}</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{errDetail.explanation}</p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+                                {/* Olası nedenler */}
+                                <div className="p-4">
+                                  <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-2">Olası Nedenler</div>
+                                  <ul className="space-y-1">
+                                    {errDetail.causes.map((c, ci) => (
+                                      <li key={ci} className="flex items-start gap-1.5 text-xs text-slate-600">
+                                        <span className="text-slate-300 shrink-0 mt-0.5">•</span>
+                                        {c}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+
+                                {/* HTTP açıklaması + hata mesajı */}
+                                <div className="p-4">
+                                  {log.httpStatusCode && (
+                                    <div className="mb-3">
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">HTTP {log.httpStatusCode} Ne Demek?</div>
+                                      <p className="text-xs text-slate-600 leading-relaxed">{httpDet.description}</p>
+                                    </div>
+                                  )}
+                                  {log.errorMessage && (
+                                    <div>
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">Ham Hata Mesajı</div>
+                                      <code className="text-xs text-red-700 bg-red-50 px-2 py-1.5 rounded block break-all leading-relaxed border border-red-100">
+                                        {log.errorMessage}
+                                      </code>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Öneri */}
+                                <div className="p-4">
+                                  <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-2">Ne Yapmalı?</div>
+                                  <p className="text-xs text-slate-700 leading-relaxed">{errDetail.recommendation}</p>
+                                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1 text-[10px] text-slate-400">
+                                    <div className="flex justify-between"><span>Kontrol zamanı</span><span className="font-mono text-slate-600">{fmtDateTime(log.checkedAt)}</span></div>
+                                    <div className="flex justify-between"><span>Yanıt süresi</span><span className="font-mono text-slate-600">{log.responseTimeMs}ms</span></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -705,6 +1111,10 @@ export default function SiteMonitorPage() {
                 className={`text-xs px-3 py-1.5 flex items-center gap-1.5 font-medium transition ${nginxView === "ips" ? "bg-slate-800 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
                 <Users size={11} />IP Özeti{nginxStats ? ` (${nginxStats.uniqueIps})` : ""}
               </button>
+              <button onClick={() => { setNginxView("errors"); fetchNginxErrorLogs(); }}
+                className={`text-xs px-3 py-1.5 flex items-center gap-1.5 font-medium transition ${nginxView === "errors" ? "bg-red-700 text-white" : "bg-white text-red-600 hover:bg-red-50"}`}>
+                <AlertTriangle size={11} />Hata Logu{nginxErrorLogs.length > 0 ? ` (${nginxErrorLogs.length})` : ""}
+              </button>
             </div>
 
             {nginxView === "list" && (<>
@@ -757,6 +1167,47 @@ export default function SiteMonitorPage() {
               <Server size={32} className="text-slate-300 mx-auto" />
               <p className="text-sm font-medium text-slate-500">Nginx log dosyasına erişilemiyor</p>
               <p className="text-xs text-slate-400 max-w-md mx-auto">{nginxError}</p>
+            </div>
+
+          ) : nginxView === "errors" ? (
+            /* Nginx Hata Logu */
+            <div>
+              <div className="px-5 py-2.5 bg-red-50/60 border-b border-red-100 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={13} className="text-red-500 shrink-0" />
+                  <p className="text-xs text-red-800"><strong>Nginx Error Log</strong> — Son {nginxErrorLogs.length} satır (/var/log/nginx/error.log). Error/crit/alert seviyeli kayıtlar kırmızı gösterilir.</p>
+                </div>
+                <button onClick={() => fetchNginxErrorLogs()} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                  <RefreshCw size={11} className={nginxErrorLoading ? "animate-spin" : ""} />Yenile
+                </button>
+              </div>
+              {nginxErrorLoading ? (
+                <div className="py-12 text-center"><Loader2 size={20} className="animate-spin text-slate-400 mx-auto" /></div>
+              ) : nginxErrorAvailable === false ? (
+                <div className="py-16 text-center space-y-2">
+                  <Server size={28} className="text-slate-300 mx-auto" />
+                  <p className="text-sm text-slate-500">Nginx hata logu erişilemiyor</p>
+                  <p className="text-xs text-slate-400">Docker volume mount veya dosya izni kontrol edin.</p>
+                </div>
+              ) : nginxErrorLogs.length === 0 ? (
+                <div className="py-12 text-center text-sm text-slate-400">Hata kaydı bulunamadı.</div>
+              ) : (
+                <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto font-mono text-[11px]">
+                  {[...nginxErrorLogs].reverse().map((l, i) => {
+                    const isError = l.level === "error" || l.level === "crit" || l.level === "alert" || l.level === "emerg";
+                    const isWarn = l.level === "warn";
+                    return (
+                      <div key={i} className={`px-4 py-1.5 flex items-start gap-3 ${isError ? "bg-red-50/70" : isWarn ? "bg-amber-50/40" : ""}`}>
+                        <span className={`shrink-0 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded mt-0.5 ${isError ? "bg-red-200 text-red-800" : isWarn ? "bg-amber-200 text-amber-800" : "bg-slate-100 text-slate-500"}`}>
+                          {l.level || "info"}
+                        </span>
+                        <span className="text-slate-400 shrink-0 whitespace-nowrap">{l.dateTime}</span>
+                        <span className={`flex-1 leading-relaxed break-all ${isError ? "text-red-800" : isWarn ? "text-amber-800" : "text-slate-600"}`}>{l.message}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           ) : nginxView === "ips" ? (
