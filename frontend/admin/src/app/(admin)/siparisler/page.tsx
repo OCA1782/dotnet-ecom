@@ -227,6 +227,32 @@ export default function OrdersPage() {
     void fetchOrders();
   }
 
+  async function handleBulkHold() {
+    const ids = [...selectedIds].filter(id => HOLDABLE.has(orders.find(o => o.id === id)?.status ?? -1));
+    if (ids.length === 0) { setMsg({ text: "Seçili siparişlerin hiçbiri askıya alınamıyor.", ok: false }); return; }
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.put(`/api/orders/admin/${id}/status`, { status: 12 })));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} sipariş askıya alındı${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void fetchOrders();
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds].filter(id => DELETABLE.has(orders.find(o => o.id === id)?.status ?? -1));
+    if (ids.length === 0) { setMsg({ text: "Seçili siparişlerin hiçbiri silinemiyor. Yalnızca tamamlanan, iptal edilen, iade edilen veya başarısız siparişler silinebilir.", ok: false }); return; }
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(id => api.delete(`/api/orders/admin/${id}`)));
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.filter(r => r.status === "rejected").length;
+    setSelectedIds(new Set());
+    setMsg({ text: `${ok} sipariş silindi${fail > 0 ? `, ${fail} başarısız` : ""}.`, ok: fail === 0 });
+    setBulkLoading(false);
+    void fetchOrders();
+  }
+
   async function handleCsvExport() {
     const qs = new URLSearchParams();
     if (search) qs.set("search", search);
@@ -337,13 +363,27 @@ export default function OrdersPage() {
       {selectedIds.size > 0 && (
         <div className="bg-slate-800 text-white rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap shadow-md">
           <span className="text-sm font-semibold shrink-0">{selectedIds.size} sipariş seçili</span>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             <button
               onClick={handleBulkCancel}
               disabled={bulkLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/80 hover:bg-red-500 rounded-xl transition disabled:opacity-50">
               {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={13} />}
-              {t("action.cancelOrder", "İptal Et")}
+              İptal Et
+            </button>
+            <button
+              onClick={handleBulkHold}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-500/80 hover:bg-amber-500 rounded-xl transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <PauseCircle size={13} />}
+              Askıya Al
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-600/80 hover:bg-slate-600 rounded-xl transition disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={13} />}
+              Sil
             </button>
             <button onClick={() => setSelectedIds(new Set())} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition">
               <XCircle size={14} />
