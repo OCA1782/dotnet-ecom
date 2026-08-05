@@ -132,6 +132,7 @@ services:
     volumes:
       - uploads:/app/wwwroot/uploads
       - docs:/app/docs
+      - dp_keys:/app/dataprotection-keys
       - /opt/ecom/.git:/app/.git:ro
       - /var/log/nginx:/var/log/nginx:ro
     healthcheck:
@@ -166,6 +167,12 @@ services:
       - NEXT_PUBLIC_FALLBACK_TEMPLATE=${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - INTERNAL_API_URL=http://api:8080
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
     depends_on:
       api:
         condition: service_healthy
@@ -192,4 +199,5 @@ volumes:
   pgdata:
   uploads:
   docs:
+  dp_keys:
   # sqldata: — removed with MSSQL passivation (ECOM-0181)
