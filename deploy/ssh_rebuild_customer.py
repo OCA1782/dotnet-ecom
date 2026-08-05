@@ -65,6 +65,7 @@ print(f"Aktif template: '{active_template}'")
 # 3. Env degiskenlerini oku
 site_url    = read_env_var('NEXT_PUBLIC_SITE_URL') or 'http://31.210.40.242:13000'
 api_url     = read_env_var('NEXT_PUBLIC_API_URL')  or 'http://31.210.40.242:15124'
+google_cid  = read_env_var('NEXT_PUBLIC_GOOGLE_CLIENT_ID') or ''
 
 network_name = run(
     "docker inspect ecom-api-1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}'",
@@ -76,6 +77,7 @@ print(f"\n=== 3. Docker build (ecom-customer-new:latest) ===")
 build_out = run(
     f"docker build "
     f"--build-arg NEXT_PUBLIC_API_URL={api_url} "
+    f"--build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID={google_cid} "
     f"-t ecom-customer-new:latest "
     f"/opt/ecom/frontend/customer 2>&1",
     timeout=900
@@ -113,6 +115,7 @@ run_cmd = (
     f"-e NEXT_PUBLIC_SITE_URL={site_url} "
     f"-e INTERNAL_API_URL=http://ecom-api-1:8080 "
     f"-e NEXT_PUBLIC_FALLBACK_TEMPLATE={active_template} "
+    f"-e NEXT_PUBLIC_GOOGLE_CLIENT_ID={google_cid} "
     f"ecom-customer-new:latest"
 )
 result = run(run_cmd, timeout=30)
