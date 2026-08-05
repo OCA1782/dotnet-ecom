@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   Activity, Wifi, WifiOff, Clock, RefreshCw, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, Loader2, Zap, Globe, ChevronUp, ChevronDown,
-  Filter, Shield, Server, Search, X,
+  Filter, Shield, Server, Search, X, AlertTriangle, Users, Eye,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
@@ -59,6 +59,7 @@ interface NginxResponse {
 type SortDir = "asc" | "desc";
 type UptimeFilter = "all" | "up" | "down";
 type ActiveTab = "uptime" | "nginx";
+type NginxView = "list" | "ips";
 
 function fmtTime(dt: string) {
   return new Date(dt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -83,6 +84,69 @@ function statusColor(c: number) { return c < 300 ? "text-emerald-600" : c < 400 
 function statusBadge(c: number) { return c < 300 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : c < 400 ? "bg-blue-50 text-blue-700 border-blue-200" : c < 500 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-red-50 text-red-700 border-red-200"; }
 function formatBytes(b: number) { return b < 1024 ? `${b}B` : b < 1048576 ? `${(b/1024).toFixed(1)}KB` : `${(b/1048576).toFixed(2)}MB`; }
 function getToken() { return typeof window !== "undefined" ? (localStorage.getItem("admin_token") ?? "") : ""; }
+
+function detectBot(ua: string): string | null {
+  if (!ua || ua === "-") return null;
+  const bots: [RegExp, string][] = [
+    [/googlebot/i, "Googlebot"], [/bingbot/i, "Bingbot"], [/ahrefsbot/i, "AhrefsBot"],
+    [/semrushbot/i, "SemrushBot"], [/dotbot/i, "DotBot"], [/petalbot/i, "PetalBot"],
+    [/yandexbot/i, "YandexBot"], [/mj12bot/i, "MJ12Bot"], [/sogou/i, "Sogou"],
+    [/python-requests/i, "Python"], [/go-http-client/i, "Go HTTP"],
+    [/curl\//i, "curl"], [/wget\//i, "wget"], [/okhttp/i, "OkHttp"],
+    [/postmanruntime/i, "Postman"], [/facebookexternalhit/i, "Facebook"],
+    [/twitterbot/i, "Twitter"], [/linkedinbot/i, "LinkedIn"],
+    [/bot|crawler|spider|scraper/i, "Bot"],
+  ];
+  for (const [re, name] of bots) if (re.test(ua)) return name;
+  return null;
+}
+
+function detectThreat(path: string): { level: "high" | "medium" | null; reason: string } {
+  const high: [RegExp, string][] = [
+    [/\.\.\//g, "Directory traversal girişimi"],
+    [/select.{0,20}from|union.{0,10}select|drop.{0,10}table/i, "SQL injection girişimi"],
+    [/<script|javascript:|onerror=/i, "XSS girişimi"],
+    [/\/etc\/passwd|\/etc\/shadow/i, "Sistem dosyası erişimi"],
+    [/\/shell|exec\(|eval\(/i, "Shell erişim girişimi"],
+    [/\.git\/config|\.git\/HEAD/i, ".git yapılandırma ifşası"],
+  ];
+  const med: [RegExp, string][] = [
+    [/\.env(\b|$)/i, ".env dosyası taraması"],
+    [/wp-admin|wp-login|xmlrpc\.php/i, "WordPress güvenlik taraması"],
+    [/phpmyadmin/i, "phpMyAdmin taraması"],
+    [/\.php$/i, "PHP dosyası taraması"],
+    [/\.git\//i, ".git dizin taraması"],
+    [/\.bak$|\.sql$|backup/i, "Yedek dosya taraması"],
+    [/\/etc\/|\/proc\//i, "Sistem dizin taraması"],
+  ];
+  for (const [re, reason] of high) if (re.test(path)) return { level: "high", reason };
+  for (const [re, reason] of med) if (re.test(path)) return { level: "medium", reason };
+  return { level: null, reason: "" };
+}
+
+function parseUA(ua: string): string {
+  if (!ua || ua === "-") return "—";
+  const bot = detectBot(ua);
+  if (bot) return bot;
+  if (/Edg\//i.test(ua)) return "Edge";
+  if (/OPR\/|Opera\//i.test(ua)) return "Opera";
+  if (/Chrome\//i.test(ua)) return "Chrome";
+  if (/Firefox\//i.test(ua)) return "Firefox";
+  if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) return "Safari";
+  return ua.substring(0, 30);
+}
+
+function categorizeError(log: UptimeLog): { label: string; color: "red" | "amber" | "slate" } {
+  if (log.isUp) return { label: "", color: "slate" };
+  const msg = (log.errorMessage ?? "").toLowerCase();
+  if (msg.includes("timeout") || msg.includes("timed out")) return { label: "Zaman Aşımı", color: "amber" };
+  if (msg.includes("refused") || msg.includes("connection")) return { label: "Bağlantı Reddedildi", color: "red" };
+  if (msg.includes("dns") || msg.includes("resolve") || msg.includes("host")) return { label: "DNS Hatası", color: "red" };
+  if (msg.includes("ssl") || msg.includes("tls") || msg.includes("cert")) return { label: "SSL/TLS Hatası", color: "red" };
+  if (log.httpStatusCode && log.httpStatusCode >= 500) return { label: "Sunucu Hatası", color: "red" };
+  if (log.httpStatusCode && log.httpStatusCode >= 400) return { label: "İstemci Hatası", color: "amber" };
+  return { label: "Ağ Hatası", color: "red" };
+}
 
 function Sparkline({ events }: { events: MonitorEvent[] }) {
   const last = events.slice(-24);
@@ -148,6 +212,8 @@ export default function SiteMonitorPage() {
   const [nginxIpInput, setNginxIpInput] = useState("");
   const [nginxStatusInput, setNginxStatusInput] = useState("");
   const [nginxPathInput, setNginxPathInput] = useState("");
+  const [nginxView, setNginxView] = useState<NginxView>("list");
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("uptime");
   const sseActiveRef = useRef(false);
@@ -274,7 +340,7 @@ export default function SiteMonitorPage() {
       }
     })();
     return () => ctrl.abort();
-  }, [fetchLogs, resetCountdown]); // eslint-disable-line
+  }, [fetchLogs, resetCountdown]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -300,6 +366,30 @@ export default function SiteMonitorPage() {
     return () => clearInterval(id);
   }, []);
 
+  const nginxStats = useMemo(() => {
+    if (!nginxLogs.length) return null;
+    let s2 = 0, s3 = 0, s4 = 0, s5 = 0, bots = 0, threats = 0;
+    const ipMap: Record<string, { count: number; errors: number; last: string; isBot: boolean; agents: Set<string> }> = {};
+    const pathCounts: Record<string, number> = {};
+    for (const e of nginxLogs) {
+      const sc = e.statusCode;
+      if (sc < 300) s2++; else if (sc < 400) s3++; else if (sc < 500) s4++; else s5++;
+      const bot = detectBot(e.userAgent);
+      if (bot) bots++;
+      const { level } = detectThreat(e.path);
+      if (level) threats++;
+      const ip = (e.cfIp && e.cfIp !== "-") ? e.cfIp : e.remoteAddr;
+      if (!ipMap[ip]) ipMap[ip] = { count: 0, errors: 0, last: e.timeLocal, isBot: !!bot, agents: new Set() };
+      ipMap[ip].count++;
+      if (sc >= 400) ipMap[ip].errors++;
+      ipMap[ip].agents.add(parseUA(e.userAgent));
+      pathCounts[e.path] = (pathCounts[e.path] || 0) + 1;
+    }
+    const topIps = Object.entries(ipMap).sort((a, b) => b[1].count - a[1].count).slice(0, 15);
+    const topPaths = Object.entries(pathCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return { s2, s3, s4, s5, bots, threats, uniqueIps: Object.keys(ipMap).length, topIps, topPaths };
+  }, [nginxLogs]);
+
   const uptimePct = totalCount > 0 ? ((upCount / totalCount) * 100).toFixed(2) : null;
   const totalPages = Math.ceil(total / pageSize);
   const nginxTotalPages = Math.ceil(nginxTotal / nginxLimit);
@@ -308,6 +398,7 @@ export default function SiteMonitorPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
 
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-50 rounded-xl"><Globe size={22} className="text-blue-600" /></div>
@@ -331,6 +422,7 @@ export default function SiteMonitorPage() {
         )}
       </div>
 
+      {/* Status card */}
       <div className={`rounded-2xl border p-6 flex items-center gap-6 shadow-sm ${!status ? "bg-slate-50 border-slate-200" : status.isUp ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
         <div className={`relative flex items-center justify-center w-20 h-20 rounded-full shrink-0 ${!status ? "bg-slate-200" : status.isUp ? "bg-emerald-500" : "bg-red-500"}`}>
           {!status ? <Loader2 size={32} className="text-white animate-spin" />
@@ -360,6 +452,7 @@ export default function SiteMonitorPage() {
         </div>
       </div>
 
+      {/* Live events + stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -434,6 +527,7 @@ export default function SiteMonitorPage() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="flex border-b border-slate-100">
           <button onClick={() => setActiveTab("uptime")}
@@ -446,6 +540,11 @@ export default function SiteMonitorPage() {
             <Shield size={15} />Nginx Trafiği
             <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Gerçek IP</span>
             {nginxTotal > 0 && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{nginxTotal.toLocaleString("tr-TR")}</span>}
+            {nginxStats && nginxStats.threats > 0 && (
+              <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <AlertTriangle size={9} />{nginxStats.threats}
+              </span>
+            )}
           </button>
           <div className="flex-1" />
           <button
@@ -455,6 +554,7 @@ export default function SiteMonitorPage() {
           </button>
         </div>
 
+        {/* ── UPTIME TAB ── */}
         {activeTab === "uptime" && (<>
           <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5"><Filter size={13} className="text-slate-400" /><span className="text-xs text-slate-500">Durum:</span></div>
@@ -479,11 +579,11 @@ export default function SiteMonitorPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Durum</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 w-32">Durum</th>
                   <SortTh label="Tarih / Saat" field="checkedAt" currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
                   <SortTh label="HTTP" field="httpStatusCode" currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
                   <SortTh label="Yanıt Süresi" field="responseTimeMs" currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Hata</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Hata Detayı</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -491,28 +591,49 @@ export default function SiteMonitorPage() {
                   <tr><td colSpan={5} className="py-12 text-center"><Loader2 size={20} className="animate-spin text-slate-400 mx-auto" /></td></tr>
                 ) : logs.length === 0 ? (
                   <tr><td colSpan={5} className="py-12 text-center text-sm text-slate-400">Kayıt bulunamadı.</td></tr>
-                ) : logs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-2.5">
-                      {log.isUp
-                        ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full"><CheckCircle2 size={10} />Çevrimiçi</span>
-                        : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"><XCircle size={10} />Çevrimdışı</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600 font-mono text-xs whitespace-nowrap">{fmtDateTime(log.checkedAt)}</td>
-                    <td className="px-4 py-2.5">
-                      {log.httpStatusCode ? <span className={`font-mono text-xs font-bold ${statusColor(log.httpStatusCode)}`}>{log.httpStatusCode}</span> : <span className="text-slate-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono text-xs font-bold ${latencyColor(log.responseTimeMs)}`}>{log.responseTimeMs}ms</span>
-                        <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${latencyBg(log.responseTimeMs)}`} style={{ width: `${Math.min(100, (log.responseTimeMs / 2000) * 100)}%` }} />
+                ) : logs.map(log => {
+                  const errCat = categorizeError(log);
+                  return (
+                    <tr key={log.id} className={`transition-colors ${!log.isUp ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-slate-50/60"}`}>
+                      <td className="px-4 py-2.5">
+                        {log.isUp
+                          ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full"><CheckCircle2 size={10} />Çevrimiçi</span>
+                          : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"><XCircle size={10} />Çevrimdışı</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-600 font-mono text-xs whitespace-nowrap">{fmtDateTime(log.checkedAt)}</td>
+                      <td className="px-4 py-2.5">
+                        {log.httpStatusCode
+                          ? <span className={`font-mono text-xs font-bold ${statusColor(log.httpStatusCode)}`}>{log.httpStatusCode}</span>
+                          : <span className="text-slate-300 text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono text-xs font-bold ${latencyColor(log.responseTimeMs)}`}>{log.responseTimeMs}ms</span>
+                          <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${latencyBg(log.responseTimeMs)}`} style={{ width: `${Math.min(100, (log.responseTimeMs / 2000) * 100)}%` }} />
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-red-500 max-w-xs truncate">{log.errorMessage ?? <span className="text-slate-200">—</span>}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {!log.isUp ? (
+                          <div className="space-y-1">
+                            {errCat.label && (
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                errCat.color === "red" ? "bg-red-100 text-red-700" : errCat.color === "amber" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+                              }`}>
+                                <AlertTriangle size={9} />{errCat.label}
+                              </span>
+                            )}
+                            {log.errorMessage && (
+                              <div className="text-xs text-red-600 max-w-sm leading-relaxed">{log.errorMessage}</div>
+                            )}
+                            {!log.errorMessage && !errCat.label && <span className="text-slate-300 text-xs">—</span>}
+                          </div>
+                        ) : <span className="text-slate-200 text-xs">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -528,64 +649,191 @@ export default function SiteMonitorPage() {
           </div>
         </>)}
 
+        {/* ── NGINX TAB ── */}
         {activeTab === "nginx" && (<>
+
+          {/* Info bar */}
           <div className="px-5 py-2.5 bg-emerald-50/60 border-b border-emerald-100 flex items-center gap-2">
             <Shield size={13} className="text-emerald-600 shrink-0" />
             <p className="text-xs text-emerald-800">
-              <strong>Gerçek Ziyaretçi IP:</strong> Cloudflare proxy sonrası{" "}
-              <code className="font-mono bg-emerald-100 px-1 rounded">CF-Connecting-IP</code> → nginx <code className="font-mono bg-emerald-100 px-1 rounded">$remote_addr</code>.
-              Son 5.000 satır · 27 saniyede bir otomatik yenileme.
+              <strong>Gerçek Ziyaretçi IP:</strong> Cloudflare proxy → <code className="font-mono bg-emerald-100 px-1 rounded">CF-Connecting-IP</code> → nginx <code className="font-mono bg-emerald-100 px-1 rounded">$remote_addr</code>. Son 5.000 satır · 27s otomatik yenileme.
             </p>
           </div>
-          <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-end gap-3">
-            <div className="flex items-center gap-1.5 self-center"><Search size={13} className="text-slate-400" /><span className="text-xs text-slate-500">Filtre:</span></div>
-            <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">IP Adresi</label>
-              <input type="text" value={nginxIpInput} onChange={e => setNginxIpInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
-                placeholder="1.2.3.4" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-36 focus:outline-none focus:border-blue-400 font-mono" />
+
+          {/* Stats panel */}
+          {nginxStats && (
+            <div className="px-5 py-3 border-b border-slate-100 grid grid-cols-7 gap-2">
+              {[
+                { label: "Toplam İstek", value: nginxTotal.toLocaleString("tr-TR"), cls: "bg-slate-50 border-slate-200 text-slate-700" },
+                { label: "Benzersiz IP", value: nginxStats.uniqueIps, cls: "bg-blue-50 border-blue-200 text-blue-700" },
+                { label: "2xx Başarılı", value: nginxStats.s2, cls: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+                { label: "3xx Yönlendirme", value: nginxStats.s3, cls: "bg-sky-50 border-sky-200 text-sky-700" },
+                { label: "4xx İstemci", value: nginxStats.s4, cls: "bg-amber-50 border-amber-200 text-amber-700" },
+                { label: "5xx Sunucu", value: nginxStats.s5, cls: nginxStats.s5 > 0 ? "bg-red-50 border-red-300 text-red-700" : "bg-slate-50 border-slate-200 text-slate-400" },
+                { label: nginxStats.threats > 0 ? "⚠ Tehdit" : "Tehdit Yok", value: nginxStats.threats, cls: nginxStats.threats > 0 ? "bg-red-50 border-red-300 text-red-700" : "bg-slate-50 border-slate-200 text-slate-400" },
+              ].map(({ label, value, cls }) => (
+                <div key={label} className={`rounded-xl border p-2.5 text-center ${cls}`}>
+                  <div className="text-base font-bold">{value}</div>
+                  <div className="text-[10px] mt-0.5 opacity-70">{label}</div>
+                </div>
+              ))}
             </div>
-            <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">HTTP Status</label>
-              <input type="text" value={nginxStatusInput} onChange={e => setNginxStatusInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
-                placeholder="200 / 4 / 5" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-28 focus:outline-none focus:border-blue-400 font-mono" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Path</label>
-              <input type="text" value={nginxPathInput} onChange={e => setNginxPathInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
-                placeholder="/api/..." className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:border-blue-400 font-mono" />
-            </div>
-            <button onClick={applyNginxFilters} className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium self-end">Uygula</button>
-            {hasNginxFilter && <button onClick={clearNginxFilters} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 self-end px-2 py-1.5"><X size={12} />Temizle</button>}
-            <div className="flex-1" />
-            <div className="flex items-center gap-2 text-xs text-slate-500 self-end">
-              <span>Göster:</span>
-              {[50, 100, 200].map(lim => (
-                <button key={lim} onClick={() => { setNginxLimit(lim); setNginxPage(1); fetchNginxLogs(1, lim, nginxIp, nginxStatus, nginxPath); }}
-                  className={`px-2.5 py-1 rounded border font-medium transition ${nginxLimit === lim ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}>
-                  {lim}
+          )}
+
+          {/* Top paths (when data available) */}
+          {nginxStats && nginxStats.topPaths.length > 0 && (
+            <div className="px-5 py-2.5 border-b border-slate-100 flex items-center gap-4 overflow-x-auto">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide font-medium shrink-0">En çok hit:</span>
+              {nginxStats.topPaths.map(([path, count]) => (
+                <button key={path} onClick={() => { setNginxPathInput(path); setNginxPath(path); setNginxPage(1); setNginxView("list"); fetchNginxLogs(1, nginxLimit, nginxIp, nginxStatus, path); }}
+                  className="flex items-center gap-1.5 text-[10px] bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-full transition shrink-0 font-mono">
+                  <span className="truncate max-w-[160px]">{path}</span>
+                  <span className="bg-white text-slate-500 px-1.5 rounded-full font-sans">{count}</span>
                 </button>
               ))}
             </div>
+          )}
+
+          {/* View toggle + filters */}
+          <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-end gap-3">
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden self-end shrink-0">
+              <button onClick={() => setNginxView("list")}
+                className={`text-xs px-3 py-1.5 flex items-center gap-1.5 font-medium transition ${nginxView === "list" ? "bg-slate-800 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                <Eye size={11} />Liste
+              </button>
+              <button onClick={() => setNginxView("ips")}
+                className={`text-xs px-3 py-1.5 flex items-center gap-1.5 font-medium transition ${nginxView === "ips" ? "bg-slate-800 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                <Users size={11} />IP Özeti{nginxStats ? ` (${nginxStats.uniqueIps})` : ""}
+              </button>
+            </div>
+
+            {nginxView === "list" && (<>
+              <div className="flex items-center gap-1.5 self-center"><Search size={13} className="text-slate-400" /><span className="text-xs text-slate-500">Filtre:</span></div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">IP Adresi</label>
+                <input type="text" value={nginxIpInput} onChange={e => setNginxIpInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
+                  placeholder="1.2.3.4" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-36 focus:outline-none focus:border-blue-400 font-mono" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">HTTP Status</label>
+                <input type="text" value={nginxStatusInput} onChange={e => setNginxStatusInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
+                  placeholder="200 / 4 / 5" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-28 focus:outline-none focus:border-blue-400 font-mono" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Path</label>
+                <input type="text" value={nginxPathInput} onChange={e => setNginxPathInput(e.target.value)} onKeyDown={e => e.key === "Enter" && applyNginxFilters()}
+                  placeholder="/api/..." className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:border-blue-400 font-mono" />
+              </div>
+              <button onClick={applyNginxFilters} className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium self-end">Uygula</button>
+              {hasNginxFilter && <button onClick={clearNginxFilters} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 self-end px-2 py-1.5"><X size={12} />Temizle</button>}
+            </>)}
+
+            <div className="flex-1" />
+            {nginxView === "list" && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 self-end">
+                <span>Göster:</span>
+                {[50, 100, 200].map(lim => (
+                  <button key={lim} onClick={() => { setNginxLimit(lim); setNginxPage(1); fetchNginxLogs(1, lim, nginxIp, nginxStatus, nginxPath); }}
+                    className={`px-2.5 py-1 rounded border font-medium transition ${nginxLimit === lim ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}>
+                    {lim}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {hasNginxFilter && (
+
+          {/* Active filter chips */}
+          {hasNginxFilter && nginxView === "list" && (
             <div className="px-5 py-2 border-b border-slate-100 flex flex-wrap gap-2">
               {nginxIp && <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-mono">IP: {nginxIp}</span>}
               {nginxStatus && <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-mono">Status: {nginxStatus}xx</span>}
               {nginxPath && <span className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full font-mono">Path: {nginxPath}</span>}
             </div>
           )}
+
+          {/* Content */}
           {nginxAvailable === false ? (
             <div className="py-16 text-center space-y-2">
               <Server size={32} className="text-slate-300 mx-auto" />
               <p className="text-sm font-medium text-slate-500">Nginx log dosyasına erişilemiyor</p>
               <p className="text-xs text-slate-400 max-w-md mx-auto">{nginxError}</p>
             </div>
-          ) : (
+
+          ) : nginxView === "ips" ? (
+            /* IP Özeti */
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide font-semibold">
-                    <th className="px-4 py-3 text-left">Gerçek IP<div className="text-[9px] font-normal text-slate-400 normal-case tracking-normal">CF-Connecting-IP</div></th>
+                    <th className="px-4 py-3 text-left">#</th>
+                    <th className="px-4 py-3 text-left">IP Adresi</th>
+                    <th className="px-4 py-3 text-right">İstek</th>
+                    <th className="px-4 py-3 text-right">Hata</th>
+                    <th className="px-4 py-3 text-right">Hata %</th>
+                    <th className="px-4 py-3 text-left">Tip</th>
+                    <th className="px-4 py-3 text-left">Kullanıcı Ajanı</th>
+                    <th className="px-4 py-3 text-left">Son İstek</th>
+                    <th className="px-4 py-3 text-left"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {nginxStats ? nginxStats.topIps.map(([ip, d], i) => {
+                    const errorPct = d.count > 0 ? (d.errors / d.count * 100) : 0;
+                    return (
+                      <tr key={i} className={`transition-colors hover:bg-slate-50/60 ${errorPct > 50 ? "bg-red-50/40" : errorPct > 20 ? "bg-amber-50/30" : ""}`}>
+                        <td className="px-4 py-2.5 text-xs text-slate-400 font-mono">{i + 1}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-slate-800">{ip}</span>
+                            {i === 0 && <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">En aktif</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className={`font-mono text-xs font-bold ${d.count > 200 ? "text-orange-600" : d.count > 50 ? "text-amber-600" : "text-slate-700"}`}>
+                            {d.count.toLocaleString("tr-TR")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className={`font-mono text-xs font-bold ${d.errors > 0 ? "text-red-600" : "text-slate-300"}`}>{d.errors}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className={`text-xs font-bold ${errorPct > 50 ? "text-red-600" : errorPct > 20 ? "text-amber-600" : "text-slate-400"}`}>
+                            {errorPct.toFixed(0)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {d.isBot
+                            ? <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">Bot</span>
+                            : <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">İnsan</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[160px] truncate">
+                          {Array.from(d.agents).join(", ")}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-slate-400 font-mono whitespace-nowrap">{fmtNginxTime(d.last)}</td>
+                        <td className="px-4 py-2.5">
+                          <button
+                            onClick={() => { setNginxIpInput(ip); setNginxIp(ip); setNginxPage(1); setNginxView("list"); fetchNginxLogs(1, nginxLimit, ip, nginxStatus, nginxPath); }}
+                            className="text-[10px] text-blue-600 hover:underline whitespace-nowrap">
+                            Filtrele →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }) : <tr><td colSpan={9} className="py-8 text-center text-slate-400 text-sm">Veri yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+          ) : (
+            /* Liste görünümü */
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                    <th className="px-4 py-3 text-left">
+                      Gerçek IP
+                      <div className="text-[9px] font-normal text-slate-400 normal-case tracking-normal">CF-Connecting-IP</div>
+                    </th>
                     <th className="px-4 py-3 text-left">Tarih / Saat</th>
                     <th className="px-4 py-3 text-left">Method</th>
                     <th className="px-4 py-3 text-left">Path</th>
@@ -600,42 +848,151 @@ export default function SiteMonitorPage() {
                     <tr><td colSpan={8} className="py-12 text-center"><Loader2 size={20} className="animate-spin text-slate-400 mx-auto" /></td></tr>
                   ) : nginxLogs.length === 0 ? (
                     <tr><td colSpan={8} className="py-12 text-center text-sm text-slate-400">Kayıt bulunamadı.</td></tr>
-                  ) : nginxLogs.map((log, i) => (
-                    <tr key={i} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="font-mono text-xs font-semibold text-slate-800">{log.remoteAddr}</div>
-                        {log.cfIp && log.cfIp !== "-" && log.cfIp !== log.remoteAddr && (
-                          <div className="text-[10px] text-slate-400 font-mono">CF: {log.cfIp}</div>
+                  ) : nginxLogs.map((log, i) => {
+                    const bot = detectBot(log.userAgent);
+                    const threat = detectThreat(log.path);
+                    const isExpanded = expandedRow === i;
+                    const rowBg = threat.level === "high"
+                      ? "bg-red-50/80 hover:bg-red-100/60"
+                      : threat.level === "medium"
+                      ? "bg-amber-50/50 hover:bg-amber-50/80"
+                      : log.statusCode >= 500
+                      ? "bg-red-50/40 hover:bg-red-50/60"
+                      : log.statusCode >= 400
+                      ? "bg-amber-50/30 hover:bg-amber-50/50"
+                      : "hover:bg-slate-50/60";
+                    return (
+                      <>
+                        <tr key={`r${i}`}
+                          className={`cursor-pointer transition-colors ${rowBg}`}
+                          onClick={() => setExpandedRow(isExpanded ? null : i)}>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="font-mono text-xs font-semibold text-slate-800">{log.remoteAddr}</div>
+                            {log.cfIp && log.cfIp !== "-" && log.cfIp !== log.remoteAddr && (
+                              <div className="text-[10px] text-slate-400 font-mono">CF: {log.cfIp}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-slate-500 font-mono whitespace-nowrap">{fmtNginxTime(log.timeLocal)}</td>
+                          <td className="px-4 py-2">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${log.method === "GET" ? "bg-emerald-50 text-emerald-700" : log.method === "POST" ? "bg-blue-50 text-blue-700" : log.method === "OPTIONS" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-700"}`}>
+                              {log.method}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 max-w-[200px]">
+                            <div className="flex items-center gap-1.5">
+                              {threat.level === "high" && <span title={threat.reason}><AlertTriangle size={12} className="text-red-500 shrink-0" /></span>}
+                              {threat.level === "medium" && <span title={threat.reason}><AlertTriangle size={12} className="text-amber-400 shrink-0" /></span>}
+                              <span className="font-mono text-xs text-slate-700 truncate" title={log.path}>{log.path}</span>
+                            </div>
+                            {threat.level && (
+                              <div className={`text-[9px] mt-0.5 font-medium ${threat.level === "high" ? "text-red-600" : "text-amber-600"}`}>{threat.reason}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-block text-xs font-bold font-mono px-2 py-0.5 rounded border ${statusBadge(log.statusCode)}`}>{log.statusCode}</span>
+                          </td>
+                          <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{formatBytes(log.bodyBytesSent)}</td>
+                          <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
+                            {log.host !== "-" ? log.host : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-4 py-2 max-w-[180px]">
+                            <div className="flex items-center gap-1.5">
+                              {bot && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-medium shrink-0">{bot}</span>}
+                              <span className="text-[10px] text-slate-400 truncate" title={log.userAgent}>
+                                {parseUA(log.userAgent)}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr key={`e${i}`} className={rowBg}>
+                            <td colSpan={8} className="px-5 pb-3 pt-0">
+                              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                {threat.level && (
+                                  <div className={`flex items-start gap-2.5 px-4 py-3 ${threat.level === "high" ? "bg-red-50 border-b border-red-200" : "bg-amber-50 border-b border-amber-200"}`}>
+                                    <AlertTriangle size={15} className={`mt-0.5 shrink-0 ${threat.level === "high" ? "text-red-600" : "text-amber-600"}`} />
+                                    <div>
+                                      <span className={`text-xs font-bold ${threat.level === "high" ? "text-red-700" : "text-amber-700"}`}>
+                                        {threat.level === "high" ? "YÜKSEK TEHDİT" : "ORTA TEHDİT"}
+                                      </span>
+                                      <span className={`text-xs ml-2 ${threat.level === "high" ? "text-red-600" : "text-amber-600"}`}>{threat.reason}</span>
+                                      {threat.level === "high" && (
+                                        <p className="text-[10px] text-red-500 mt-0.5">Bu IP&apos;yi IP Özeti görünümünde inceleyip engellemek için sunucu tarafında firewall kuralı ekleyebilirsiniz.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-0 divide-x divide-slate-100">
+                                  <div className="p-4 space-y-3">
+                                    <div>
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">Tam Path</div>
+                                      <code className="font-mono text-xs text-slate-800 break-all bg-slate-50 px-2 py-1 rounded block">{log.path}</code>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">User Agent (tam)</div>
+                                      <span className="text-xs text-slate-600 break-all leading-relaxed">{log.userAgent}</span>
+                                      {bot && <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{bot} · Otomatik istemci</span>}
+                                    </div>
+                                  </div>
+                                  <div className="p-4 space-y-3">
+                                    <div>
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">IP Bilgisi</div>
+                                      <div className="space-y-1 text-xs">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">nginx $remote_addr</span>
+                                          <code className="font-mono text-slate-800">{log.remoteAddr}</code>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">CF-Connecting-IP</span>
+                                          <code className={`font-mono ${log.cfIp !== "-" ? "text-slate-800" : "text-slate-300"}`}>{log.cfIp !== "-" ? log.cfIp : "—"}</code>
+                                        </div>
+                                        {log.cfIp && log.cfIp !== "-" && log.cfIp === log.remoteAddr && (
+                                          <p className="text-[10px] text-emerald-600">✓ Cloudflare Real IP başarıyla çözümlendi</p>
+                                        )}
+                                        {log.cfIp && log.cfIp !== "-" && log.cfIp !== log.remoteAddr && (
+                                          <p className="text-[10px] text-amber-600">⚠ $remote_addr Cloudflare proxy IP&apos;si; gerçek kaynak CF-Connecting-IP</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-1">İstek Detayları</div>
+                                      <div className="space-y-1 text-xs">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">Host</span><span className="text-slate-700">{log.host}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">Method</span>
+                                          <span className={`font-mono font-bold ${log.method === "GET" ? "text-emerald-600" : log.method === "POST" ? "text-blue-600" : "text-amber-600"}`}>{log.method}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">HTTP Status</span>
+                                          <span className={`font-mono font-bold ${statusColor(log.statusCode)}`}>{log.statusCode}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">Yanıt boyutu</span><span className="text-slate-700">{formatBytes(log.bodyBytesSent)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-500">Zaman</span><span className="text-slate-700 font-mono">{fmtNginxTime(log.timeLocal)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                      <td className="px-4 py-2 text-xs text-slate-500 font-mono whitespace-nowrap">{fmtNginxTime(log.timeLocal)}</td>
-                      <td className="px-4 py-2">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${log.method === "GET" ? "bg-emerald-50 text-emerald-700" : log.method === "POST" ? "bg-blue-50 text-blue-700" : log.method === "OPTIONS" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-700"}`}>
-                          {log.method}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 max-w-[200px]">
-                        <span className="font-mono text-xs text-slate-700 truncate block" title={log.path}>{log.path}</span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`inline-block text-xs font-bold font-mono px-2 py-0.5 rounded border ${statusBadge(log.statusCode)}`}>{log.statusCode}</span>
-                      </td>
-                      <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{formatBytes(log.bodyBytesSent)}</td>
-                      <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
-                        {log.host !== "-" ? log.host : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-4 py-2 max-w-[180px]">
-                        <span className="text-[10px] text-slate-400 truncate block" title={log.userAgent}>
-                          {(log.userAgent.replace(/Mozilla\/5\.0 \([^)]+\)\s*/g, "") || log.userAgent).substring(0, 60)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
-          {nginxAvailable !== false && nginxTotalPages > 1 && (
+
+          {/* Pagination */}
+          {nginxAvailable !== false && nginxView === "list" && nginxTotalPages > 1 && (
             <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs text-slate-500">{nginxTotal.toLocaleString("tr-TR")} kayıt · Sayfa {nginxPage} / {nginxTotalPages}</span>
               <div className="flex gap-1 items-center">
