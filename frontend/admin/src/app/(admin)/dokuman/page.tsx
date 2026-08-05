@@ -1435,7 +1435,7 @@ function renderMarkdown(md: string): React.ReactNode {
   return <>{result}</>;
 }
 
-const DOCS_REFRESH_SEC = 30;
+const DOCS_REFRESH_SEC = 240;
 
 function DocsNotlarTab() {
   const { t } = useI18n();
@@ -1517,7 +1517,7 @@ function DocsNotlarTab() {
   useEffect(() => {
     if (!selected) return;
     const loadTimer = window.setTimeout(() => { void fetchContent(selected); }, 0);
-    const refreshTimer = window.setInterval(() => { void fetchContent(selected); }, 30_000);
+    const refreshTimer = window.setInterval(() => { void fetchContent(selected); }, 240_000);
     return () => {
       window.clearTimeout(loadTimer);
       window.clearInterval(refreshTimer);
@@ -1690,7 +1690,7 @@ function YeniliklerTab() {
 
   useEffect(() => {
     const loadTimer = window.setTimeout(() => { void fetchLog(); }, 0);
-    const refreshTimer = window.setInterval(() => { void fetchLog(); }, 30_000);
+    const refreshTimer = window.setInterval(() => { void fetchLog(); }, 240_000);
     const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => {
       window.clearTimeout(loadTimer);

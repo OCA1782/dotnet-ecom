@@ -532,7 +532,7 @@ export default function DashboardPage() {
   const [modules, setModules] = useState<ModuleStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshIn, setRefreshIn] = useState(30);
+  const [refreshIn, setRefreshIn] = useState(240);
   const [period, setPeriod] = useState<Period>("today");
 
   const fetchData = useCallback(async () => {
@@ -559,7 +559,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const iv = setInterval(() => {
       setRefreshIn(r => {
-        if (r <= 1) { fetchData(); return 30; }
+        if (r <= 1) { fetchData(); return 240; }
         return r - 1;
       });
     }, 1000);

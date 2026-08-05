@@ -56,7 +56,7 @@ interface IncidentEntry {
 
 type LatencyPoint = number | null;
 const MAX_HISTORY    = 30;
-const REFRESH_INTERVAL = 5;
+const REFRESH_INTERVAL = 240;
 
 // ── Konfigürasyon ────────────────────────────────────────────────────────────
 

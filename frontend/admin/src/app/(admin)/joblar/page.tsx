@@ -894,7 +894,7 @@ export default function JoblarPage() {
   useEffect(() => {
     const id = window.setTimeout(() => {
       void loadJobs();
-      refreshRef.current = setInterval(loadJobs, 5000);
+      refreshRef.current = setInterval(loadJobs, 240_000);
     }, 0);
     return () => {
       window.clearTimeout(id);

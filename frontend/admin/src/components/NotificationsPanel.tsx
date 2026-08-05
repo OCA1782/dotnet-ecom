@@ -54,7 +54,7 @@ export default function NotificationsPanel() {
 
   useEffect(() => {
     const initialId = window.setTimeout(() => { setNow(Date.now()); void fetchNotifications(); }, 0);
-    const id = setInterval(() => { setNow(Date.now()); void fetchNotifications(); }, 60_000);
+    const id = setInterval(() => { setNow(Date.now()); void fetchNotifications(); }, 240_000);
     return () => {
       window.clearTimeout(initialId);
       clearInterval(id);

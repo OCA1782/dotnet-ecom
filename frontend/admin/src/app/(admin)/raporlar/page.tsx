@@ -162,7 +162,7 @@ function SkeletonRows({ n = 5 }: { n?: number }) {
   );
 }
 
-const REFRESH_INTERVAL = 60_000;
+const REFRESH_INTERVAL = 240_000;
 
 export default function AnalizPage() {
   const { t } = useI18n();

@@ -482,11 +482,11 @@ export default function SiteMonitorPage() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("uptime");
   const sseActiveRef = useRef(false);
-  const [countdown, setCountdown] = useState(25);
-  const countdownRef = useRef(25);
+  const [countdown, setCountdown] = useState(120);
+  const countdownRef = useRef(120);
   const resetCountdown = useCallback(() => {
-    countdownRef.current = 25;
-    setCountdown(25);
+    countdownRef.current = 120;
+    setCountdown(120);
   }, []);
 
   const fetchStatus = useCallback(async () => {
@@ -625,7 +625,7 @@ export default function SiteMonitorPage() {
       fetchStatus();
       fetchLogs(page, pageSize, uptimeFilter, sortBy, sortDir);
       if (activeTab === "nginx") fetchNginxLogs(nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath);
-    }, 27_000);
+    }, 120_000);
     return () => clearInterval(id);
   }, [fetchStatus, fetchLogs, fetchNginxLogs, activeTab, page, pageSize, uptimeFilter, sortBy, sortDir, nginxPage, nginxLimit, nginxIp, nginxStatus, nginxPath]);
 
@@ -820,7 +820,7 @@ export default function SiteMonitorPage() {
           )}
           <div className="pt-2 border-t border-slate-100 text-xs text-slate-400 space-y-1">
             <div className="flex justify-between"><span>Hedef URL</span><span className="font-mono text-slate-600">autoforcepart.com</span></div>
-            <div className="flex justify-between"><span>Kontrol aralığı</span><span className="font-semibold text-slate-600">25 saniye</span></div>
+            <div className="flex justify-between"><span>Kontrol aralığı</span><span className="font-semibold text-slate-600">120 saniye</span></div>
             <div className="flex justify-between"><span>Zaman aşımı</span><span className="font-semibold text-slate-600">10 saniye</span></div>
             <div className="flex justify-between"><span>Gerçek IP</span><span className="font-semibold text-emerald-600">CF-Connecting-IP ✓</span></div>
           </div>

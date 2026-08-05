@@ -75,7 +75,7 @@ interface QueueSnapshot { ts: Date; processed: number; pending: number; }
 
 type LatencyPoint = number | null;
 
-const REFRESH_INTERVAL = 5;
+const REFRESH_INTERVAL = 240;
 const MAX_HISTORY = 24;
 
 // ── Static data ────────────────────────────────────────────────────────────

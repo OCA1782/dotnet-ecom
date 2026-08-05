@@ -437,7 +437,7 @@ export default function AiGorevlerPage() {
   useEffect(() => {
     const hasRunning = tasks.some(t => t.status === "Running");
     if (hasRunning) {
-      pollRef.current = setInterval(() => loadRef.current?.(true), 3000);
+      pollRef.current = setInterval(() => loadRef.current?.(true), 30_000);
     } else {
       if (pollRef.current) clearInterval(pollRef.current);
     }

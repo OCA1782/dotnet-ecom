@@ -35,7 +35,7 @@ type SortField = "createdDate" | "ipAddress" | "page" | "country" | "city" | "us
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZES = [20, 50, 100];
-const AUTO_REFRESH_MS = 10_000;
+const AUTO_REFRESH_MS = 240_000;
 
 function formatDate(d: string) {
   return new Date(d).toLocaleString("tr-TR", {
