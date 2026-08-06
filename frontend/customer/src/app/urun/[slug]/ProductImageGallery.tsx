@@ -78,7 +78,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
     return (
       <div className="aspect-square bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-8" />
+        <img src="https://images.autoforcepart.com/static/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-8" />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function ProductImageGallery({ images, productName }: Props) {
           {imgError ? (
             <div className="flex items-center justify-center w-full h-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/autoforcepart-no-image.png" alt="Görsel yüklenemedi" className="object-contain w-full h-full p-8" />
+              <img src="https://images.autoforcepart.com/static/autoforcepart-no-image.png" alt="Görsel yüklenemedi" className="object-contain w-full h-full p-8" />
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

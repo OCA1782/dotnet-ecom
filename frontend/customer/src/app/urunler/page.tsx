@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 
-const NO_IMAGE_URL = "/autoforcepart-no-image.png";
+const NO_IMAGE_URL = "https://images.autoforcepart.com/static/autoforcepart-no-image.png";
 import { serverFetch } from "@/lib/server-fetch";
 import { getVehicleModels } from "@/lib/vehicle-models";
 import type { Brand, Category, ProductListItem, PaginatedList } from "@/types";

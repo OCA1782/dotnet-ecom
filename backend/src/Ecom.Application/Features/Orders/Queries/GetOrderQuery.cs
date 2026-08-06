@@ -56,6 +56,7 @@ public record OrderDetailDto(
     string BillingAddressSnapshot,
     string? Note,
     DateTime CreatedDate,
+    Guid? PaymentId,
     IEnumerable<OrderItemDto> Items,
     IEnumerable<OrderStatusHistoryDto> StatusHistory,
     IEnumerable<ShipmentInfoDto> Shipments
@@ -71,6 +72,7 @@ public class GetOrderHandler(IApplicationDbContext db) : IRequestHandler<GetOrde
             .Include(o => o.Items)
             .Include(o => o.StatusHistory)
             .Include(o => o.Shipment)
+            .Include(o => o.Payment)
             .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber, cancellationToken);
 
         if (order is null) return Result<OrderDetailDto>.Failure("Sipariş bulunamadı.");
@@ -86,6 +88,7 @@ public class GetOrderHandler(IApplicationDbContext db) : IRequestHandler<GetOrde
             order.TaxAmount, order.GrandTotal,
             order.ShippingAddressSnapshot, order.BillingAddressSnapshot,
             order.Note, order.CreatedDate,
+            order.Payment?.Id,
             order.Items.Select(i => new OrderItemDto(
                 i.Id, i.ProductId, i.ProductVariantId, i.ProductName, i.SKU,
                 i.VariantName, i.Quantity, i.UnitPrice, i.DiscountAmount,

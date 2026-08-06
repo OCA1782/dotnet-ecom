@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
 
-const NO_IMAGE_URL = "/autoforcepart-no-image.png";
+const NO_IMAGE_URL = "https://images.autoforcepart.com/static/autoforcepart-no-image.png";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";

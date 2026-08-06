@@ -132,6 +132,7 @@ export interface AdminOrderItem {
 }
 
 export interface AdminOrderDetail extends AdminOrderSummary {
+  paymentId?: string;
   shippingAddressSnapshot: string;
   billingAddressSnapshot: string;
   note?: string;

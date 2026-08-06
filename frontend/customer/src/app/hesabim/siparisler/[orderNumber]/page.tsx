@@ -7,12 +7,20 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderDetail, Address } from "@/types";
-import { orderStatusStyle, paymentStatusStyle } from "@/types";
+import { orderStatusStyle } from "@/types";
 import { useI18n } from "@/contexts/I18nContext";
 import Image from "next/image";
 
 // ─── Progress stepper ─────────────────────────────────────────────────────────
-function OrderStepper({ status }: { status: number }) {
+// ShipmentStatus → equivalent OrderStatus for stepper advancement
+function shipmentToOrderStatus(s: number): number {
+  if (s === 2) return 4; // Preparing → Preparing
+  if (s === 3 || s === 4) return 5; // Shipped/InTransit → Shipped
+  if (s === 5) return 6; // Delivered → Delivered
+  return 0;
+}
+
+function OrderStepper({ status, shipmentStatus }: { status: number; shipmentStatus: number }) {
   const { t } = useI18n();
   const nl = (key: string) => t(key).replace(/\\n/g, "\n");
   const STEPS = [
@@ -23,21 +31,23 @@ function OrderStepper({ status }: { status: number }) {
     { label: nl("orders.step.delivered"), minStatus: 6 },
   ];
 
-  if (status === 8 || status === 11)
+  const effectiveStatus = Math.max(status, shipmentToOrderStatus(shipmentStatus));
+
+  if (effectiveStatus === 8 || effectiveStatus === 11)
     return (
       <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
         <span className="text-red-500">✕</span>
         <span className="text-sm font-medium text-red-700">
-          {status === 8 ? t("orders.status.cancelled") : t("orders.status.failed")}
+          {effectiveStatus === 8 ? t("orders.status.cancelled") : t("orders.status.failed")}
         </span>
       </div>
     );
-  if (status === 9 || status === 10)
+  if (effectiveStatus === 9 || effectiveStatus === 10)
     return (
       <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
         <span className="text-orange-500">↩</span>
         <span className="text-sm font-medium text-orange-700">
-          {status === 9 ? t("orders.status.refund_pending") : t("orders.status.refund_done")}
+          {effectiveStatus === 9 ? t("orders.status.refund_pending") : t("orders.status.refund_done")}
         </span>
       </div>
     );
@@ -45,7 +55,7 @@ function OrderStepper({ status }: { status: number }) {
     <div className="bg-white border border-slate-200 rounded-xl px-4 py-4 overflow-x-auto">
       <div className="flex items-center min-w-[320px]">
         {STEPS.map((step, i) => {
-          const active = status >= step.minStatus;
+          const active = effectiveStatus >= step.minStatus;
           return (
             <div key={i} className="flex items-center flex-1">
               <div className="flex flex-col items-center gap-1 shrink-0">
@@ -59,7 +69,7 @@ function OrderStepper({ status }: { status: number }) {
                 }`}>{step.label}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-1 mb-4 ${status > step.minStatus ? "bg-teal-500" : "bg-slate-200"}`} />
+                <div className={`flex-1 h-0.5 mx-1 mb-4 ${effectiveStatus > step.minStatus ? "bg-teal-500" : "bg-slate-200"}`} />
               )}
             </div>
           );
@@ -563,7 +573,6 @@ export default function OrderDetailPage() {
   }
 
   const st          = orderStatusStyle(order.status);
-  const ps          = paymentStatusStyle(order.paymentStatus);
   const isPending   = order.status === 1 || order.status === 2;
   const canCancel   = [1, 2].includes(order.status);
   const canRefund   = [6, 7].includes(order.status);
@@ -643,7 +652,6 @@ export default function OrderDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2 items-center">
             <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${st.cls}`}>{st.label}</span>
-            <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${ps.cls}`}>{ps.label}</span>
           </div>
         </div>
       </div>
@@ -684,7 +692,7 @@ export default function OrderDetailPage() {
       )}
 
       {/* Progress stepper */}
-      <OrderStepper status={order.status} />
+      <OrderStepper status={order.status} shipmentStatus={order.shipmentStatus} />
 
       {/* Address section */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

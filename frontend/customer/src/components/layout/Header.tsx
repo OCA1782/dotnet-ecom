@@ -23,7 +23,7 @@ type SuggestionItem = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5124";
-const NO_IMAGE_URL = "/autoforcepart-no-image.png";
+const NO_IMAGE_URL = "https://images.autoforcepart.com/static/autoforcepart-no-image.png";
 
 export default function Header({ logoNamed, logoIcon, siteName, languageSwitcherEnabled = true }: { logoNamed?: string; logoIcon?: string; siteName?: string; languageSwitcherEnabled?: boolean }) {
   const { t } = useI18n();

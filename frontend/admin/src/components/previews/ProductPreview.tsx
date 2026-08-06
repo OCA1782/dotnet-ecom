@@ -77,7 +77,7 @@ export default function ProductPreview({ form, images, brands, initialStock }: P
                   <img src={mainImage} alt={form.name} className="object-contain w-full h-full p-4" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
+                  <img src="https://images.autoforcepart.com/static/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
                 )}
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function ProductPreview({ form, images, brands, initialStock }: P
                 <img src={mainImage} alt={form.name} className="object-contain w-full h-full p-4" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src="/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
+                <img src="https://images.autoforcepart.com/static/autoforcepart-no-image.png" alt="Ürün görseli mevcut değil" className="object-contain w-full h-full p-4" />
               )}
             </div>
 

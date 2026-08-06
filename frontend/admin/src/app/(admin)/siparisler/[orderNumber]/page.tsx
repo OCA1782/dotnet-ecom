@@ -29,17 +29,21 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
 const SHIPMENT_STATUS: Record<number, string> = {
   1: "Kargo Yok",
   2: "Hazırlanıyor",
-  3: "Kargoda",
-  4: "Teslim Edildi",
-  5: "İade",
+  3: "Kargoya Verildi",
+  4: "Yolda",
+  5: "Teslim Edildi",
+  6: "Teslim Edilemedi",
+  7: "İade",
 };
 
 const SHIPMENT_STATUS_COLORS: Record<number, string> = {
   1: "bg-slate-100 text-slate-500",
   2: "bg-blue-100 text-blue-700",
   3: "bg-violet-100 text-violet-700",
-  4: "bg-emerald-100 text-emerald-700",
-  5: "bg-orange-100 text-orange-700",
+  4: "bg-indigo-100 text-indigo-700",
+  5: "bg-emerald-100 text-emerald-700",
+  6: "bg-red-100 text-red-700",
+  7: "bg-orange-100 text-orange-700",
 };
 
 const PAYMENT_STATUS_COLORS: Record<number, string> = {
@@ -141,8 +145,13 @@ export default function AdminOrderDetailPage() {
   const [shipmentForm, setShipmentForm] = useState({ trackingNumber: "", carrier: "Yurtiçi Kargo" });
   const [creatingShipment, setCreatingShipment] = useState(false);
   const [editingShipmentId, setEditingShipmentId] = useState<string | null>(null);
-  const [editShipmentForm, setEditShipmentForm] = useState({ carrier: "", trackingNumber: "", trackingUrl: "", status: 3 });
+  const [editShipmentForm, setEditShipmentForm] = useState({ carrier: "", trackingNumber: "", trackingUrl: "", status: 2 });
   const [savingShipment, setSavingShipment] = useState(false);
+  const [payingAction, setPayingAction] = useState<string | null>(null);
+  const [paymentMsg, setPaymentMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [newCargoStatus, setNewCargoStatus] = useState<number>(1);
+  const [updatingCargoStatus, setUpdatingCargoStatus] = useState(false);
+  const [cargoStatusMsg, setCargoStatusMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -159,6 +168,10 @@ export default function AdminOrderDetailPage() {
     const id = window.setTimeout(() => { void fetchOrder(); }, 0);
     return () => window.clearTimeout(id);
   }, [fetchOrder]);
+
+  useEffect(() => {
+    if (order?.shipments?.[0]?.status) setNewCargoStatus(order.shipments[0].status);
+  }, [order]);
 
   async function handleStatusUpdate() {
     if (!order || newStatus === "") return;
@@ -199,13 +212,55 @@ export default function AdminOrderDetailPage() {
     if (!editingShipmentId) return;
     setSavingShipment(true);
     try {
-      await api.patch(`/api/admin/shipments/${editingShipmentId}`, editShipmentForm);
+      await api.patch(`/api/admin/shipments/${editingShipmentId}`, {
+        cargoCompany: editShipmentForm.carrier,
+        trackingNumber: editShipmentForm.trackingNumber,
+        trackingUrl: editShipmentForm.trackingUrl || null,
+        status: editShipmentForm.status,
+      });
       setEditingShipmentId(null);
       await fetchOrder();
     } catch {
       alert("Kargo güncellenemedi");
     } finally {
       setSavingShipment(false);
+    }
+  }
+
+  async function handlePaymentAction(action: "approve" | "suspend" | "reject") {
+    if (!order?.paymentId) return;
+    setPayingAction(action);
+    setPaymentMsg(null);
+    try {
+      await api.put(`/api/admin/payments/${order.paymentId}/${action}`, {});
+      const labels: Record<string, string> = { approve: "onaylandı", suspend: "askıya alındı", reject: "reddedildi" };
+      setPaymentMsg({ text: `Ödeme ${labels[action]}.`, ok: true });
+      await fetchOrder();
+    } catch (err: unknown) {
+      setPaymentMsg({ text: err instanceof Error ? err.message : "Hata", ok: false });
+    } finally {
+      setPayingAction(null);
+    }
+  }
+
+  async function handleCargoStatusUpdate() {
+    const shipment = order?.shipments?.[0];
+    if (!shipment) return;
+    setUpdatingCargoStatus(true);
+    setCargoStatusMsg(null);
+    try {
+      await api.patch(`/api/admin/shipments/${shipment.id}`, {
+        cargoCompany: shipment.carrier,
+        trackingNumber: shipment.trackingNumber ?? "",
+        trackingUrl: shipment.trackingUrl ?? null,
+        status: newCargoStatus,
+      });
+      setCargoStatusMsg({ text: `Kargo durumu güncellendi: ${SHIPMENT_STATUS[newCargoStatus]}`, ok: true });
+      await fetchOrder();
+    } catch (err: unknown) {
+      setCargoStatusMsg({ text: err instanceof Error ? err.message : "Hata oluştu", ok: false });
+    } finally {
+      setUpdatingCargoStatus(false);
     }
   }
 
@@ -386,7 +441,96 @@ export default function AdminOrderDetailPage() {
             </div>
           </Section>
 
-          {/* Kargo */}
+          {/* Ödeme Durumu */}
+          <Section title="Ödeme Durumu" icon={CreditCard} iconColor="bg-emerald-500">
+            <div className="p-5">
+              {!order.paymentId ? (
+                <p className="text-sm text-slate-400 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-slate-300" />
+                  Ödeme kaydı bulunamadı.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Mevcut:</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PAYMENT_STATUS_COLORS[order.paymentStatus] ?? ""}`}>
+                      {PAYMENT_STATUS[order.paymentStatus] ?? "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handlePaymentAction("approve")}
+                      disabled={!!payingAction || order.paymentStatus === 2}
+                      className="px-4 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 transition disabled:opacity-40">
+                      {payingAction === "approve" ? "İşleniyor..." : "✓ Onayla"}
+                    </button>
+                    <button
+                      onClick={() => handlePaymentAction("suspend")}
+                      disabled={!!payingAction}
+                      className="px-4 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-xl hover:bg-amber-600 transition disabled:opacity-40">
+                      {payingAction === "suspend" ? "İşleniyor..." : "⏸ Askıya Al"}
+                    </button>
+                    <button
+                      onClick={() => handlePaymentAction("reject")}
+                      disabled={!!payingAction || order.paymentStatus === 4}
+                      className="px-4 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-xl hover:bg-red-600 transition disabled:opacity-40">
+                      {payingAction === "reject" ? "İşleniyor..." : "✕ Reddet"}
+                    </button>
+                  </div>
+                  {paymentMsg && (
+                    <p className={`text-xs px-3 py-2 rounded-lg ${paymentMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      {paymentMsg.text}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </Section>
+
+          {/* Kargo Durumu */}
+          <Section title="Kargo Durumu" icon={Truck} iconColor="bg-violet-500">
+            <div className="p-5">
+              {!order.shipments?.length ? (
+                <p className="text-sm text-slate-400 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-slate-300" />
+                  Kargo kaydı bulunamadı.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Mevcut:</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${SHIPMENT_STATUS_COLORS[order.shipmentStatus] ?? ""}`}>
+                      {SHIPMENT_STATUS[order.shipmentStatus] ?? "—"}
+                    </span>
+                  </div>
+                  <div className="flex gap-3">
+                    <select value={newCargoStatus}
+                      onChange={e => setNewCargoStatus(Number(e.target.value))}
+                      className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                      <option value={1}>Kargo Yok</option>
+                      <option value={2}>Hazırlanıyor</option>
+                      <option value={3}>Kargoya Verildi</option>
+                      <option value={4}>Yolda</option>
+                      <option value={5}>Teslim Edildi</option>
+                      <option value={6}>Teslim Edilemedi</option>
+                      <option value={7}>İade</option>
+                    </select>
+                    <button onClick={handleCargoStatusUpdate} disabled={updatingCargoStatus}
+                      className="px-5 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 transition disabled:opacity-40 font-semibold">
+                      {updatingCargoStatus ? "Güncelleniyor..." : "Güncelle"}
+                    </button>
+                  </div>
+                  {cargoStatusMsg && (
+                    <p className={`text-xs px-3 py-2 rounded-lg ${cargoStatusMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      {cargoStatusMsg.text}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </Section>
+
+          {/* Kargo Bilgileri */}
           <Section title="Kargo Bilgileri" icon={Truck} iconColor="bg-purple-500">
             <div className="p-5 space-y-3">
               {order.shipments?.length > 0 ? (
@@ -403,10 +547,13 @@ export default function AdminOrderDetailPage() {
                         <input value={editShipmentForm.trackingUrl} onChange={e => setEditShipmentForm(f => ({ ...f, trackingUrl: e.target.value }))}
                           placeholder="Takip URL (opsiyonel)" className={INPUT} />
                         <select value={editShipmentForm.status} onChange={e => setEditShipmentForm(f => ({ ...f, status: Number(e.target.value) }))} className={INPUT}>
+                          <option value={1}>Kargo Yok</option>
                           <option value={2}>Hazırlanıyor</option>
-                          <option value={3}>Kargoda</option>
-                          <option value={4}>Teslim Edildi</option>
-                          <option value={5}>İade</option>
+                          <option value={3}>Kargoya Verildi</option>
+                          <option value={4}>Yolda</option>
+                          <option value={5}>Teslim Edildi</option>
+                          <option value={6}>Teslim Edilemedi</option>
+                          <option value={7}>İade</option>
                         </select>
                         <div className="flex gap-2 pt-1">
                           <button onClick={handleUpdateShipment} disabled={savingShipment}
@@ -484,7 +631,7 @@ export default function AdminOrderDetailPage() {
               <div className="pt-3 border-t border-slate-100 space-y-1.5">
                 <InfoRow label="Sipariş No" value={<span className="font-mono text-teal-700">{order.orderNumber}</span>} />
                 <InfoRow label="Sipariş Tarihi" value={formatDate(order.createdDate)} />
-                <InfoRow label="Ürün Sayısı" value={`${order.itemCount} kalem`} />
+                <InfoRow label="Ürün Sayısı" value={`${order.items.length} kalem`} />
               </div>
             </div>
           </Section>

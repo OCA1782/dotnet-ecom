@@ -24,6 +24,9 @@ public class UpdateShipmentHandler(IApplicationDbContext db) : IRequestHandler<U
 
         if (shipment is null) return Result.Failure("Kargo kaydı bulunamadı.");
 
+        if (shipment.Order.PaymentStatus != PaymentStatus.Paid)
+            return Result.Failure("Ödeme onayı olmadan kargo durumu güncellenemez.");
+
         shipment.CargoCompany   = request.CargoCompany;
         shipment.TrackingNumber = request.TrackingNumber;
         shipment.TrackingUrl    = request.TrackingUrl;
