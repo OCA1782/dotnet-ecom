@@ -60,6 +60,12 @@ builder.Host.UseSerilog();
 // ──────────────────────────────────────────────────────────────────────────
 
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("ImageProxy", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; EcomBot/1.0)");
+    client.DefaultRequestHeaders.Add("Accept", "image/*,*/*");
+});
 builder.Services.AddScoped<AuditFilter>();
 builder.Services.AddControllers(options =>
 {

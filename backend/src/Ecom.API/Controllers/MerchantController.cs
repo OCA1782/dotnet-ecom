@@ -19,6 +19,7 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
     {
         limit = Math.Clamp(limit, 1_000, 100_000);
         var (siteUrl, siteName) = await GetSiteInfoAsync(ct);
+        var apiBase = $"{Request.Scheme}://{Request.Host}";
         var products = await mediator.Send(new GetMerchantFeedQuery(siteUrl, limit), ct);
 
         using var ms = new MemoryStream();
@@ -54,7 +55,7 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
                 WriteG(writer, "condition",     p.Condition);
 
                 if (!string.IsNullOrWhiteSpace(p.ImageLink))
-                    WriteG(writer, "image_link", p.ImageLink);
+                    WriteG(writer, "image_link", ResolveImageLink(p.ImageLink, apiBase, siteUrl));
 
                 if (!string.IsNullOrWhiteSpace(p.SalePrice))
                     WriteG(writer, "sale_price", p.SalePrice);
@@ -80,6 +81,19 @@ public class MerchantController(IMediator mediator, IApplicationDbContext db) : 
         }
 
         return File(ms.ToArray(), "application/rss+xml; charset=utf-8");
+    }
+
+    // ── Harici görsel URL'lerini proxy üzerinden yönlendir ────────────────────
+    private static string? ResolveImageLink(string? imageLink, string apiBase, string siteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageLink)) return null;
+        // Zaten kendi domain'imizden geliyorsa dokunma
+        if (imageLink.StartsWith(apiBase, StringComparison.OrdinalIgnoreCase)
+            || imageLink.StartsWith(siteUrl, StringComparison.OrdinalIgnoreCase)
+            || imageLink.StartsWith("/", StringComparison.Ordinal))
+            return imageLink;
+        // Üçüncü taraf URL → proxy üzerinden serve et
+        return $"{apiBase}/api/images/proxy?url={Uri.EscapeDataString(imageLink)}";
     }
 
     // ── CSV Export (Admin auth) ────────────────────────────────────────────────
