@@ -116,6 +116,11 @@ services:
       - LICENSE_ACTIVATION_URL=${LICENSE_ACTIVATION_URL:-}
       - Cloudinary__Url=${CLOUDINARY_URL:-}
       - Storage__PublicBaseUrl=${STORAGE_PUBLIC_BASE_URL:-}
+      - R2__AccountId=${R2_ACCOUNT_ID:-}
+      - R2__AccessKeyId=${R2_ACCESS_KEY_ID:-}
+      - R2__SecretAccessKey=${R2_SECRET_ACCESS_KEY:-}
+      - R2__Bucket=${R2_BUCKET:-}
+      - R2__PublicUrl=${R2_PUBLIC_URL:-}
       - FrontendUrls__CustomerUrl=http://customer:3000
       - FrontendUrls__AdminUrl=http://admin:3001
       - Docs__LocalPath=/app/docs

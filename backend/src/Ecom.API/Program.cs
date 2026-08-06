@@ -80,8 +80,25 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
+
+// ── Storage: R2 → Cloudinary → Local (öncelik sırası) ─────────────────────
+var r2AccountId  = builder.Configuration["R2:AccountId"];
+var r2AccessKey  = builder.Configuration["R2:AccessKeyId"];
+var r2SecretKey  = builder.Configuration["R2:SecretAccessKey"];
 var cloudinaryUrl = builder.Configuration["Cloudinary:Url"];
-if (!string.IsNullOrWhiteSpace(cloudinaryUrl))
+
+if (!string.IsNullOrWhiteSpace(r2AccountId) && !string.IsNullOrWhiteSpace(r2AccessKey))
+{
+    var s3Config = new Amazon.S3.AmazonS3Config
+    {
+        ServiceURL    = $"https://{r2AccountId}.r2.cloudflarestorage.com",
+        ForcePathStyle = true,
+    };
+    builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(
+        _ => new Amazon.S3.AmazonS3Client(r2AccessKey, r2SecretKey, s3Config));
+    builder.Services.AddScoped<IStorageService, R2StorageService>();
+}
+else if (!string.IsNullOrWhiteSpace(cloudinaryUrl))
 {
     builder.Services.AddSingleton(new Cloudinary(cloudinaryUrl) { Api = { Secure = true } });
     builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
@@ -90,6 +107,7 @@ else
 {
     builder.Services.AddScoped<IStorageService, LocalStorageService>();
 }
+// ──────────────────────────────────────────────────────────────────────────
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
