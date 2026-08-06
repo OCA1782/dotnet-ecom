@@ -17,14 +17,14 @@ interface PaymentResult {
 }
 
 function ShipmentBadge({ status }: { status: number }) {
-  if (status === 0) return null;
+  if (status <= 1) return null; // 1 = NotShipped (backend enum starts at 1)
   const map: Record<number, string> = {
-    1: "bg-violet-50 text-violet-700",
-    2: "bg-indigo-50 text-indigo-700",
-    3: "bg-blue-50 text-blue-700",
-    4: "bg-emerald-50 text-emerald-700",
-    5: "bg-red-50 text-red-700",
-    6: "bg-orange-50 text-orange-700",
+    2: "bg-violet-50 text-violet-700",
+    3: "bg-indigo-50 text-indigo-700",
+    4: "bg-blue-50 text-blue-700",
+    5: "bg-emerald-50 text-emerald-700",
+    6: "bg-red-50 text-red-700",
+    7: "bg-orange-50 text-orange-700",
   };
   return (
     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${map[status] ?? "bg-slate-100 text-slate-600"}`}>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { useCart } from "@/hooks/useCart";
+import { useCart, clearCartState } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice } from "@/lib/utils";
 import type { Address } from "@/types";
@@ -202,6 +202,7 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
 
       setOrderNumber(orderNum);
       setDone(true);
+      clearCartState();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("checkout.error.order_failed"));
     } finally {

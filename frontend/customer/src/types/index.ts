@@ -253,13 +253,13 @@ export const PAYMENT_STATUS: Record<number, string> = {
 };
 
 export const SHIPMENT_STATUS: Record<number, string> = {
-  0: "Kargo Yok",
-  1: "Hazırlanıyor",
-  2: "Kargoya Verildi",
-  3: "Yolda",
-  4: "Teslim Edildi",
-  5: "Teslim Edilemedi",
-  6: "İade",
+  1: "Kargo Yok",
+  2: "Hazırlanıyor",
+  3: "Kargoya Verildi",
+  4: "Yolda",
+  5: "Teslim Edildi",
+  6: "Teslim Edilemedi",
+  7: "İade",
 };
 
 export function orderStatusStyle(status: number): { label: string; cls: string } {
