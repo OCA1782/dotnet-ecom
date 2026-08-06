@@ -29,6 +29,17 @@ from botocore.config import Config
 
 sys.stdout.reconfigure(encoding='utf-8')
 
+# Yerel .env dosyasını oku
+_local_env = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+if os.path.exists(_local_env):
+    with open(_local_env, encoding='utf-8') as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if '=' in _line and not _line.startswith('#'):
+                _k, _, _v = _line.partition('=')
+                if _k.strip() not in os.environ:
+                    os.environ[_k.strip()] = _v.strip()
+
 # ── Yapılandırma ──────────────────────────────────────────────────────────────
 R2_ACCOUNT_ID  = os.environ['R2_ACCOUNT_ID']
 R2_ACCESS_KEY  = os.environ['R2_ACCESS_KEY_ID']
