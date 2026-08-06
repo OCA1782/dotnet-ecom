@@ -5,6 +5,7 @@ using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 
 namespace Ecom.API.Controllers.Admin;
 
@@ -57,5 +58,6 @@ public class UpdateShipmentRequest
     public string CargoCompany { get; set; } = string.Empty;
     public string? TrackingNumber { get; set; }
     public string? TrackingUrl { get; set; }
-    public ShipmentStatus Status { get; set; } = ShipmentStatus.Shipped;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ShipmentStatus Status { get; set; } = ShipmentStatus.NotShipped;
 }

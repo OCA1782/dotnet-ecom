@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, formatDate } from "@/lib/utils";
 import type { OrderSummary, PaginatedList } from "@/types";
-import { orderStatusStyle, paymentStatusStyle, SHIPMENT_STATUS } from "@/types";
+import { orderStatusStyle, SHIPMENT_STATUS } from "@/types";
 import { useI18n } from "@/contexts/I18nContext";
 
 interface PaymentResult {
@@ -123,7 +123,6 @@ export default function OrdersPage() {
         <div className="space-y-3">
           {orders.map((order) => {
             const st = orderStatusStyle(order.status);
-            const ps = paymentStatusStyle(order.paymentStatus);
             const isPending = order.status === 1 || order.status === 2;
             const leftBorderColor = isPending
               ? "border-l-amber-400"
@@ -163,9 +162,6 @@ export default function OrdersPage() {
                   <div className="mt-3 flex flex-wrap gap-1.5 items-center">
                     <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${st.cls}`}>
                       {st.label}
-                    </span>
-                    <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ${ps.cls}`}>
-                      {ps.label}
                     </span>
                     <ShipmentBadge status={order.shipmentStatus} />
                     <span className="ml-auto text-xs text-slate-400">{t("orders.item.detail")}</span>
