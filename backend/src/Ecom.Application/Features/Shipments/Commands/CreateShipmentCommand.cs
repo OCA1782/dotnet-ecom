@@ -20,8 +20,8 @@ public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
     public CreateShipmentValidator()
     {
         RuleFor(x => x.OrderId).NotEmpty();
-        RuleFor(x => x.CargoCompany).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.TrackingNumber).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.CargoCompany).MaximumLength(100);
+        RuleFor(x => x.TrackingNumber).MaximumLength(100);
     }
 }
 
@@ -35,38 +35,21 @@ public class CreateShipmentHandler(IApplicationDbContext db, IEmailService email
 
         if (order is null) return Result<Guid>.Failure("Sipariş bulunamadı.");
 
-        if (order.Status != OrderStatus.PaymentCompleted && order.Status != OrderStatus.Preparing)
-            return Result<Guid>.Failure("Sipariş kargo için hazır değil.");
-
         if (order.Shipment is not null)
             return Result<Guid>.Failure("Bu siparişe zaten kargo kaydı eklenmiş.");
 
         var shipment = new Domain.Entities.Shipment
         {
-            OrderId = order.Id,
-            CargoCompany = request.CargoCompany,
+            OrderId        = order.Id,
+            CargoCompany   = request.CargoCompany,
             TrackingNumber = request.TrackingNumber,
-            TrackingUrl = request.TrackingUrl,
-            ShippingCost = order.ShippingAmount,
-            Status = ShipmentStatus.Shipped,
-            ShippedDate = DateTime.UtcNow
+            TrackingUrl    = request.TrackingUrl,
+            ShippingCost   = order.ShippingAmount,
+            Status         = ShipmentStatus.NotShipped,
         };
 
         db.Shipments.Add(shipment);
-
-        // Sipariş durumunu Shipped'e güncelle
-        var previousStatus = order.Status;
-        order.Status = OrderStatus.Shipped;
-        order.ShipmentStatus = ShipmentStatus.Shipped;
-
-        db.OrderStatusHistories.Add(new Domain.Entities.OrderStatusHistory
-        {
-            OrderId = order.Id,
-            FromStatus = previousStatus,
-            ToStatus = OrderStatus.Shipped,
-            ChangedByUserId = request.CreatedByUserId,
-            Note = $"Kargo: {request.CargoCompany} / {request.TrackingNumber}"
-        });
+        order.ShipmentStatus = ShipmentStatus.NotShipped;
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -24,17 +24,19 @@ public class UpdateShipmentHandler(IApplicationDbContext db) : IRequestHandler<U
 
         if (shipment is null) return Result.Failure("Kargo kaydı bulunamadı.");
 
-        shipment.CargoCompany = request.CargoCompany;
+        shipment.CargoCompany   = request.CargoCompany;
         shipment.TrackingNumber = request.TrackingNumber;
-        shipment.TrackingUrl = request.TrackingUrl;
-        shipment.Status = request.Status;
+        shipment.TrackingUrl    = request.TrackingUrl;
+        shipment.Status         = request.Status;
+
+        // Kargo durumu her değiştiğinde sipariş ShipmentStatus'unu senkronize et
+        shipment.Order.ShipmentStatus = request.Status;
+
+        if (request.Status == ShipmentStatus.Shipped && shipment.ShippedDate is null)
+            shipment.ShippedDate = DateTime.UtcNow;
 
         if (request.Status == ShipmentStatus.Delivered && shipment.DeliveredDate is null)
-        {
             shipment.DeliveredDate = DateTime.UtcNow;
-            shipment.Order.Status = OrderStatus.Delivered;
-            shipment.Order.ShipmentStatus = ShipmentStatus.Delivered;
-        }
 
         await db.SaveChangesAsync(ct);
         return Result.Success();

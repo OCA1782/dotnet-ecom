@@ -58,23 +58,6 @@ public class UpdateOrderStatusHandler(IApplicationDbContext db, IAuditService au
         var previousStatus = order.Status;
         order.Status = request.NewStatus;
 
-        // Preparing'e geçişte otomatik Shipment kaydı oluştur (yoksa)
-        if (request.NewStatus == OrderStatus.Preparing)
-        {
-            var hasShipment = await db.Shipments.AnyAsync(s => s.OrderId == order.Id, cancellationToken);
-            if (!hasShipment)
-            {
-                db.Shipments.Add(new Domain.Entities.Shipment
-                {
-                    OrderId       = order.Id,
-                    CargoCompany  = string.Empty,
-                    ShippingCost  = order.ShippingAmount,
-                    Status        = ShipmentStatus.Preparing,
-                });
-                order.ShipmentStatus = ShipmentStatus.Preparing;
-            }
-        }
-
         db.OrderStatusHistories.Add(new Domain.Entities.OrderStatusHistory
         {
             OrderId = order.Id,

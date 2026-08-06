@@ -296,6 +296,15 @@ public class CreateOrderHandler(
 
         db.Orders.Add(order);
 
+        // Sipariş oluşturulunca kargo kaydını da aç (admin kargo ekranında görünsün)
+        db.Shipments.Add(new Domain.Entities.Shipment
+        {
+            OrderId      = order.Id,
+            CargoCompany = string.Empty,
+            ShippingCost = shippingAmount,
+            Status       = ShipmentStatus.NotShipped,
+        });
+
         // Reserve stock for all items
         foreach (var item in selectedItems)
         {
