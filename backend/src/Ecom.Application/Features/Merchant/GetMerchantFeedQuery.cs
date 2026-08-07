@@ -34,7 +34,8 @@ public class GetMerchantFeedHandler(IApplicationDbContext db)
         var products = await db.Products
             .AsNoTracking()
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished)
-            .OrderByDescending(p => p.CreatedDate)
+            .OrderBy(p => p.CreatedDate)
+            .ThenBy(p => p.Id)
             .Take(request.Limit)
             .Select(p => new MerchantProductDto(
                 p.SKU ?? p.Id.ToString(),
