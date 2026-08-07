@@ -75,7 +75,29 @@ public class GetMerchantFeedHandler(IApplicationDbContext db)
             .ToListAsync(cancellationToken);
 
         return products
-            .Select(p => p.Id.Length > 50 ? p with { Id = p.Id[..50] } : p)
+            .Select(p => p with { Id = SanitizeFeedId(p.Id) })
             .ToList();
+    }
+
+    // Google Merchant Center: id maks 50 byte (UTF-8). Türkçe karakterler ASCII'ye
+    // dönüştürülüp truncate edilir; bu şekilde byte ve char limiti aynı anda sağlanır.
+    private static readonly (char From, char To)[] _trMap =
+    [
+        ('ç','c'),('Ç','C'),('ş','s'),('Ş','S'),('ğ','g'),('Ğ','G'),
+        ('ü','u'),('Ü','U'),('ö','o'),('Ö','O'),('ı','i'),('İ','I'),
+    ];
+
+    private static string SanitizeFeedId(string id)
+    {
+        foreach (var (from, to) in _trMap)
+            id = id.Replace(from, to);
+
+        // UTF-8 byte limitini aş mıyor mu kontrol et; aşıyorsa kırp
+        var bytes = System.Text.Encoding.UTF8.GetByteCount(id);
+        if (bytes <= 50) return id;
+
+        // Byte sınırını aşmayacak en uzun alt dizeyi bul
+        var utf8 = System.Text.Encoding.UTF8.GetBytes(id);
+        return System.Text.Encoding.UTF8.GetString(utf8, 0, 50);
     }
 }
