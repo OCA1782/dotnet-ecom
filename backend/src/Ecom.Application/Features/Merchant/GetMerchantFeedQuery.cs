@@ -74,6 +74,8 @@ public class GetMerchantFeedHandler(IApplicationDbContext db)
             ))
             .ToListAsync(cancellationToken);
 
-        return products;
+        return products
+            .Select(p => p.Id.Length > 50 ? p with { Id = p.Id[..50] } : p)
+            .ToList();
     }
 }
