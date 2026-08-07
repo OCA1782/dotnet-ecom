@@ -21,8 +21,7 @@ public class R2StorageService(IAmazonS3 s3, IConfiguration configuration) : ISto
             Key         = key,
             InputStream = stream,
             ContentType = contentType,
-            // R2 public bucket — nesne herkese açık
-            CannedACL   = S3CannedACL.PublicRead,
+            // R2 does not support per-object ACLs; public access is set at bucket level
             Headers     = { CacheControl = "public, max-age=31536000, immutable" }
         }, ct);
 

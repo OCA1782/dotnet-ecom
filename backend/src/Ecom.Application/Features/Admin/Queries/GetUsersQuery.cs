@@ -20,7 +20,8 @@ public record UserListItemDto(
     DateTime? LastLoginDate,
     IEnumerable<string> Roles,
     string? DataSource = null,
-    string? CreatedByAdminEmail = null
+    string? CreatedByAdminEmail = null,
+    bool HasFullDataAccess = false
 );
 
 public record GetUsersQuery(int Page = 1, int PageSize = 20, string? Search = null, string? SortBy = null, string? Role = null, bool? IsActive = null) : IRequest<PaginatedList<UserListItemDto>>;
@@ -75,7 +76,7 @@ public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService curre
             {
                 u.Id, u.Name, u.Surname, u.Email, u.PhoneNumber, u.AvatarUrl, u.IsActive,
                 u.EmailConfirmed, u.PhoneConfirmed,
-                u.CreatedDate, u.LastLoginDate, u.DataSource, u.CreatedByAdminId
+                u.CreatedDate, u.LastLoginDate, u.DataSource, u.CreatedByAdminId, u.HasFullDataAccess
             })
             .ToListAsync(cancellationToken);
 
@@ -94,7 +95,8 @@ public class GetUsersHandler(IApplicationDbContext db, ICurrentUserService curre
             u.CreatedDate, u.LastLoginDate,
             roles.Where(r => r.UserId == u.Id).Select(r => r.Role.ToString()),
             u.DataSource,
-            u.CreatedByAdminId.HasValue ? adminEmails.FirstOrDefault(a => a.Id == u.CreatedByAdminId.Value)?.Email : null
+            u.CreatedByAdminId.HasValue ? adminEmails.FirstOrDefault(a => a.Id == u.CreatedByAdminId.Value)?.Email : null,
+            u.HasFullDataAccess
         ));
 
         return PaginatedList<UserListItemDto>.Create(items, totalCount, request.Page, request.PageSize);

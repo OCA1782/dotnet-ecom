@@ -511,6 +511,11 @@ export default function UsersPage() {
                           {ROLE_LABELS[role] ?? role}
                         </span>
                       ))}
+                      {u.hasFullDataAccess && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700" title="Tüm verileri görme yetkisi">
+                          Tam Erişim
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-3.5">

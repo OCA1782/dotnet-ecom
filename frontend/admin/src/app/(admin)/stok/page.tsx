@@ -182,7 +182,10 @@ export default function StockPage() {
       const data = await api.get<PaginatedList<StockItem>>(`/api/admin/stocks?${qs}`);
       setStocks(data.items);
       setTotalPages(data.totalPages);
-    } catch { setStocks([]); }
+    } catch (e: unknown) {
+      setStocks([]);
+      setMsg({ text: e instanceof Error ? e.message : "Stok listesi yüklenemedi.", ok: false });
+    }
     finally { setLoading(false); }
   }, [page, stockPageSize, criticalOnly, stockSearch, sortField, sortDir]);
 

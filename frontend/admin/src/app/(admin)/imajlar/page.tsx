@@ -77,10 +77,12 @@ export default function ImajlarPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<MediaImage | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const PAGE_SIZE = 24;
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -91,6 +93,9 @@ export default function ImajlarPage() {
       if (search) params.set("search", search);
       const res = await api.get<PagedResult>(`/api/admin/media/images?${params}`);
       setData(res);
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : "Görseller yüklenemedi.");
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -194,6 +199,14 @@ export default function ImajlarPage() {
           )}
         </form>
       </div>
+
+      {/* Error */}
+      {loadError && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <span className="font-semibold">Hata:</span> {loadError}
+          <button onClick={() => { void load(); }} className="ml-auto text-red-500 hover:text-red-700 underline text-xs">Tekrar dene</button>
+        </div>
+      )}
 
       {/* Image Grid */}
       {loading ? (

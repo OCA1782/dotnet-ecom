@@ -210,6 +210,7 @@ export interface AdminUser {
   roles: string[];
   dataSource?: string;
   createdByAdminEmail?: string;
+  hasFullDataAccess?: boolean;
 }
 
 // Coupons
