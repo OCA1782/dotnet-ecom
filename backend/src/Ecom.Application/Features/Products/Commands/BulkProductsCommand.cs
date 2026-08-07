@@ -141,9 +141,9 @@ public class BulkProductsHandler(IApplicationDbContext db, IAuditService audit)
                 foreach (var p in products)
                 {
                     var oldPrice = p.Price;
-                    p.Price = Math.Round(p.Price * multiplier, 2);
+                    p.Price = Math.Max(0, Math.Round(p.Price * multiplier, 2));
                     if (p.DiscountPrice.HasValue)
-                        p.DiscountPrice = Math.Round(p.DiscountPrice.Value * multiplier, 2);
+                        p.DiscountPrice = Math.Max(0, Math.Round(p.DiscountPrice.Value * multiplier, 2));
                     affected++;
                     await audit.LogAsync("ProductBulkPriceAdjusted", "Product", p.Id.ToString(),
                         oldValue: oldPrice.ToString("F2"),
@@ -184,6 +184,9 @@ public class BulkProductsHandler(IApplicationDbContext db, IAuditService audit)
                 {
                     var oldPrice = p.Price;
                     p.Price = setVal;
+                    // Clear discount price if it would exceed the new price
+                    if (p.DiscountPrice.HasValue && p.DiscountPrice.Value >= setVal)
+                        p.DiscountPrice = null;
                     affected++;
                     await audit.LogAsync("ProductBulkPriceSet", "Product", p.Id.ToString(),
                         oldValue: oldPrice.ToString("F2"),
