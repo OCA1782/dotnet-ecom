@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +34,7 @@ public class GetCouponUsagesHandler(IApplicationDbContext db, ICurrentUserServic
             .Include(cu => cu.User)
             .AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             query = query.Where(cu => cu.Coupon.CreatedByAdminId == currentUser.UserId.Value);
 
         if (request.CouponId.HasValue)

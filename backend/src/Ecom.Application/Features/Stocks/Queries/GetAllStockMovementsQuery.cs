@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Ecom.Domain.Enums;
 using MediatR;
@@ -36,7 +36,7 @@ public class GetAllStockMovementsHandler(IApplicationDbContext db, ICurrentUserS
             .Join(db.Stocks, m => m.StockId, s => s.Id, (m, s) => new { m, s })
             .Where(x => x.s.ProductId != null);
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             var ownedProductIds = await db.Products

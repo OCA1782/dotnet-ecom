@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Ecom.Domain.Enums;
 using MediatR;
@@ -23,7 +23,7 @@ public class GetAdminOrdersHandler(IApplicationDbContext db, ICurrentUserService
             .Where(o => !o.IsDeleted)
             .AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             query = query.Where(o => o.User!.CreatedByAdminId == adminId

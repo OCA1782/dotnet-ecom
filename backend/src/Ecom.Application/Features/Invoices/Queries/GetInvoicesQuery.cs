@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +41,7 @@ public class GetInvoicesHandler(IApplicationDbContext db, ICurrentUserService cu
             .Include(i => i.Order).ThenInclude(o => o.User)
             .Where(i => !i.IsDeleted);
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             q = q.Where(i => i.Order.User!.CreatedByAdminId == adminId

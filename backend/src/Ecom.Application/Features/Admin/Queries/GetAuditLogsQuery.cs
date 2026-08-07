@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +36,7 @@ public class GetAuditLogsHandler(IApplicationDbContext db, ICurrentUserService c
     {
         var query = db.AuditLogs.AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             var managedUserIds = await db.Users

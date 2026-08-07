@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +28,7 @@ public class GetStockMovementsQueryHandler(IApplicationDbContext db, ICurrentUse
 {
     public async Task<PaginatedList<StockMovementDto>> Handle(GetStockMovementsQuery request, CancellationToken cancellationToken)
     {
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var owned = await db.Products.AnyAsync(
                 p => p.Id == request.ProductId && p.CreatedByAdminId == currentUser.UserId.Value,

@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +30,7 @@ public class GetCategoriesQueryHandler(IApplicationDbContext db, ICacheService c
 {
     public async Task<List<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId : null;
+        var tenantId = (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue) ? currentUser.UserId : null;
         var vehicleModel = request.VehicleModel?.Trim();
         var cacheKey = $"categories:{request.OnlyActive}:{request.OnlyMenu}:{request.ShowInVehicleNav}:{tenantId}:{vehicleModel ?? ""}";
         var cached = await cache.GetAsync<List<CategoryDto>>(cacheKey, cancellationToken);

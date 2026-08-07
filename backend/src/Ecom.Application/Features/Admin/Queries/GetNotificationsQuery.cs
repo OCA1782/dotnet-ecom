@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +27,7 @@ public class GetNotificationsQueryHandler(IApplicationDbContext db, ICurrentUser
     {
         var items = new List<NotificationItemDto>();
         var since = DateTime.UtcNow.AddHours(-24);
-        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var isSuperAdmin = currentUser.HasEffectiveFullAccess;
         var adminId = currentUser.UserId;
 
         List<Guid> managedUserIds = [];

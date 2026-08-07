@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using FluentValidation;
 using MediatR;
@@ -23,7 +23,7 @@ public class GetCampaignsHandler(IApplicationDbContext db, ICurrentUserService c
         var q = db.Campaigns.Where(c => !c.IsDeleted);
         if (request.OnlyActive) q = q.Where(c => c.IsActive);
         if (request.OnlyFeatured) q = q.Where(c => c.IsFeatured);
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             q = q.Where(c => c.CreatedByAdminId == currentUser.UserId.Value);
         return await q.OrderBy(c => c.DisplayOrder).ThenBy(c => c.CreatedDate)
             .Select(c => new CampaignDto(c.Id, c.Title, c.Subtitle, c.Icon, c.ColorScheme, c.ImageUrl, c.StylesJson, c.LinkUrl, c.LinkText, c.DisplayOrder, c.IsActive, c.IsFeatured, c.CreatedDate,

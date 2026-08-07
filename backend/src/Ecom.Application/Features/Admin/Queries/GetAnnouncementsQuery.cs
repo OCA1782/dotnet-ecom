@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +43,7 @@ public class GetAnnouncementsHandler(IApplicationDbContext db, ICurrentUserServi
         var now = DateTime.UtcNow;
         var query = db.Announcements.AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             query = query.Where(a => a.CreatedByAdminId == currentUser.UserId.Value);
 
         if (request.OnlyActive)

@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +40,7 @@ public class GetErrorLogsHandler(IApplicationDbContext db, ICurrentUserService c
     {
         var query = db.ErrorLogs.AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             var managedEmails = await db.Users

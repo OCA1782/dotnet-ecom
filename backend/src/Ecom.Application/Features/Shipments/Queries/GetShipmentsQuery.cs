@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Ecom.Domain.Enums;
 using MediatR;
@@ -40,7 +40,7 @@ public class GetShipmentsHandler(IApplicationDbContext db, ICurrentUserService c
             .Where(s => !s.IsDeleted)
             .AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             query = query.Where(s => s.Order.User!.CreatedByAdminId == adminId

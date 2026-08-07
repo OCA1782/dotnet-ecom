@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +21,7 @@ public class GetProductHistoryHandler(IApplicationDbContext db, ICurrentUserServ
 {
     public async Task<List<ProductHistoryEntryDto>> Handle(GetProductHistoryQuery request, CancellationToken cancellationToken)
     {
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var owned = await db.Products.AnyAsync(
                 p => p.Id == request.ProductId && p.CreatedByAdminId == currentUser.UserId.Value,

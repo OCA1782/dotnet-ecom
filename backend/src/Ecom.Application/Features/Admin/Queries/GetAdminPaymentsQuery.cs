@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -59,7 +59,7 @@ public class GetAdminPaymentsHandler(IApplicationDbContext db, ICurrentUserServi
             .Include(p => p.Order).ThenInclude(o => o.User)
             .AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             query = query.Where(p => p.Order.User!.CreatedByAdminId == adminId

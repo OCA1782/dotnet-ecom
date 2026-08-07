@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using Ecom.Application.Common.Interfaces;
 using MediatR;
 
@@ -46,7 +46,7 @@ public class GetVisitorLogsQueryHandler(IDapperQueryService dapper, ICurrentUser
         var where = new List<string> { "v.\"IsDeleted\" = false" };
         var param = new DynamicParameters();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             where.Add("(v.\"UserId\" IS NULL OR u.\"CreatedByAdminId\" = @TenantAdminId OR v.\"UserId\" = @TenantAdminId)");
             param.Add("TenantAdminId", currentUser.UserId.Value);

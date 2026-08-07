@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using Ecom.Application.Common.Interfaces;
 using MediatR;
 
@@ -20,7 +20,7 @@ public class GetProductSalesReportQueryHandler(IDapperQueryService dapper, ICach
 {
     public async Task<IEnumerable<ProductSalesDto>> Handle(GetProductSalesReportQuery request, CancellationToken cancellationToken)
     {
-        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var isSuperAdmin = currentUser.HasEffectiveFullAccess;
         var adminId = (!isSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId : null;
         var tenantKey = adminId?.ToString() ?? "super";
 

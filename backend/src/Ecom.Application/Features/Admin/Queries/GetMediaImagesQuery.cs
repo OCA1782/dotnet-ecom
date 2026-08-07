@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +38,7 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserSe
         var includeAnnouncement = request.SourceType is null or "announcement";
         var includeUser         = request.SourceType is null or "user";
 
-        var adminId = (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue) ? currentUser.UserId.Value : (Guid?)null;
+        var adminId = (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue) ? currentUser.UserId.Value : (Guid?)null;
 
         // Product images
         if (includeProduct)

@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using UserRoleEnum = Ecom.Domain.Enums.UserRole;
@@ -53,7 +53,7 @@ public class GetUserDetailsHandler(IApplicationDbContext db, ICurrentUserService
 {
     public async Task<AdminUserDetailsDto?> Handle(GetUserDetailsQuery request, CancellationToken cancellationToken)
     {
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             var accessible = request.UserId == adminId ||

@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Ecom.Domain.Enums;
 using MediatR;
@@ -33,7 +33,7 @@ public class GetCouponsHandler(IApplicationDbContext db, ICurrentUserService cur
     {
         var query = db.Coupons.AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             query = query.Where(c => c.CreatedByAdminId == currentUser.UserId.Value);
         if (!request.IncludeInactive) query = query.Where(c => c.IsActive);
         if (!string.IsNullOrWhiteSpace(request.Search))

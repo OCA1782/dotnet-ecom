@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +16,7 @@ public class GetBrandsQueryHandler(IApplicationDbContext db, ICurrentUserService
     {
         var query = db.Brands.Where(b => !b.IsDeleted);
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
             query = query.Where(b => b.CreatedByAdminId == currentUser.UserId.Value);
 
         if (request.IsActive.HasValue)

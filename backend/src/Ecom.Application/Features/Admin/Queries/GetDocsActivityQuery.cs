@@ -1,4 +1,4 @@
-using Ecom.Application.Common.Interfaces;
+﻿using Ecom.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,7 +20,7 @@ public class GetDocsActivityHandler(IApplicationDbContext db, ICurrentUserServic
     {
         var take = Math.Min(request.Limit, 200);
         var items = new List<ActivityItem>();
-        var isSuperAdmin = currentUser.IsSuperAdmin;
+        var isSuperAdmin = currentUser.HasEffectiveFullAccess;
         var adminId = currentUser.UserId;
 
         List<string> managedEmails = [];
