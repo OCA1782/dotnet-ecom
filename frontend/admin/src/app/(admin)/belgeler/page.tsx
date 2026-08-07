@@ -7,7 +7,7 @@ import {
   FolderOpen, Trash2, Copy, Check, ExternalLink,
   ChevronLeft, ChevronRight, Search, X, Filter,
   FileText, Image as ImageIcon, Video, File,
-  User, Calendar, Tag,
+  User, Calendar, Tag, Upload,
 } from "lucide-react";
 
 interface UploadedFile {
@@ -72,6 +72,7 @@ export default function BelgelerPage() {
   const [deleteTarget, setDeleteTarget] = useState<UploadedFile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const PAGE_SIZE = 20;
 
   const load = useCallback(async () => {
@@ -107,6 +108,25 @@ export default function BelgelerPage() {
     setPage(1);
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}` },
+        body: form,
+      });
+      void load();
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const copyUrl = async (file: UploadedFile) => {
     await navigator.clipboard.writeText(file.url);
     setCopiedId(file.id);
@@ -138,7 +158,11 @@ export default function BelgelerPage() {
             {t("belgeler.subtitle", "Upload edilen tüm dosyalar — görseller, videolar, dokümanlar")}
           </p>
         </div>
-        <div className="text-sm text-slate-500">{total} {t("belgeler.fileCount", "dosya")}</div>
+        <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition ${uploading ? "bg-slate-100 text-slate-400" : "bg-teal-600 text-white hover:bg-teal-700"}`}>
+          <Upload size={14} />
+          {uploading ? t("ui.uploading", "Yükleniyor...") : t("action.uploadFile", "Dosya Yükle")}
+          <input type="file" className="hidden" disabled={uploading} onChange={handleUpload} />
+        </label>
       </div>
 
       {/* Filters */}

@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import {
   Image as ImageIcon, Trash2, Copy, Check, ExternalLink,
   ChevronLeft, ChevronRight, Search, X, Filter, Package,
-  Layers, Tag, Megaphone, Eye, Users,
+  Layers, Tag, Megaphone, Eye, Users, Upload,
 } from "lucide-react";
 
 interface MediaImage {
@@ -70,13 +70,13 @@ export default function ImajlarPage() {
   const [data, setData] = useState<PagedResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [source, setSource] = useState("");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<MediaImage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<MediaImage | null>(null);
+  const [uploading, setUploading] = useState(false);
   const PAGE_SIZE = 24;
 
   const load = useCallback(async () => {
@@ -85,15 +85,16 @@ export default function ImajlarPage() {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(PAGE_SIZE),
+        source: "product",
+        excludeNoImage: "true",
       });
-      if (source) params.set("source", source);
       if (search) params.set("search", search);
       const res = await api.get<PagedResult>(`/api/admin/media/images?${params}`);
       setData(res);
     } finally {
       setLoading(false);
     }
-  }, [page, source, search]);
+  }, [page, search]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, 0);
@@ -110,6 +111,25 @@ export default function ImajlarPage() {
     setSearchInput("");
     setSearch("");
     setPage(1);
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}` },
+        body: form,
+      });
+      void load();
+    } finally {
+      setUploading(false);
+    }
   };
 
   const copyUrl = async (img: MediaImage) => {
@@ -143,11 +163,16 @@ export default function ImajlarPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">{t("nav./imajlar", "İmaj Yönetimi")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {t("ui.imajlarSubtitle", "Ürün, kategori, marka ve duyurulardaki tüm görseller")}
+            {t("ui.imajlarSubtitle", "Ürünlere ait görseller (no-image hariç)")}
           </p>
         </div>
-        <div className="text-sm text-slate-500">
-          {total} {t("ui.image", "görsel")}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-500">{total} {t("ui.image", "görsel")}</span>
+          <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition ${uploading ? "bg-slate-100 text-slate-400" : "bg-teal-600 text-white hover:bg-teal-700"}`}>
+            <Upload size={14} />
+            {uploading ? t("ui.uploading", "Yükleniyor...") : t("action.uploadImage", "Görsel Yükle")}
+            <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handleUpload} />
+          </label>
         </div>
       </div>
 
@@ -158,7 +183,7 @@ export default function ImajlarPage() {
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder={t("ui.imageSearchPlaceholder", "Kaynak adı veya URL ara...")}
+            placeholder={t("ui.imageSearchPlaceholder", "Ürün adı veya URL ara...")}
             className="w-full pl-8 pr-8 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           {searchInput && (
@@ -168,22 +193,6 @@ export default function ImajlarPage() {
             </button>
           )}
         </form>
-
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-slate-400" />
-          <select
-            value={source}
-            onChange={e => { setSource(e.target.value); setPage(1); }}
-            className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-          >
-            <option value="">{t("filter.allSources", "Tüm Kaynaklar")}</option>
-            <option value="product">{t("ui.products", "Ürünler")}</option>
-            <option value="category">{t("ui.categories", "Kategoriler")}</option>
-            <option value="brand">{t("ui.brands", "Markalar")}</option>
-            <option value="announcement">{t("ui.announcements", "Duyurular")}</option>
-            <option value="user">{t("ui.users", "Kullanıcılar")}</option>
-          </select>
-        </div>
       </div>
 
       {/* Image Grid */}
@@ -197,8 +206,8 @@ export default function ImajlarPage() {
         <div className="text-center py-20">
           <ImageIcon size={40} className="mx-auto text-slate-300 mb-3" />
           <p className="text-slate-400 font-medium">{t("ui.imageNotFound", "Görsel bulunamadı")}</p>
-          {(search || source) && (
-            <button onClick={() => { clearSearch(); setSource(""); }} className="mt-2 text-sm text-teal-600 hover:underline">
+          {search && (
+            <button onClick={() => { clearSearch(); }} className="mt-2 text-sm text-teal-600 hover:underline">
               {t("filter.clearFilters", "Filtreleri Temizle")}
             </button>
           )}

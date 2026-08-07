@@ -21,9 +21,10 @@ public class MediaController(IMediator mediator, IApplicationDbContext db, ICurr
         [FromQuery] string? source = null,
         [FromQuery] string? search = null,
         [FromQuery] bool? isMain = null,
+        [FromQuery] bool excludeNoImage = false,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetMediaImagesQuery(page, pageSize, source, search, isMain), ct);
+        var result = await mediator.Send(new GetMediaImagesQuery(page, pageSize, source, search, isMain, excludeNoImage), ct);
         return Ok(result);
     }
 
@@ -97,7 +98,7 @@ public class MediaController(IMediator mediator, IApplicationDbContext db, ICurr
     {
         var query = db.UploadedFiles.AsQueryable();
 
-        if (!currentUser.IsSuperAdmin && currentUser.UserId.HasValue)
+        if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)
         {
             var adminId = currentUser.UserId.Value;
             var managedEmails = await db.Users

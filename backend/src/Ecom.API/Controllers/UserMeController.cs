@@ -1,3 +1,4 @@
+using Ecom.API.Services;
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Features.Auth.Commands;
 using Ecom.Application.Features.Users.Commands;
@@ -12,7 +13,7 @@ namespace Ecom.API.Controllers;
 [ApiController]
 [Route("api/users/me")]
 [Authorize]
-public class UserMeController(IMediator mediator, ICurrentUserService currentUser, IWebHostEnvironment env) : ControllerBase
+public class UserMeController(IMediator mediator, ICurrentUserService currentUser, IStorageService storage) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetProfile(CancellationToken ct)
@@ -49,19 +50,10 @@ public class UserMeController(IMediator mediator, ICurrentUserService currentUse
         if (file.Length > 3 * 1024 * 1024)
             return BadRequest(new { error = "Dosya boyutu en fazla 3 MB olabilir." });
 
-        var uploadsPath = Path.Combine(
-            env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),
-            "uploads", "avatars");
-        Directory.CreateDirectory(uploadsPath);
-
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         var fileName = $"avatar_{currentUser.UserId}{ext}";
-        var filePath = Path.Combine(uploadsPath, fileName);
-
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream, ct);
-
-        var url = $"{Request.Scheme}://{Request.Host}/uploads/avatars/{fileName}";
+        await using var stream = file.OpenReadStream();
+        var url = await storage.UploadAsync(stream, fileName, file.ContentType, ct);
 
         var profile = await mediator.Send(new GetCurrentUserQuery(currentUser.UserId!.Value), ct);
         if (profile is null) return NotFound();
