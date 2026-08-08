@@ -31,9 +31,10 @@ public class MediaController(
         [FromQuery] string? search = null,
         [FromQuery] bool? isMain = null,
         [FromQuery] bool excludeNoImage = false,
+        [FromQuery] string sort = "newest",
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetMediaImagesQuery(page, pageSize, source, search, isMain, excludeNoImage), ct);
+        var result = await mediator.Send(new GetMediaImagesQuery(page, pageSize, source, search, isMain, excludeNoImage, sort), ct);
         return Ok(result);
     }
 

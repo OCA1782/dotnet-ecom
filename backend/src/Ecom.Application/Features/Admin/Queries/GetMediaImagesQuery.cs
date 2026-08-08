@@ -23,7 +23,8 @@ public record GetMediaImagesQuery(
     string? SourceType = null,
     string? Search = null,
     bool? IsMain = null,
-    bool ExcludeNoImage = false
+    bool ExcludeNoImage = false,
+    string Sort = "newest"
 ) : IRequest<PaginatedList<MediaImageDto>>;
 
 public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser)
@@ -72,8 +73,10 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserSe
             all = all.Where(x => x.SourceType != "product" || x.IsMain == request.IsMain.Value).ToList();
 
         var total = all.Count;
-        var items = all
-            .OrderByDescending(x => x.CreatedDate)
+        var ordered = request.Sort == "oldest"
+            ? all.OrderBy(x => x.CreatedDate)
+            : (IEnumerable<MediaImageDto>)all.OrderByDescending(x => x.CreatedDate);
+        var items = ordered
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToList();
@@ -105,8 +108,10 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserSe
             q = q.Where(pi => pi.IsMain == request.IsMain.Value);
 
         var total = await q.CountAsync(ct);
-        var items = await q
-            .OrderByDescending(pi => pi.CreatedDate)
+        var sortedQ = request.Sort == "oldest"
+            ? q.OrderBy(pi => pi.CreatedDate)
+            : q.OrderByDescending(pi => pi.CreatedDate);
+        var items = await sortedQ
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(pi => new MediaImageDto(
