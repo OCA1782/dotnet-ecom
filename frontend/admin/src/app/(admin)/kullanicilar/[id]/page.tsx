@@ -296,7 +296,7 @@ export default function UserDetailPage() {
                   <ShieldCheck size={15} />
                   Rol Yönetimi
                 </Link>
-                {viewerIsSuperAdmin && user.roles.some(r => !["Customer", "SuperAdmin"].includes(r)) && (
+                {viewerIsSuperAdmin && user.roles.some(r => r !== "Customer") && (
                   <button
                     onClick={() => setDataAccessModal(true)}
                     disabled={dataAccessLoading}

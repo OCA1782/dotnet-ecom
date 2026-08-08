@@ -39,6 +39,7 @@ public class GetStocksQueryHandler(IApplicationDbContext db, ICurrentUserService
             .Where(s => !s.IsDeleted && (s.Product == null || !s.Product.IsDeleted))
             .Include(s => s.Product)
             .Include(s => s.ProductVariant)
+            .AsSingleQuery()
             .AsQueryable();
 
         if (!currentUser.HasEffectiveFullAccess && currentUser.UserId.HasValue)

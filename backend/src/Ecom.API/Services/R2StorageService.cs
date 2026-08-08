@@ -15,13 +15,18 @@ public class R2StorageService(IAmazonS3 s3, IConfiguration configuration) : ISto
 
         var key = $"products/{Guid.NewGuid():N}{ext}";
 
+        // Buffer stream so content length is known — R2 rejects chunked streaming uploads
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
         await s3.PutObjectAsync(new PutObjectRequest
         {
             BucketName  = _bucket,
             Key         = key,
-            InputStream = stream,
+            InputStream = ms,
             ContentType = contentType,
-            // R2 does not support per-object ACLs; public access is set at bucket level
+            DisablePayloadSigning = true, // R2 does not support STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER
             Headers     = { CacheControl = "public, max-age=31536000, immutable" }
         }, ct);
 

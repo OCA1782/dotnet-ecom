@@ -72,7 +72,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {
-                // Column types: nvarchar(max) → text, decimal(N,M) → numeric(N,M)
+                // Column types: nvarchar(max) → text, decimal → numeric, datetime → timestamp, bit → boolean
                 foreach (var property in entity.GetProperties())
                 {
                     var colType = property.GetColumnType();
@@ -84,6 +84,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                     else if (colType.Equals("datetime2", StringComparison.OrdinalIgnoreCase)
                           || colType.Equals("datetime", StringComparison.OrdinalIgnoreCase))
                         property.SetColumnType("timestamp without time zone");
+                    else if (colType.Equals("bit", StringComparison.OrdinalIgnoreCase) &&
+                             property.ClrType == typeof(bool))
+                        property.SetColumnType("boolean");
                 }
 
                 // Index filters: T-SQL bracket syntax → PostgreSQL double-quote syntax

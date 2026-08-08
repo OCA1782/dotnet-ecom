@@ -21,9 +21,7 @@ public class ToggleFullDataAccessHandler(IApplicationDbContext db, ICurrentUserS
 
         if (user is null) return Result.Failure("Kullanıcı bulunamadı.");
 
-        var hasAdminRole = user.Roles.Any(r =>
-            r.Role != Domain.Enums.UserRole.Customer &&
-            r.Role != Domain.Enums.UserRole.SuperAdmin);
+        var hasAdminRole = user.Roles.Any(r => r.Role != Domain.Enums.UserRole.Customer);
         if (!hasAdminRole)
             return Result.Failure("Tam veri erişimi yalnızca admin paneli kullanıcılarına verilebilir.");
 
