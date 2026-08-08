@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useI18n } from "@/contexts/I18nContext";
 import { api } from "@/lib/api";
 import {
@@ -80,7 +80,17 @@ export default function ImajlarPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const PAGE_SIZE = 24;
 
+  // Per-page client-side cache keyed by "page:search"
+  const pageCache = useRef(new Map<string, PagedResult>());
+
   const load = useCallback(async () => {
+    const cacheKey = `${page}:${search}`;
+    const cached = pageCache.current.get(cacheKey);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setLoadError(null);
     try {
@@ -92,6 +102,7 @@ export default function ImajlarPage() {
       });
       if (search) params.set("search", search);
       const res = await api.get<PagedResult>(`/api/admin/media/images?${params}`);
+      pageCache.current.set(cacheKey, res);
       setData(res);
     } catch (e: unknown) {
       setLoadError(e instanceof Error ? e.message : "Görseller yüklenemedi.");
@@ -108,6 +119,7 @@ export default function ImajlarPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    pageCache.current.clear();
     setSearch(searchInput);
     setPage(1);
   };
@@ -116,6 +128,7 @@ export default function ImajlarPage() {
     setSearchInput("");
     setSearch("");
     setPage(1);
+    pageCache.current.clear();
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +165,8 @@ export default function ImajlarPage() {
         window.dispatchEvent(new CustomEvent("ecom:avatar-changed", { detail: { userId: deleteTarget.sourceId, avatarUrl: deleteTarget.url } }));
       }
       setDeleteTarget(null);
-      load();
+      pageCache.current.clear(); // invalidate all pages — total count shifts after delete
+      void load();
     } finally {
       setDeleting(false);
     }

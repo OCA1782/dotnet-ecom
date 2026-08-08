@@ -105,4 +105,25 @@ public class StocksController(IMediator mediator) : ControllerBase
         if (!result.Succeeded) return BadRequest(new { error = result.Error });
         return Ok(new { message = "Stok kaydı silindi." });
     }
+
+    /// <summary>
+    /// Stok kaydı olmayan tüm ürünler için varsayılan stok kaydı oluşturur.
+    /// SuperAdmin only. Uzun sürebilir — arka planda beklenebilir.
+    /// </summary>
+    [HttpPost("initialize-missing")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> InitializeMissing(
+        [FromQuery] int defaultQuantity = 50,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new InitializeMissingStocksCommand(defaultQuantity), ct);
+        return Ok(new
+        {
+            created       = result.Created,
+            totalProducts = result.TotalProducts,
+            message       = result.Created == 0
+                ? "Tüm ürünlerin zaten stok kaydı var."
+                : $"{result.Created} ürün için varsayılan stok ({defaultQuantity} adet) oluşturuldu."
+        });
+    }
 }
