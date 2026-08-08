@@ -46,7 +46,8 @@ export default function Header({ logoNamed, logoIcon, siteName, languageSwitcher
   const [activeIdx, setActiveIdx] = useState(-1);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
-  const [logoLoadError, setLogoLoadError] = useState(false);
+  const [logoNamedError, setLogoNamedError] = useState(false);
+  const [logoIconError, setLogoIconError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -214,27 +215,22 @@ export default function Header({ logoNamed, logoIcon, siteName, languageSwitcher
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4 gap-6 flex-wrap" data-header-inner>
             <Link href="/" data-slot="logo" className="flex-shrink-0 flex items-center gap-3">
-              {logoNamed && !logoLoadError ? (
-                // Named logo (includes brand text) — 50% bigger: 96px mobile / 144px desktop
+              {logoNamed && !logoNamedError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoNamed}
                   alt={siteName ?? "Mağaza"}
                   className="h-24 sm:h-36 w-auto max-w-[320px] sm:max-w-[420px] object-contain"
-                  onError={() => setLogoLoadError(true)}
+                  onError={() => setLogoNamedError(true)}
                 />
-              ) : logoIcon ? (
-                // Icon logo — show icon + brand name text side by side
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logoIcon}
-                    alt={siteName ?? "Mağaza"}
-                    className="h-20 sm:h-28 w-auto object-contain"
-                    onError={() => setLogoLoadError(true)}
-                  />
-                  <BrandLogo name={siteName ?? ""} size="lg" />
-                </>
+              ) : logoIcon && !logoIconError ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoIcon}
+                  alt={siteName ?? "Mağaza"}
+                  className="h-20 sm:h-28 w-auto object-contain"
+                  onError={() => setLogoIconError(true)}
+                />
               ) : (
                 <BrandLogo name={siteName ?? ""} size="lg" />
               )}

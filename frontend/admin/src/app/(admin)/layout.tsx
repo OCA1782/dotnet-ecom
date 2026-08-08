@@ -157,6 +157,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const [logoNamedUrl, setLogoNamedUrl] = useState(() =>
     typeof window !== "undefined" ? (localStorage.getItem("admin:logoNamedUrl") || "") : ""
   );
+  const [logoNamedError, setLogoNamedError] = useState(false);
   const userRoles = user?.roles ?? [];
   const isSuperAdmin = userRoles.includes("SuperAdmin");
   const currentEnv = process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "development";
@@ -284,6 +285,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
       const logoNamed = s.AdminLogoNamed || "";
       setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
       setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
+      setLogoNamedError(false);
     }
     window.addEventListener("ecom:settings-updated", onSettingsUpdated);
     return () => window.removeEventListener("ecom:settings-updated", onSettingsUpdated);
@@ -296,6 +298,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
       const logoNamed = s.AdminLogoNamed || "";
       setLogoUrl(logo); localStorage.setItem("admin:logoUrl", logo);
       setLogoNamedUrl(logoNamed); localStorage.setItem("admin:logoNamedUrl", logoNamed);
+      setLogoNamedError(false);
       const filtered = filterByRole(ALL_NAV_ITEMS, userRoles);
 
       // Apply group overrides from AdminMenuConfig
@@ -400,13 +403,13 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
               <img src={logoUrl} alt={siteTitle} className="w-full h-full object-contain p-0.5"
                 onError={e => { (e.target as HTMLImageElement).src = "/logo-icon.svg"; }} />
             </div>
-          ) : logoNamedUrl ? (
+          ) : logoNamedUrl && !logoNamedError ? (
             /* Genişletilmiş: isimli logo görsel olarak */
             <>
               <div className="mb-1 h-16 flex items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoNamedUrl} alt={siteTitle} className="max-h-full max-w-full object-contain"
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  onError={() => setLogoNamedError(true)} />
               </div>
               <p className="text-slate-400 text-xs truncate">{user.email}</p>
             </>

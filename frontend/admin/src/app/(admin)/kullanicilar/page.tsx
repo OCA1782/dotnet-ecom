@@ -8,7 +8,7 @@ import { exportToExcel, readExcelFile, downloadTemplate } from "@/lib/excel";
 import { formatDate, resolveMediaUrl } from "@/lib/utils";
 import { ROLE_COLORS, ROLE_LABELS, ADMIN_ROLES, ALL_ROLE_DEFS } from "@/lib/roles";
 import type { AdminUser, PaginatedList } from "@/types";
-import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2 } from "lucide-react";
+import { Search, Plus, Upload, Download, X, Pencil, ToggleLeft, ToggleRight, Trash2, ShieldCheck, History, ChevronUp, ChevronDown, ChevronsUpDown, CheckSquare, Square, Loader2, Database } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
 import { PreviewPanel, PreviewToggleButton } from "@/components/previews/PreviewPanel";
 import { UserPreview } from "@/components/previews/UserPreview";
@@ -53,7 +53,7 @@ const USER_ACTION_COLORS: Record<string, string> = {
 const INPUT = "w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400";
 
 interface NewUserForm { name: string; surname: string; email: string; password: string; role: string; phone: string; avatarUrl: string; }
-interface EditUserForm { id: string; name: string; surname: string; email: string; phoneNumber: string; role: string; profileImageUrl: string; }
+interface EditUserForm { id: string; name: string; surname: string; email: string; phoneNumber: string; role: string; profileImageUrl: string; hasFullDataAccess: boolean; }
 const EMPTY_USER: NewUserForm = { name: "", surname: "", email: "", password: "", role: "Customer", phone: "", avatarUrl: "" };
 
 const DATA_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
@@ -98,9 +98,10 @@ export default function UsersPage() {
   const [formError, setFormError] = useState("");
 
   const [editModal, setEditModal] = useState(false);
-  const [editForm, setEditForm] = useState<EditUserForm>({ id: "", name: "", surname: "", email: "", phoneNumber: "", role: "Customer", profileImageUrl: "" });
+  const [editForm, setEditForm] = useState<EditUserForm>({ id: "", name: "", surname: "", email: "", phoneNumber: "", role: "Customer", profileImageUrl: "", hasFullDataAccess: false });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [dataAccessLoading, setDataAccessLoading] = useState(false);
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -242,9 +243,24 @@ export default function UsersPage() {
   }
 
   function openEdit(u: AdminUser) {
-    setEditForm({ id: u.id, name: u.name, surname: u.surname, email: u.email, phoneNumber: u.phoneNumber ?? "", role: u.roles?.[0] ?? "Customer", profileImageUrl: u.avatarUrl ?? "" });
+    setEditForm({ id: u.id, name: u.name, surname: u.surname, email: u.email, phoneNumber: u.phoneNumber ?? "", role: u.roles?.[0] ?? "Customer", profileImageUrl: u.avatarUrl ?? "", hasFullDataAccess: u.hasFullDataAccess ?? false });
     setEditError("");
     setEditModal(true);
+  }
+
+  async function handleToggleDataAccess() {
+    setDataAccessLoading(true);
+    try {
+      const grant = !editForm.hasFullDataAccess;
+      await api.patch(`/api/admin/users/${editForm.id}/full-data-access`, { grant });
+      setEditForm(f => ({ ...f, hasFullDataAccess: grant }));
+      setUsers(prev => prev.map(u => u.id === editForm.id ? { ...u, hasFullDataAccess: grant } : u));
+      setMsg({ text: grant ? "Tam veri erişimi verildi." : "Tam veri erişimi kaldırıldı.", ok: true });
+    } catch {
+      setMsg({ text: "İşlem başarısız.", ok: false });
+    } finally {
+      setDataAccessLoading(false);
+    }
   }
 
   async function handleEdit() {
@@ -820,6 +836,20 @@ export default function UsersPage() {
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  {isSuperAdmin && editForm.role !== "Customer" && (
+                    <button
+                      onClick={() => void handleToggleDataAccess()}
+                      disabled={dataAccessLoading}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition mr-auto disabled:opacity-50 ${
+                        editForm.hasFullDataAccess
+                          ? "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                          : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      }`}
+                    >
+                      <Database size={14} />
+                      {editForm.hasFullDataAccess ? "Tam Erişimi Kaldır" : "Tam Veri Erişimi Ver"}
+                    </button>
+                  )}
                   <button onClick={() => setEditModal(false)} className="px-5 py-2 rounded-xl border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">{t("action.cancel", "Vazgeç")}</button>
                   <button onClick={handleEdit} disabled={editSaving}
                     className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
