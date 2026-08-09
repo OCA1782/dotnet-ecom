@@ -1899,6 +1899,9 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsFeatured")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("HasProductImage")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit");
 
@@ -1958,6 +1961,8 @@ namespace Ecom.Infrastructure.Persistence.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("IsFeatured");
+
+                    b.HasIndex("HasProductImage");
 
                     b.HasIndex("OemPartNumber");
 

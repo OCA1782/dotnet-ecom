@@ -113,54 +113,125 @@ public class ProductsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // ── Duplicate detection helpers ───────────────────────────────────────────
+    private sealed class DupRawRow
+    {
+        public string Ids     { get; set; } = "";
+        public int    Cnt     { get; set; }
+        public string GrpName { get; set; } = "";
+    }
+
+    private static string ExcludeClause(HashSet<Guid> ids) =>
+        ids.Count == 0 ? "" :
+        $"AND \"Id\" NOT IN ({string.Join(",", ids.Select(id => $"'{id}'::uuid"))})";
+
     [HttpGet("duplicates")]
     [Authorize(Roles = "SuperAdmin,Admin,ProductManager")]
     public async Task<IActionResult> GetDuplicates(
-        [FromServices] IApplicationDbContext db,
-        CancellationToken ct)
+        [FromServices] ApplicationDbContext db,
+        [FromQuery] int minConfidence = 40,
+        CancellationToken ct = default)
     {
-        // Duplicate criterion: same Name + same DataSource (aligned with deduplicate endpoint)
-        var dupKeys = await db.Products
-            .Where(p => !p.IsDeleted)
-            .GroupBy(p => new { p.Name, p.DataSource })
-            .Where(g => g.Count() > 1)
-            .OrderByDescending(g => g.Count())
-            .Take(300)
-            .Select(g => new { g.Key.Name, g.Key.DataSource, Count = g.Count() })
-            .ToListAsync(ct);
+        const int perLevel = 60;
+        var assignedIds = new HashSet<Guid>();
+        var rawGroups   = new List<(string Level, int Score, string[] Fields, List<Guid> Ids)>();
 
-        if (!dupKeys.Any())
-            return Ok(Array.Empty<object>());
+        async Task RunLevel(string level, int score, string[] fields, string groupBy)
+        {
+            if (score < minConfidence) return;
+            var skuFilter = level == "L1" ? "AND \"SKU\" IS NOT NULL" : "AND \"SKU\" IS NULL";
+            var sql = $@"
+                SELECT STRING_AGG(""Id""::text, ',' ORDER BY ""CreatedDate"" ASC, ""Id""::text ASC) AS ""Ids"",
+                       COUNT(*)::int AS ""Cnt"",
+                       MIN(""Name"")  AS ""GrpName""
+                FROM ""Products""
+                WHERE NOT ""IsDeleted"" {skuFilter} {ExcludeClause(assignedIds)}
+                GROUP BY {groupBy}
+                HAVING COUNT(*) > 1
+                ORDER BY ""Cnt"" DESC
+                LIMIT {perLevel}";
 
-        var names = dupKeys.Select(k => k.Name).Distinct().ToList();
+            var rows = await db.Database.SqlQueryRaw<DupRawRow>(sql).ToListAsync(ct);
+            foreach (var row in rows)
+            {
+                var ids   = row.Ids.Split(',').Select(Guid.Parse).ToList();
+                var fresh = ids.Where(id => !assignedIds.Contains(id)).ToList();
+                if (fresh.Count < 2) continue;
+                fresh.ForEach(id => assignedIds.Add(id));
+                rawGroups.Add((level, score, fields, fresh));
+            }
+        }
 
-        var allProds = await db.Products
-            .Where(p => !p.IsDeleted && names.Contains(p.Name))
-            .Include(p => p.Images.Where(i => i.IsMain))
-            .Include(p => p.Stock)
-            .OrderBy(p => p.Name).ThenBy(p => p.Price).ThenBy(p => p.CreatedDate)
+        // L1: aynı SKU — kesin duplicate
+        await RunLevel("L1", 100, ["SKU"],
+            @"""SKU""");
+
+        // L2: Name+Brand+Kategori+Araç+Fiyat+Açıklama (6 alan)
+        await RunLevel("L2", 98, ["Name", "Brand", "Category", "VehicleModel", "Price", "Description"],
+            @"""Name"",""BrandId"",""CategoryId"",""VehicleModel"",""Price"",MD5(COALESCE(""Description"",''))");
+
+        // L3: Name+Brand+Kategori+Araç+Fiyat (açıklama farklı)
+        await RunLevel("L3", 85, ["Name", "Brand", "Category", "VehicleModel", "Price"],
+            @"""Name"",""BrandId"",""CategoryId"",""VehicleModel"",""Price""");
+
+        // L4: Name+Brand+Kategori+Araç (fiyat farklı)
+        await RunLevel("L4", 65, ["Name", "Brand", "Category", "VehicleModel"],
+            @"""Name"",""BrandId"",""CategoryId"",""VehicleModel""");
+
+        // L5: Name+Brand (kategori veya araç farklı)
+        await RunLevel("L5", 40, ["Name", "Brand"],
+            @"""Name"",""BrandId""");
+
+        if (rawGroups.Count == 0) return Ok(Array.Empty<object>());
+
+        // Ürün detaylarını çek
+        var allIds   = rawGroups.SelectMany(g => g.Ids).Distinct().ToList();
+        var products = await db.Products
+            .Where(p => allIds.Contains(p.Id))
             .Select(p => new {
-                p.Id, p.Name, p.Price, p.DiscountPrice, p.SKU,
-                p.IsActive, p.IsPublished, p.CreatedDate,
-                p.DataSource,
-                ImageUrl = p.Images.Any() ? p.Images.First().ImageUrl : (string?)null,
+                p.Id, p.Name, p.SKU, p.Price, p.DiscountPrice,
+                p.IsActive, p.IsPublished, p.CreatedDate, p.DataSource,
+                p.VehicleModel, p.BrandId,
+                BrandName    = p.Brand    != null ? p.Brand.Name    : (string?)null,
+                CategoryName = p.Category != null ? p.Category.Name : (string?)null,
+                ImageUrl     = p.Images.Where(i => !i.IsDeleted)
+                                       .OrderByDescending(i => i.IsMain)
+                                       .Select(i => i.ImageUrl).FirstOrDefault(),
                 Stock = p.Stock != null ? p.Stock.Quantity - p.Stock.ReservedQuantity : 0,
             })
             .ToListAsync(ct);
 
-        var dupKeySet = dupKeys.Select(k => (k.Name, k.DataSource)).ToHashSet();
+        var productMap = products.ToDictionary(p => p.Id);
 
-        var result = allProds
-            .Where(p => dupKeySet.Contains((p.Name, p.DataSource)))
-            .GroupBy(p => new { p.Name, p.DataSource })
-            .Select(g => new {
-                g.Key.Name,
-                Price = g.First().Price,
-                Count = g.Count(),
-                Products = g.ToList(),
-            })
-            .OrderByDescending(g => g.Count)
-            .ToList();
+        var result = rawGroups.Select(g =>
+        {
+            var prods = g.Ids
+                .Select((id, idx) => (id, idx))
+                .Where(x => productMap.ContainsKey(x.id))
+                .Select(x =>
+                {
+                    var p = productMap[x.id];
+                    return new {
+                        p.Id, p.Name, p.SKU, p.Price, p.DiscountPrice,
+                        p.IsActive, p.IsPublished, p.CreatedDate, p.DataSource,
+                        p.VehicleModel, p.BrandName, p.CategoryName,
+                        p.ImageUrl, p.Stock,
+                        IsCanonical = x.idx == 0,
+                    };
+                })
+                .ToList();
+
+            return new {
+                g.Level,
+                ConfidenceScore = g.Score,
+                MatchedFields   = g.Fields,
+                Name  = prods.FirstOrDefault()?.Name ?? "",
+                Count = prods.Count,
+                Products = prods,
+            };
+        })
+        .OrderByDescending(g => g.ConfidenceScore).ThenByDescending(g => g.Count)
+        .ToList<object>();
 
         return Ok(result);
     }
@@ -174,18 +245,22 @@ public class ProductsController(IMediator mediator) : ControllerBase
     {
         var isPostgres = db.Database.ProviderName?.Contains("Npgsql") == true;
 
+        // 6-alan composite key: Name+Brand+Kategori+Araç+Fiyat+Açıklama(hash)
         if (dryRun)
         {
             var countSql = isPostgres
                 ? @"SELECT CAST(COALESCE(SUM(cnt - 1), 0) AS BIGINT) AS ""Value"" FROM (
                         SELECT COUNT(*) AS cnt FROM ""Products""
                         WHERE NOT ""IsDeleted""
-                        GROUP BY ""Name"", COALESCE(""DataSource"", '')
+                        GROUP BY ""Name"",""BrandId"",""CategoryId"",""VehicleModel"",""Price"",MD5(COALESCE(""Description"",''))
                         HAVING COUNT(*) > 1) t"
                 : @"SELECT CAST(ISNULL(SUM(cnt - 1), 0) AS BIGINT) AS [Value] FROM (
                         SELECT COUNT(*) AS cnt FROM Products
                         WHERE IsDeleted = 0
-                        GROUP BY Name, ISNULL(DataSource, '')
+                        GROUP BY Name, ISNULL(CONVERT(nvarchar(max),BrandId),''),
+                                 ISNULL(CONVERT(nvarchar(max),CategoryId),''),
+                                 ISNULL(VehicleModel,''), ISNULL(CONVERT(nvarchar(50),Price),''),
+                                 ISNULL(Description,'')
                         HAVING COUNT(*) > 1) t";
 
             var toDelete = await db.Database.SqlQueryRaw<long>(countSql).FirstOrDefaultAsync(ct);
@@ -199,7 +274,8 @@ public class ProductsController(IMediator mediator) : ControllerBase
                 WITH ranked AS (
                     SELECT ""Id"",
                         ROW_NUMBER() OVER (
-                            PARTITION BY ""Name"", COALESCE(""DataSource"", '')
+                            PARTITION BY ""Name"",""BrandId"",""CategoryId"",""VehicleModel"",""Price"",
+                                         MD5(COALESCE(""Description"",''))
                             ORDER BY ""CreatedDate"" ASC, ""Id"" ASC
                         ) AS rn
                     FROM ""Products""
@@ -215,14 +291,15 @@ public class ProductsController(IMediator mediator) : ControllerBase
                 WITH ranked AS (
                     SELECT Id,
                         ROW_NUMBER() OVER (
-                            PARTITION BY Name, ISNULL(DataSource, '')
+                            PARTITION BY Name, ISNULL(CONVERT(nvarchar(max),BrandId),''),
+                                ISNULL(CONVERT(nvarchar(max),CategoryId),''),
+                                ISNULL(VehicleModel,''), ISNULL(CONVERT(nvarchar(50),Price),''),
+                                ISNULL(Description,'')
                             ORDER BY CreatedDate ASC, Id ASC
                         ) AS rn
-                    FROM Products
-                    WHERE IsDeleted = 0
+                    FROM Products WHERE IsDeleted = 0
                 )
-                UPDATE Products
-                SET IsDeleted = 1
+                UPDATE Products SET IsDeleted = 1
                 WHERE Id IN (SELECT Id FROM ranked WHERE rn > 1)", ct);
         }
 

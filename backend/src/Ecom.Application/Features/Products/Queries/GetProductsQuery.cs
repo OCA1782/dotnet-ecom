@@ -283,31 +283,37 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
 
         var total = await query.CountAsync(cancellationToken);
 
+        // Önce resimliler, sonra no-image: tüm sıralama seçeneklerinde birincil öncelik
+        var imageFirst = query.OrderByDescending(p => p.HasProductImage);
+
         IQueryable<Ecom.Domain.Entities.Product> orderedQuery = request.SortBy switch
         {
             "bestseller"  => query
                 .GroupJoin(db.OrderItems, p => p.Id, oi => oi.ProductId,
                     (p, ois) => new { Product = p, SalesCount = ois.Sum(oi => (int?)oi.Quantity) ?? 0 })
-                .OrderByDescending(x => x.SalesCount)
+                .OrderByDescending(x => x.Product.HasProductImage)
+                .ThenByDescending(x => x.SalesCount)
                 .Select(x => x.Product),
-            "price-asc"   => query.OrderBy(p => p.DiscountPrice ?? p.Price),
-            "price-desc"  => query.OrderByDescending(p => p.DiscountPrice ?? p.Price),
-            "name-asc"    => query.OrderBy(p => p.Name),
-            "name-desc"   => query.OrderByDescending(p => p.Name),
-            "stock-asc"        => query.OrderBy(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
-            "stock-desc"       => query.OrderByDescending(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
-            "createdDate-asc"  => query.OrderBy(p => p.CreatedDate),
-            "createdDate-desc" => query.OrderByDescending(p => p.CreatedDate),
-            "dataSource-asc"   => query.OrderBy(p => p.DataSource),
-            "dataSource-desc"  => query.OrderByDescending(p => p.DataSource),
+            "price-asc"        => imageFirst.ThenBy(p => p.DiscountPrice ?? p.Price),
+            "price-desc"       => imageFirst.ThenByDescending(p => p.DiscountPrice ?? p.Price),
+            "name-asc"         => imageFirst.ThenBy(p => p.Name),
+            "name-desc"        => imageFirst.ThenByDescending(p => p.Name),
+            "stock-asc"        => imageFirst.ThenBy(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
+            "stock-desc"       => imageFirst.ThenByDescending(p => (int?)(p.Stock == null ? 0 : p.Stock.Quantity - p.Stock.ReservedQuantity)),
+            "createdDate-asc"  => imageFirst.ThenBy(p => p.CreatedDate),
+            "createdDate-desc" => imageFirst.ThenByDescending(p => p.CreatedDate),
+            "dataSource-asc"   => imageFirst.ThenBy(p => p.DataSource),
+            "dataSource-desc"  => imageFirst.ThenByDescending(p => p.DataSource),
             // Sort by discount percentage: (Price - DiscountPrice) / Price DESC
             "discount-desc" => query
                 .Where(p => p.DiscountPrice != null && p.Price > 0)
-                .OrderByDescending(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
+                .OrderByDescending(p => p.HasProductImage)
+                .ThenByDescending(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
             "discount-asc"  => query
                 .Where(p => p.DiscountPrice != null && p.Price > 0)
-                .OrderBy(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
-            _                  => query.OrderByDescending(p => p.CreatedDate),
+                .OrderByDescending(p => p.HasProductImage)
+                .ThenBy(p => (p.Price - p.DiscountPrice!.Value) / p.Price),
+            _                  => imageFirst.ThenByDescending(p => p.CreatedDate),
         };
 
         var paged = orderedQuery

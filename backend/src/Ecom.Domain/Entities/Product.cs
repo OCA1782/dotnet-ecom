@@ -36,6 +36,8 @@ public class Product : BaseEntity
     public Guid? ImportedFromSourceId { get; set; }
     public Guid? CreatedByAdminId { get; set; }
 
+    public bool HasProductImage { get; set; } = false;
+
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
     public Stock? Stock { get; set; }

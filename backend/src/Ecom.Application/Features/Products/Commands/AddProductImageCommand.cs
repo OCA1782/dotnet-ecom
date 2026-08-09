@@ -52,6 +52,18 @@ public class AddProductImageHandler(IApplicationDbContext db, IAuditService audi
 
         db.ProductImages.Add(image);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Gerçek resim ekleniyorsa HasProductImage=true yap
+        if (!request.ImageUrl.Contains("no-image"))
+        {
+            var product = await db.Products.FindAsync([request.ProductId], cancellationToken);
+            if (product is not null && !product.HasProductImage)
+            {
+                product.HasProductImage = true;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         await audit.LogAsync("ProductImageAdded", "Product", request.ProductId.ToString(),
             newValue: request.ImageUrl, cancellationToken: cancellationToken);
         return Result<Guid>.Success(image.Id);
