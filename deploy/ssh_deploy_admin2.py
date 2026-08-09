@@ -37,6 +37,9 @@ print(f"=== NEXT_PUBLIC_API_URL: {api_url} ===")
 print("\n=== Mevcut admin container network ===")
 print(run("docker inspect ecom-admin-1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}'"))
 
+print("\n=== git pull ===")
+print(run("cd /opt/ecom && git pull 2>&1", timeout=60))
+
 print("\n=== docker build admin ===")
 build_cmd = (
     f"cd /opt/ecom && docker build "
