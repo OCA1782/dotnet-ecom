@@ -2396,10 +2396,9 @@ export default function YonetimPage() {
                         </button>
                       )}
                     </div>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
@@ -2431,10 +2430,9 @@ export default function YonetimPage() {
                         </button>
                       )}
                     </div>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
@@ -2468,10 +2466,9 @@ export default function YonetimPage() {
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                       {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                     </button>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
@@ -2510,10 +2507,9 @@ export default function YonetimPage() {
                         </button>
                       )}
                     </div>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
@@ -2545,10 +2541,9 @@ export default function YonetimPage() {
                         </button>
                       )}
                     </div>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
@@ -2582,10 +2577,9 @@ export default function YonetimPage() {
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                       {busy ? t("action.loading", "Yükleniyor...") : t("action.upload", "Yükle")}
                     </button>
-                    {settings[key] && (
-                      <input value={settings[key]} onChange={e => set(key, e.target.value)}
-                        className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none" />
-                    )}
+                    <input value={settings[key] || ""} onChange={e => set(key, e.target.value)}
+                      placeholder="URL yapıştırın veya yukarıdan yükleyin"
+                      className="text-[10px] text-slate-400 border border-slate-200 rounded-lg px-2 py-1 w-full font-mono focus:outline-none placeholder:text-slate-300" />
                   </div>
                 );
               })()}
