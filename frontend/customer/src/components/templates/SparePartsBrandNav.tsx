@@ -544,7 +544,10 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
     setNavigatingTo(brand.label);
     setOpenBrand(null);
     startTransition(() => {
-      router.push(`/urunler?s=${encodeURIComponent(brand.label)}`);
+      // arac= → vehicleModel LIKE 'Ford%' filter (araç uyumluluğu)
+      // s= kullanmak product brand text search yapar; LEMFORDER gibi markalar
+      // içinde "FORD" geçtiğinden yanlış sonuçlar döner.
+      router.push(`/urunler?arac=${encodeURIComponent(brand.label)}&marka=${encodeURIComponent(brand.label)}`);
     });
   }
 
@@ -711,7 +714,7 @@ export default function SparePartsBrandNav({ initialBrands }: Props) {
                 <button
                   onClick={() => {
                     setOpenBrand(null);
-                    router.push(`/urunler?s=${encodeURIComponent(openBrandObj.label)}`);
+                    router.push(`/urunler?arac=${encodeURIComponent(openBrandObj.label)}&marka=${encodeURIComponent(openBrandObj.label)}`);
                   }}
                   className="text-[11px] text-orange-600 font-bold hover:underline"
                 >
