@@ -24,6 +24,7 @@ public record GetMediaImagesQuery(
     string? Search = null,
     bool? IsMain = null,
     bool ExcludeNoImage = false,
+    bool OnlyNoImage = false,
     string Sort = "newest"
 ) : IRequest<PaginatedList<MediaImageDto>>;
 
@@ -95,6 +96,9 @@ public class GetMediaImagesQueryHandler(IApplicationDbContext db, ICurrentUserSe
 
         if (request.ExcludeNoImage)
             q = q.Where(pi => pi.ImageUrl != noImageUrl);
+
+        if (request.OnlyNoImage)
+            q = q.Where(pi => pi.ImageUrl == noImageUrl);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {

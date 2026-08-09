@@ -7,7 +7,7 @@ import {
   Image as ImageIcon, Trash2, Copy, Check, ExternalLink,
   ChevronLeft, ChevronRight, ChevronFirst, ChevronLast,
   Search, X, Package, Layers, Tag, Megaphone, Eye, Users, Upload,
-  ArrowUpDown,
+  ArrowUpDown, LayoutGrid, List, Calendar, Link as LinkIcon,
 } from "lucide-react";
 
 interface MediaImage {
@@ -94,6 +94,9 @@ function getPageNumbers(current: number, total: number): (number | -1)[] {
   return pages;
 }
 
+type ViewMode = "grid" | "list";
+type NoImageFilter = "exclude" | "include" | "only";
+
 export default function ImajlarPage() {
   const { t } = useI18n();
   const [data, setData] = useState<PagedResult | null>(null);
@@ -105,6 +108,13 @@ export default function ImajlarPage() {
   const [sort, setSort] = useState("newest");
   const [pageSize, setPageSize] = useState(24);
   const [isMainOnly, setIsMainOnly] = useState(false);
+  const [noImageFilter, setNoImageFilter] = useState<NoImageFilter>("exclude");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("imajlar_view") as ViewMode) ?? "grid";
+    }
+    return "grid";
+  });
   const [deleteTarget, setDeleteTarget] = useState<MediaImage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -114,9 +124,11 @@ export default function ImajlarPage() {
 
   const pageCache = useRef(new Map<string, PagedResult>());
 
+  const cacheKey = `${page}:${search}:${sourceFilter}:${sort}:${pageSize}:${isMainOnly}:${noImageFilter}`;
+
   const load = useCallback(async () => {
-    const cacheKey = `${page}:${search}:${sourceFilter}:${sort}:${pageSize}:${isMainOnly}`;
-    const cached = pageCache.current.get(cacheKey);
+    const key = `${page}:${search}:${sourceFilter}:${sort}:${pageSize}:${isMainOnly}:${noImageFilter}`;
+    const cached = pageCache.current.get(key);
     if (cached) {
       setData(cached);
       setLoading(false);
@@ -129,13 +141,14 @@ export default function ImajlarPage() {
         page: String(page),
         pageSize: String(pageSize),
         sort,
-        excludeNoImage: "true",
       });
+      if (noImageFilter === "exclude") params.set("excludeNoImage", "true");
+      if (noImageFilter === "only") params.set("onlyNoImage", "true");
       if (sourceFilter) params.set("source", sourceFilter);
       if (search) params.set("search", search);
       if (isMainOnly) params.set("isMain", "true");
       const res = await api.get<PagedResult>(`/api/admin/media/images?${params}`);
-      pageCache.current.set(cacheKey, res);
+      pageCache.current.set(key, res);
       setData(res);
     } catch (e: unknown) {
       setLoadError(e instanceof Error ? e.message : "Görseller yüklenemedi.");
@@ -143,7 +156,7 @@ export default function ImajlarPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, sourceFilter, sort, pageSize, isMainOnly]);
+  }, [page, search, sourceFilter, sort, pageSize, isMainOnly, noImageFilter]);
 
   useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, 0);
@@ -172,6 +185,12 @@ export default function ImajlarPage() {
   const handleSortChange = (s: string) => { resetFilters(true); setSort(s); };
   const handlePageSizeChange = (ps: number) => { resetFilters(true); setPageSize(ps); };
   const handleIsMainChange = (v: boolean) => { resetFilters(true); setIsMainOnly(v); };
+  const handleNoImageFilterChange = (v: NoImageFilter) => { resetFilters(true); setNoImageFilter(v); };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("imajlar_view", mode);
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -207,9 +226,21 @@ export default function ImajlarPage() {
       if (deleteTarget.sourceType === "user") {
         window.dispatchEvent(new CustomEvent("ecom:avatar-changed", { detail: { userId: deleteTarget.sourceId, avatarUrl: deleteTarget.url } }));
       }
+      // Optimistic: remove from current page without full reload
+      setData(prev => {
+        if (!prev) return null;
+        const newItems = prev.items.filter(i => i.id !== deleteTarget.id);
+        const newTotal = prev.totalCount - 1;
+        return {
+          ...prev,
+          items: newItems,
+          totalCount: newTotal,
+          totalPages: Math.max(1, Math.ceil(newTotal / prev.pageSize)),
+        };
+      });
+      // Invalidate only the current page cache entry
+      pageCache.current.delete(cacheKey);
       setDeleteTarget(null);
-      pageCache.current.clear();
-      void load();
     } finally {
       setDeleting(false);
     }
@@ -233,7 +264,24 @@ export default function ImajlarPage() {
             {total > 0 ? `${total.toLocaleString("tr-TR")} görsel` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => handleViewModeChange("grid")}
+              className={`px-3 py-2 transition ${viewMode === "grid" ? "bg-slate-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+              title="Izgara görünümü"
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              onClick={() => handleViewModeChange("list")}
+              className={`px-3 py-2 transition ${viewMode === "list" ? "bg-slate-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+              title="Liste görünümü"
+            >
+              <List size={14} />
+            </button>
+          </div>
           <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition ${uploading ? "bg-slate-100 text-slate-400" : "bg-teal-600 text-white hover:bg-teal-700"}`}>
             <Upload size={14} />
             {uploading ? "Yükleniyor..." : "Görsel Yükle"}
@@ -290,7 +338,7 @@ export default function ImajlarPage() {
         </div>
 
         {/* isMain toggle */}
-        {sourceFilter === "product" || sourceFilter === "" ? (
+        {(sourceFilter === "product" || sourceFilter === "") ? (
           <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -301,6 +349,20 @@ export default function ImajlarPage() {
             Sadece Ana
           </label>
         ) : null}
+
+        {/* No-image content filter */}
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+          <ImageIcon size={12} className="text-slate-400" />
+          <select
+            value={noImageFilter}
+            onChange={e => handleNoImageFilterChange(e.target.value as NoImageFilter)}
+            className="border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
+          >
+            <option value="exclude">Yer Tutucu Gizle</option>
+            <option value="include">Tümü Göster</option>
+            <option value="only">Yalnızca Yer Tutucu</option>
+          </select>
+        </div>
 
         {/* Page size */}
         <div className="flex items-center gap-1 ml-auto">
@@ -329,77 +391,160 @@ export default function ImajlarPage() {
         </div>
       )}
 
-      {/* Image Grid */}
-      {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {Array.from({ length: pageSize < 24 ? pageSize : 12 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-slate-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      ) : data?.items.length === 0 ? (
-        <div className="text-center py-20">
-          <ImageIcon size={40} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-400 font-medium">Görsel bulunamadı</p>
-          {(search || isMainOnly) && (
-            <button onClick={() => { setSearch(""); setSearchInput(""); setIsMainOnly(false); pageCache.current.clear(); setPage(1); }}
-              className="mt-2 text-sm text-teal-600 hover:underline">
-              Filtreleri Temizle
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {data?.items.map(img => (
-            <div key={img.id} className="flex flex-col gap-1.5">
-              <div className="group relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 hover:border-teal-400 hover:shadow-md transition-all">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.url}
-                  alt={img.altText ?? img.sourceName}
-                  className="w-full h-full object-cover"
-                  onError={e => {
-                    (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3Ctext x='50' y='55' text-anchor='middle' font-size='12' fill='%2394a3b8'%3E404%3C/text%3E%3C/svg%3E";
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-between p-2 opacity-0 group-hover:opacity-100">
-                  <div className="flex items-start justify-between gap-1 flex-wrap">
-                    <SourceBadge type={img.sourceType} />
-                    {img.isMain && (
-                      <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">Ana</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => setLightbox(img)} title="Önizle"
-                      className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
-                      <Eye size={12} />
-                    </button>
-                    <button onClick={() => copyUrl(img)} title="URL Kopyala"
-                      className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
-                      {copiedId === img.id ? <Check size={12} /> : <Copy size={12} />}
-                    </button>
-                    <a href={img.url} target="_blank" rel="noreferrer" title="Yeni sekmede aç"
-                      className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
-                      <ExternalLink size={12} />
-                    </a>
-                    <button onClick={() => setDeleteTarget(img)} title="Kaldır"
-                      className="w-7 h-7 bg-red-500/70 hover:bg-red-500 text-white rounded-lg flex items-center justify-center transition">
-                      <Trash2 size={12} />
-                    </button>
+      {/* GRID VIEW */}
+      {viewMode === "grid" && (
+        loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {Array.from({ length: pageSize < 24 ? pageSize : 12 }).map((_, i) => (
+              <div key={i} className="aspect-square bg-slate-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : data?.items.length === 0 ? (
+          <EmptyState search={search} isMainOnly={isMainOnly} noImageFilter={noImageFilter}
+            onClear={() => { setSearch(""); setSearchInput(""); setIsMainOnly(false); setNoImageFilter("exclude"); pageCache.current.clear(); setPage(1); }} />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {data?.items.map(img => (
+              <div key={img.id} className="flex flex-col gap-1.5">
+                <div className="group relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 hover:border-teal-400 hover:shadow-md transition-all">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img.url}
+                    alt={img.altText ?? img.sourceName}
+                    className="w-full h-full object-cover"
+                    onError={e => {
+                      (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3Ctext x='50' y='55' text-anchor='middle' font-size='12' fill='%2394a3b8'%3E404%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-between p-2 opacity-0 group-hover:opacity-100">
+                    <div className="flex items-start justify-between gap-1 flex-wrap">
+                      <SourceBadge type={img.sourceType} />
+                      {img.isMain && (
+                        <span className="text-[10px] font-semibold bg-teal-500 text-white px-1.5 py-0.5 rounded-full">Ana</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setLightbox(img)} title="Önizle"
+                        className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
+                        <Eye size={12} />
+                      </button>
+                      <button onClick={() => copyUrl(img)} title="URL Kopyala"
+                        className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
+                        {copiedId === img.id ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
+                      <a href={img.url} target="_blank" rel="noreferrer" title="Yeni sekmede aç"
+                        className="w-7 h-7 bg-white/20 hover:bg-white/40 text-white rounded-lg flex items-center justify-center transition">
+                        <ExternalLink size={12} />
+                      </a>
+                      <button onClick={() => setDeleteTarget(img)} title="Kaldır"
+                        className="w-7 h-7 bg-red-500/70 hover:bg-red-500 text-white rounded-lg flex items-center justify-center transition">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="px-0.5 space-y-0.5">
-                <div className="flex items-center gap-1 flex-wrap">
-                  <SourceBadge type={img.sourceType} />
-                  {img.isMain && <span className="text-[10px] font-semibold text-teal-600">Ana</span>}
+                <div className="px-0.5 space-y-0.5">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <SourceBadge type={img.sourceType} />
+                    {img.isMain && <span className="text-[10px] font-semibold text-teal-600">Ana</span>}
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-700 truncate" title={img.sourceName}>{img.sourceName}</p>
+                  <p className="text-[10px] text-slate-400">{new Date(img.createdDate).toLocaleDateString("tr-TR")}</p>
                 </div>
-                <p className="text-[11px] font-medium text-slate-700 truncate" title={img.sourceName}>{img.sourceName}</p>
-                <p className="text-[10px] text-slate-400">{new Date(img.createdDate).toLocaleDateString("tr-TR")}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* LIST VIEW */}
+      {viewMode === "list" && (
+        loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : data?.items.length === 0 ? (
+          <EmptyState search={search} isMainOnly={isMainOnly} noImageFilter={noImageFilter}
+            onClear={() => { setSearch(""); setSearchInput(""); setIsMainOnly(false); setNoImageFilter("exclude"); pageCache.current.clear(); setPage(1); }} />
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Görsel</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Kaynak</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Ad</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">URL</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Tarih</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {data?.items.map(img => (
+                  <tr key={img.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt={img.altText ?? img.sourceName}
+                        className="w-12 h-12 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition"
+                        onClick={() => setLightbox(img)}
+                        onError={e => {
+                          (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3Ctext x='50' y='55' text-anchor='middle' font-size='12' fill='%2394a3b8'%3E404%3C/text%3E%3C/svg%3E";
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-col gap-1">
+                        <SourceBadge type={img.sourceType} />
+                        {img.isMain && <span className="text-[10px] font-semibold text-teal-600">Ana</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <p className="text-sm font-medium text-slate-800 truncate max-w-[200px]" title={img.sourceName}>{img.sourceName}</p>
+                      {img.altText && <p className="text-[11px] text-slate-400 truncate max-w-[200px]">{img.altText}</p>}
+                    </td>
+                    <td className="px-4 py-2 hidden md:table-cell">
+                      <div className="flex items-center gap-1 text-xs text-slate-400 max-w-[220px]">
+                        <LinkIcon size={10} className="shrink-0" />
+                        <span className="truncate">{img.url.replace("https://images.autoforcepart.com/", "…/")}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 hidden lg:table-cell">
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Calendar size={11} />
+                        {new Date(img.createdDate).toLocaleDateString("tr-TR")}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setLightbox(img)} title="Önizle"
+                          className="w-7 h-7 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg flex items-center justify-center transition">
+                          <Eye size={13} />
+                        </button>
+                        <button onClick={() => copyUrl(img)} title="URL Kopyala"
+                          className="w-7 h-7 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg flex items-center justify-center transition">
+                          {copiedId === img.id ? <Check size={13} className="text-teal-600" /> : <Copy size={13} />}
+                        </button>
+                        <a href={img.url} target="_blank" rel="noreferrer" title="Yeni sekmede aç"
+                          className="w-7 h-7 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg flex items-center justify-center transition">
+                          <ExternalLink size={13} />
+                        </a>
+                        <button onClick={() => setDeleteTarget(img)} title="Kaldır"
+                          className="w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center transition">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
       {/* Pagination */}
@@ -498,6 +643,25 @@ export default function ImajlarPage() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({
+  search, isMainOnly, noImageFilter, onClear
+}: {
+  search: string; isMainOnly: boolean; noImageFilter: NoImageFilter; onClear: () => void;
+}) {
+  const hasFilter = search || isMainOnly || noImageFilter !== "exclude";
+  return (
+    <div className="text-center py-20">
+      <ImageIcon size={40} className="mx-auto text-slate-300 mb-3" />
+      <p className="text-slate-400 font-medium">Görsel bulunamadı</p>
+      {hasFilter && (
+        <button onClick={onClear} className="mt-2 text-sm text-teal-600 hover:underline">
+          Filtreleri Temizle
+        </button>
       )}
     </div>
   );
