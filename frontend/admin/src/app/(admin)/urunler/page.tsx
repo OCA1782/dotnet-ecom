@@ -79,8 +79,17 @@ interface DupProduct {
   id: string; name: string; price: number; discountPrice?: number; sku: string | null;
   isActive: boolean; isPublished: boolean; createdDate: string;
   imageUrl?: string; stock: number;
+  dataSource?: string; vehicleModel?: string; brandName?: string; categoryName?: string;
+  isCanonical: boolean;
 }
-interface DupGroup { name: string; price: number; count: number; products: DupProduct[]; }
+interface DupGroup {
+  level: "L1" | "L2" | "L3" | "L4" | "L5";
+  confidenceScore: number;
+  matchedFields: string[];
+  name: string;
+  count: number;
+  products: DupProduct[];
+}
 
 const TR: Record<string, string> = {
   "ğ":"g","Ğ":"g", // ğ Ğ
@@ -382,6 +391,7 @@ export default function AdminProductsPage() {
   const [showDeduplicateConfirm, setShowDeduplicateConfirm] = useState(false);
   const [deduplicatePreviewCount, setDeduplicatePreviewCount] = useState<number | null>(null);
   const [deduplicating, setDeduplicating] = useState(false);
+  const [dupMinConfidence, setDupMinConfidence] = useState<number>(40);
 
   // Tüm listeyi hard delete (purge)
   const [purgeStep, setPurgeStep] = useState<0 | 1 | 2 | 3>(0); // 0=closed, 1=step1, 2=step2, 3=step3-confirm
@@ -631,10 +641,11 @@ export default function AdminProductsPage() {
     finally { setImporting(false); e.target.value = ""; }
   }
 
-  async function loadDuplicates() {
+  async function loadDuplicates(conf?: number) {
     setLoadingDups(true);
+    const c = conf ?? dupMinConfidence;
     try {
-      const data = await api.get<DupGroup[]>("/api/products/duplicates");
+      const data = await api.get<DupGroup[]>(`/api/products/duplicates?minConfidence=${c}`);
       setDupGroups(data);
       setShowDupPanel(true);
       setSelectedDups(new Set());
@@ -727,8 +738,8 @@ export default function AdminProductsPage() {
 
   function handleSelectAllDups() {
     if (!dupGroups) return;
-    const allExtras = dupGroups.flatMap(g => g.products.slice(1).map(p => p.id));
-    const allSelected = allExtras.every(id => selectedDups.has(id));
+    const allExtras = dupGroups.flatMap(g => g.products.filter(p => !p.isCanonical).map(p => p.id));
+    const allSelected = allExtras.length > 0 && allExtras.every(id => selectedDups.has(id));
     if (allSelected) {
       setSelectedDups(new Set());
     } else {
@@ -828,8 +839,8 @@ export default function AdminProductsPage() {
 
   async function handleDeleteDups() {
     if (selectedDups.size === 0) return;
-    // Safety: never delete the canonical (first) product in each group
-    const canonicalIds = new Set(dupGroups?.map(g => g.products[0]?.id).filter(Boolean) ?? []);
+    // Safety: never delete canonical products
+    const canonicalIds = new Set(dupGroups?.flatMap(g => g.products.filter(p => p.isCanonical).map(p => p.id)) ?? []);
     const toDelete = [...selectedDups].filter(id => !canonicalIds.has(id));
     if (toDelete.length === 0) { setMsg({ text: "Silinecek fazla kopya seçilmedi.", ok: false }); return; }
     setDeletingDups(true);
@@ -1145,7 +1156,7 @@ export default function AdminProductsPage() {
 
       {/* Mükerrer Ürünler Kartı */}
       <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 gap-3">
+        <div className="flex items-center justify-between px-5 py-3 gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="text-amber-500 shrink-0" />
             <span className="text-sm font-semibold text-slate-800">Mükerrer Ürünler</span>
@@ -1156,46 +1167,53 @@ export default function AdminProductsPage() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Güven filtresi */}
+            {(["Tümü:40","Şüpheli:65","Yüksek:85","Kesin:98"] as const).map(opt => {
+              const [label, val] = opt.split(":"); const score = Number(val);
+              const active = dupMinConfidence === score;
+              return (
+                <button key={score}
+                  onClick={() => { setDupMinConfidence(score); if (dupGroups !== null) loadDuplicates(score); }}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition ${active
+                    ? score >= 98 ? "bg-red-500 text-white border-red-500"
+                      : score >= 85 ? "bg-orange-500 text-white border-orange-500"
+                      : score >= 65 ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-slate-600 text-white border-slate-600"
+                    : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}>
+                  {label}
+                </button>
+              );
+            })}
             {showDupPanel && dupGroups !== null && dupGroups.length > 0 && (
-              <button
-                onClick={handleSelectAllDups}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-              >
-                {selectedDups.size > 0 && dupGroups.flatMap(g => g.products.slice(1)).every(p => selectedDups.has(p.id))
+              <button onClick={handleSelectAllDups}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition">
+                {selectedDups.size > 0 && dupGroups.flatMap(g => g.products.filter(p => !p.isCanonical)).every(p => selectedDups.has(p.id))
                   ? <><CheckSquare size={12} /> Seçimi Kaldır</>
                   : <><Square size={12} /> Tümünü Seç</>}
               </button>
             )}
             {selectedDups.size > 0 && (
-              <button
-                onClick={handleDeleteDups}
-                disabled={deletingDups}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500 hover:bg-red-600 text-white rounded-xl transition disabled:opacity-50"
-              >
+              <button onClick={handleDeleteDups} disabled={deletingDups}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500 hover:bg-red-600 text-white rounded-xl transition disabled:opacity-50">
                 {deletingDups ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 {selectedDups.size} seçiliyi sil
               </button>
             )}
             {dupGroups !== null && dupGroups.length > 0 && (
-              <button
-                onClick={openDeduplicateConfirm}
-                disabled={loadingDups || deduplicating}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl transition disabled:opacity-50"
-              >
-                <Trash2 size={12} />
-                Tüm Kopyaları Sil
+              <button onClick={openDeduplicateConfirm} disabled={loadingDups || deduplicating}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl transition disabled:opacity-50">
+                <Trash2 size={12} /> Tüm Kopyaları Sil
               </button>
             )}
             <button
               onClick={() => { if (dupGroups === null) loadDuplicates(); else setShowDupPanel(p => !p); }}
               disabled={loadingDups}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl transition disabled:opacity-50"
-            >
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl transition disabled:opacity-50">
               {loadingDups ? <Loader2 size={12} className="animate-spin" /> : null}
               {dupGroups === null ? "Tara" : showDupPanel ? "Gizle" : "Göster"}
             </button>
             {dupGroups !== null && (
-              <button onClick={loadDuplicates} disabled={loadingDups} title="Yenile"
+              <button onClick={() => loadDuplicates()} disabled={loadingDups} title="Yenile"
                 className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition disabled:opacity-50">
                 <ChevronDown size={14} className={loadingDups ? "animate-spin" : ""} />
               </button>
@@ -1204,66 +1222,92 @@ export default function AdminProductsPage() {
         </div>
 
         {showDupPanel && dupGroups !== null && dupGroups.length === 0 && (
-          <div className="px-5 pb-4 text-xs text-slate-400">Mükerrer ürün bulunamadı.</div>
+          <div className="px-5 pb-4 text-xs text-slate-400">Seçilen güven seviyesinde mükerrer ürün bulunamadı.</div>
         )}
 
         {showDupPanel && dupGroups !== null && dupGroups.length > 0 && (
-          <div className="border-t border-amber-100 divide-y divide-amber-50 max-h-96 overflow-y-auto">
+          <div className="border-t border-amber-100 divide-y divide-amber-50 max-h-[600px] overflow-y-auto">
             {dupGroups.map((group, gi) => {
-              const extras = group.products.slice(1); // all except canonical (first)
+              const extras = group.products.filter(p => !p.isCanonical);
               const groupSelected = extras.length > 0 && extras.every(p => selectedDups.has(p.id));
               const groupSome = extras.some(p => selectedDups.has(p.id));
+
+              // Güven rozeti
+              const badgeCls = group.confidenceScore >= 98
+                ? "bg-red-100 text-red-700"
+                : group.confidenceScore >= 85
+                ? "bg-orange-100 text-orange-700"
+                : group.confidenceScore >= 65
+                ? "bg-amber-100 text-amber-700"
+                : "bg-slate-100 text-slate-600";
+              const badgeLabel = group.confidenceScore >= 98 ? "Kesin"
+                : group.confidenceScore >= 85 ? "Yüksek"
+                : group.confidenceScore >= 65 ? "Şüpheli"
+                : "Olası";
+
               return (
                 <div key={gi} className="px-5 py-3">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <button
-                      onClick={() => {
-                        setSelectedDups(prev => {
-                          const next = new Set(prev);
-                          if (groupSelected) extras.forEach(p => next.delete(p.id));
-                          else extras.forEach(p => next.add(p.id));
-                          return next;
-                        });
-                      }}
-                      className="text-slate-400 hover:text-amber-600 transition shrink-0"
-                    >
+                      onClick={() => setSelectedDups(prev => {
+                        const next = new Set(prev);
+                        if (groupSelected) extras.forEach(p => next.delete(p.id));
+                        else extras.forEach(p => next.add(p.id));
+                        return next;
+                      })}
+                      className="text-slate-400 hover:text-amber-600 transition shrink-0">
                       {groupSelected ? <CheckSquare size={14} className="text-amber-500" /> : groupSome ? <CheckSquare size={14} className="text-slate-300" /> : <Square size={14} />}
                     </button>
+                    {/* Güven rozeti */}
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${badgeCls}`}>
+                      {group.level} · {badgeLabel} %{group.confidenceScore}
+                    </span>
                     <span className="text-xs font-semibold text-slate-700 truncate flex-1">{group.name}</span>
-                    <span className="text-xs text-slate-500 shrink-0">{group.price.toLocaleString("tr-TR")} ₺</span>
                     <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full shrink-0">{group.count}x</span>
                   </div>
+                  {/* Eşleşen alanlar */}
+                  <div className="flex gap-1 flex-wrap pl-5 mb-2">
+                    {group.matchedFields.map(f => (
+                      <span key={f} className="text-[9px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded font-mono">{f}</span>
+                    ))}
+                  </div>
                   <div className="space-y-1 pl-5">
-                    {group.products.map((p, pi) => {
-                      const isCanonical = pi === 0;
-                      return (
-                        <div key={p.id} className="flex items-center gap-2 text-xs text-slate-600">
-                          {isCanonical ? (
-                            <span className="shrink-0 w-[13px]" title="Bu ürün tutulacak">
-                              <Square size={13} className="text-slate-200" />
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => setSelectedDups(prev => {
-                                const next = new Set(prev);
-                                if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                                return next;
-                              })}
-                              className="shrink-0 text-slate-300 hover:text-amber-500 transition"
-                            >
-                              {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
-                            </button>
-                          )}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={safeImg(p.imageUrl)} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
-                          <span className="flex-1 truncate">{p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}{p.name}</span>
-                          {isCanonical && <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded shrink-0">Tut</span>}
-                          <span className="text-slate-400 shrink-0">Stok: {p.stock}</span>
-                          <span className={`shrink-0 ${p.isActive ? "text-green-600" : "text-slate-400"}`}>{p.isActive ? "Aktif" : "Pasif"}</span>
-                          <span className="text-slate-400 shrink-0">{new Date(p.createdDate).toLocaleDateString("tr-TR")}</span>
-                        </div>
-                      );
-                    })}
+                    {group.products.map((p) => (
+                      <div key={p.id} className={`flex items-center gap-2 text-xs rounded-lg px-2 py-1 ${p.isCanonical ? "bg-green-50 border border-green-100" : ""}`}>
+                        {p.isCanonical ? (
+                          <span className="shrink-0 w-[13px]" title="Bu ürün tutulacak (en eski)">
+                            <Check size={13} className="text-green-500" />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setSelectedDups(prev => {
+                              const next = new Set(prev);
+                              if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                              return next;
+                            })}
+                            className="shrink-0 text-slate-300 hover:text-amber-500 transition">
+                            {selectedDups.has(p.id) ? <CheckSquare size={13} className="text-amber-500" /> : <Square size={13} />}
+                          </button>
+                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={safeImg(p.imageUrl)} alt="" className="w-7 h-7 object-cover rounded-lg border border-slate-100 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).src = NO_IMAGE_URL; }} />
+                        <span className="flex-1 min-w-0">
+                          <span className="truncate block">
+                            {p.sku ? <span className="font-mono text-slate-400 mr-1">{p.sku}</span> : null}
+                            {p.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 flex gap-2">
+                            {p.brandName && <span>{p.brandName}</span>}
+                            {p.vehicleModel && <span className="text-blue-500">{p.vehicleModel}</span>}
+                            {p.dataSource && <span className="font-mono">{p.dataSource}</span>}
+                          </span>
+                        </span>
+                        {p.isCanonical && <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded shrink-0">Tut</span>}
+                        <span className="text-slate-400 shrink-0 text-[10px]">Stok: {p.stock}</span>
+                        <span className={`shrink-0 text-[10px] ${p.isActive ? "text-green-600" : "text-slate-400"}`}>{p.isActive ? "Aktif" : "Pasif"}</span>
+                        <span className="text-slate-400 shrink-0 text-[10px]">{new Date(p.createdDate).toLocaleDateString("tr-TR")}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
