@@ -77,15 +77,25 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
             var sNorm = TurkishToAscii(s);   // ş→s, ç→c, ğ→g, ü→u, ö→o, ı→i
             var sp     = $"%{s}%";
             var spNorm = $"%{sNorm}%";       // same as sp when no Turkish chars
+            var words  = s.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            // Pre-fetch matching brand IDs — keeps Products filter as single-table predicate so GIN fires.
-            var matchingBrandIds = await db.Brands
-                .AsNoTracking()
-                .Where(b => EF.Functions.ILike(b.Name, sp) || EF.Functions.ILike(b.Name, spNorm))
-                .Select(b => b.Id)
-                .ToListAsync(cancellationToken);
+            // Per-word brand pre-fetch: "opel far" → Opel brand covers "opel" word, so
+            // products with brand=Opel and name containing "far" are found via AND chain.
+            var wordBrands = new List<(string Wp, string WpNorm, List<Guid> BrandIds)>();
+            foreach (var word in words)
+            {
+                var wp    = $"%{word}%";
+                var wpNorm = $"%{TurkishToAscii(word)}%";
+                var ids   = await db.Brands
+                    .AsNoTracking()
+                    .Where(b => EF.Functions.ILike(b.Name, wp) || EF.Functions.ILike(b.Name, wpNorm))
+                    .Select(b => b.Id)
+                    .ToListAsync(cancellationToken);
+                wordBrands.Add((wp, wpNorm, ids));
+            }
+            var matchingBrandIds = wordBrands.SelectMany(x => x.BrandIds).Distinct().ToList();
 
-            // Pre-fetch matching category IDs — same pattern, avoids Hash Join.
+            // Pre-fetch matching category IDs — full phrase only.
             var matchingCategoryIds = await db.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted && (EF.Functions.ILike(c.Name, sp) || EF.Functions.ILike(c.Name, spNorm)))
@@ -106,15 +116,37 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 .Select(src => src.Id)
                 .ToListAsync(cancellationToken);
 
-            query = query.Where(p =>
-                EF.Functions.ILike(p.Name, sp)
-                || EF.Functions.ILike(p.Name, spNorm)
-                || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
-                || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value))
-                || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
-                || (p.DataSource != null && EF.Functions.ILike(p.DataSource, sp))
-                || (matchingAdminIds.Count > 0 && p.CreatedByAdminId.HasValue && matchingAdminIds.Contains(p.CreatedByAdminId.Value))
-                || (matchingSourceIds.Count > 0 && p.ImportedFromSourceId.HasValue && matchingSourceIds.Contains(p.ImportedFromSourceId.Value)));
+            if (words.Length > 1)
+            {
+                // Multi-word: every word must appear in name/SKU/brand (AND chain).
+                // Category/admin/source still participate per-word as OR alternatives.
+                foreach (var (wp, wpNorm, bIds) in wordBrands)
+                {
+                    var capturedWp    = wp;
+                    var capturedWpNorm = wpNorm;
+                    var capturedBIds  = bIds;
+                    query = query.Where(p =>
+                        EF.Functions.ILike(p.Name, capturedWp)
+                        || EF.Functions.ILike(p.Name, capturedWpNorm)
+                        || (p.SKU != null && EF.Functions.ILike(p.SKU, capturedWp))
+                        || (capturedBIds.Count > 0 && p.BrandId.HasValue && capturedBIds.Contains(p.BrandId.Value))
+                        || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
+                        || (matchingAdminIds.Count > 0 && p.CreatedByAdminId.HasValue && matchingAdminIds.Contains(p.CreatedByAdminId.Value))
+                        || (matchingSourceIds.Count > 0 && p.ImportedFromSourceId.HasValue && matchingSourceIds.Contains(p.ImportedFromSourceId.Value)));
+                }
+            }
+            else
+            {
+                query = query.Where(p =>
+                    EF.Functions.ILike(p.Name, sp)
+                    || EF.Functions.ILike(p.Name, spNorm)
+                    || (p.SKU != null && EF.Functions.ILike(p.SKU, sp))
+                    || (matchingBrandIds.Count > 0 && p.BrandId.HasValue && matchingBrandIds.Contains(p.BrandId.Value))
+                    || (matchingCategoryIds.Count > 0 && matchingCategoryIds.Contains(p.CategoryId))
+                    || (p.DataSource != null && EF.Functions.ILike(p.DataSource, sp))
+                    || (matchingAdminIds.Count > 0 && p.CreatedByAdminId.HasValue && matchingAdminIds.Contains(p.CreatedByAdminId.Value))
+                    || (matchingSourceIds.Count > 0 && p.ImportedFromSourceId.HasValue && matchingSourceIds.Contains(p.ImportedFromSourceId.Value)));
+            }
         }
 
         // Vehicle model search — combined VehicleModel column + name word-boundary.

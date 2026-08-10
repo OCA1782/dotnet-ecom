@@ -27,10 +27,10 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
     {
         var q = request.Q.Trim();
         var items = new List<SearchSuggestionItem>();
-
+        var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var likePat = $"%{q}%";
 
-        // Kategoriler (max 2)
+        // Kategoriler (max 2) — tam cümle eşleşmesi
         var categories = await db.Categories
             .Where(c => !c.IsDeleted && EF.Functions.ILike(c.Name, likePat))
             .OrderBy(c => c.Name)
@@ -41,7 +41,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         items.AddRange(categories.Select(c => new SearchSuggestionItem(
             "category", c.Name, $"/urunler?kategori={c.Slug}", c.Icon, null, null)));
 
-        // Markalar (max 2)
+        // Markalar (max 2) — tam cümle eşleşmesi
         var brands = await db.Brands
             .Where(b => !b.IsDeleted && EF.Functions.ILike(b.Name, likePat))
             .OrderBy(b => b.Name)
@@ -52,24 +52,40 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
         items.AddRange(brands.Select(b => new SearchSuggestionItem(
             "brand", b.Name, $"/urunler?marka={b.Slug}", b.Icon, null, null)));
 
-        // Ürünler — kalan slot
         int productLimit = Math.Max(request.Limit - items.Count, 3);
 
-        // Pre-fetch brand IDs to avoid hash join in the main Products query
-        var matchingBrandIds = brands.Select(b => b.Slug).ToList(); // reuse brand results
-        var matchingBrandGuids = await db.Brands
-            .AsNoTracking()
-            .Where(b => !b.IsDeleted && EF.Functions.ILike(b.Name, likePat))
-            .Select(b => b.Id)
-            .ToListAsync(cancellationToken);
+        // Kelime başına marka ID'leri: "opel far" → "opel" kelimesi için Opel marka ID'si
+        // Bu sayede brand=Opel + name contains "far" olan ürünler eşleşir.
+        var wordBrandIds = new List<(string Pattern, List<Guid> BrandIds)>();
+        foreach (var word in words)
+        {
+            var wp = $"%{word}%";
+            var ids = await db.Brands.AsNoTracking()
+                .Where(b => !b.IsDeleted && EF.Functions.ILike(b.Name, wp))
+                .Select(b => b.Id)
+                .ToListAsync(cancellationToken);
+            wordBrandIds.Add((wp, ids));
+        }
 
-        var products = await db.Products
+        // Ürün sorgusu: her kelime (isim VEYA SKU VEYA o kelimenin markası) içinde geçmeli (AND zinciri)
+        var productQuery = db.Products
             .AsNoTracking()
-            .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (EF.Functions.ILike(p.Name, likePat)
-                    || (p.SKU != null && EF.Functions.ILike(p.SKU, likePat))
-                    || (matchingBrandGuids.Count > 0 && p.BrandId.HasValue && matchingBrandGuids.Contains(p.BrandId.Value))))
-            .OrderByDescending(p => p.Name.StartsWith(q))
+            .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished);
+
+        foreach (var (wp, bIds) in wordBrandIds)
+        {
+            var capturedWp = wp;
+            var capturedBIds = bIds;
+            productQuery = productQuery.Where(p =>
+                EF.Functions.ILike(p.Name, capturedWp)
+                || (p.SKU != null && EF.Functions.ILike(p.SKU, capturedWp))
+                || (capturedBIds.Count > 0 && p.BrandId.HasValue && capturedBIds.Contains(p.BrandId.Value)));
+        }
+
+        // Resimli ürünler önce, ardından başlıkla başlayanlar, ardından alfabetik
+        var products = await productQuery
+            .OrderByDescending(p => p.HasProductImage)
+            .ThenByDescending(p => p.Name.StartsWith(q))
             .ThenBy(p => p.Name)
             .Take(productLimit)
             .Select(p => new
@@ -90,13 +106,7 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
             })
             .ToListAsync(cancellationToken);
 
-        // Toplam eşleşen ürün sayısı (dropdown "X sonuç" için)
-        int totalProducts = await db.Products
-            .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
-                && (EF.Functions.ILike(p.Name, likePat)
-                    || (p.SKU != null && EF.Functions.ILike(p.SKU, likePat))
-                    || (matchingBrandGuids.Count > 0 && p.BrandId.HasValue && matchingBrandGuids.Contains(p.BrandId.Value))))
-            .CountAsync(cancellationToken);
+        int totalProducts = await productQuery.CountAsync(cancellationToken);
 
         items.AddRange(products.Select(p => new SearchSuggestionItem(
             "product",
