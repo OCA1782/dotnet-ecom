@@ -65,7 +65,6 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
 
         var products = await db.Products
             .AsNoTracking()
-            .Include(p => p.Images.Where(i => i.IsMain))
             .Where(p => !p.IsDeleted && p.IsActive && p.IsPublished
                 && (EF.Functions.ILike(p.Name, likePat)
                     || (p.SKU != null && EF.Functions.ILike(p.SKU, likePat))
@@ -80,7 +79,14 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
                 p.Price,
                 p.DiscountPrice,
                 BrandName = db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
-                ImageUrl = p.Images.FirstOrDefault() != null ? p.Images.First().ImageUrl : null,
+                ImageUrl = db.ProductImages
+                    .Where(i => i.ProductId == p.Id && !i.IsDeleted && i.IsMain)
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault()
+                    ?? db.ProductImages
+                    .Where(i => i.ProductId == p.Id && !i.IsDeleted)
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
