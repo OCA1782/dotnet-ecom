@@ -95,12 +95,12 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
                 p.Price,
                 p.DiscountPrice,
                 BrandName = db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
+                // Single correlated subquery: IsMain DESC ensures main image is preferred.
+                // Avoids ?? between two FirstOrDefault() which EF Core may translate as a JOIN,
+                // multiplying rows for products that have multiple images.
                 ImageUrl = db.ProductImages
-                    .Where(i => i.ProductId == p.Id && !i.IsDeleted && i.IsMain)
-                    .Select(i => i.ImageUrl)
-                    .FirstOrDefault()
-                    ?? db.ProductImages
                     .Where(i => i.ProductId == p.Id && !i.IsDeleted)
+                    .OrderByDescending(i => i.IsMain)
                     .Select(i => i.ImageUrl)
                     .FirstOrDefault(),
             })
