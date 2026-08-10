@@ -29,13 +29,13 @@ const DEFAULTS: SiteSettings = {
   SocialYoutube: "", SocialLinkedin: "",
   LogoUrl: "", FaviconUrl: "",
   // Admin panel görselleri
-  AdminLogoNamed: "",   // sidebar genişken (isimli — marka logosu)
-  AdminLogoIcon: "",    // sidebar daraltılmışken (isimsiz — sadece ikon)
-  AdminFaviconUrl: "",  // admin tarayıcı sekmesi ikonu
+  AdminLogoNamed:   "https://images.autoforcepart.com/static/autoforcepart-logo-with-text.png",
+  AdminLogoIcon:    "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png",
+  AdminFaviconUrl:  "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png",
   // Müşteri sitesi görselleri
-  CustomerLogoIcon: "",   // header'da isimsiz logo (sadece ikon)
-  CustomerLogoNamed: "",  // header'da isimli logo (metin dahil)
-  CustomerFaviconUrl: "", // müşteri tarayıcı sekmesi ikonu
+  CustomerLogoNamed:   "https://images.autoforcepart.com/static/autoforcepart-logo-with-text.png",
+  CustomerLogoIcon:    "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png",
+  CustomerFaviconUrl:  "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png",
   // Renkler — Customer
   PrimaryColor: "#0d9488", AccentColor: "#7c3aed",
   CustomerBgColor: "#F7FAFA", CustomerTextColor: "#1c2044",

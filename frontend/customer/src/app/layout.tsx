@@ -25,7 +25,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const siteName = settings.SiteName || "";
-  const rawFavicon = settings.CustomerFaviconUrl || settings.FaviconUrl || "/logo-icon.svg";
+  const rawFavicon = settings.CustomerFaviconUrl || settings.FaviconUrl || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png";
   const version = settings.SettingsVersion ?? "";
   const faviconUrl = version ? `${rawFavicon}?v=${version}` : rawFavicon;
   return {
@@ -104,8 +104,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Spareparts şablonunda Header + araç nav şeridi birlikte sabitlenir */}
           <div className={template === "spareparts" ? "sticky top-0 z-50" : undefined}>
             <Header
-              logoNamed={settings.CustomerLogoNamed || undefined}
-              logoIcon={settings.CustomerLogoIcon || undefined}
+              logoNamed={settings.CustomerLogoNamed || "https://images.autoforcepart.com/static/autoforcepart-logo-with-text.png"}
+              logoIcon={settings.CustomerLogoIcon || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png"}
               siteName={siteName}
               languageSwitcherEnabled={languageSwitcherEnabled}
             />
