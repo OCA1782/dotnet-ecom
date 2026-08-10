@@ -15,6 +15,7 @@ interface PaymentResult {
   transactionId: string;
   requiresRedirect: boolean;
   redirectUrl?: string;
+  checkoutFormContent?: string;  // Payfor 3DHost: JSON key-value form alanları
 }
 
 interface GuestForm {
@@ -147,12 +148,6 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
       }
     }
 
-    if (payMethod === "CreditCard") {
-      if (!cardForm.number || !cardForm.expiry || !cardForm.cvv || !cardForm.name) {
-        setError(t("checkout.error.card_required")); return;
-      }
-    }
-
     setSubmitting(true);
     try {
       let orderId: string;
@@ -188,7 +183,25 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
       });
 
       if (payment.requiresRedirect && payment.redirectUrl) {
-        window.location.href = payment.redirectUrl;
+        if (payment.checkoutFormContent?.startsWith("{")) {
+          // Payfor 3DHost: gizli form oluştur ve bankaya POST et
+          const fields = JSON.parse(payment.checkoutFormContent) as Record<string, string>;
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = payment.redirectUrl;
+          form.style.display = "none";
+          Object.entries(fields).forEach(([name, value]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+          });
+          document.body.appendChild(form);
+          form.submit();
+        } else {
+          window.location.href = payment.redirectUrl;
+        }
         return;
       }
 
@@ -440,57 +453,28 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
               </div>
 
               {payMethod === "CreditCard" && (
-                <div className="mt-2 space-y-3 pt-4 border-t border-slate-100">
-                  <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 text-xs text-amber-700 flex items-start gap-2">
-                    <span className="shrink-0 mt-0.5">🧪</span>
-                    <span>
-                      <strong>{t("checkout.card.test_hint")}</strong> 4111 1111 1111 1111 &nbsp;·&nbsp; Son kullanma: 12/26 &nbsp;·&nbsp; CVV: 123
+                <div className="mt-2 pt-4 border-t border-slate-100 space-y-3">
+                  <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-4 flex items-start gap-3">
+                    <span className="text-xl shrink-0 mt-0.5">🔒</span>
+                    <div>
+                      <p className="text-sm font-semibold text-teal-800">Güvenli 3D Ödeme</p>
+                      <p className="text-xs text-teal-600 mt-1">
+                        &quot;Ödeme Yap&quot; butonuna tıkladığınızda banka&apos;nın güvenli ödeme sayfasına
+                        yönlendirileceksiniz. Kart bilgileriniz yalnızca banka güvenceli ortamda alınır,
+                        sitemize iletilmez.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 px-1">
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <span>✓</span> SSL / 256-bit şifreleme
                     </span>
-                  </div>
-
-                  <div>
-                    <label className={LABEL}>{t("checkout.card.name")} <span className="text-red-500">{t("checkout.required")}</span></label>
-                    <input value={cardForm.name} onChange={(e) => setCard("name", e.target.value)}
-                      placeholder="AD SOYAD" className={INP} />
-                  </div>
-                  <div>
-                    <label className={LABEL}>{t("checkout.card.number")} <span className="text-red-500">{t("checkout.required")}</span></label>
-                    <input
-                      value={cardForm.number}
-                      onChange={(e) => setCard("number", fmtCard(e.target.value))}
-                      placeholder="0000 0000 0000 0000"
-                      maxLength={19}
-                      inputMode="numeric"
-                      className={INP + " font-mono tracking-widest"}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={LABEL}>{t("checkout.card.expiry")} <span className="text-red-500">{t("checkout.required")}</span></label>
-                      <input
-                        value={cardForm.expiry}
-                        onChange={(e) => setCard("expiry", fmtExpiry(e.target.value))}
-                        placeholder="AA/YY"
-                        maxLength={5}
-                        inputMode="numeric"
-                        className={INP + " font-mono"}
-                      />
-                    </div>
-                    <div>
-                      <label className={LABEL}>{t("checkout.card.cvv")} <span className="text-red-500">{t("checkout.required")}</span></label>
-                      <input
-                        value={cardForm.cvv}
-                        onChange={(e) => setCard("cvv", e.target.value.replace(/\D/g, "").slice(0, 4))}
-                        placeholder="•••"
-                        maxLength={4}
-                        inputMode="numeric"
-                        className={INP + " font-mono"}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
-                    <span>🔒</span>
-                    <span>{t("checkout.card.ssl_notice")}</span>
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <span>✓</span> 3D Secure (3DS)
+                    </span>
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <span>✓</span> Taksit seçeneği (banka sayfasında)
+                    </span>
                   </div>
                 </div>
               )}

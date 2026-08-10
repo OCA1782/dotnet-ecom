@@ -51,7 +51,9 @@ public static class DependencyInjection
         }
         else
         {
-            services.AddScoped<IPaymentService, MockPaymentService>();
+            // Payfor (QNB Finansbank) — aktifleştirmek için yönetim panelinden
+            // PaymentSanalPosEnabled=true, PaymentSanalPosProvider=payfor ayarlayın.
+            services.AddScoped<IPaymentService, PayforPaymentService>();
         }
         services.AddScoped<IInvoiceService, MockInvoiceService>();
         services.AddScoped<IEmailService, EmailService>();

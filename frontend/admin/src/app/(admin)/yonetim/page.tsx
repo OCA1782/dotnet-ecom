@@ -106,11 +106,16 @@ const DEFAULTS: SiteSettings = {
   PaymentHavaleIBAN: "",
   PaymentHavaleDescription: "",
   PaymentSanalPosEnabled: "false",
-  PaymentSanalPosProvider: "iyzico",
+  PaymentSanalPosProvider: "payfor",
   PaymentSanalPosMerchantId: "",
   PaymentSanalPosApiKey: "",
   PaymentSanalPosApiSecret: "",
   PaymentSanalPosTestMode: "true",
+  Payfor_MbrId: "5",
+  Payfor_MerchantID: "",
+  Payfor_UserCode: "",
+  Payfor_MerchantPass: "",
+  Payfor_GatewayUrl: "",
   PaymentCashOnDeliveryEnabled: "true",
   // Footer
   Footer_Tagline: "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.",
@@ -3605,6 +3610,7 @@ export default function YonetimPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label={t("auto.odemeSaglayici", "Ödeme Sağlayıcı")}>
                 <select value={settings.PaymentSanalPosProvider} onChange={e => set("PaymentSanalPosProvider", e.target.value)} className={inp}>
+                  <option value="payfor">Payfor — QNB Finansbank</option>
                   <option value="iyzico">İyzico</option>
                   <option value="paytr">PayTR</option>
                   <option value="param">Param</option>
@@ -3624,25 +3630,77 @@ export default function YonetimPage() {
                   </span>
                 </div>
               </Field>
-              <Field label={t("auto.merchantId", "Merchant ID / Mağaza ID")}>
-                <input value={settings.PaymentSanalPosMerchantId} onChange={e => set("PaymentSanalPosMerchantId", e.target.value)}
-                  className={inp} placeholder="12345678" />
-              </Field>
-              <Field label="API Key">
-                <div className="relative">
-                  <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
-                  <input value={settings.PaymentSanalPosApiKey} onChange={e => set("PaymentSanalPosApiKey", e.target.value)}
-                    className={inp + " pl-8"} placeholder="api_key_..." />
-                </div>
-              </Field>
-              <Field label={t("auto.apiSecretPrivateKey", "API Secret / Private Key")} hint={t("auto.sifreliSaklanir", "Şifreli saklanır.")}>
-                <div className="relative">
-                  <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
-                  <input type="password" value={settings.PaymentSanalPosApiSecret} onChange={e => set("PaymentSanalPosApiSecret", e.target.value)}
-                    className={inp + " pl-8"} placeholder="••••••••••••••••" />
-                </div>
-              </Field>
             </div>
+
+            {/* Payfor / QNB Finansbank alanları */}
+            {settings.PaymentSanalPosProvider === "payfor" && (
+              <div className="mt-4 border border-blue-100 rounded-xl p-4 bg-blue-50/40 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard size={14} className="text-blue-600" />
+                  <p className="text-sm font-semibold text-blue-800">Payfor / QNB Finansbank Bilgileri</p>
+                </div>
+                <p className="text-xs text-blue-600 -mt-2">
+                  3DHost entegrasyonu — kart bilgileri banka güvenli sayfasında girilir, sunucunuza ulaşmaz.
+                  {settings.PaymentSanalPosTestMode === "true"
+                    ? " Test ortamı: vpostest.qnbfinansbank.com"
+                    : " Canlı ortam: vpos.qnb.com.tr"}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="MbrId (Kurum Kodu)" hint="QNB tarafından atanan kurum kodu. Genellikle 5.">
+                    <input value={settings.Payfor_MbrId ?? "5"} onChange={e => set("Payfor_MbrId", e.target.value)}
+                      className={inp} placeholder="5" />
+                  </Field>
+                  <Field label="Merchant ID (Mağaza No)">
+                    <input value={settings.Payfor_MerchantID ?? ""} onChange={e => set("Payfor_MerchantID", e.target.value)}
+                      className={inp} placeholder="131200000000000" />
+                  </Field>
+                  <Field label="UserCode (Kullanıcı Kodu)">
+                    <input value={settings.Payfor_UserCode ?? ""} onChange={e => set("Payfor_UserCode", e.target.value)}
+                      className={inp} placeholder="admin1" />
+                  </Field>
+                  <Field label="MerchantPass (Şifre)" hint="Şifreli saklanır.">
+                    <div className="relative">
+                      <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
+                      <input type="password" value={settings.Payfor_MerchantPass ?? ""} onChange={e => set("Payfor_MerchantPass", e.target.value)}
+                        className={inp + " pl-8"} placeholder="••••••••••••" />
+                    </div>
+                  </Field>
+                  <Field label="Gateway URL (İsteğe Bağlı)" hint="Boş bırakırsanız test/canlı mod seçimine göre otomatik atanır.">
+                    <input value={settings.Payfor_GatewayUrl ?? ""} onChange={e => set("Payfor_GatewayUrl", e.target.value)}
+                      className={inp} placeholder="https://vpos.qnb.com.tr/Gateway/3DHost.aspx" />
+                  </Field>
+                  <Field label="Callback Base URL" hint="Sunucunuzun dışarıdan erişilebilir adresi (örn: https://api.siteniz.com). Boş bırakırsanız ortam değişkeninden okunur.">
+                    <input value={settings.Payfor_CallbackBaseUrl ?? ""} onChange={e => set("Payfor_CallbackBaseUrl", e.target.value)}
+                      className={inp} placeholder="https://api.siteniz.com" />
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* Diğer sağlayıcılar için genel alanlar */}
+            {settings.PaymentSanalPosProvider !== "payfor" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <Field label={t("auto.merchantId", "Merchant ID / Mağaza ID")}>
+                  <input value={settings.PaymentSanalPosMerchantId} onChange={e => set("PaymentSanalPosMerchantId", e.target.value)}
+                    className={inp} placeholder="12345678" />
+                </Field>
+                <Field label="API Key">
+                  <div className="relative">
+                    <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
+                    <input value={settings.PaymentSanalPosApiKey} onChange={e => set("PaymentSanalPosApiKey", e.target.value)}
+                      className={inp + " pl-8"} placeholder="api_key_..." />
+                  </div>
+                </Field>
+                <Field label={t("auto.apiSecretPrivateKey", "API Secret / Private Key")} hint={t("auto.sifreliSaklanir", "Şifreli saklanır.")}>
+                  <div className="relative">
+                    <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
+                    <input type="password" value={settings.PaymentSanalPosApiSecret} onChange={e => set("PaymentSanalPosApiSecret", e.target.value)}
+                      className={inp + " pl-8"} placeholder="••••••••••••••••" />
+                  </div>
+                </Field>
+              </div>
+            )}
+
             {settings.PaymentSanalPosTestMode !== "true" && settings.PaymentSanalPosEnabled === "true" && (
               <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
                 <CreditCard size={14} /> {t("auto.canliModAktifKart", "Canlı mod aktif — gerçek kart bilgileri işlenecek. Entegrasyon testini tamamladığınızdan emin olun.")}
