@@ -12,7 +12,7 @@ export async function getSettings(): Promise<Record<string, string>> {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3000);
     const res = await fetch(`${API_BASE}/api/admin/settings`, {
-      next: { revalidate: 60 },
+      next: { revalidate: 5 },
       signal: ctrl.signal,
     });
     clearTimeout(t);
