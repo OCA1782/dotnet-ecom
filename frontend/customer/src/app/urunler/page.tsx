@@ -204,7 +204,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           <nav className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/" className="hover:text-orange-500 transition-colors">Anasayfa</Link>
             <span>/</span>
-            {params.marka && params.arac && (
+            {params.marka && params.arac && params.marka !== params.arac && (
               <>
                 <Link href={`/urunler?s=${encodeURIComponent(params.marka)}&marka=${encodeURIComponent(params.marka)}`} className="hover:text-orange-500 transition-colors">{params.marka}</Link>
                 <span>/</span>
