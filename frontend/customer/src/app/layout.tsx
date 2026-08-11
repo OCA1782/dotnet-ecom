@@ -6,7 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import SparePartsBrandNav from "@/components/templates/SparePartsBrandNav";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 import ChatWidget from "@/components/ChatWidget";
 import LocationPermissionBanner from "@/components/LocationPermissionBanner";
 import VisitorTracker from "@/components/VisitorTracker";

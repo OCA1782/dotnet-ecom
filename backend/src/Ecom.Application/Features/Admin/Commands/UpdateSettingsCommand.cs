@@ -7,7 +7,7 @@ namespace Ecom.Application.Features.Admin.Commands;
 
 public record UpdateSettingsCommand(Dictionary<string, string> Settings) : IRequest;
 
-public class UpdateSettingsHandler(IApplicationDbContext db)
+public class UpdateSettingsHandler(IApplicationDbContext db, ICacheService cache)
     : IRequestHandler<UpdateSettingsCommand>
 {
     public async Task Handle(UpdateSettingsCommand request, CancellationToken cancellationToken)
@@ -24,6 +24,7 @@ public class UpdateSettingsHandler(IApplicationDbContext db)
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync("settings:v1:all", cancellationToken);
     }
 
     private static string InferGroup(string key) => key switch

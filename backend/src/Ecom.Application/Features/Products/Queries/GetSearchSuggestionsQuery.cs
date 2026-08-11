@@ -20,11 +20,16 @@ public record SearchSuggestionsDto(
     int TotalProducts
 );
 
-public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
+public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db, ICacheService cache)
     : IRequestHandler<GetSearchSuggestionsQuery, SearchSuggestionsDto>
 {
+    private static readonly TimeSpan SuggestionsTtl = TimeSpan.FromSeconds(30);
+
     public async Task<SearchSuggestionsDto> Handle(GetSearchSuggestionsQuery request, CancellationToken cancellationToken)
     {
+        var cacheKey = $"suggestions:v1:{request.Q.Trim().ToLowerInvariant()}:{request.Limit}";
+        var cached = await cache.GetAsync<SearchSuggestionsDto>(cacheKey, cancellationToken);
+        if (cached is not null) return cached;
         var q = request.Q.Trim();
         var items = new List<SearchSuggestionItem>();
         var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -133,6 +138,8 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
             p.DiscountPrice ?? p.Price,
             p.BrandId.HasValue && brandNameMap.TryGetValue(p.BrandId.Value, out var bn) ? bn : null)));
 
-        return new SearchSuggestionsDto(items, totalProducts);
+        var result = new SearchSuggestionsDto(items, totalProducts);
+        await cache.SetAsync(cacheKey, result, SuggestionsTtl, cancellationToken);
+        return result;
     }
 }

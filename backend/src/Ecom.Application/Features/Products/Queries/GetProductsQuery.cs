@@ -27,7 +27,16 @@ public record GetProductsQuery(
     string? VehicleModel = null, // word-boundary vehicle model search (avoids "Yaris P1" matching "Yaris P10")
     string? OemPartNo = null,    // OEM / part reference number
     string? Chassis = null       // chassis / VIN range
-) : IRequest<PaginatedList<ProductListItemDto>>;
+) : IRequest<PaginatedList<ProductListItemDto>>
+{
+    // Cache key for public (non-admin) queries — used by GetProductsQueryHandler.
+    public string PublicCacheKey() =>
+        $"products:v1:{Page}:{PageSize}:{Search}:{CategoryId}:{CategorySlug}:{BrandId}:{MinPrice}:{MaxPrice}:{InStock}:{IsFeatured}:{OnSale}:{SortBy}:{BrandIds}:{MinRating}:{Attributes}:{DataSource}:{VehicleModel}:{OemPartNo}:{Chassis}";
+
+    // Only deterministic, non-personalized, non-stock queries are safe to cache.
+    public bool IsCacheable() =>
+        !AdminView && MinRating == null && string.IsNullOrEmpty(Attributes) && InStock == null;
+}
 
 public record ProductListItemDto(
     Guid Id,
@@ -51,10 +60,17 @@ public record ProductListItemDto(
     string? CreatedByAdminEmail = null
 );
 
-public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
+public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserService currentUser, ICacheService cache) : IRequestHandler<GetProductsQuery, PaginatedList<ProductListItemDto>>
 {
+    private static readonly TimeSpan ProductListTtl = TimeSpan.FromSeconds(60);
+
     public async Task<PaginatedList<ProductListItemDto>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
+        if (request.IsCacheable())
+        {
+            var cached = await cache.GetAsync<PaginatedList<ProductListItemDto>>(request.PublicCacheKey(), cancellationToken);
+            if (cached is not null) return cached;
+        }
         // No Include() calls — they force hash joins that require large memory grants in LocalDB.
         // Navigation properties are accessed directly in the final Select() which EF translates
         // to efficient correlated subqueries or nested loop joins on the 5-row result set.
@@ -376,7 +392,10 @@ public class GetProductsQueryHandler(IApplicationDbContext db, ICurrentUserServi
                 adminView ? db.Users.Where(u => u.Id == p.CreatedByAdminId).Select(u => u.Email).FirstOrDefault() : null))
             .ToListAsync(cancellationToken);
 
-        return PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);
+        var result = PaginatedList<ProductListItemDto>.Create(items, total, request.Page, request.PageSize);
+        if (request.IsCacheable())
+            await cache.SetAsync(request.PublicCacheKey(), result, ProductListTtl, cancellationToken);
+        return result;
     }
 
     private record AttrPair(string Key, string Value);
