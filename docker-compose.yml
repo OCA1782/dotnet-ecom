@@ -161,6 +161,7 @@ services:
     build:
       context: ./frontend/customer
       dockerfile: Dockerfile
+      network: host
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
         NEXT_PUBLIC_FALLBACK_TEMPLATE: ${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
