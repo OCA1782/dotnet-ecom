@@ -105,7 +105,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     : params.chassis
     ? `Şasi ${params.chassis} Uyumlu Parçalar`
     : params.arac
-    ? `${params.marka ? `${params.marka} ` : ""}${params.arac} Uyumlu Yedek Parçalar`
+    ? `${params.marka && params.marka !== params.arac ? `${params.marka} ` : ""}${params.arac} Uyumlu Yedek Parçalar`
     : params.s
     ? `"${params.s}" için Arama Sonuçları`
     : params.siralama === "yeni"     ? "Yeni Sezon Ürünleri"
@@ -216,10 +216,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           </nav>
           <h1 className="text-xl font-extrabold text-gray-800 uppercase tracking-wide">
             {params.oemNo ? `OEM / Parça No: ${params.oemNo}` : params.chassis ? `Şasi: ${params.chassis}` :
-             params.marka && params.arac ? `${params.marka} ${params.arac}` : (params.arac ?? params.s)}
+             params.marka && params.arac && params.marka !== params.arac ? `${params.marka} ${params.arac}` : (params.arac ?? params.s)}
           </h1>
           {params.arac && (
-            <p className="text-xs text-gray-400 mt-0.5">{params.marka ? `${params.marka} ` : ""}{params.arac} uyumlu parçalar gösteriliyor</p>
+            <p className="text-xs text-gray-400 mt-0.5">{params.marka && params.marka !== params.arac ? `${params.marka} ` : ""}{params.arac} uyumlu parçalar gösteriliyor</p>
           )}
           {params.oemNo && (
             <p className="text-xs text-gray-400 mt-0.5">OEM / parça numarasına göre sonuçlar</p>

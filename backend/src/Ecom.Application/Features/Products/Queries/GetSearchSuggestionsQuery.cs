@@ -82,39 +82,56 @@ public class GetSearchSuggestionsQueryHandler(IApplicationDbContext db)
                 || (capturedBIds.Count > 0 && p.BrandId.HasValue && capturedBIds.Contains(p.BrandId.Value)));
         }
 
-        // Resimli ürünler önce, ardından başlıkla başlayanlar, ardından alfabetik
-        var products = await productQuery
+        // Resimli ürünler önce, ardından başlıkla başlayanlar, ardından alfabetik.
+        // Subquery'leri Select() içine koymak EF Core 9'da LEFT JOIN'e dönüşebilir ve
+        // birden fazla resmi olan ürünlerde satır çoğalmasına (row duplication) yol açar.
+        // Çözüm: önce saf product sorgusu, ardından batch image/brand fetch, bellek içi join.
+        var productBase = await productQuery
             .OrderByDescending(p => p.HasProductImage)
             .ThenByDescending(p => p.Name.StartsWith(q))
             .ThenBy(p => p.Name)
             .Take(productLimit)
-            .Select(p => new
-            {
-                p.Name,
-                p.Slug,
-                p.Price,
-                p.DiscountPrice,
-                BrandName = db.Brands.Where(b => b.Id == p.BrandId).Select(b => b.Name).FirstOrDefault(),
-                // Single correlated subquery: IsMain DESC ensures main image is preferred.
-                // Avoids ?? between two FirstOrDefault() which EF Core may translate as a JOIN,
-                // multiplying rows for products that have multiple images.
-                ImageUrl = db.ProductImages
-                    .Where(i => i.ProductId == p.Id && !i.IsDeleted)
-                    .OrderByDescending(i => i.IsMain)
-                    .Select(i => i.ImageUrl)
-                    .FirstOrDefault(),
-            })
+            .Select(p => new { p.Id, p.Name, p.Slug, p.Price, p.DiscountPrice, p.BrandId })
             .ToListAsync(cancellationToken);
 
         int totalProducts = await productQuery.CountAsync(cancellationToken);
 
-        items.AddRange(products.Select(p => new SearchSuggestionItem(
+        var productIds = productBase.Select(p => p.Id).ToList();
+        var brandIds = productBase
+            .Where(p => p.BrandId.HasValue)
+            .Select(p => p.BrandId!.Value)
+            .Distinct()
+            .ToList();
+
+        var allImages = await db.ProductImages
+            .AsNoTracking()
+            .Where(i => productIds.Contains(i.ProductId) && !i.IsDeleted)
+            .OrderByDescending(i => i.IsMain)
+            .Select(i => new { i.ProductId, i.ImageUrl })
+            .ToListAsync(cancellationToken);
+
+        var brandNameMap = new Dictionary<Guid, string>();
+        if (brandIds.Count > 0)
+        {
+            brandNameMap = await db.Brands
+                .AsNoTracking()
+                .Where(b => brandIds.Contains(b.Id))
+                .Select(b => new { b.Id, b.Name })
+                .ToDictionaryAsync(b => b.Id, b => b.Name, cancellationToken);
+        }
+
+        // İlk resim zaten IsMain DESC sıralı geldiği için GroupBy + First = ana resim
+        var imageMap = allImages
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(g => g.Key, g => g.First().ImageUrl);
+
+        items.AddRange(productBase.Select(p => new SearchSuggestionItem(
             "product",
             p.Name,
             $"/urun/{p.Slug}",
-            p.ImageUrl,
+            imageMap.TryGetValue(p.Id, out var imgUrl) ? imgUrl : null,
             p.DiscountPrice ?? p.Price,
-            p.BrandName)));
+            p.BrandId.HasValue && brandNameMap.TryGetValue(p.BrandId.Value, out var bn) ? bn : null)));
 
         return new SearchSuggestionsDto(items, totalProducts);
     }
