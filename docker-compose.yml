@@ -173,6 +173,8 @@ services:
       - NEXT_PUBLIC_FALLBACK_TEMPLATE=${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - INTERNAL_API_URL=http://api:8080
+    extra_hosts:
+      - "api:172.18.0.6"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:3000,path:'/'}, r => process.exit(r.statusCode >= 500 ? 1 : 0)).on('error', () => process.exit(1))"]
       interval: 30s
