@@ -82,3 +82,16 @@ frontend/customer/C:*
 
 # Design reference assets
 logo/
+
+# Python bytecode
+deploy/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Local bug screenshots
+bugs/
+
+# Migration run artifacts (data output, not source)
+r2_migration_progress.txt
+deploy/r2_migration_errors_raw.tsv
+deploy/r2_migration_errors_report.txt
