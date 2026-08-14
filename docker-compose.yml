@@ -132,6 +132,7 @@ services:
       - LICENCE_SERVICE_KEY=${LICENCE_SERVICE_KEY:-}
       - CatalogIQ__ApiKey=${CATALOGIQ_API_KEY:-catalogiq-dev-key-2026}
       - Google__ClientId=${GOOGLE_CLIENT_ID:-}
+      - Payfor__CallbackBaseUrl=${PAYFOR_CALLBACK_BASE_URL:-https://api.autoforcepart.com}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

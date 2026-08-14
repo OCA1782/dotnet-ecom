@@ -116,6 +116,7 @@ const DEFAULTS: SiteSettings = {
   Payfor_UserCode: "",
   Payfor_MerchantPass: "",
   Payfor_GatewayUrl: "",
+  Payfor_CallbackBaseUrl: "",
   PaymentCashOnDeliveryEnabled: "true",
   // Footer
   Footer_Tagline: "Keyifli alışverişin yeni adresi.\nSevdiğin ürünler, güvenli ödeme.",

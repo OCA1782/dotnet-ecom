@@ -25,8 +25,14 @@ public class PaymentsController(
     [AllowAnonymous]   // guest checkout desteği; handler sahiplik kontrolü yapar
     public async Task<IActionResult> Initiate([FromBody] InitiatePaymentRequest req, CancellationToken ct)
     {
-        var callbackBase = config["Payfor:CallbackBaseUrl"]
-            ?? config["Iyzico:CallbackBaseUrl"]
+        var siteCallbackBase = await db.SiteSettings
+            .AsNoTracking()
+            .Where(x => x.Key == "Payfor_CallbackBaseUrl" && !x.IsDeleted)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+
+        var callbackBase = (siteCallbackBase is { Length: > 0 } ? siteCallbackBase : null)
+            ?? config["Payfor:CallbackBaseUrl"]
             ?? $"{Request.Scheme}://{Request.Host}";
 
         var callbackPath = paymentService is PayforPaymentService
