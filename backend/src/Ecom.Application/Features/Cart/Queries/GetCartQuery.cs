@@ -15,7 +15,9 @@ public record CartDto(
     decimal ShippingAmount,
     decimal DiscountAmount,
     string? CouponCode,
-    decimal GrandTotal
+    decimal GrandTotal,
+    decimal ShippingCost,
+    decimal FreeShippingLimit
 );
 
 public record CartItemDto(
@@ -129,7 +131,7 @@ public class GetCartQueryHandler(IApplicationDbContext db, ICacheService cache) 
 
         var grandTotal = Math.Max(0, subTotal + shipping - discountAmount);
 
-        var result = new CartDto(cart.Id, items, subTotal, tax, shipping, discountAmount, couponCode, grandTotal);
+        var result = new CartDto(cart.Id, items, subTotal, tax, shipping, discountAmount, couponCode, grandTotal, shippingCost, freeLimit);
         await cache.SetAsync(cacheKey, result, TimeSpan.FromSeconds(20), cancellationToken);
         return result;
     }

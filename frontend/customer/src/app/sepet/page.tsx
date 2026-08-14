@@ -220,7 +220,7 @@ export default function CartPage() {
   const deselected = cart.items.filter(i => !i.isSelected);
   const selectedQty = selected.reduce((s, i) => s + i.quantity, 0);
   const selectedSubTotal = selected.reduce((s, i) => s + i.lineTotal, 0);
-  const selectedShipping = selectedSubTotal >= 500 ? 0 : 29.90;
+  const selectedShipping = selectedSubTotal >= cart.freeShippingLimit ? 0 : cart.shippingCost;
   const selectedTotal = Math.max(0, selectedSubTotal + selectedShipping - cart.discountAmount);
 
   return (

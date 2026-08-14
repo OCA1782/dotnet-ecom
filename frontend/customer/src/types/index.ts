@@ -106,6 +106,8 @@ export interface Cart {
   discountAmount: number;
   couponCode?: string;
   grandTotal: number;
+  shippingCost: number;
+  freeShippingLimit: number;
 }
 
 export interface Address {
