@@ -3,6 +3,7 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
+    shm_size: "1gb"
     environment:
       POSTGRES_DB: EcomDb
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER zorunludur}
@@ -18,8 +19,8 @@ services:
       -c max_connections=100
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
-      -c max_parallel_workers_per_gather=3
-      -c max_parallel_workers=6
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
       -c wal_buffers=64MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d EcomDb"]
