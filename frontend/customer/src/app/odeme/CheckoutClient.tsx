@@ -315,6 +315,14 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
     ...(codEnabled ? [{ key: "CashOnDelivery" as const, icon: "📦", label: t("checkout.payment.cash_on_delivery") }] : []),
   ];
 
+  // Compute selected-only totals (cart.subTotal/grandTotal include ALL items)
+  const selectedItems = cart?.items.filter(i => i.isSelected) ?? [];
+  const selectedSubTotal = selectedItems.reduce((s, i) => s + i.lineTotal, 0);
+  const selectedTax = selectedItems.reduce((s, i) => s + i.lineTotal * i.taxRate / 100, 0);
+  const baseShippingCost = (cart?.shippingAmount ?? 0) > 0 ? (cart?.shippingAmount ?? 29.90) : 29.90;
+  const selectedShipping = selectedSubTotal >= 500 ? 0 : baseShippingCost;
+  const selectedGrandTotal = Math.max(0, selectedSubTotal + selectedShipping - (cart?.discountAmount ?? 0));
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="text-2xl font-bold text-slate-900 mb-8">{t("checkout.title")}</h1>
@@ -545,15 +553,15 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
 
                 <div className="border-t border-slate-100 pt-3 space-y-2">
                   <div className="flex justify-between text-sm text-slate-500">
-                    <span>{t("checkout.summary.subtotal")}</span><span>{formatPrice(cart.subTotal)}</span>
+                    <span>{t("checkout.summary.subtotal")}</span><span>{formatPrice(selectedSubTotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-500">
-                    <span>{t("checkout.summary.tax")}</span><span>{formatPrice(cart.taxAmount)}</span>
+                    <span>{t("checkout.summary.tax")}</span><span>{formatPrice(selectedTax)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-500">
                     <span>{t("checkout.summary.shipping")}</span>
-                    <span className={cart.shippingAmount === 0 ? "text-emerald-600 font-medium" : ""}>
-                      {cart.shippingAmount === 0 ? t("checkout.summary.shipping_free") : formatPrice(cart.shippingAmount)}
+                    <span className={selectedShipping === 0 ? "text-emerald-600 font-medium" : ""}>
+                      {selectedShipping === 0 ? t("checkout.summary.shipping_free") : formatPrice(selectedShipping)}
                     </span>
                   </div>
                   {cart.discountAmount > 0 && (
@@ -562,7 +570,7 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-200">
-                    <span>{t("checkout.summary.total")}</span><span>{formatPrice(cart.grandTotal)}</span>
+                    <span>{t("checkout.summary.total")}</span><span>{formatPrice(selectedGrandTotal)}</span>
                   </div>
                 </div>
               </>
