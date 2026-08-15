@@ -168,12 +168,14 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5124}
         NEXT_PUBLIC_FALLBACK_TEMPLATE: ${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     ports:
       - "${DOCKER_HOST_IP:-127.0.0.1}:13000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5124}
       - NEXT_PUBLIC_FALLBACK_TEMPLATE=${NEXT_PUBLIC_FALLBACK_TEMPLATE:-spareparts}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       - INTERNAL_API_URL=http://api:8080
     extra_hosts:
       - "api:172.18.0.6"
