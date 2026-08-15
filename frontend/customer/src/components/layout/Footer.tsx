@@ -83,6 +83,8 @@ export default async function Footer() {
     contactLinkLabel,
     aboutLabel,
     privacyLabel,
+    termsLabel,
+    shippingPolicyLabel,
     safePaymentLabel,
     copyrightLabel,
     taglineLabel,
@@ -105,6 +107,8 @@ export default async function Footer() {
     st("footer.contact"),
     st("footer.about"),
     st("footer.privacy"),
+    st("footer.terms"),
+    st("footer.shipping_policy"),
     st("footer.safe_payment"),
     st("footer.copyright"),
     st("footer.tagline"),
@@ -194,6 +198,8 @@ export default async function Footer() {
               <li><Link href="/hakkimizda" className="hover:text-white transition">{aboutLabel}</Link></li>
               <li><Link href="/kvkk" className="hover:text-white transition">KVKK</Link></li>
               <li><Link href="/gizlilik" className="hover:text-white transition">{privacyLabel}</Link></li>
+              <li><Link href="/kullanim-kosullari" className="hover:text-white transition">{termsLabel}</Link></li>
+              <li><Link href="/teslimat-politikasi" className="hover:text-white transition">{shippingPolicyLabel}</Link></li>
             </ul>
             {(email || phone) && (
               <div className="space-y-1.5 text-xs text-slate-500">

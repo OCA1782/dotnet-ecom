@@ -17,8 +17,10 @@ const STATIC_PAGES: { path: string; priority: number; freq: MetadataRoute.Sitema
   { path: "/kargo-takibi",   priority: 0.4, freq: "monthly" },
   { path: "/iade-degisim",   priority: 0.4, freq: "monthly" },
   { path: "/siparis-sorgula",priority: 0.3, freq: "monthly" },
-  { path: "/gizlilik",       priority: 0.2, freq: "yearly"  },
-  { path: "/kvkk",           priority: 0.2, freq: "yearly"  },
+  { path: "/gizlilik",             priority: 0.2, freq: "yearly"  },
+  { path: "/kvkk",                priority: 0.2, freq: "yearly"  },
+  { path: "/kullanim-kosullari",   priority: 0.2, freq: "yearly"  },
+  { path: "/teslimat-politikasi",  priority: 0.3, freq: "monthly" },
 ];
 
 interface ProductItem { slug: string; updatedAt?: string }
