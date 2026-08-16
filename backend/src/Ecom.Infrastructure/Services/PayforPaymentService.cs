@@ -21,7 +21,7 @@ public class PayforPaymentService(IApplicationDbContext db) : IPaymentService
         var keys = new[]
         {
             "PaymentSanalPosEnabled", "PaymentSanalPosProvider", "PaymentSanalPosTestMode",
-            "Payfor_MbrId", "Payfor_MerchantID", "Payfor_UserCode",
+            "Payfor_MbrId", "Payfor_MerchantID", "Payfor_UserCode", "Payfor_UserPass",
             "Payfor_MerchantPass", "Payfor_GatewayUrl"
         };
 
@@ -41,6 +41,7 @@ public class PayforPaymentService(IApplicationDbContext db) : IPaymentService
         var mbrId       = s.GetValueOrDefault("Payfor_MbrId",       "5")!;
         var merchantId  = s.GetValueOrDefault("Payfor_MerchantID",  "");
         var userCode    = s.GetValueOrDefault("Payfor_UserCode",     "");
+        var userPass    = s.GetValueOrDefault("Payfor_UserPass",     "");
         var merchantPass= s.GetValueOrDefault("Payfor_MerchantPass","");
 
         if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(userCode) || string.IsNullOrWhiteSpace(merchantPass))
@@ -68,6 +69,7 @@ public class PayforPaymentService(IApplicationDbContext db) : IPaymentService
             ["MbrId"]            = mbrId,
             ["MerchantID"]       = merchantId!,
             ["UserCode"]         = userCode!,
+            ["UserPass"]         = userPass!,
             ["SecureType"]       = "3DHost",
             ["TxnType"]          = txnType,
             ["InstallmentCount"] = installmentCount,
