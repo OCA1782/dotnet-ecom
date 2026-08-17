@@ -5,6 +5,7 @@ export default async function CheckoutPage() {
   const settings = await getSettings();
   const s = settings as Record<string, string | undefined>;
   const codEnabled = settings.PaymentCashOnDeliveryEnabled !== "false";
+  const sanalPosEnabled = s.PaymentSanalPosEnabled === "true";
   const havaleEnabled = s.PaymentHavaleEnabled === "true";
   const havaleIban = s.PaymentHavaleIBAN ?? "";
   const havalebankName = s.PaymentHavaleBankName ?? "";
@@ -12,6 +13,7 @@ export default async function CheckoutPage() {
   return (
     <CheckoutClient
       codEnabled={codEnabled}
+      sanalPosEnabled={sanalPosEnabled}
       havaleEnabled={havaleEnabled}
       havaleIban={havaleIban}
       havalebankName={havalebankName}

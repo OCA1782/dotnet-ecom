@@ -108,12 +108,14 @@ const SCHEME_GRADIENT: Record<string, string> = {
   sky:    "from-sky-400 to-blue-600",
 };
 
-const FALLBACK_CAMPAIGNS: Campaign[] = [
-  { id: "f1", title: "%40'a Varan İndirim", subtitle: "Fırsatı Kaçırma", icon: "%", colorScheme: "orange", imageUrl: null, stylesJson: null, linkUrl: "/urunler?indirimli=true", linkText: "İncele →", displayOrder: 0, isActive: true, isFeatured: true },
-  { id: "f2", title: "Ücretsiz Kargo", subtitle: "500 TL Üzeri", icon: "∞", colorScheme: "teal", imageUrl: null, stylesJson: null, linkUrl: "/urunler?minFiyat=500", linkText: "Alışverişe Başla →", displayOrder: 1, isActive: true, isFeatured: true },
-  { id: "f3", title: "Yeni Sezon Ürünleri", subtitle: "Yeni Gelenler", icon: "★", colorScheme: "navy", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=yeni", linkText: "Keşfet →", displayOrder: 2, isActive: true, isFeatured: true },
-  { id: "f4", title: "Çok Satanlar", subtitle: "En Çok Tercih Edilen", icon: "#1", colorScheme: "amber", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=cok-satan", linkText: "Hepsini Gör →", displayOrder: 3, isActive: true, isFeatured: true },
-];
+function getFallbackCampaigns(freeShipLimit: number): Campaign[] {
+  return [
+    { id: "f1", title: "%40'a Varan İndirim", subtitle: "Fırsatı Kaçırma", icon: "%", colorScheme: "orange", imageUrl: null, stylesJson: null, linkUrl: "/urunler?indirimli=true", linkText: "İncele →", displayOrder: 0, isActive: true, isFeatured: true },
+    ...(freeShipLimit > 0 ? [{ id: "f2", title: "Ücretsiz Kargo", subtitle: `${freeShipLimit} TL Üzeri`, icon: "∞", colorScheme: "teal" as const, imageUrl: null, stylesJson: null, linkUrl: `/urunler?minFiyat=${freeShipLimit}`, linkText: "Alışverişe Başla →", displayOrder: 1, isActive: true, isFeatured: true }] : []),
+    { id: "f3", title: "Yeni Sezon Ürünleri", subtitle: "Yeni Gelenler", icon: "★", colorScheme: "navy", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=yeni", linkText: "Keşfet →", displayOrder: 2, isActive: true, isFeatured: true },
+    { id: "f4", title: "Çok Satanlar", subtitle: "En Çok Tercih Edilen", icon: "#1", colorScheme: "amber", imageUrl: null, stylesJson: null, linkUrl: "/urunler?siralama=cok-satan", linkText: "Hepsini Gör →", displayOrder: 3, isActive: true, isFeatured: true },
+  ];
+}
 
 export default async function HomePage() {
   const [categoriesRaw, products, discountProducts, topDiscountProducts, announcements, campaignsRaw, settings, lang] = await Promise.all([
@@ -121,7 +123,8 @@ export default async function HomePage() {
   ]);
   const t = (key: string) => translate(lang, key);
   const categories = categoriesRaw.length > 0 ? categoriesRaw : FALLBACK_CATEGORIES;
-  const campaigns = campaignsRaw.length > 0 ? campaignsRaw : FALLBACK_CAMPAIGNS;
+  const freeShipLimit = parseInt(settings.FreeShippingLimit || "0") || 0;
+  const campaigns = campaignsRaw.length > 0 ? campaignsRaw : getFallbackCampaigns(freeShipLimit);
   const template = settings.CustomerTemplate ?? process.env.NEXT_PUBLIC_FALLBACK_TEMPLATE ?? "modern";
 
   /* ══════════════════════════════════════════════════════
@@ -133,7 +136,7 @@ export default async function HomePage() {
   if (template === "spareparts") {
     const siteName = settings.SiteName || "Yedek Parça";
     const b2bText   = settings.Spareparts_B2BText     || "Servis ve bayi hesabı açın — özel fiyatlar, hızlı sipariş ve öncelikli destek";
-    const phone     = settings.Spareparts_Phone || settings.ContactPhone || "0850 XXX XX XX";
+    const phone     = settings.Spareparts_Phone || settings.ContactPhone || "";
     const heroCount = settings.Spareparts_HeroCount    || "";
     const heroCountUnit = settings.Spareparts_HeroCountUnit || "";
     const heroSlogan = settings.Spareparts_HeroSlogan  || "TÜRKİYE'NİN EN BÜYÜK OTO PARÇA MAĞAZASI";
@@ -160,7 +163,7 @@ export default async function HomePage() {
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-orange-400 font-extrabold text-[12px] hidden md:inline tracking-wide">{siteName}</span>
               <span className="text-gray-600 hidden md:inline">|</span>
-              <span className="text-gray-500 text-[10px] hidden sm:inline">📞 {phone}</span>
+              {phone && <span className="text-gray-500 text-[10px] hidden sm:inline">📞 {phone}</span>}
               <Link href="/iletisim"
                 className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full transition-all duration-150">
                 {t("home2.sp.b2b.apply")}
@@ -275,7 +278,7 @@ export default async function HomePage() {
                   </div>
                   <div className="p-4">
                     <div data-product-grid className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {products.slice(0, 6).map(p => <ProductCard key={p.id} product={p} variant="spareparts" />)}
+                      {products.slice(0, 6).map(p => <ProductCard key={p.id} product={p} variant="spareparts" freeShippingLimit={freeShipLimit} />)}
                     </div>
                   </div>
                 </div>
@@ -329,7 +332,7 @@ export default async function HomePage() {
                   </div>
                   <div className="p-4">
                     <div data-product-grid className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {discountProducts.map(p => <ProductCard key={p.id} product={p} variant="spareparts" />)}
+                      {discountProducts.map(p => <ProductCard key={p.id} product={p} variant="spareparts" freeShippingLimit={freeShipLimit} />)}
                     </div>
                   </div>
                 </div>
@@ -478,7 +481,7 @@ export default async function HomePage() {
     const flashBarText = settings.Marketplace_FlashBarText || "Bugünün Süper Fırsatları — Bitmeden Kaçırma!";
     const heroDiscount = settings.Marketplace_HeroDiscount || "%70'e Varan";
     const heroTitle    = settings.Marketplace_HeroTitle    || "Flash İndirimler";
-    const freeShipLimit = settings.Marketplace_FreeShippingLimit || "300";
+    const mktFreeShipLimit = parseInt(settings.Marketplace_FreeShippingLimit || "0") || freeShipLimit;
     const mktTrustItems = [
       parseTrustItem(settings.Marketplace_Trust1, { abbr: "🔒", title: "Güvenli Alışveriş", desc: "256-bit SSL şifreleme"       }),
       parseTrustItem(settings.Marketplace_Trust2, { abbr: "🚚", title: "Hızlı Teslimat",    desc: "1-3 iş günü kargo"           }),
@@ -578,7 +581,7 @@ export default async function HomePage() {
                 <div>
                   <span className="inline-block w-8 h-8 rounded-full bg-orange-100 text-[#FF6000] text-center leading-8 text-base font-black mb-2">🚚</span>
                   <p className="font-bold text-gray-800 text-sm">Ücretsiz Kargo</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{freeShipLimit} TL ve üzeri siparişlerde</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{mktFreeShipLimit} TL ve üzeri siparişlerde</p>
                 </div>
                 <span className="mt-3 text-xs font-bold text-[#FF6000] group-hover:underline">İncele →</span>
               </Link>
@@ -629,7 +632,7 @@ export default async function HomePage() {
             {discountProducts.length > 0 ? (
               <div className="p-4">
                 <div data-product-grid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {discountProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                  {discountProducts.map(p => <ProductCard key={p.id} product={p} freeShippingLimit={freeShipLimit} />)}
                 </div>
               </div>
             ) : (
@@ -650,7 +653,7 @@ export default async function HomePage() {
               </div>
               <div className="p-4">
                 <div data-product-grid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {products.map(p => <ProductCard key={p.id} product={p} />)}
+                  {products.map(p => <ProductCard key={p.id} product={p} freeShippingLimit={freeShipLimit} />)}
                 </div>
               </div>
             </div>
@@ -869,7 +872,7 @@ export default async function HomePage() {
               </div>
               <div className="p-4">
                 <div data-product-grid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {products.map(p => <ProductCard key={p.id} product={p} />)}
+                  {products.map(p => <ProductCard key={p.id} product={p} freeShippingLimit={freeShipLimit} />)}
                 </div>
               </div>
             </div>
@@ -888,7 +891,7 @@ export default async function HomePage() {
               </div>
               <div className="p-4">
                 <div data-product-grid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {discountProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                  {discountProducts.map(p => <ProductCard key={p.id} product={p} freeShippingLimit={freeShipLimit} />)}
                 </div>
               </div>
             </div>
@@ -1009,7 +1012,7 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {products.map(product => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} freeShippingLimit={freeShipLimit} />
               ))}
             </div>
           </div>
@@ -1031,7 +1034,7 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {discountProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} freeShippingLimit={freeShipLimit} />
               ))}
             </div>
           </div>

@@ -91,12 +91,14 @@ function AddressList({
 
 export default function CheckoutClient({
   codEnabled,
+  sanalPosEnabled,
   havaleEnabled,
   havaleIban,
   havalebankName,
   havaleAccountName,
 }: {
   codEnabled: boolean;
+  sanalPosEnabled: boolean;
   havaleEnabled: boolean;
   havaleIban: string;
   havalebankName: string;
@@ -113,7 +115,8 @@ export default function CheckoutClient({
   const [diffBilling, setDiffBilling] = useState(false);
   const [selectedBillingId, setSelectedBillingId] = useState<string>("");
 
-  const [payMethod, setPayMethod] = useState<PayMethod>("CreditCard");
+  const defaultPayMethod: PayMethod = sanalPosEnabled ? "CreditCard" : havaleEnabled ? "BankTransfer" : "CashOnDelivery";
+  const [payMethod, setPayMethod] = useState<PayMethod>(defaultPayMethod);
   const [cardForm, setCardForm] = useState<CardForm>({ number: "", expiry: "", cvv: "", name: "" });
 
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -322,9 +325,9 @@ export default function CheckoutClient({
   }
 
   const paymentMethods = [
-    { key: "CreditCard" as const,   icon: "💳", label: t("checkout.payment.credit_card") },
-    ...(havaleEnabled ? [{ key: "BankTransfer" as const, icon: "🏦", label: t("checkout.payment.bank_transfer") }] : []),
-    ...(codEnabled    ? [{ key: "CashOnDelivery" as const, icon: "📦", label: t("checkout.payment.cash_on_delivery") }] : []),
+    ...(sanalPosEnabled ? [{ key: "CreditCard" as const,   icon: "💳", label: t("checkout.payment.credit_card") }] : []),
+    ...(havaleEnabled   ? [{ key: "BankTransfer" as const, icon: "🏦", label: t("checkout.payment.bank_transfer") }] : []),
+    ...(codEnabled      ? [{ key: "CashOnDelivery" as const, icon: "📦", label: t("checkout.payment.cash_on_delivery") }] : []),
   ];
 
   // Compute selected-only totals (cart.subTotal/grandTotal include ALL items)
@@ -595,13 +598,19 @@ export default function CheckoutClient({
               </p>
             )}
 
+            {paymentMethods.length === 0 && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                Şu anda aktif ödeme yöntemi bulunmamaktadır. Lütfen yönetici ile iletişime geçin.
+              </p>
+            )}
+
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">{error}</p>
             )}
 
             <button
               onClick={placeOrder}
-              disabled={submitting || !cart || cart.items.length === 0 || !cart.items.some(i => i.isSelected)}
+              disabled={submitting || !cart || cart.items.length === 0 || !cart.items.some(i => i.isSelected) || paymentMethods.length === 0}
               className="w-full py-3.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 active:scale-[.98] transition disabled:opacity-50 text-sm">
               {submitting ? t("checkout.summary.processing") : payMethod === "CreditCard" ? t("checkout.summary.submit_pay") : t("checkout.summary.submit_create")}
             </button>

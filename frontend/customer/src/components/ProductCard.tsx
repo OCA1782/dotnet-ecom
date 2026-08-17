@@ -14,10 +14,11 @@ import { formatPrice } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 import type { ProductListItem } from "@/types";
 
-export default function ProductCard({ product, initialLiked = false, variant = "default" }: {
+export default function ProductCard({ product, initialLiked = false, variant = "default", freeShippingLimit = 0 }: {
   product: ProductListItem;
   initialLiked?: boolean;
   variant?: "default" | "spareparts";
+  freeShippingLimit?: number;
 }) {
   const { t } = useI18n();
   const { addToCart } = useCart();
@@ -156,7 +157,7 @@ export default function ProductCard({ product, initialLiked = false, variant = "
           )}
         </div>
 
-        {product.availableStock > 0 && product.price >= 500 && (
+        {product.availableStock > 0 && freeShippingLimit > 0 && (product.discountPrice ?? product.price) >= freeShippingLimit && (
           <p className="text-[11px] sm:text-xs text-teal-600 font-semibold mt-1.5 sm:mt-2">{t("product.free_shipping")}</p>
         )}
         {cartError && (
