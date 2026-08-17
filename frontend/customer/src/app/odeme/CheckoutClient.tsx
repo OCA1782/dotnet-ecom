@@ -89,7 +89,17 @@ function AddressList({
   );
 }
 
-export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) {
+export default function CheckoutClient({
+  codEnabled,
+  havaleIban,
+  havalebankName,
+  havaleAccountName,
+}: {
+  codEnabled: boolean;
+  havaleIban: string;
+  havalebankName: string;
+  havaleAccountName: string;
+}) {
   const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const { cart, fetchCart } = useCart();
@@ -272,8 +282,8 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
             <p className="text-sm font-semibold text-blue-900">{t("checkout.success.bank_title")}</p>
             <p className="text-xs text-blue-700">{t("checkout.success.bank_desc")}</p>
             <div className="bg-white rounded-xl border border-blue-100 px-4 py-3 space-y-1 text-xs text-slate-700 font-mono">
-              <p><span className="text-slate-400 font-sans">{t("checkout.success.bank_iban_label")}</span> TR00 0001 2345 6789 0123 4567 89</p>
-              <p><span className="text-slate-400 font-sans">{t("checkout.success.bank_name_label")}</span> Ecom Ticaret A.Ş.</p>
+              <p><span className="text-slate-400 font-sans">{t("checkout.success.bank_iban_label")}</span> {havaleIban}</p>
+              <p><span className="text-slate-400 font-sans">{t("checkout.success.bank_name_label")}</span> {havaleAccountName}</p>
               <p><span className="text-slate-400 font-sans">{t("checkout.success.bank_desc_label")}</span> {orderNumber}</p>
             </div>
           </div>
@@ -309,10 +319,11 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
     );
   }
 
+  const havaleEnabled = havaleIban.trim().length > 0;
   const paymentMethods = [
-    { key: "CreditCard" as const,     icon: "💳", label: t("checkout.payment.credit_card") },
-    { key: "BankTransfer" as const,   icon: "🏦", label: t("checkout.payment.bank_transfer") },
-    ...(codEnabled ? [{ key: "CashOnDelivery" as const, icon: "📦", label: t("checkout.payment.cash_on_delivery") }] : []),
+    { key: "CreditCard" as const,   icon: "💳", label: t("checkout.payment.credit_card") },
+    ...(havaleEnabled ? [{ key: "BankTransfer" as const, icon: "🏦", label: t("checkout.payment.bank_transfer") }] : []),
+    ...(codEnabled    ? [{ key: "CashOnDelivery" as const, icon: "📦", label: t("checkout.payment.cash_on_delivery") }] : []),
   ];
 
   // Compute selected-only totals (cart.subTotal/grandTotal include ALL items)
@@ -491,9 +502,9 @@ export default function CheckoutClient({ codEnabled }: { codEnabled: boolean }) 
                   <p className="text-sm text-slate-600">{t("checkout.bank.info_desc")}</p>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl divide-y divide-slate-100 text-sm">
                     {[
-                      [t("checkout.bank.bank_name"),    "Türkiye İş Bankası"],
-                      [t("checkout.bank.account_name"), "Ecom Ticaret A.Ş."],
-                      [t("checkout.bank.iban"),         "TR00 0001 2345 6789 0123 4567 89"],
+                      [t("checkout.bank.bank_name"),    havalebankName],
+                      [t("checkout.bank.account_name"), havaleAccountName],
+                      [t("checkout.bank.iban"),         havaleIban],
                       [t("checkout.bank.description"),  t("checkout.bank.order_number")],
                     ].map(([lbl, val]) => (
                       <div key={lbl} className="flex items-center justify-between px-4 py-2.5 gap-4">
