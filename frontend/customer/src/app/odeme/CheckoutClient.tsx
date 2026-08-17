@@ -334,7 +334,7 @@ export default function CheckoutClient({
   const selectedItems = cart?.items.filter(i => i.isSelected) ?? [];
   const selectedSubTotal = selectedItems.reduce((s, i) => s + i.lineTotal, 0);
   const selectedTax = selectedItems.reduce((s, i) => s + i.lineTotal * i.taxRate / 100, 0);
-  const selectedShipping = selectedSubTotal >= (cart?.freeShippingLimit ?? 500) ? 0 : (cart?.shippingCost ?? 29.90);
+  const selectedShipping = cart ? (selectedSubTotal >= cart.freeShippingLimit ? 0 : cart.shippingCost) : 0;
   const selectedGrandTotal = Math.max(0, selectedSubTotal + selectedShipping - (cart?.discountAmount ?? 0));
 
   return (

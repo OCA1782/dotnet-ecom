@@ -79,6 +79,22 @@ export default async function ProductDetailPage({
   const siteName = settings.SiteName ?? "AutoForce Part";
   const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+  const variantPrices = product.variants.map(v => v.discountPrice ?? v.price);
+  const hasVariantPrices = variantPrices.length > 0;
+  const minPrice = hasVariantPrices ? Math.min(...variantPrices) : displayPrice;
+  const maxPrice = hasVariantPrices ? Math.max(...variantPrices) : displayPrice;
+  const offerBase = {
+    url: `${SITE_URL}/urun/${product.slug}`,
+    priceCurrency: "TRY",
+    priceValidUntil,
+    itemCondition: "https://schema.org/NewCondition",
+    availability: effectiveStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    seller: { "@type": "Organization", name: siteName },
+  };
+  const offersJsonLd = hasVariantPrices && minPrice !== maxPrice
+    ? { "@type": "AggregateOffer", ...offerBase, lowPrice: minPrice.toFixed(2), highPrice: maxPrice.toFixed(2), offerCount: variantPrices.length }
+    : { "@type": "Offer", ...offerBase, price: minPrice.toFixed(2) };
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -88,16 +104,7 @@ export default async function ProductDetailPage({
     sku: product.sku,
     ...(product.oemPartNumber ? { mpn: product.oemPartNumber } : {}),
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
-    offers: {
-      "@type": "Offer",
-      url: `${SITE_URL}/urun/${product.slug}`,
-      priceCurrency: "TRY",
-      price: displayPrice.toFixed(2),
-      priceValidUntil,
-      itemCondition: "https://schema.org/NewCondition",
-      availability: effectiveStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      seller: { "@type": "Organization", name: siteName },
-    },
+    offers: offersJsonLd,
   };
 
   const breadcrumbJsonLd = {
