@@ -91,11 +91,13 @@ function AddressList({
 
 export default function CheckoutClient({
   codEnabled,
+  havaleEnabled,
   havaleIban,
   havalebankName,
   havaleAccountName,
 }: {
   codEnabled: boolean;
+  havaleEnabled: boolean;
   havaleIban: string;
   havalebankName: string;
   havaleAccountName: string;
@@ -319,7 +321,6 @@ export default function CheckoutClient({
     );
   }
 
-  const havaleEnabled = havaleIban.trim().length > 0;
   const paymentMethods = [
     { key: "CreditCard" as const,   icon: "💳", label: t("checkout.payment.credit_card") },
     ...(havaleEnabled ? [{ key: "BankTransfer" as const, icon: "🏦", label: t("checkout.payment.bank_transfer") }] : []),
