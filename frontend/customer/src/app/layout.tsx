@@ -95,9 +95,37 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : ["Fren Diski","Motor Yağı","Hava Filtresi","Akü","Buji Seti","Amortisör","Debriyaj","Radyatör"]
   ).map((label: string) => ({ label, href: `/urunler?s=${encodeURIComponent(label)}` }));
 
+  const contactEmail = settings.ContactEmail ?? "";
+  const contactPhone = settings.ContactPhone ?? "";
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteName,
+    url: SITE_URL,
+    logo: settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined,
+    ...(contactEmail ? { email: contactEmail } : {}),
+    ...(contactPhone ? { telephone: contactPhone } : {}),
+    ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin
+      ? { sameAs: [settings.SocialInstagram, settings.SocialTwitter, settings.SocialYoutube, settings.SocialLinkedin].filter(Boolean) }
+      : {}),
+  };
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteName,
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/urunler?s={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html lang="tr" className={`${geist.variable} ${pacifico.variable} h-full antialiased`} data-template={template}>
       <body className="min-h-full flex flex-col">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         <GoogleProvider>
         <I18nProvider>
         <CompareProvider>

@@ -75,7 +75,46 @@ export default async function ProductDetailPage({
     ? variantStockTotal
     : product.availableStock;
 
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteName = settings.SiteName ?? "AutoForce Part";
+  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.metaDescription ?? product.shortDescription ?? product.name,
+    image: (product.images ?? []).map((i) => i.imageUrl).filter(Boolean),
+    sku: product.sku,
+    ...(product.oemPartNumber ? { mpn: product.oemPartNumber } : {}),
+    ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
+    offers: {
+      "@type": "Offer",
+      url: `${SITE_URL}/urun/${product.slug}`,
+      priceCurrency: "TRY",
+      price: displayPrice.toFixed(2),
+      priceValidUntil,
+      itemCondition: "https://schema.org/NewCondition",
+      availability: effectiveStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: siteName },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Ana Sayfa", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Ürünler", item: `${SITE_URL}/urunler` },
+      ...(product.brandName ? [{ "@type": "ListItem", position: 3, name: product.brandName, item: `${SITE_URL}/urunler?markalar=${encodeURIComponent(product.brandName)}` }] : []),
+      { "@type": "ListItem", position: product.brandName ? 4 : 3, name: product.name, item: `${SITE_URL}/urun/${product.slug}` },
+    ],
+  };
+
   return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
       {/* Breadcrumb — spareparts template */}
@@ -183,5 +222,6 @@ export default async function ProductDetailPage({
         <ReviewSection productId={product.id} />
       )}
     </div>
+    </>
   );
 }
