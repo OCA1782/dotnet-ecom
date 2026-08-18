@@ -1,6 +1,7 @@
 using Ecom.Application.Common.Interfaces;
 using Ecom.Application.Common.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -16,7 +17,7 @@ namespace Ecom.Infrastructure.Services;
 // Bu nedenle sunucu QNB'ye POST yapar, dönen HTML form alanları parse edilip
 // session cache'e alınır; kart formu kendi UI'ımızda gösterilir,
 // kart submit'i de /api/payments/payfor-forward üzerinden proxy edilir.
-public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory) : IPaymentService
+public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory, ILogger<PayforPaymentService> logger) : IPaymentService
 {
     private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DHost.aspx";
     private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/3DHost.aspx";
@@ -99,7 +100,14 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         // Parse the QNB HTML form: extract action URL + all hidden input fields.
         // These are stored server-side; the browser shows our own card UI and
         // submits via /api/payments/payfor-forward (avoids QNB IP block on browser).
+        var gatewayStatus = (int)gatewayResponse.StatusCode;
+        var htmlPreview = gatewayHtml.Length > 500 ? gatewayHtml[..500].Replace('\n', ' ').Replace('\r', ' ') : gatewayHtml;
+        logger.LogInformation("Payfor-initiate: gateway status={Status} htmlLen={Len} preview={Preview}",
+            gatewayStatus, gatewayHtml.Length, htmlPreview);
+
         var (formAction, hiddenFields) = ParseQnbForm(gatewayHtml, gatewayUrl);
+        logger.LogInformation("Payfor-initiate: formAction={Action} hiddenCount={Count} fields={Fields}",
+            formAction, hiddenFields.Count, string.Join(",", hiddenFields.Keys));
 
         var sessionId = PayforSessionCache.Store(new QnbFormData(
             formAction,

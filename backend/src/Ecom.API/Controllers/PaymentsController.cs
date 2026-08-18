@@ -155,7 +155,15 @@ public class PaymentsController(
             var location = response.Headers.Location?.ToString();
             logger.LogInformation("Payfor-forward: redirect → {Location}", location);
             if (!string.IsNullOrEmpty(location))
+            {
+                // Relative redirect (e.g. /error/500) = QNB error — don't forward to browser
+                if (!location.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Payfor-forward: QNB relative error redirect → {Location}", location);
+                    return Ok(new { type = "qnb_error", html = string.Empty });
+                }
                 return Ok(new { type = "redirect", url = location });
+            }
         }
 
         var html = await response.Content.ReadAsStringAsync(ct);
