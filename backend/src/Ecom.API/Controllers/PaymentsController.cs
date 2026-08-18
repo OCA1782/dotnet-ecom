@@ -123,11 +123,12 @@ public class PaymentsController(
             return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
 
         var postFields = new Dictionary<string, string>(session.HiddenFields);
-        postFields["Pan"]             = req.Pan.Replace(" ", "");
-        postFields["CardHolderName"]  = req.CardHolderName;
-        postFields["ExpiryDateMonth"] = req.ExpiryMonth;
-        postFields["ExpiryDateYear"]  = req.ExpiryYear;
-        postFields["Cvv2"]            = req.Cvv2;
+        postFields["Pan"]            = req.Pan.Replace(" ", "");
+        postFields["CardHolderName"] = req.CardHolderName;
+        // QNB 3DHost expects ExpiryDate as MMYY (4-digit combined), not separate fields
+        var year2 = req.ExpiryYear.Length >= 2 ? req.ExpiryYear[^2..] : req.ExpiryYear;
+        postFields["ExpiryDate"]     = $"{req.ExpiryMonth}{year2}";
+        postFields["Cvv2"]           = req.Cvv2;
 
         logger.LogInformation("Payfor-forward: action={Action} hiddenCount={Count} pan={Pan}",
             session.FormAction, session.HiddenFields.Count, MaskPan(req.Pan));
