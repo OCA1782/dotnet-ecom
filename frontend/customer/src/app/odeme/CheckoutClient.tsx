@@ -15,7 +15,18 @@ interface PaymentResult {
   transactionId: string;
   requiresRedirect: boolean;
   redirectUrl?: string;
-  checkoutFormContent?: string;  // Payfor: gateway HTML (server-side proxy) or legacy JSON form fields
+  checkoutFormContent?: string;
+}
+
+interface QnbSession {
+  sessionId: string;
+  amount: string;
+}
+
+interface PayforForwardResult {
+  type: "redirect" | "html";
+  url?: string;
+  html?: string;
 }
 
 interface GuestForm {
@@ -125,6 +136,10 @@ export default function CheckoutClient({
   const [done, setDone] = useState(false);
   const [qnbIframeUrl, setQnbIframeUrl] = useState<string | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
+  const [qnbSession, setQnbSession] = useState<QnbSession | null>(null);
+  const [qnbCard, setQnbCard] = useState({ pan: "", holderName: "", month: "", year: "", cvv: "" });
+  const [qnbSubmitting, setQnbSubmitting] = useState(false);
+  const [qnbError, setQnbError] = useState("");
 
   const isGuest = !authLoading && !user;
 
@@ -200,48 +215,16 @@ export default function CheckoutClient({
       });
 
       if (payment.requiresRedirect && payment.redirectUrl) {
-        if (payment.checkoutFormContent?.startsWith("{")) {
-          // Legacy fallback: submit form fields from browser (not used for QNB since M047 fix)
-          const fields = JSON.parse(payment.checkoutFormContent) as Record<string, string>;
-          const form = document.createElement("form");
-          form.method = "POST";
-          form.action = payment.redirectUrl;
-          form.style.display = "none";
-          Object.entries(fields).forEach(([name, value]) => {
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = name;
-            input.value = value;
-            form.appendChild(input);
-          });
-          document.body.appendChild(form);
-          form.submit();
-        } else {
-          window.location.href = payment.redirectUrl;
-        }
+        window.location.href = payment.redirectUrl;
         return;
       }
 
-      // QNB server-side proxy: backend POSTed to QNB and returned gateway HTML.
-      // Inject <base> tag so QNB's relative CSS/images resolve from their domain.
-      if (payment.checkoutFormContent?.trimStart().startsWith("<")) {
-        let html = payment.checkoutFormContent;
-        // Backend already injects <base> tag; only add if missing (safety fallback).
-        if (payment.redirectUrl && !/<base\b/i.test(html)) {
-          try {
-            const origin = new URL(payment.redirectUrl).origin;
-            const baseTag = `<base href="${origin}/">`;
-            if (/<head>/i.test(html)) {
-              html = html.replace(/<head>/i, `<head>${baseTag}`);
-            } else {
-              html = `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`;
-            }
-          } catch { /* keep html as-is if URL parse fails */ }
-        }
-        // Blob URL avoids inheriting parent page CSP — QNB CSS/images load from their domain freely.
-        const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-        setIframeLoading(true);
-        setQnbIframeUrl(URL.createObjectURL(blob));
+      // QNB Payfor 3DHost — custom card form + server proxy
+      if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost"')) {
+        const parsed = JSON.parse(payment.checkoutFormContent) as { type: string; sessionId: string; amount: string };
+        setQnbSession({ sessionId: parsed.sessionId, amount: parsed.amount });
+        setQnbCard({ pan: "", holderName: "", month: "", year: "", cvv: "" });
+        setQnbError("");
         return;
       }
 
@@ -260,6 +243,44 @@ export default function CheckoutClient({
       setError(err instanceof Error ? err.message : t("checkout.error.order_failed"));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function submitQnbCard() {
+    if (!qnbSession) return;
+    const { pan, holderName, month, year, cvv } = qnbCard;
+    if (!pan || pan.replace(/\s/g, "").length < 13) { setQnbError("Geçerli bir kart numarası girin."); return; }
+    if (!holderName.trim()) { setQnbError("Kart üzerindeki ismi girin."); return; }
+    if (!month || !year) { setQnbError("Son kullanım tarihini seçin."); return; }
+    if (!cvv || cvv.length < 3) { setQnbError("CVV/CVC kodunu girin."); return; }
+
+    setQnbError("");
+    setQnbSubmitting(true);
+    try {
+      const res = await api.post<PayforForwardResult>("/api/payments/payfor-forward", {
+        sessionId: qnbSession.sessionId,
+        pan: pan.replace(/\s/g, ""),
+        cardHolderName: holderName.trim(),
+        expiryMonth: month,
+        expiryYear: year,
+        cvv2: cvv,
+      });
+
+      if (res.type === "redirect" && res.url) {
+        window.location.href = res.url;
+      } else if (res.type === "html" && res.html) {
+        // 3DS challenge page — show in iframe overlay
+        const blob = new Blob([res.html], { type: "text/html; charset=utf-8" });
+        setIframeLoading(true);
+        setQnbIframeUrl(URL.createObjectURL(blob));
+        setQnbSession(null);
+      } else {
+        setQnbError("Beklenmeyen yanıt. Lütfen tekrar deneyin.");
+      }
+    } catch (err: unknown) {
+      setQnbError(err instanceof Error ? err.message : "Ödeme işlemi sırasında hata oluştu.");
+    } finally {
+      setQnbSubmitting(false);
     }
   }
 
@@ -290,6 +311,162 @@ export default function CheckoutClient({
               <div className="h-4 bg-gray-200 rounded w-1/4" />
             </div>
             <div className="h-11 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // QNB custom card form — shown after initiate returns payfor_3dhost
+  if (qnbSession) {
+    const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 12 }, (_, i) => String(currentYear + i));
+    const rawPan = qnbCard.pan.replace(/\s/g, "");
+    const isVisa = rawPan.startsWith("4");
+    const isMC   = /^5[1-5]/.test(rawPan) || /^2[2-7]/.test(rawPan);
+
+    return (
+      <div className="fixed inset-0 z-[9999] bg-white flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 h-14 border-b border-slate-100 bg-white shadow-sm shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 border border-green-200 shrink-0">
+              <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 leading-tight">Güvenli 3D Ödeme</p>
+              <p className="text-[11px] text-slate-400 leading-tight">QNB Finansbank 3D Secure koruması aktif</p>
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 font-medium">
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
+              SSL 256-bit
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1 font-medium">3DS</span>
+          </div>
+        </div>
+
+        {/* Card form */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 flex items-start justify-center py-8 px-4">
+          <div className="w-full max-w-sm space-y-5">
+
+            {/* Visual card */}
+            <div className="relative h-44 rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br from-teal-600 to-teal-800 text-white px-6 py-5 select-none">
+              <div className="flex justify-between items-start">
+                <svg className="h-8 w-8 opacity-80" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 5H4V8h16v1z" />
+                </svg>
+                {isVisa && <span className="text-xl font-black italic tracking-tighter opacity-90">VISA</span>}
+                {isMC && (
+                  <div className="flex">
+                    <div className="h-7 w-7 rounded-full bg-red-500 opacity-90" />
+                    <div className="h-7 w-7 rounded-full bg-yellow-400 opacity-90 -ml-3" />
+                  </div>
+                )}
+              </div>
+              <p className="mt-4 text-lg font-mono tracking-widest">
+                {qnbCard.pan
+                  ? qnbCard.pan.padEnd(19, " ").replace(/(.{4})/g, "$1 ").trim()
+                  : "•••• •••• •••• ••••"}
+              </p>
+              <div className="mt-3 flex justify-between text-xs opacity-75">
+                <div>
+                  <p className="text-[10px] uppercase">Kart Sahibi</p>
+                  <p className="font-semibold truncate max-w-[140px]">{qnbCard.holderName || "AD SOYAD"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase">Son Kul. Tar.</p>
+                  <p className="font-semibold">{qnbCard.month && qnbCard.year ? `${qnbCard.month}/${qnbCard.year.slice(-2)}` : "AA/YY"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+              <div>
+                <label className={LABEL}>Kart Numarası</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0000 0000 0000 0000"
+                  maxLength={19}
+                  value={qnbCard.pan}
+                  onChange={(e) => setQnbCard(p => ({ ...p, pan: fmtCard(e.target.value) }))}
+                  className={INP + " font-mono tracking-widest"}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Kart Üzerindeki İsim</label>
+                <input
+                  type="text"
+                  placeholder="AD SOYAD"
+                  value={qnbCard.holderName}
+                  onChange={(e) => setQnbCard(p => ({ ...p, holderName: e.target.value.toUpperCase() }))}
+                  className={INP + " uppercase"}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Son Kullanım</label>
+                  <div className="flex gap-1">
+                    <select
+                      value={qnbCard.month}
+                      onChange={(e) => setQnbCard(p => ({ ...p, month: e.target.value }))}
+                      className={INP + " pr-2"}>
+                      <option value="">AA</option>
+                      {months.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select
+                      value={qnbCard.year}
+                      onChange={(e) => setQnbCard(p => ({ ...p, year: e.target.value }))}
+                      className={INP + " pr-2"}>
+                      <option value="">YYYY</option>
+                      {years.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>CVV / CVC</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="•••"
+                    maxLength={4}
+                    value={qnbCard.cvv}
+                    onChange={(e) => setQnbCard(p => ({ ...p, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                    className={INP + " font-mono"}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {qnbError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{qnbError}</p>
+            )}
+
+            <div className="text-center text-xs text-slate-400 pb-1">
+              Ödeme tutarı: <span className="font-semibold text-slate-700">{qnbSession.amount}</span>
+            </div>
+
+            <button
+              onClick={submitQnbCard}
+              disabled={qnbSubmitting}
+              className="w-full py-3.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 active:scale-[.98] transition disabled:opacity-50 text-sm">
+              {qnbSubmitting ? "İşleniyor…" : "Ödemeyi Tamamla"}
+            </button>
+
+            <button
+              onClick={() => setQnbSession(null)}
+              disabled={qnbSubmitting}
+              className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 transition">
+              ← Geri Dön
+            </button>
           </div>
         </div>
       </div>

@@ -11,6 +11,11 @@ namespace Ecom.Infrastructure.Services;
 // QNB Finansbank Payfor — 3DHost entegrasyonu.
 // Kart verileri asla sunucuya gelmez; banka kendi sayfasında toplar.
 // Hash: Base64(SHA1(MbrId + OrderId + PurchAmount + OkUrl + FailUrl + TxnType + InstallmentCount + Rnd + MerchantPass))
+//
+// M047 fix: Browser IP'si QNB tarafından bloklanabiliyor.
+// Bu nedenle sunucu QNB'ye POST yapar, dönen HTML form alanları parse edilip
+// session cache'e alınır; kart formu kendi UI'ımızda gösterilir,
+// kart submit'i de /api/payments/payfor-forward üzerinden proxy edilir.
 public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory) : IPaymentService
 {
     private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DHost.aspx";
@@ -39,11 +44,11 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
             return Result<PaymentInitiateResult>.Failure(
                 "Ödeme sağlayıcı 'Payfor' olarak seçilmemiş.");
 
-        var mbrId       = s.GetValueOrDefault("Payfor_MbrId",       "5")!;
-        var merchantId  = s.GetValueOrDefault("Payfor_MerchantID",  "");
-        var userCode    = s.GetValueOrDefault("Payfor_UserCode",     "");
-        var userPass    = s.GetValueOrDefault("Payfor_UserPass",     "");
-        var merchantPass= s.GetValueOrDefault("Payfor_MerchantPass","");
+        var mbrId        = s.GetValueOrDefault("Payfor_MbrId",       "5")!;
+        var merchantId   = s.GetValueOrDefault("Payfor_MerchantID",  "");
+        var userCode     = s.GetValueOrDefault("Payfor_UserCode",     "");
+        var userPass     = s.GetValueOrDefault("Payfor_UserPass",     "");
+        var merchantPass = s.GetValueOrDefault("Payfor_MerchantPass","");
 
         if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(userCode) || string.IsNullOrWhiteSpace(merchantPass))
             return Result<PaymentInitiateResult>.Failure(
@@ -54,12 +59,12 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
             ? g
             : (isTest ? TestGateway : LiveGateway);
 
-        var okUrl  = context.CallbackUrl ?? throw new InvalidOperationException("CallbackUrl required for Payfor");
-        var failUrl= context.CallbackUrl;
-        var orderId= context.OrderNumber;
-        var amount = context.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        var okUrl   = context.CallbackUrl ?? throw new InvalidOperationException("CallbackUrl required for Payfor");
+        var failUrl = context.CallbackUrl;
+        var orderId = context.OrderNumber;
+        var amount  = context.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
         const string txnType          = "Auth";
-        const string installmentCount = "0";     // bank 3DHost sayfasında gösterir
+        const string installmentCount = "0";
         var rnd = DateTime.UtcNow.Ticks.ToString();
 
         var hashStr = $"{mbrId}{orderId}{amount}{okUrl}{failUrl}{txnType}{installmentCount}{rnd}{merchantPass}";
@@ -87,80 +92,67 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
 
-        // M047 fix: POST to QNB from server so QNB sees server IP, not browser IP.
         var http = httpClientFactory.CreateClient();
         using var gatewayResponse = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
         var gatewayHtml = await gatewayResponse.Content.ReadAsStringAsync(ct);
 
-        // Inline QNB's CSS server-side so browser never needs to load cross-origin stylesheets.
-        // Also inject <base> tag so remaining relative URLs (images, form action) resolve correctly.
-        gatewayHtml = await InlineCssAndInjectBaseAsync(gatewayHtml, gatewayUrl, http, ct);
+        // Parse the QNB HTML form: extract action URL + all hidden input fields.
+        // These are stored server-side; the browser shows our own card UI and
+        // submits via /api/payments/payfor-forward (avoids QNB IP block on browser).
+        var (formAction, hiddenFields) = ParseQnbForm(gatewayHtml, gatewayUrl);
 
-        return Result<PaymentInitiateResult>.Success(
-            new PaymentInitiateResult(transactionId, gatewayUrl, false, gatewayHtml));
-    }
+        var sessionId = PayforSessionCache.Store(new QnbFormData(
+            formAction,
+            hiddenFields,
+            DateTimeOffset.UtcNow.AddMinutes(20)));
 
-    // Fetches all <link rel="stylesheet"> files from QNB's server and inlines them as <style> blocks,
-    // then injects a <base> tag so remaining relative URLs (images, form action) point to QNB's domain.
-    private static async Task<string> InlineCssAndInjectBaseAsync(
-        string html, string pageUrl, HttpClient http, CancellationToken ct)
-    {
-        var baseUri = new Uri(pageUrl);
-        var origin  = $"{baseUri.Scheme}://{baseUri.Host}";
+        var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
 
-        // Inject <base> tag as first element inside <head>
-        var headIdx = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
-        if (headIdx >= 0)
-            html = html.Insert(headIdx + 6, $"<base href=\"{origin}/\">");
-        else
-            html = $"<!DOCTYPE html><html><head><base href=\"{origin}/\"></head><body>{html}</body></html>";
-
-        // Find all <link rel="stylesheet"> tags
-        var linkRegex  = new Regex(@"<link\b([^>]*)>", RegexOptions.IgnoreCase);
-        var hrefRegex  = new Regex(@"\bhref=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
-        var relRegex   = new Regex(@"\brel=[""']stylesheet[""']", RegexOptions.IgnoreCase);
-        var typeRegex  = new Regex(@"\btype=[""']text/css[""']", RegexOptions.IgnoreCase);
-
-        var stylesheetMatches = linkRegex.Matches(html)
-            .Cast<Match>()
-            .Where(m =>
-            {
-                var attrs = m.Groups[1].Value;
-                return relRegex.IsMatch(attrs) || typeRegex.IsMatch(attrs);
-            })
-            .OrderByDescending(m => m.Index)
-            .ToList();
-
-        // Fetch each CSS in parallel with individual 5-second timeouts
-        var fetchTasks = stylesheetMatches.Select(async match =>
+        var json = JsonSerializer.Serialize(new
         {
-            var hrefMatch = hrefRegex.Match(match.Groups[1].Value);
-            if (!hrefMatch.Success) return (match, (string?)null);
-
-            var href = hrefMatch.Groups[1].Value;
-            if (href.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return (match, (string?)null);
-
-            Uri cssUri;
-            try { cssUri = href.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? new Uri(href) : new Uri(baseUri, href); }
-            catch { return (match, (string?)null); }
-
-            try
-            {
-                using var fetchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                fetchCts.CancelAfter(TimeSpan.FromSeconds(5));
-                var css = await http.GetStringAsync(cssUri, fetchCts.Token);
-                return (match, (string?)$"<style>/* {cssUri} */\n{css}\n</style>");
-            }
-            catch { return (match, (string?)null); }
+            type      = "payfor_3dhost",
+            sessionId,
+            amount    = amountForDisplay,
         });
 
-        var results = await Task.WhenAll(fetchTasks);
+        return Result<PaymentInitiateResult>.Success(
+            new PaymentInitiateResult(transactionId, gatewayUrl, false, json));
+    }
 
-        // Apply replacements in reverse index order to preserve string positions
-        foreach (var (match, replacement) in results.Where(r => r.Item2 != null))
-            html = html[..match.Index] + replacement + html[(match.Index + match.Length)..];
+    private static (string formAction, Dictionary<string, string> hiddenFields) ParseQnbForm(
+        string html, string pageUrl)
+    {
+        var hiddenFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        return html;
+        // Extract form action
+        var actionMatch = Regex.Match(html, @"<form\b[^>]*\baction=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+        var rawAction   = actionMatch.Success ? actionMatch.Groups[1].Value : pageUrl;
+
+        string formAction;
+        try
+        {
+            formAction = rawAction.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? rawAction
+                : new Uri(new Uri(pageUrl), rawAction).ToString();
+        }
+        catch { formAction = pageUrl; }
+
+        // Extract all hidden inputs
+        foreach (Match m in Regex.Matches(html, @"<input\b([^>]*)>", RegexOptions.IgnoreCase))
+        {
+            var attrs = m.Groups[1].Value;
+            var typeM = Regex.Match(attrs, @"\btype=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+            if (typeM.Success && !typeM.Groups[1].Value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var nameM  = Regex.Match(attrs, @"\bname=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+            var valueM = Regex.Match(attrs, @"\bvalue=[""']([^""']*)[""']", RegexOptions.IgnoreCase);
+            if (!nameM.Success) continue;
+
+            hiddenFields[nameM.Groups[1].Value] = valueM.Success ? valueM.Groups[1].Value : "";
+        }
+
+        return (formAction, hiddenFields);
     }
 
     public async Task<Result<bool>> VerifyCallbackAsync(

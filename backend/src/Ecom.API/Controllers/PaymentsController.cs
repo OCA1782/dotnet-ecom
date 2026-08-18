@@ -101,6 +101,45 @@ public class PaymentsController(
     }
 
     /// <summary>
+    /// Payfor 3DHost proxy — kart verisini sunucu üzerinden QNB'ye iletir (M047 IP kısıtlaması aşımı).
+    /// Browser doğrudan QNB'ye bağlanamadığı için kart bilgileri buraya POST edilir.
+    /// </summary>
+    [HttpPost("payfor-forward")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PayforForward([FromBody] PayforCardRequest req, CancellationToken ct)
+    {
+        var session = PayforSessionCache.Get(req.SessionId);
+        if (session is null)
+            return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
+
+        // Merge hidden fields with user-provided card fields
+        var postFields = new Dictionary<string, string>(session.HiddenFields);
+        postFields["Pan"]             = req.Pan.Replace(" ", "");
+        postFields["CardHolderName"]  = req.CardHolderName;
+        postFields["ExpiryDateMonth"] = req.ExpiryMonth;
+        postFields["ExpiryDateYear"]  = req.ExpiryYear;
+        postFields["Cvv2"]            = req.Cvv2;
+
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        http.Timeout = TimeSpan.FromSeconds(30);
+
+        using var response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
+
+        // QNB may redirect to OkUrl/FailUrl after 3DS processing
+        if ((int)response.StatusCode is 301 or 302 or 303 or 307 or 308)
+        {
+            var location = response.Headers.Location?.ToString();
+            if (!string.IsNullOrEmpty(location))
+                return Ok(new { type = "redirect", url = location });
+        }
+
+        var html = await response.Content.ReadAsStringAsync(ct);
+
+        // If QNB returns a form (3DS challenge page), send it to client to display
+        return Ok(new { type = "html", html });
+    }
+
+    /// <summary>
     /// Mock / manuel callback — body: {"transactionId":"...", "payload":"{\"success\":true}", "isSuccess":true}
     /// </summary>
     [HttpPost("callback")]
@@ -148,4 +187,14 @@ public class PaymentCallbackRequest
     public string TransactionId { get; set; } = string.Empty;
     public string Payload       { get; set; } = string.Empty;
     public bool   IsSuccess     { get; set; }
+}
+
+public class PayforCardRequest
+{
+    public string SessionId      { get; set; } = string.Empty;
+    public string Pan            { get; set; } = string.Empty;
+    public string CardHolderName { get; set; } = string.Empty;
+    public string ExpiryMonth    { get; set; } = string.Empty;
+    public string ExpiryYear     { get; set; } = string.Empty;
+    public string Cvv2           { get; set; } = string.Empty;
 }
