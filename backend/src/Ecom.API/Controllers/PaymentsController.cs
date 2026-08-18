@@ -19,7 +19,8 @@ public class PaymentsController(
     ICurrentUserService currentUser,
     IConfiguration config,
     IApplicationDbContext db,
-    IPaymentService paymentService) : ControllerBase
+    IPaymentService paymentService,
+    ILogger<PaymentsController> logger) : ControllerBase
 {
     [HttpPost("initiate")]
     [AllowAnonymous]   // guest checkout desteği; handler sahiplik kontrolü yapar
@@ -112,7 +113,6 @@ public class PaymentsController(
         if (session is null)
             return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
 
-        // Merge hidden fields with user-provided card fields
         var postFields = new Dictionary<string, string>(session.HiddenFields);
         postFields["Pan"]             = req.Pan.Replace(" ", "");
         postFields["CardHolderName"]  = req.CardHolderName;
@@ -120,23 +120,52 @@ public class PaymentsController(
         postFields["ExpiryDateYear"]  = req.ExpiryYear;
         postFields["Cvv2"]            = req.Cvv2;
 
+        logger.LogInformation("Payfor-forward: action={Action} hiddenCount={Count} pan={Pan}",
+            session.FormAction, session.HiddenFields.Count, MaskPan(req.Pan));
+
         using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
         http.Timeout = TimeSpan.FromSeconds(30);
 
-        using var response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Payfor-forward: QNB POST failed action={Action}", session.FormAction);
+            return BadRequest(new { error = "QNB sunucusuna bağlanılamadı. Lütfen tekrar deneyin." });
+        }
 
-        // QNB may redirect to OkUrl/FailUrl after 3DS processing
-        if ((int)response.StatusCode is 301 or 302 or 303 or 307 or 308)
+        var statusCode = (int)response.StatusCode;
+        logger.LogInformation("Payfor-forward: QNB response status={Status}", statusCode);
+
+        if (statusCode is 301 or 302 or 303 or 307 or 308)
         {
             var location = response.Headers.Location?.ToString();
+            logger.LogInformation("Payfor-forward: redirect → {Location}", location);
             if (!string.IsNullOrEmpty(location))
                 return Ok(new { type = "redirect", url = location });
         }
 
         var html = await response.Content.ReadAsStringAsync(ct);
+        var preview = html.Length > 400 ? html[..400].Replace('\n', ' ').Replace('\r', ' ') : html;
+        logger.LogInformation("Payfor-forward: QNB HTML len={Len} preview={Preview}", html.Length, preview);
 
-        // If QNB returns a form (3DS challenge page), send it to client to display
+        // No <form> → QNB returned an error page, not a 3DS challenge
+        if (!html.Contains("<form", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Payfor-forward: QNB response has no <form> — likely error page");
+            return Ok(new { type = "qnb_error", html });
+        }
+
         return Ok(new { type = "html", html });
+    }
+
+    private static string MaskPan(string pan)
+    {
+        var d = pan.Replace(" ", "");
+        return d.Length >= 8 ? d[..4] + "••••" + d[^4..] : "••••";
     }
 
     /// <summary>

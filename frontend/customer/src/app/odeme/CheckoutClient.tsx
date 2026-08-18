@@ -24,7 +24,7 @@ interface QnbSession {
 }
 
 interface PayforForwardResult {
-  type: "redirect" | "html";
+  type: "redirect" | "html" | "qnb_error";
   url?: string;
   html?: string;
 }
@@ -140,6 +140,8 @@ export default function CheckoutClient({
   const [qnbCard, setQnbCard] = useState({ pan: "", holderName: "", month: "", year: "", cvv: "" });
   const [qnbSubmitting, setQnbSubmitting] = useState(false);
   const [qnbError, setQnbError] = useState("");
+  const [qnbTimeLeft, setQnbTimeLeft] = useState(15 * 60);
+  const [cvvFocused, setCvvFocused] = useState(false);
 
   const isGuest = !authLoading && !user;
 
@@ -222,9 +224,11 @@ export default function CheckoutClient({
       // QNB Payfor 3DHost — custom card form + server proxy
       if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost"')) {
         const parsed = JSON.parse(payment.checkoutFormContent) as { type: string; sessionId: string; amount: string };
-        setQnbSession({ sessionId: parsed.sessionId, amount: parsed.amount });
         setQnbCard({ pan: "", holderName: "", month: "", year: "", cvv: "" });
         setQnbError("");
+        setCvvFocused(false);
+        setQnbTimeLeft(15 * 60);
+        setQnbSession({ sessionId: parsed.sessionId, amount: parsed.amount });
         return;
       }
 
@@ -274,6 +278,8 @@ export default function CheckoutClient({
         setIframeLoading(true);
         setQnbIframeUrl(URL.createObjectURL(blob));
         setQnbSession(null);
+      } else if (res.type === "qnb_error") {
+        setQnbError("Ödeme reddedildi. Kart bilgilerini kontrol edip tekrar deneyin veya farklı bir kart kullanın.");
       } else {
         setQnbError("Beklenmeyen yanıt. Lütfen tekrar deneyin.");
       }
@@ -283,6 +289,27 @@ export default function CheckoutClient({
       setQnbSubmitting(false);
     }
   }
+
+  // Countdown timer for QNB card form
+  useEffect(() => {
+    if (!qnbSession) return;
+    const interval = setInterval(() => {
+      setQnbTimeLeft(t => {
+        if (t <= 1) { clearInterval(interval); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qnbSession?.sessionId]);
+
+  useEffect(() => {
+    if (qnbTimeLeft === 0 && qnbSession) {
+      setQnbSession(null);
+      setError("Ödeme oturumu süresi doldu. Lütfen siparişi tekrar başlatın.");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qnbTimeLeft]);
 
   if (authLoading) {
     return (
@@ -326,66 +353,126 @@ export default function CheckoutClient({
     const isVisa = rawPan.startsWith("4");
     const isMC   = /^5[1-5]/.test(rawPan) || /^2[2-7]/.test(rawPan);
 
+    // Pad rawPan digits (not the already-spaced string) to 16, then split into fixed groups of 4
+    const padded = rawPan.padEnd(16, "•");
+    const displayPan = `${padded.slice(0,4)} ${padded.slice(4,8)} ${padded.slice(8,12)} ${padded.slice(12,16)}`;
+
+    const timerMM = String(Math.floor(qnbTimeLeft / 60)).padStart(2, "0");
+    const timerSS = String(qnbTimeLeft % 60).padStart(2, "0");
+    const timerExpiring = qnbTimeLeft <= 120;
+
     return (
       <div className="fixed inset-0 z-[9999] bg-white flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 h-14 border-b border-slate-100 bg-white shadow-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 border border-green-200 shrink-0">
-              <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-900 leading-tight">Güvenli 3D Ödeme</p>
-              <p className="text-[11px] text-slate-400 leading-tight">QNB Finansbank 3D Secure koruması aktif</p>
-            </div>
+        <div className="flex items-center gap-2 px-4 h-14 border-b border-slate-100 bg-white shadow-sm shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 border border-green-200 shrink-0">
+            <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 font-medium">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900 leading-tight">Güvenli 3D Ödeme</p>
+            <p className="text-[11px] text-slate-400 leading-tight">QNB Finansbank 3D Secure koruması aktif</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {/* Countdown timer */}
+            <span className={`inline-flex items-center gap-1 text-[11px] rounded-full px-2.5 py-1 font-mono font-bold border ${
+              timerExpiring
+                ? "text-red-700 bg-red-50 border-red-200 animate-pulse"
+                : "text-slate-600 bg-slate-50 border-slate-200"
+            }`}>
+              {timerMM}:{timerSS}
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 font-medium">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
               </svg>
               SSL 256-bit
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1 font-medium">3DS</span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1 font-medium">3DS</span>
           </div>
         </div>
 
         {/* Card form */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 flex items-start justify-center py-8 px-4">
-          <div className="w-full max-w-sm space-y-5">
+        <div className="flex-1 overflow-y-auto bg-slate-50 flex items-start justify-center py-6 px-4">
+          <div className="w-full max-w-sm space-y-4">
 
-            {/* Visual card */}
-            <div className="relative h-44 rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br from-teal-600 to-teal-800 text-white px-6 py-5 select-none">
-              <div className="flex justify-between items-start">
-                <svg className="h-8 w-8 opacity-80" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 5H4V8h16v1z" />
-                </svg>
-                {isVisa && <span className="text-xl font-black italic tracking-tighter opacity-90">VISA</span>}
-                {isMC && (
-                  <div className="flex">
-                    <div className="h-7 w-7 rounded-full bg-red-500 opacity-90" />
-                    <div className="h-7 w-7 rounded-full bg-yellow-400 opacity-90 -ml-3" />
+            {/* Animated card — flips to back when CVV is focused */}
+            <div style={{ perspective: "1000px" }} className="relative h-44 w-full select-none">
+              <div style={{
+                position: "relative", width: "100%", height: "100%",
+                transformStyle: "preserve-3d",
+                transform: cvvFocused ? "rotateY(180deg)" : "rotateY(0deg)",
+                transition: "transform 0.55s ease",
+              }}>
+                {/* Front face */}
+                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                  className="absolute inset-0 rounded-2xl shadow-lg bg-gradient-to-br from-teal-600 to-teal-800 text-white px-6 py-5">
+                  <div className="flex justify-between items-start">
+                    <svg className="h-8 w-8 opacity-70" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 5H4V8h16v1z" />
+                    </svg>
+                    {isVisa && <span className="text-xl font-black italic tracking-tighter opacity-90">VISA</span>}
+                    {isMC && (
+                      <div className="flex">
+                        <div className="h-7 w-7 rounded-full bg-red-500 opacity-90" />
+                        <div className="h-7 w-7 rounded-full bg-yellow-400 opacity-90 -ml-3" />
+                      </div>
+                    )}
+                    {!isVisa && !isMC && <div className="h-7" />}
                   </div>
-                )}
-              </div>
-              <p className="mt-4 text-lg font-mono tracking-widest">
-                {qnbCard.pan
-                  ? qnbCard.pan.padEnd(19, " ").replace(/(.{4})/g, "$1 ").trim()
-                  : "•••• •••• •••• ••••"}
-              </p>
-              <div className="mt-3 flex justify-between text-xs opacity-75">
-                <div>
-                  <p className="text-[10px] uppercase">Kart Sahibi</p>
-                  <p className="font-semibold truncate max-w-[140px]">{qnbCard.holderName || "AD SOYAD"}</p>
+                  <p className="mt-4 text-lg font-mono tracking-widest">{displayPan}</p>
+                  <div className="mt-3 flex justify-between text-xs opacity-80">
+                    <div>
+                      <p className="text-[10px] uppercase opacity-70">Kart Sahibi</p>
+                      <p className="font-semibold truncate max-w-[140px]">{qnbCard.holderName || "AD SOYAD"}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase opacity-70">Son Kul. Tar.</p>
+                      <p className="font-semibold">{qnbCard.month && qnbCard.year ? `${qnbCard.month}/${qnbCard.year.slice(-2)}` : "AA/YY"}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase">Son Kul. Tar.</p>
-                  <p className="font-semibold">{qnbCard.month && qnbCard.year ? `${qnbCard.month}/${qnbCard.year.slice(-2)}` : "AA/YY"}</p>
+
+                {/* Back face */}
+                <div style={{
+                  backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
+                  transform: "rotateY(180deg)",
+                }}
+                  className="absolute inset-0 rounded-2xl shadow-lg bg-gradient-to-br from-slate-700 to-slate-900">
+                  <div className="w-full h-11 bg-black mt-7" />
+                  <div className="mx-5 mt-4">
+                    <div className="bg-white/90 rounded-lg px-4 py-2 flex items-center justify-end gap-3">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="font-mono text-slate-800 tracking-[0.35em] text-sm font-semibold">
+                        {qnbCard.cvv || "•••"}
+                      </span>
+                    </div>
+                    <p className="text-right text-[10px] text-slate-400 mt-1.5">CVV / CVC</p>
+                  </div>
+                  <div className="absolute bottom-4 left-6 right-6 flex justify-between items-end">
+                    <p className="text-[10px] text-white/50">Kart bilgileri şifrelenerek iletilir</p>
+                    {isVisa && <span className="text-white text-lg font-black italic tracking-tighter opacity-70">VISA</span>}
+                    {isMC && (
+                      <div className="flex">
+                        <div className="h-6 w-6 rounded-full bg-red-500 opacity-70" />
+                        <div className="h-6 w-6 rounded-full bg-yellow-400 opacity-70 -ml-3" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Timer warning */}
+            {timerExpiring && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700 font-medium">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Oturum süresi dolmak üzere! Lütfen kart bilgilerini girin.
+              </div>
+            )}
 
             {/* Fields */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
@@ -415,17 +502,15 @@ export default function CheckoutClient({
                 <div>
                   <label className={LABEL}>Son Kullanım</label>
                   <div className="flex gap-1">
-                    <select
-                      value={qnbCard.month}
+                    <select value={qnbCard.month}
                       onChange={(e) => setQnbCard(p => ({ ...p, month: e.target.value }))}
-                      className={INP + " pr-2"}>
+                      className={INP + " px-2"}>
                       <option value="">AA</option>
                       {months.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
-                    <select
-                      value={qnbCard.year}
+                    <select value={qnbCard.year}
                       onChange={(e) => setQnbCard(p => ({ ...p, year: e.target.value }))}
-                      className={INP + " pr-2"}>
+                      className={INP + " px-2"}>
                       <option value="">YYYY</option>
                       {years.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
@@ -439,6 +524,8 @@ export default function CheckoutClient({
                     placeholder="•••"
                     maxLength={4}
                     value={qnbCard.cvv}
+                    onFocus={() => setCvvFocused(true)}
+                    onBlur={() => setCvvFocused(false)}
                     onChange={(e) => setQnbCard(p => ({ ...p, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
                     className={INP + " font-mono"}
                   />
@@ -450,7 +537,7 @@ export default function CheckoutClient({
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{qnbError}</p>
             )}
 
-            <div className="text-center text-xs text-slate-400 pb-1">
+            <div className="text-center text-xs text-slate-400">
               Ödeme tutarı: <span className="font-semibold text-slate-700">{qnbSession.amount}</span>
             </div>
 
