@@ -221,10 +221,22 @@ export default function CheckoutClient({
       }
 
       // QNB server-side proxy: backend POSTed to QNB and returned gateway HTML.
-      // Write it directly so the browser renders the 3D secure flow.
+      // Inject <base> tag so QNB's relative CSS/images resolve from their domain.
       if (payment.checkoutFormContent?.trimStart().startsWith("<")) {
+        let html = payment.checkoutFormContent;
+        if (payment.redirectUrl) {
+          try {
+            const origin = new URL(payment.redirectUrl).origin;
+            const baseTag = `<base href="${origin}/">`;
+            if (/<head>/i.test(html)) {
+              html = html.replace(/<head>/i, `<head>${baseTag}`);
+            } else {
+              html = `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`;
+            }
+          } catch { /* keep html as-is if URL parse fails */ }
+        }
         document.open();
-        document.write(payment.checkoutFormContent);
+        document.write(html);
         document.close();
         return;
       }

@@ -92,7 +92,7 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         var gatewayHtml = await gatewayResponse.Content.ReadAsStringAsync(ct);
 
         return Result<PaymentInitiateResult>.Success(
-            new PaymentInitiateResult(transactionId, null, false, gatewayHtml));
+            new PaymentInitiateResult(transactionId, gatewayUrl, false, gatewayHtml));
     }
 
     public async Task<Result<bool>> VerifyCallbackAsync(
