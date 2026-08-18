@@ -20,7 +20,7 @@ import { getSettings } from "@/lib/settings";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-pacifico" });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();

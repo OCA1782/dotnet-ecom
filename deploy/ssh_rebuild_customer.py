@@ -77,7 +77,9 @@ print(f"\n=== 3. Docker build (ecom-customer-new:latest) ===")
 build_out = run(
     f"docker build "
     f"--build-arg NEXT_PUBLIC_API_URL={api_url} "
+    f"--build-arg NEXT_PUBLIC_SITE_URL={site_url} "
     f"--build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID={google_cid} "
+    f"--build-arg NEXT_PUBLIC_FALLBACK_TEMPLATE={active_template} "
     f"-t ecom-customer-new:latest "
     f"/opt/ecom/frontend/customer 2>&1",
     timeout=900

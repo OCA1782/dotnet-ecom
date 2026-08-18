@@ -33,7 +33,7 @@ export async function generateMetadata({
   const mainImage = product.images?.find((i) => i.isMain) ?? product.images?.[0];
   const price = product.discountPrice ?? product.price;
 
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const description = product.metaDescription ?? product.shortDescription ?? `${product.name} — ${price.toFixed(2)} ₺`;
   return {
     title: product.metaTitle ?? product.name,
@@ -75,7 +75,7 @@ export default async function ProductDetailPage({
     ? variantStockTotal
     : product.availableStock;
 
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const siteName = settings.SiteName ?? "AutoForce Part";
   const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
