@@ -226,7 +226,8 @@ export default function CheckoutClient({
       // Inject <base> tag so QNB's relative CSS/images resolve from their domain.
       if (payment.checkoutFormContent?.trimStart().startsWith("<")) {
         let html = payment.checkoutFormContent;
-        if (payment.redirectUrl) {
+        // Backend already injects <base> tag; only add if missing (safety fallback).
+        if (payment.redirectUrl && !/<base\b/i.test(html)) {
           try {
             const origin = new URL(payment.redirectUrl).origin;
             const baseTag = `<base href="${origin}/">`;

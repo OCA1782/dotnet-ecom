@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Ecom.Infrastructure.Services;
 
@@ -91,8 +92,75 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         using var gatewayResponse = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
         var gatewayHtml = await gatewayResponse.Content.ReadAsStringAsync(ct);
 
+        // Inline QNB's CSS server-side so browser never needs to load cross-origin stylesheets.
+        // Also inject <base> tag so remaining relative URLs (images, form action) resolve correctly.
+        gatewayHtml = await InlineCssAndInjectBaseAsync(gatewayHtml, gatewayUrl, http, ct);
+
         return Result<PaymentInitiateResult>.Success(
             new PaymentInitiateResult(transactionId, gatewayUrl, false, gatewayHtml));
+    }
+
+    // Fetches all <link rel="stylesheet"> files from QNB's server and inlines them as <style> blocks,
+    // then injects a <base> tag so remaining relative URLs (images, form action) point to QNB's domain.
+    private static async Task<string> InlineCssAndInjectBaseAsync(
+        string html, string pageUrl, HttpClient http, CancellationToken ct)
+    {
+        var baseUri = new Uri(pageUrl);
+        var origin  = $"{baseUri.Scheme}://{baseUri.Host}";
+
+        // Inject <base> tag as first element inside <head>
+        var headIdx = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
+        if (headIdx >= 0)
+            html = html.Insert(headIdx + 6, $"<base href=\"{origin}/\">");
+        else
+            html = $"<!DOCTYPE html><html><head><base href=\"{origin}/\"></head><body>{html}</body></html>";
+
+        // Find all <link rel="stylesheet"> tags
+        var linkRegex  = new Regex(@"<link\b([^>]*)>", RegexOptions.IgnoreCase);
+        var hrefRegex  = new Regex(@"\bhref=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+        var relRegex   = new Regex(@"\brel=[""']stylesheet[""']", RegexOptions.IgnoreCase);
+        var typeRegex  = new Regex(@"\btype=[""']text/css[""']", RegexOptions.IgnoreCase);
+
+        var stylesheetMatches = linkRegex.Matches(html)
+            .Cast<Match>()
+            .Where(m =>
+            {
+                var attrs = m.Groups[1].Value;
+                return relRegex.IsMatch(attrs) || typeRegex.IsMatch(attrs);
+            })
+            .OrderByDescending(m => m.Index)
+            .ToList();
+
+        // Fetch each CSS in parallel with individual 5-second timeouts
+        var fetchTasks = stylesheetMatches.Select(async match =>
+        {
+            var hrefMatch = hrefRegex.Match(match.Groups[1].Value);
+            if (!hrefMatch.Success) return (match, (string?)null);
+
+            var href = hrefMatch.Groups[1].Value;
+            if (href.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return (match, (string?)null);
+
+            Uri cssUri;
+            try { cssUri = href.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? new Uri(href) : new Uri(baseUri, href); }
+            catch { return (match, (string?)null); }
+
+            try
+            {
+                using var fetchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                fetchCts.CancelAfter(TimeSpan.FromSeconds(5));
+                var css = await http.GetStringAsync(cssUri, fetchCts.Token);
+                return (match, (string?)$"<style>/* {cssUri} */\n{css}\n</style>");
+            }
+            catch { return (match, (string?)null); }
+        });
+
+        var results = await Task.WhenAll(fetchTasks);
+
+        // Apply replacements in reverse index order to preserve string positions
+        foreach (var (match, replacement) in results.Where(r => r.Item2 != null))
+            html = html[..match.Index] + replacement + html[(match.Index + match.Length)..];
+
+        return html;
     }
 
     public async Task<Result<bool>> VerifyCallbackAsync(
