@@ -10,7 +10,7 @@ namespace Ecom.Infrastructure.Services;
 // QNB Finansbank Payfor — 3DHost entegrasyonu.
 // Kart verileri asla sunucuya gelmez; banka kendi sayfasında toplar.
 // Hash: Base64(SHA1(MbrId + OrderId + PurchAmount + OkUrl + FailUrl + TxnType + InstallmentCount + Rnd + MerchantPass))
-public class PayforPaymentService(IApplicationDbContext db) : IPaymentService
+public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory) : IPaymentService
 {
     private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DHost.aspx";
     private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/3DHost.aspx";
@@ -85,10 +85,14 @@ public class PayforPaymentService(IApplicationDbContext db) : IPaymentService
         };
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
-        var formJson      = JsonSerializer.Serialize(formFields);
+
+        // M047 fix: POST to QNB from server so QNB sees server IP, not browser IP.
+        var http = httpClientFactory.CreateClient();
+        using var gatewayResponse = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
+        var gatewayHtml = await gatewayResponse.Content.ReadAsStringAsync(ct);
 
         return Result<PaymentInitiateResult>.Success(
-            new PaymentInitiateResult(transactionId, gatewayUrl, true, formJson));
+            new PaymentInitiateResult(transactionId, null, false, gatewayHtml));
     }
 
     public async Task<Result<bool>> VerifyCallbackAsync(

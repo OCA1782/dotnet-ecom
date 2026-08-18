@@ -15,7 +15,7 @@ interface PaymentResult {
   transactionId: string;
   requiresRedirect: boolean;
   redirectUrl?: string;
-  checkoutFormContent?: string;  // Payfor 3DHost: JSON key-value form alanları
+  checkoutFormContent?: string;  // Payfor: gateway HTML (server-side proxy) or legacy JSON form fields
 }
 
 interface GuestForm {
@@ -199,7 +199,7 @@ export default function CheckoutClient({
 
       if (payment.requiresRedirect && payment.redirectUrl) {
         if (payment.checkoutFormContent?.startsWith("{")) {
-          // Payfor 3DHost: gizli form oluştur ve bankaya POST et
+          // Legacy fallback: submit form fields from browser (not used for QNB since M047 fix)
           const fields = JSON.parse(payment.checkoutFormContent) as Record<string, string>;
           const form = document.createElement("form");
           form.method = "POST";
@@ -217,6 +217,15 @@ export default function CheckoutClient({
         } else {
           window.location.href = payment.redirectUrl;
         }
+        return;
+      }
+
+      // QNB server-side proxy: backend POSTed to QNB and returned gateway HTML.
+      // Write it directly so the browser renders the 3D secure flow.
+      if (payment.checkoutFormContent?.trimStart().startsWith("<")) {
+        document.open();
+        document.write(payment.checkoutFormContent);
+        document.close();
         return;
       }
 
