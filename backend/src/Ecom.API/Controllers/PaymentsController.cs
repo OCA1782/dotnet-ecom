@@ -123,13 +123,12 @@ public class PaymentsController(
             return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
 
         var postFields = new Dictionary<string, string>(session.HiddenFields);
-        postFields["Pan"]            = req.Pan.Replace(" ", "");
-        postFields["CardHolderName"] = req.CardHolderName;
-        // TDHost.aspx renders the expiry date textbox as "txtExpDate" (ASP.NET WebForms control naming).
-        // The hidden fields returned by QNB already include txtExpDate; we override it with the actual value.
+        // TDHost.aspx WebForms control naming: txt prefix for all card inputs
+        postFields["txtPan"]            = req.Pan.Replace(" ", "");
+        postFields["txtCardHolderName"] = req.CardHolderName;
         var year2 = req.ExpiryYear.Length >= 2 ? req.ExpiryYear[^2..] : req.ExpiryYear;
-        postFields["txtExpDate"]     = $"{req.ExpiryMonth}{year2}";
-        postFields["Cvv2"]           = req.Cvv2;
+        postFields["txtExpDate"]        = $"{req.ExpiryMonth}{year2}";
+        postFields["txtCvv2"]           = req.Cvv2;
 
         logger.LogInformation("Payfor-forward: action={Action} hiddenCount={Count} pan={Pan}",
             session.FormAction, session.HiddenFields.Count, MaskPan(req.Pan));
@@ -140,7 +139,15 @@ public class PaymentsController(
         HttpResponseMessage response;
         try
         {
-            response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
+            var request = new HttpRequestMessage(HttpMethod.Post, session.FormAction)
+            {
+                Content = new FormUrlEncodedContent(postFields)
+            };
+            // Replay the ASP.NET session cookie from the initial TDHost.aspx response.
+            // Without it TDHost.aspx cannot find the server-side session and returns 500.
+            if (!string.IsNullOrEmpty(session.SessionCookie))
+                request.Headers.TryAddWithoutValidation("Cookie", session.SessionCookie);
+            response = await http.SendAsync(request, ct);
         }
         catch (Exception ex)
         {

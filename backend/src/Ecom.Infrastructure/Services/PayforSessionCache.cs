@@ -5,7 +5,8 @@ namespace Ecom.Infrastructure.Services;
 public record QnbFormData(
     string FormAction,
     Dictionary<string, string> HiddenFields,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string? SessionCookie = null);
 
 public static class PayforSessionCache
 {

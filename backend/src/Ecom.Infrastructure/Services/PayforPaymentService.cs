@@ -109,10 +109,19 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         logger.LogInformation("Payfor-initiate: formAction={Action} hiddenCount={Count} fields={Fields}",
             formAction, hiddenFields.Count, string.Join(",", hiddenFields.Keys));
 
+        // Capture ASP.NET session cookie so the card-submit POST can reuse the same server session.
+        var sessionCookie = string.Join("; ",
+            gatewayResponse.Headers
+                .Where(h => h.Key.Equals("Set-Cookie", StringComparison.OrdinalIgnoreCase))
+                .SelectMany(h => h.Value)
+                .Select(c => c.Split(';')[0].Trim()));
+        logger.LogInformation("Payfor-initiate: sessionCookie={Cookie}", string.IsNullOrEmpty(sessionCookie) ? "(none)" : "(present)");
+
         var sessionId = PayforSessionCache.Store(new QnbFormData(
             formAction,
             hiddenFields,
-            DateTimeOffset.UtcNow.AddMinutes(20)));
+            DateTimeOffset.UtcNow.AddMinutes(20),
+            string.IsNullOrEmpty(sessionCookie) ? null : sessionCookie));
 
         var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
 
