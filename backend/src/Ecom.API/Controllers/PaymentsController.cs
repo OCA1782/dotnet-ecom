@@ -125,9 +125,10 @@ public class PaymentsController(
         var postFields = new Dictionary<string, string>(session.HiddenFields);
         postFields["Pan"]            = req.Pan.Replace(" ", "");
         postFields["CardHolderName"] = req.CardHolderName;
-        // QNB 3DHost expects ExpiryDate as MMYY (4-digit combined), not separate fields
+        // TDHost.aspx renders the expiry date textbox as "txtExpDate" (ASP.NET WebForms control naming).
+        // The hidden fields returned by QNB already include txtExpDate; we override it with the actual value.
         var year2 = req.ExpiryYear.Length >= 2 ? req.ExpiryYear[^2..] : req.ExpiryYear;
-        postFields["ExpiryDate"]     = $"{req.ExpiryMonth}{year2}";
+        postFields["txtExpDate"]     = $"{req.ExpiryMonth}{year2}";
         postFields["Cvv2"]           = req.Cvv2;
 
         logger.LogInformation("Payfor-forward: action={Action} hiddenCount={Count} pan={Pan}",
