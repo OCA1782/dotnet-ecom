@@ -105,6 +105,40 @@ public class PaymentCallbackHandler(
                 await stockService.ReleaseReservationAsync(
                     item.ProductId, item.ProductVariantId, item.Quantity, order.Id, cancellationToken);
             }
+
+            // Restore cart items so the customer can retry without re-adding products
+            if (order.UserId.HasValue)
+            {
+                var cart = await db.Carts
+                    .Include(c => c.Items)
+                    .FirstOrDefaultAsync(c => c.UserId == order.UserId, cancellationToken);
+
+                if (cart is null)
+                {
+                    cart = new Domain.Entities.Cart { UserId = order.UserId };
+                    db.Carts.Add(cart);
+                }
+
+                foreach (var item in order.Items)
+                {
+                    var existing = cart.Items.FirstOrDefault(ci =>
+                        ci.ProductId == item.ProductId && ci.ProductVariantId == item.ProductVariantId);
+
+                    if (existing is not null)
+                        existing.Quantity += item.Quantity;
+                    else
+                        cart.Items.Add(new Domain.Entities.CartItem
+                        {
+                            ProductId = item.ProductId,
+                            ProductVariantId = item.ProductVariantId,
+                            Quantity = item.Quantity,
+                            UnitPrice = item.UnitPrice,
+                            IsSelected = true
+                        });
+                }
+
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         return Result.Success();
