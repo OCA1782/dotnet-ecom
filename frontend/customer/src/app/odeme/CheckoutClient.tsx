@@ -605,12 +605,14 @@ export default function CheckoutClient({
               setIframeLoading(false);
               try {
                 const href = (e.target as HTMLIFrameElement).contentWindow?.location.href;
-                if (href && !href.startsWith('blob:') && href !== 'about:blank') {
-                  // iframe landed on our domain after QNB callback — navigate parent
+                // Only navigate parent when iframe lands on our payment result pages.
+                // Avoid navigating for blob:, about:blank, or any other same-origin path
+                // that might appear during QNB's 3DS flow (e.g. relative URLs resolving to our domain).
+                if (href && (href.includes('/odeme/basarili') || href.includes('/odeme/basarisiz'))) {
                   window.location.href = href;
                 }
               } catch {
-                // Cross-origin (QNB's domain during processing) — expected, ignore
+                // Cross-origin (QNB/bank domain during 3DS) — expected, ignore
               }
             }}
           />

@@ -62,21 +62,30 @@ public class PaymentsController(
     /// Payfor (QNB Finansbank) 3DHost callback — banka bu endpoint'i POST ile çağırır.
     /// OkUrl ve FailUrl olarak aynı endpoint kullanılır; ProcReturnCode "00" ise başarılı.
     /// </summary>
+    [HttpGet("payfor-callback")]
     [HttpPost("payfor-callback")]
     [AllowAnonymous]
     public async Task<IActionResult> PayforCallback(CancellationToken ct)
     {
-        var form           = Request.Form;
-        var orderNumber    = form["OrderId"].ToString();
-        var procReturnCode = form["ProcReturnCode"].ToString();
-        var authCode       = form["AuthCode"].ToString();
-        var errMsg         = form["ErrMsg"].ToString();
+        // Support both POST (standard 3DHost form submission) and GET (QNB immediate redirect without 3DS)
+        string GetField(string key)
+        {
+            if (Request.HasFormContentType && Request.Form.ContainsKey(key))
+                return Request.Form[key].ToString();
+            return Request.Query[key].ToString();
+        }
+
+        var orderNumber    = GetField("OrderId");
+        var procReturnCode = GetField("ProcReturnCode");
+        var authCode       = GetField("AuthCode");
+        var errMsg         = GetField("ErrMsg");
 
         var isSuccess = procReturnCode == "00" && !string.IsNullOrEmpty(authCode);
 
-        // Tüm callback alanlarını JSON olarak sakla (PaymentCallbackCommand.ProviderResponseJson)
-        var payload = JsonSerializer.Serialize(
-            form.Keys.ToDictionary(k => k, k => form[k].ToString()));
+        // Tüm callback alanlarını JSON olarak sakla
+        var payload = Request.HasFormContentType
+            ? JsonSerializer.Serialize(Request.Form.Keys.ToDictionary(k => k, k => Request.Form[k].ToString()))
+            : JsonSerializer.Serialize(Request.Query.Keys.ToDictionary(k => k, k => Request.Query[k].ToString()));
 
         // Siparişi OrderNumber ile bul, ilgili Payment kaydını al
         var payment = await db.Payments
@@ -158,6 +167,22 @@ public class PaymentsController(
             logger.LogWarning("Payfor-forward: QNB response has no <form> — likely error page");
             return Ok(new { type = "qnb_error", html });
         }
+
+        // Inject <base> tag so all relative URLs in QNB's 3DS page resolve to QNB's domain,
+        // not to our domain (which causes 404 when blob-URL iframe submits to relative paths).
+        try
+        {
+            var baseUri  = new Uri(session.FormAction);
+            var baseHref = $"{baseUri.Scheme}://{baseUri.Host}/";
+            if (!html.Contains("<base ", StringComparison.OrdinalIgnoreCase))
+            {
+                var headIdx = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
+                html = headIdx >= 0
+                    ? html.Insert(headIdx + 6, $"<base href=\"{baseHref}\">")
+                    : $"<base href=\"{baseHref}\">{html}";
+            }
+        }
+        catch { /* keep html as-is if URI parse fails */ }
 
         return Ok(new { type = "html", html });
     }
