@@ -110,11 +110,11 @@ export default function HeroSlider({ announcements }: Props) {
                     🎉 Yeni Sezon İndirimleri Başladı
                   </span>
                   <h1 className="text-4xl lg:text-6xl font-extrabold mb-5 tracking-tight leading-tight max-w-2xl">
-                    Keyifli Alışverişin<br />
-                    <span className="text-[#FF7A45]">Yeni Adresi</span>
+                    Güçlü Parçalar,<br />
+                    <span className="text-[#FF7A45]">Yüksek Performans</span>
                   </h1>
                   <p className="text-teal-100 text-lg lg:text-xl mb-10 max-w-lg leading-relaxed">
-                    Sevdiğin ürünleri keşfet, güvenle satın al,<br className="hidden lg:block" /> hızlı teslimatla kapına gelsin.
+                    Aracın için doğru parçayı bul, güvenle satın al,<br className="hidden lg:block" /> hızlı teslimatla kapına gelsin.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Link

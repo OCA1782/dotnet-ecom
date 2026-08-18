@@ -31,10 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(SITE_URL),
     title: {
-      default: `${siteName} — Keyifli Alışverişin Yeni Adresi`,
+      default: `${siteName} — Güçlü Parçalar, Yüksek Performans`,
       template: `%s | ${siteName}`,
     },
-    description: "Keyifli alışverişin yeni adresi. Binlerce ürün, hızlı teslimat, güvenli ödeme.",
+    description: "Güçlü parçalar, yüksek performans. Binlerce yedek parça, güvenli ödeme, hızlı teslimat.",
     icons: {
       icon: [{ url: faviconUrl, type: "image/png" }],
       apple: faviconUrl,

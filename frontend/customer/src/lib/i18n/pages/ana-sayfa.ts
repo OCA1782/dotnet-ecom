@@ -10,9 +10,9 @@ export const anaSayfaKeys: Record<Lang, Dict> = {
   tr: {
     // Meta
     "home2.meta.title": "Ana Sayfa",
-    "home2.meta.desc": "Keyifli alışverişin yeni adresi. Binlerce ürün, güvenli ödeme, hızlı teslimat.",
-    "home2.meta.og.title": "Keyifli Alışverişin Yeni Adresi",
-    "home2.meta.og.desc": "Sevdiğin ürünleri keşfet, güvenle satın al, hızlı teslimatla kapına gelsin.",
+    "home2.meta.desc": "Güçlü parçalar, yüksek performans. Binlerce yedek parça, güvenli ödeme, hızlı teslimat.",
+    "home2.meta.og.title": "Güçlü Parçalar, Yüksek Performans",
+    "home2.meta.og.desc": "Aracın için doğru parçayı bul, güvenle satın al, hızlı teslimatla kapına gelsin.",
 
     // Spareparts template
     "home2.sp.b2b.badge": "B2B",
