@@ -4,6 +4,7 @@ using Ecom.Application.Events;
 using Ecom.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ecom.Application.Features.Payments.Commands;
 
@@ -19,7 +20,8 @@ public class PaymentCallbackHandler(
     IPaymentService paymentService,  // reserved for Iyzico callback verification
 #pragma warning restore CS9113
     IStockService stockService,
-    IEventPublisher eventPublisher
+    IEventPublisher eventPublisher,
+    ILogger<PaymentCallbackHandler> logger
 ) : IRequestHandler<PaymentCallbackCommand, Result>
 {
     public async Task<Result> Handle(PaymentCallbackCommand request, CancellationToken cancellationToken)
@@ -109,35 +111,62 @@ public class PaymentCallbackHandler(
             // Restore cart items so the customer can retry without re-adding products
             if (order.UserId.HasValue)
             {
-                var cart = await db.Carts
-                    .Include(c => c.Items)
-                    .FirstOrDefaultAsync(c => c.UserId == order.UserId, cancellationToken);
-
-                if (cart is null)
+                try
                 {
-                    cart = new Domain.Entities.Cart { UserId = order.UserId };
-                    db.Carts.Add(cart);
-                }
+                    var cart = await db.Carts
+                        .Include(c => c.Items)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.UserId == order.UserId, cancellationToken);
 
-                foreach (var item in order.Items)
-                {
-                    var existing = cart.Items.FirstOrDefault(ci =>
-                        ci.ProductId == item.ProductId && ci.ProductVariantId == item.ProductVariantId);
-
-                    if (existing is not null)
-                        existing.Quantity += item.Quantity;
+                    if (cart is null)
+                    {
+                        var newCart = new Domain.Entities.Cart { UserId = order.UserId };
+                        foreach (var item in order.Items)
+                            newCart.Items.Add(new Domain.Entities.CartItem
+                            {
+                                ProductId = item.ProductId,
+                                ProductVariantId = item.ProductVariantId,
+                                Quantity = item.Quantity,
+                                UnitPrice = item.UnitPrice,
+                                IsSelected = true
+                            });
+                        db.Carts.Add(newCart);
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
                     else
-                        cart.Items.Add(new Domain.Entities.CartItem
+                    {
+                        foreach (var item in order.Items)
                         {
-                            ProductId = item.ProductId,
-                            ProductVariantId = item.ProductVariantId,
-                            Quantity = item.Quantity,
-                            UnitPrice = item.UnitPrice,
-                            IsSelected = true
-                        });
-                }
+                            var existing = cart.Items.FirstOrDefault(ci =>
+                                ci.ProductId == item.ProductId && ci.ProductVariantId == item.ProductVariantId);
 
-                await db.SaveChangesAsync(cancellationToken);
+                            if (existing is not null)
+                            {
+                                await db.CartItems
+                                    .Where(ci => ci.Id == existing.Id)
+                                    .ExecuteUpdateAsync(s => s.SetProperty(
+                                        ci => ci.Quantity, ci => ci.Quantity + item.Quantity), cancellationToken);
+                            }
+                            else
+                            {
+                                db.CartItems.Add(new Domain.Entities.CartItem
+                                {
+                                    CartId = cart.Id,
+                                    ProductId = item.ProductId,
+                                    ProductVariantId = item.ProductVariantId,
+                                    Quantity = item.Quantity,
+                                    UnitPrice = item.UnitPrice,
+                                    IsSelected = true
+                                });
+                                await db.SaveChangesAsync(cancellationToken);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Sepet restore başarısız (ödeme zaten başarısız olarak işaretlendi). OrderId={OrderId}", order.Id);
+                }
             }
         }
 

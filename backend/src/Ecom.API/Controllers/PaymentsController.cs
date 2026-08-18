@@ -182,7 +182,9 @@ public class PaymentsController(
         try
         {
             var baseUri  = new Uri(session.FormAction);
-            var baseHref = $"{baseUri.Scheme}://{baseUri.Host}/";
+            var lastSlash = baseUri.AbsolutePath.LastIndexOf('/');
+            var dir = lastSlash > 0 ? baseUri.AbsolutePath[..(lastSlash + 1)] : "/";
+            var baseHref = $"{baseUri.Scheme}://{baseUri.Host}{dir}";
             if (!html.Contains("<base ", StringComparison.OrdinalIgnoreCase))
             {
                 var headIdx = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
