@@ -25,7 +25,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const siteName = settings.SiteName || "";
-  const rawFavicon = settings.CustomerFaviconUrl || settings.FaviconUrl || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png";
+  const rawFavicon = settings.CustomerFaviconUrl || settings.FaviconUrl || process.env.CUSTOMER_FALLBACK_FAVICON_URL || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png";
   const version = settings.SettingsVersion ?? "";
   const faviconUrl = version ? `${rawFavicon}?v=${version}` : rawFavicon;
   return {
@@ -102,7 +102,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     "@type": "Organization",
     name: siteName,
     url: SITE_URL,
-    logo: settings.CustomerLogoNamed || settings.CustomerLogoIcon || undefined,
+    logo: settings.CustomerLogoNamed || settings.CustomerLogoIcon || process.env.CUSTOMER_FALLBACK_LOGO_NAMED || undefined,
     ...(contactEmail ? { email: contactEmail } : {}),
     ...(contactPhone ? { telephone: contactPhone } : {}),
     ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin
@@ -132,8 +132,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Spareparts şablonunda Header + araç nav şeridi birlikte sabitlenir */}
           <div className={template === "spareparts" ? "sticky top-0 z-50" : undefined}>
             <Header
-              logoNamed={settings.CustomerLogoNamed || "https://images.autoforcepart.com/static/autoforcepart-logo-with-text.png"}
-              logoIcon={settings.CustomerLogoIcon || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png"}
+              logoNamed={settings.CustomerLogoNamed || process.env.CUSTOMER_FALLBACK_LOGO_NAMED || "https://images.autoforcepart.com/static/autoforcepart-logo-with-text.png"}
+              logoIcon={settings.CustomerLogoIcon || process.env.CUSTOMER_FALLBACK_LOGO_ICON || "https://images.autoforcepart.com/static/autoforcepart-logo-no-text.png"}
               siteName={siteName}
               languageSwitcherEnabled={languageSwitcherEnabled}
             />

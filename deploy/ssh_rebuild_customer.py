@@ -62,6 +62,34 @@ for line in tmpl_out.splitlines():
 
 print(f"Aktif template: '{active_template}'")
 
+# 2b. Logo/favicon URL'lerini DB'den oku (startup race condition'a karsi runtime fallback)
+sftp2 = client.open_sftp()
+with sftp2.open('/tmp/get_assets.sql', 'w') as f:
+    f.write(
+        "SELECT \"Key\", \"Value\" FROM \"SiteSettings\" "
+        "WHERE \"Key\" IN ('CustomerLogoNamed','CustomerLogoIcon','CustomerFaviconUrl','FaviconUrl') "
+        "AND \"IsDeleted\" = false;\n"
+    )
+sftp2.close()
+
+assets_out = run(
+    f'docker exec -i ecom-postgres-1 psql -U {PG_USER} -d {PG_DB} < /tmp/get_assets.sql 2>&1',
+    timeout=15
+)
+site_assets = {}
+for line in assets_out.splitlines():
+    if '|' in line:
+        parts = line.split('|', 1)
+        k, v = parts[0].strip(), parts[1].strip()
+        if k and v and k != 'Key' and not k.startswith('-'):
+            site_assets[k] = v
+
+fallback_logo_named  = site_assets.get('CustomerLogoNamed', '')
+fallback_logo_icon   = site_assets.get('CustomerLogoIcon', '')
+fallback_favicon_url = site_assets.get('CustomerFaviconUrl', '') or site_assets.get('FaviconUrl', '')
+print(f"Fallback logo_named: '{fallback_logo_named[:60]}'")
+print(f"Fallback favicon:    '{fallback_favicon_url[:60]}'")
+
 # 3. Env degiskenlerini oku
 site_url    = read_env_var('NEXT_PUBLIC_SITE_URL') or 'http://31.210.40.242:13000'
 api_url     = read_env_var('NEXT_PUBLIC_API_URL')  or 'http://31.210.40.242:15124'
@@ -118,6 +146,9 @@ run_cmd = (
     f"-e INTERNAL_API_URL=http://ecom-api-1:8080 "
     f"-e NEXT_PUBLIC_FALLBACK_TEMPLATE={active_template} "
     f"-e NEXT_PUBLIC_GOOGLE_CLIENT_ID={google_cid} "
+    f"-e CUSTOMER_FALLBACK_LOGO_NAMED={fallback_logo_named} "
+    f"-e CUSTOMER_FALLBACK_LOGO_ICON={fallback_logo_icon} "
+    f"-e CUSTOMER_FALLBACK_FAVICON_URL={fallback_favicon_url} "
     f"ecom-customer-new:latest"
 )
 result = run(run_cmd, timeout=30)
