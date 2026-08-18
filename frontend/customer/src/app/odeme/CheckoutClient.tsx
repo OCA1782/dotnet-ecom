@@ -134,8 +134,6 @@ export default function CheckoutClient({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [qnbIframeUrl, setQnbIframeUrl] = useState<string | null>(null);
-  const [iframeLoading, setIframeLoading] = useState(false);
   const [qnbSession, setQnbSession] = useState<QnbSession | null>(null);
   const [qnbCard, setQnbCard] = useState({ pan: "", holderName: "", month: "", year: "", cvv: "" });
   const [qnbSubmitting, setQnbSubmitting] = useState(false);
@@ -273,11 +271,11 @@ export default function CheckoutClient({
       if (res.type === "redirect" && res.url) {
         window.location.href = res.url;
       } else if (res.type === "html" && res.html) {
-        // 3DS challenge page — show in iframe overlay
-        const blob = new Blob([res.html], { type: "text/html; charset=utf-8" });
-        setIframeLoading(true);
-        setQnbIframeUrl(URL.createObjectURL(blob));
-        setQnbSession(null);
+        // 3DS authentication requires full-page browser navigation.
+        // Blob-URL iframe fails because bank ACS pages block framing via X-Frame-Options.
+        document.open("text/html", "replace");
+        document.write(res.html);
+        document.close();
       } else if (res.type === "qnb_error") {
         setQnbError("Ödeme reddedildi. Kart bilgilerini kontrol edip tekrar deneyin veya farklı bir kart kullanın.");
       } else {
@@ -555,67 +553,6 @@ export default function CheckoutClient({
               ← Geri Dön
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (qnbIframeUrl) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-white flex flex-col">
-        {/* Branded security header */}
-        <div className="flex items-center gap-3 px-5 h-14 border-b border-slate-100 bg-white shadow-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 border border-green-200 shrink-0">
-              <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-900 leading-tight">Güvenli 3D Ödeme</p>
-              <p className="text-[11px] text-slate-400 leading-tight">QNB Finansbank 3D Secure koruması aktif</p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 font-medium">
-              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-              </svg>
-              SSL 256-bit
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1 font-medium">
-              3DS
-            </span>
-          </div>
-        </div>
-
-        {/* iframe */}
-        <div className="flex-1 relative overflow-hidden bg-slate-50">
-          {iframeLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white gap-4 z-10">
-              <div className="animate-spin rounded-full h-10 w-10 border-2 border-teal-500 border-t-transparent" />
-              <p className="text-sm text-slate-500">Banka güvenli sayfası yükleniyor…</p>
-            </div>
-          )}
-          <iframe
-            src={qnbIframeUrl}
-            className="w-full h-full border-none"
-            title="QNB Finansbank Güvenli Ödeme"
-            onLoad={(e) => {
-              setIframeLoading(false);
-              try {
-                const href = (e.target as HTMLIFrameElement).contentWindow?.location.href;
-                // Only navigate parent when iframe lands on our payment result pages.
-                // Avoid navigating for blob:, about:blank, or any other same-origin path
-                // that might appear during QNB's 3DS flow (e.g. relative URLs resolving to our domain).
-                if (href && (href.includes('/odeme/basarili') || href.includes('/odeme/basarisiz'))) {
-                  window.location.href = href;
-                }
-              } catch {
-                // Cross-origin (QNB/bank domain during 3DS) — expected, ignore
-              }
-            }}
-          />
         </div>
       </div>
     );
