@@ -131,11 +131,18 @@ public class PaymentsController(
         postFields["ExpiryDate"]     = $"{req.ExpiryMonth}{year2}";
         postFields["Cvv2"]           = req.Cvv2;
 
-        logger.LogInformation("Payfor-forward: action={Action} fieldCount={Count} pan={Pan}",
-            session.FormAction, postFields.Count, MaskPan(req.Pan));
+        logger.LogInformation(
+            "Payfor-forward: gateway={Action} fieldCount={Count} pan={Pan} orderId={OrderId} amount={Amount} expiry={Expiry} fieldNames=[{Fields}]",
+            session.FormAction, postFields.Count, MaskPan(req.Pan),
+            postFields.GetValueOrDefault("OrderId"),
+            postFields.GetValueOrDefault("PurchAmount"),
+            postFields.GetValueOrDefault("ExpiryDate"),
+            string.Join(",", postFields.Keys));
 
         using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
         http.Timeout = TimeSpan.FromSeconds(30);
+        http.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
         HttpResponseMessage response;
         try
@@ -154,13 +161,14 @@ public class PaymentsController(
         if (statusCode is 301 or 302 or 303 or 307 or 308)
         {
             var location = response.Headers.Location?.ToString();
-            logger.LogInformation("Payfor-forward: redirect → {Location}", location);
+            logger.LogWarning("Payfor-forward: QNB redirect status={Status} location={Location}", statusCode, location);
             if (!string.IsNullOrEmpty(location))
             {
-                // Relative redirect (e.g. /error/500) = QNB error — don't forward to browser
-                if (!location.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                // Relative redirect or GatewayError = QNB rejected our POST — don't forward to browser
+                if (!location.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                    location.Contains("GatewayError", StringComparison.OrdinalIgnoreCase))
                 {
-                    logger.LogWarning("Payfor-forward: QNB relative error redirect → {Location}", location);
+                    logger.LogWarning("Payfor-forward: QNB error redirect → {Location}", location);
                     return Ok(new { type = "qnb_error", html = string.Empty });
                 }
                 return Ok(new { type = "redirect", url = location });
