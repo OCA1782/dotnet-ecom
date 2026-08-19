@@ -122,16 +122,17 @@ public class PaymentsController(
         if (session is null)
             return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
 
+        // Merge merchant params with card data — QNB requires ONE server-to-server POST
+        // containing both merchant credentials and card details (M047: no browser-direct POSTs).
         var postFields = new Dictionary<string, string>(session.HiddenFields);
-        // TDHost.aspx WebForms control naming: txt prefix for all card inputs
-        postFields["txtPan"]            = req.Pan.Replace(" ", "");
-        postFields["txtCardHolderName"] = req.CardHolderName;
+        postFields["Pan"]            = req.Pan.Replace(" ", "");
+        postFields["CardHolderName"] = req.CardHolderName;
         var year2 = req.ExpiryYear.Length >= 2 ? req.ExpiryYear[^2..] : req.ExpiryYear;
-        postFields["txtExpDate"]        = $"{req.ExpiryMonth}{year2}";
-        postFields["txtCvv2"]           = req.Cvv2;
+        postFields["ExpiryDate"]     = $"{req.ExpiryMonth}{year2}";
+        postFields["Cvv2"]           = req.Cvv2;
 
-        logger.LogInformation("Payfor-forward: action={Action} hiddenCount={Count} pan={Pan}",
-            session.FormAction, session.HiddenFields.Count, MaskPan(req.Pan));
+        logger.LogInformation("Payfor-forward: action={Action} fieldCount={Count} pan={Pan}",
+            session.FormAction, postFields.Count, MaskPan(req.Pan));
 
         using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
         http.Timeout = TimeSpan.FromSeconds(30);
@@ -139,15 +140,7 @@ public class PaymentsController(
         HttpResponseMessage response;
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, session.FormAction)
-            {
-                Content = new FormUrlEncodedContent(postFields)
-            };
-            // Replay the ASP.NET session cookie from the initial TDHost.aspx response.
-            // Without it TDHost.aspx cannot find the server-side session and returns 500.
-            if (!string.IsNullOrEmpty(session.SessionCookie))
-                request.Headers.TryAddWithoutValidation("Cookie", session.SessionCookie);
-            response = await http.SendAsync(request, ct);
+            response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
         }
         catch (Exception ex)
         {

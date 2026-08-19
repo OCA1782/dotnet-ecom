@@ -93,18 +93,22 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
 
-        var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
-        logger.LogInformation("Payfor-initiate: direct 3DHost browser POST, gateway={Url}", gatewayUrl);
+        // QNB M047 fix: all requests to gateway must come from the application server.
+        // Card data + merchant params are combined in ONE server-to-server POST (payfor-forward).
+        // InitiateAsync only caches the merchant params; no call to QNB here.
+        var sessionId = PayforSessionCache.Store(new QnbFormData(
+            gatewayUrl,
+            formFields,
+            DateTimeOffset.UtcNow.AddMinutes(20)));
 
-        // Browser posts the form directly to QNB — QNB shows its own hosted card entry page.
-        // Server-side proxy approach caused GatewayError because QNB validates that card data
-        // comes from the same browser session that loaded the card entry page.
+        var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
+        logger.LogInformation("Payfor-initiate: session cached, gateway={Url}", gatewayUrl);
+
         var json = JsonSerializer.Serialize(new
         {
-            type   = "payfor_3dhost_direct",
-            url    = gatewayUrl,
-            fields = formFields,
-            amount = amountForDisplay,
+            type      = "payfor_3dhost",
+            sessionId,
+            amount    = amountForDisplay,
         });
 
         return Result<PaymentInitiateResult>.Success(
