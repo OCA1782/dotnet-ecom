@@ -219,14 +219,24 @@ export default function CheckoutClient({
         return;
       }
 
-      // QNB Payfor 3DHost — custom card form + server proxy
-      if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost"')) {
-        const parsed = JSON.parse(payment.checkoutFormContent) as { type: string; sessionId: string; amount: string };
-        setQnbCard({ pan: "", holderName: "", month: "", year: "", cvv: "" });
-        setQnbError("");
-        setCvvFocused(false);
-        setQnbTimeLeft(15 * 60);
-        setQnbSession({ sessionId: parsed.sessionId, amount: parsed.amount });
+      // QNB Payfor 3DHost — browser posts directly to QNB, QNB shows its own card entry page
+      if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost_direct"')) {
+        const parsed = JSON.parse(payment.checkoutFormContent) as {
+          type: string; url: string; fields: Record<string, string>; amount: string;
+        };
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = parsed.url;
+        form.style.display = "none";
+        Object.entries(parsed.fields).forEach(([name, value]) => {
+          const inp = document.createElement("input");
+          inp.type = "hidden";
+          inp.name = name;
+          inp.value = value;
+          form.appendChild(inp);
+        });
+        document.body.appendChild(form);
+        form.submit();
         return;
       }
 

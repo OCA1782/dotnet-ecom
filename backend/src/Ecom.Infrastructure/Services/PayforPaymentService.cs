@@ -93,43 +93,18 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
 
-        var http = httpClientFactory.CreateClient();
-        using var gatewayResponse = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
-        var gatewayHtml = await gatewayResponse.Content.ReadAsStringAsync(ct);
-
-        // Parse the QNB HTML form: extract action URL + all hidden input fields.
-        // These are stored server-side; the browser shows our own card UI and
-        // submits via /api/payments/payfor-forward (avoids QNB IP block on browser).
-        var gatewayStatus = (int)gatewayResponse.StatusCode;
-        var htmlPreview = gatewayHtml.Length > 500 ? gatewayHtml[..500].Replace('\n', ' ').Replace('\r', ' ') : gatewayHtml;
-        logger.LogInformation("Payfor-initiate: gateway status={Status} htmlLen={Len} preview={Preview}",
-            gatewayStatus, gatewayHtml.Length, htmlPreview);
-
-        var (formAction, hiddenFields) = ParseQnbForm(gatewayHtml, gatewayUrl);
-        logger.LogInformation("Payfor-initiate: formAction={Action} hiddenCount={Count} fields={Fields}",
-            formAction, hiddenFields.Count, string.Join(",", hiddenFields.Keys));
-
-        // Capture ASP.NET session cookie so the card-submit POST can reuse the same server session.
-        var sessionCookie = string.Join("; ",
-            gatewayResponse.Headers
-                .Where(h => h.Key.Equals("Set-Cookie", StringComparison.OrdinalIgnoreCase))
-                .SelectMany(h => h.Value)
-                .Select(c => c.Split(';')[0].Trim()));
-        logger.LogInformation("Payfor-initiate: sessionCookie={Cookie}", string.IsNullOrEmpty(sessionCookie) ? "(none)" : "(present)");
-
-        var sessionId = PayforSessionCache.Store(new QnbFormData(
-            formAction,
-            hiddenFields,
-            DateTimeOffset.UtcNow.AddMinutes(20),
-            string.IsNullOrEmpty(sessionCookie) ? null : sessionCookie));
-
         var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
+        logger.LogInformation("Payfor-initiate: direct 3DHost browser POST, gateway={Url}", gatewayUrl);
 
+        // Browser posts the form directly to QNB — QNB shows its own hosted card entry page.
+        // Server-side proxy approach caused GatewayError because QNB validates that card data
+        // comes from the same browser session that loaded the card entry page.
         var json = JsonSerializer.Serialize(new
         {
-            type      = "payfor_3dhost",
-            sessionId,
-            amount    = amountForDisplay,
+            type   = "payfor_3dhost_direct",
+            url    = gatewayUrl,
+            fields = formFields,
+            amount = amountForDisplay,
         });
 
         return Result<PaymentInitiateResult>.Success(
