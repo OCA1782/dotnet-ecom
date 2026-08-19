@@ -271,11 +271,32 @@ export default function CheckoutClient({
       if (res.type === "redirect" && res.url) {
         window.location.href = res.url;
       } else if (res.type === "html" && res.html) {
-        // 3DS authentication requires full-page browser navigation.
-        // Blob-URL iframe fails because bank ACS pages block framing via X-Frame-Options.
-        document.open("text/html", "replace");
-        document.write(res.html);
-        document.close();
+        // Extract the QNB 3DS form and submit it as a full-page POST.
+        // document.write approach is unreliable with Next.js; form.submit() is definitive.
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(res.html, "text/html");
+        const baseEl = doc.querySelector("base");
+        const baseUrl = baseEl?.getAttribute("href") ?? "https://vpos.qnb.com.tr/Gateway/";
+        const qnbForm = doc.querySelector("form");
+        if (qnbForm) {
+          const form = document.createElement("form");
+          form.method = qnbForm.getAttribute("method") ?? "post";
+          const rawAction = qnbForm.getAttribute("action") ?? "";
+          form.action = rawAction.startsWith("http") ? rawAction : new URL(rawAction, baseUrl).toString();
+          form.style.display = "none";
+          qnbForm.querySelectorAll("input").forEach(inp => {
+            const copy = document.createElement("input");
+            copy.type = "hidden";
+            copy.name = (inp as HTMLInputElement).name;
+            copy.value = (inp as HTMLInputElement).value;
+            form.appendChild(copy);
+          });
+          document.body.appendChild(form);
+          form.submit();
+        } else {
+          setQnbError("3D Secure sayfası yüklenemedi. Lütfen tekrar deneyin.");
+          setQnbSubmitting(false);
+        }
       } else if (res.type === "qnb_error") {
         setQnbError("Ödeme reddedildi. Kart bilgilerini kontrol edip tekrar deneyin veya farklı bir kart kullanın.");
       } else {

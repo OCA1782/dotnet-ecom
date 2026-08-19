@@ -177,6 +177,8 @@ public class PaymentsController(
         var html = await response.Content.ReadAsStringAsync(ct);
         var preview = html.Length > 400 ? html[..400].Replace('\n', ' ').Replace('\r', ' ') : html;
         logger.LogInformation("Payfor-forward: QNB HTML len={Len} preview={Preview}", html.Length, preview);
+        if (html.Length <= 2000)
+            logger.LogInformation("Payfor-forward: full HTML={Html}", html.Replace('\n', ' ').Replace('\r', ' '));
 
         // No <form> → QNB returned an error page, not a 3DS challenge
         if (!html.Contains("<form", StringComparison.OrdinalIgnoreCase))
