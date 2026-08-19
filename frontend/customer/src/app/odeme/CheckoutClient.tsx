@@ -271,32 +271,12 @@ export default function CheckoutClient({
       if (res.type === "redirect" && res.url) {
         window.location.href = res.url;
       } else if (res.type === "html" && res.html) {
-        // Extract the QNB 3DS form and submit it as a full-page POST.
-        // document.write approach is unreliable with Next.js; form.submit() is definitive.
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(res.html, "text/html");
-        const baseEl = doc.querySelector("base");
-        const baseUrl = baseEl?.getAttribute("href") ?? "https://vpos.qnb.com.tr/Gateway/";
-        const qnbForm = doc.querySelector("form");
-        if (qnbForm) {
-          const form = document.createElement("form");
-          form.method = qnbForm.getAttribute("method") ?? "post";
-          const rawAction = qnbForm.getAttribute("action") ?? "";
-          form.action = rawAction.startsWith("http") ? rawAction : new URL(rawAction, baseUrl).toString();
-          form.style.display = "none";
-          qnbForm.querySelectorAll("input").forEach(inp => {
-            const copy = document.createElement("input");
-            copy.type = "hidden";
-            copy.name = (inp as HTMLInputElement).name;
-            copy.value = (inp as HTMLInputElement).value;
-            form.appendChild(copy);
-          });
-          document.body.appendChild(form);
-          form.submit();
-        } else {
-          setQnbError("3D Secure sayfası yüklenemedi. Lütfen tekrar deneyin.");
-          setQnbSubmitting(false);
-        }
+        // Render QNB's ACS HTML full-page via document.write so that all inline
+        // JavaScript executes (PAReq and other fields are JS-populated at runtime;
+        // DOMParser only reads static values and would submit an empty PAReq).
+        document.open();
+        document.write(res.html);
+        document.close();
       } else if (res.type === "qnb_error") {
         setQnbError("Ödeme reddedildi. Kart bilgilerini kontrol edip tekrar deneyin veya farklı bir kart kullanın.");
       } else {
