@@ -198,10 +198,19 @@ public class PaymentsController(
             var baseHref = $"{baseUri.Scheme}://{baseUri.Host}{dir}";
             if (!html.Contains("<base ", StringComparison.OrdinalIgnoreCase))
             {
-                var headIdx = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
-                html = headIdx >= 0
-                    ? html.Insert(headIdx + 6, $"<base href=\"{baseHref}\">")
-                    : $"<base href=\"{baseHref}\">{html}";
+                // Match <head> or <head id="..."> or any <head ...> variant
+                var headIdx = html.IndexOf("<head", StringComparison.OrdinalIgnoreCase);
+                if (headIdx >= 0)
+                {
+                    var headClose = html.IndexOf('>', headIdx);
+                    html = headClose >= 0
+                        ? html.Insert(headClose + 1, $"<base href=\"{baseHref}\">")
+                        : html.Insert(headIdx, $"<base href=\"{baseHref}\">");
+                }
+                else
+                {
+                    html = $"<base href=\"{baseHref}\">{html}";
+                }
             }
         }
         catch { /* keep html as-is if URI parse fails */ }
