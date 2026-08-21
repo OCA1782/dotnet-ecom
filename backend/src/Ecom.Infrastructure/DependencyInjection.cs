@@ -7,6 +7,7 @@ using Ecom.Infrastructure.Messaging.Sagas;
 using Ecom.Infrastructure.Persistence;
 using Ecom.Infrastructure.Services;
 using MassTransit;
+using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
@@ -116,6 +117,7 @@ public static class DependencyInjection
                 .EntityFrameworkRepository(r =>
                 {
                     r.ExistingDbContext<ApplicationDbContext>();
+                    r.LockStatementProvider = new PostgresLockStatementProvider();
                 });
 
             if (!string.IsNullOrWhiteSpace(rabbitHost))
