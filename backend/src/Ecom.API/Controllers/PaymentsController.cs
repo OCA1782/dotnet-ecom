@@ -128,7 +128,7 @@ public class PaymentsController(
         postFields["Pan"]            = req.Pan.Replace(" ", "");
         postFields["CardHolderName"] = req.CardHolderName;
         var year2 = req.ExpiryYear.Length >= 2 ? req.ExpiryYear[^2..] : req.ExpiryYear;
-        postFields["ExpiryDate"]     = $"{req.ExpiryMonth}{year2}";
+        postFields["Expiry"]         = $"{req.ExpiryMonth}{year2}";
         postFields["Cvv2"]           = req.Cvv2;
 
         logger.LogInformation(

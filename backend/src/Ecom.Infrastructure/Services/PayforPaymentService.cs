@@ -5,22 +5,17 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Ecom.Infrastructure.Services;
 
-// QNB Finansbank Payfor — 3DHost entegrasyonu.
-// Kart verileri asla sunucuya gelmez; banka kendi sayfasında toplar.
+// QNB Finansbank Payfor — 3DPay entegrasyonu (Default.aspx).
+// Kart verileri kendi UI'ımızda alınır; sunucu, kart + merchant parametrelerini
+// tek bir server-to-server POST ile QNB'ye iletir (M047: browser IP kısıtlaması aşımı).
 // Hash: Base64(SHA1(MbrId + OrderId + PurchAmount + OkUrl + FailUrl + TxnType + InstallmentCount + Rnd + MerchantPass))
-//
-// M047 fix: Browser IP'si QNB tarafından bloklanabiliyor.
-// Bu nedenle sunucu QNB'ye POST yapar, dönen HTML form alanları parse edilip
-// session cache'e alınır; kart formu kendi UI'ımızda gösterilir,
-// kart submit'i de /api/payments/payfor-forward üzerinden proxy edilir.
-public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory, ILogger<PayforPaymentService> logger) : IPaymentService
+public class PayforPaymentService(IApplicationDbContext db, ILogger<PayforPaymentService> logger) : IPaymentService
 {
-    private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DHost.aspx";
-    private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/3DHost.aspx";
+    private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/Default.aspx";
+    private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/Default.aspx";
 
     public async Task<Result<PaymentInitiateResult>> InitiateAsync(
         PaymentContext context, CancellationToken ct = default)
@@ -28,7 +23,7 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         var keys = new[]
         {
             "PaymentSanalPosEnabled", "PaymentSanalPosProvider", "PaymentSanalPosTestMode",
-            "Payfor_MbrId", "Payfor_MerchantID", "Payfor_UserCode", "Payfor_UserPass",
+            "Payfor_MbrId", "Payfor_MerchantID", "Payfor_UserCode",
             "Payfor_MerchantPass", "Payfor_GatewayUrl"
         };
 
@@ -48,7 +43,6 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         var mbrId        = s.GetValueOrDefault("Payfor_MbrId",       "5")!;
         var merchantId   = s.GetValueOrDefault("Payfor_MerchantID",  "");
         var userCode     = s.GetValueOrDefault("Payfor_UserCode",     "");
-        var userPass     = s.GetValueOrDefault("Payfor_UserPass",     "");
         var merchantPass = s.GetValueOrDefault("Payfor_MerchantPass","");
 
         if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(userCode) || string.IsNullOrWhiteSpace(merchantPass))
@@ -71,12 +65,12 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
         var hashStr = $"{mbrId}{orderId}{amount}{okUrl}{failUrl}{txnType}{installmentCount}{rnd}{merchantPass}";
         var hash    = Convert.ToBase64String(SHA1.HashData(Encoding.UTF8.GetBytes(hashStr)));
 
+        // OrgOrderId must be included as empty string per QNB 3DPay specification
         var formFields = new Dictionary<string, string>
         {
             ["MbrId"]            = mbrId,
             ["MerchantID"]       = merchantId!,
             ["UserCode"]         = userCode!,
-            ["UserPass"]         = userPass!,
             ["SecureType"]       = "3DPay",
             ["TxnType"]          = txnType,
             ["InstallmentCount"] = installmentCount,
@@ -84,6 +78,7 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
             ["OkUrl"]            = okUrl,
             ["FailUrl"]          = failUrl,
             ["OrderId"]          = orderId,
+            ["OrgOrderId"]       = "",
             ["PurchAmount"]      = amount,
             ["Lang"]             = "TR",
             ["Rnd"]              = rnd,
@@ -92,99 +87,25 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
 
-        // M047 fix: initial POST must come from our server (not the browser).
-        // We send merchant params (no card) to 3DHost.aspx — QNB returns its own
-        // hosted card-entry form. We inject a <base> tag and forward the HTML to
-        // the frontend. The user fills the card in QNB's form; the browser submits
-        // directly to QNB, which handles 3DS and calls our callback.
-        using var http = httpClientFactory.CreateClient();
-        http.Timeout = TimeSpan.FromSeconds(30);
-        http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        var sessionId = PayforSessionCache.Store(new QnbFormData(
+            gatewayUrl,
+            formFields,
+            DateTimeOffset.UtcNow.AddMinutes(20)));
 
-        string cardFormHtml;
-        try
-        {
-            var qnbResp = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
-            cardFormHtml = await qnbResp.Content.ReadAsStringAsync(ct);
-            logger.LogInformation("Payfor-initiate: QNB card form HTML len={Len} status={Status}",
-                cardFormHtml.Length, (int)qnbResp.StatusCode);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Payfor-initiate: QNB POST failed gateway={Url}", gatewayUrl);
-            return Result<PaymentInitiateResult>.Failure("QNB ödeme sayfasına bağlanılamadı. Lütfen tekrar deneyin.");
-        }
+        logger.LogInformation("Payfor-initiate: sessionId={SessionId} gateway={Gateway} orderId={OrderId} amount={Amount}",
+            sessionId, gatewayUrl, orderId, amount);
 
-        // Inject <base> so relative URLs in QNB's form (CSS, JS, form action) resolve correctly
-        try
-        {
-            var baseUri   = new Uri(gatewayUrl);
-            var lastSlash = baseUri.AbsolutePath.LastIndexOf('/');
-            var dir       = lastSlash > 0 ? baseUri.AbsolutePath[..(lastSlash + 1)] : "/";
-            var baseHref  = $"{baseUri.Scheme}://{baseUri.Host}{dir}";
-            if (!cardFormHtml.Contains("<base ", StringComparison.OrdinalIgnoreCase))
-            {
-                var headIdx = cardFormHtml.IndexOf("<head", StringComparison.OrdinalIgnoreCase);
-                if (headIdx >= 0)
-                {
-                    var headClose = cardFormHtml.IndexOf('>', headIdx);
-                    cardFormHtml = headClose >= 0
-                        ? cardFormHtml.Insert(headClose + 1, $"<base href=\"{baseHref}\">")
-                        : cardFormHtml.Insert(headIdx, $"<base href=\"{baseHref}\">");
-                }
-                else
-                {
-                    cardFormHtml = $"<base href=\"{baseHref}\">{cardFormHtml}";
-                }
-            }
-        }
-        catch { /* keep html as-is */ }
+        var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
 
         var json = JsonSerializer.Serialize(new
         {
-            type = "payfor_3dhost_html",
-            html = cardFormHtml,
+            type      = "payfor_3dhost",
+            sessionId,
+            amount    = amountForDisplay,
         });
 
         return Result<PaymentInitiateResult>.Success(
             new PaymentInitiateResult(transactionId, gatewayUrl, false, json));
-    }
-
-    private static (string formAction, Dictionary<string, string> hiddenFields) ParseQnbForm(
-        string html, string pageUrl)
-    {
-        var hiddenFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        // Extract form action
-        var actionMatch = Regex.Match(html, @"<form\b[^>]*\baction=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
-        var rawAction   = actionMatch.Success ? actionMatch.Groups[1].Value : pageUrl;
-
-        string formAction;
-        try
-        {
-            formAction = rawAction.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? rawAction
-                : new Uri(new Uri(pageUrl), rawAction).ToString();
-        }
-        catch { formAction = pageUrl; }
-
-        // Extract all hidden inputs
-        foreach (Match m in Regex.Matches(html, @"<input\b([^>]*)>", RegexOptions.IgnoreCase))
-        {
-            var attrs = m.Groups[1].Value;
-            var typeM = Regex.Match(attrs, @"\btype=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
-            if (typeM.Success && !typeM.Groups[1].Value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var nameM  = Regex.Match(attrs, @"\bname=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
-            var valueM = Regex.Match(attrs, @"\bvalue=[""']([^""']*)[""']", RegexOptions.IgnoreCase);
-            if (!nameM.Success) continue;
-
-            hiddenFields[nameM.Groups[1].Value] = valueM.Success ? valueM.Groups[1].Value : "";
-        }
-
-        return (formAction, hiddenFields);
     }
 
     public async Task<Result<bool>> VerifyCallbackAsync(
