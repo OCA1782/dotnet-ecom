@@ -124,6 +124,7 @@ export default async function Footer() {
   const tagline = settings.Footer_Tagline || taglineLabel;
   const email = settings.ContactEmail || "";
   const phone = settings.ContactPhone || "";
+  const address = settings.Page_Iletisim_Address || "";
 
   const socials = [
     { icon: <IconInstagram />, label: instagramLabel, url: settings.SocialInstagram || "" },
@@ -201,11 +202,12 @@ export default async function Footer() {
               <li><Link href="/kullanim-kosullari" className="hover:text-white transition">{termsLabel}</Link></li>
               <li><Link href="/teslimat-politikasi" className="hover:text-white transition">{shippingPolicyLabel}</Link></li>
             </ul>
-            {(email || phone) && (
+            {(email || phone || address) && (
               <div className="space-y-1.5 text-xs text-slate-500">
                 <p className="text-slate-400 font-medium text-sm">{contactTitle}</p>
                 {email && <p>{email}</p>}
                 {phone && <p>{phone}</p>}
+                {address && <p className="leading-relaxed whitespace-pre-line">{address}</p>}
               </div>
             )}
           </div>

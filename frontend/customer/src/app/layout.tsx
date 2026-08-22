@@ -97,6 +97,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const contactEmail = settings.ContactEmail ?? "";
   const contactPhone = settings.ContactPhone ?? "";
+  const contactAddress = settings.Page_Iletisim_Address ?? "";
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -105,6 +106,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     logo: settings.CustomerLogoNamed || settings.CustomerLogoIcon || process.env.CUSTOMER_FALLBACK_LOGO_NAMED || undefined,
     ...(contactEmail ? { email: contactEmail } : {}),
     ...(contactPhone ? { telephone: contactPhone } : {}),
+    ...(contactAddress ? { address: { "@type": "PostalAddress", streetAddress: contactAddress, addressCountry: "TR" } } : {}),
     ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin
       ? { sameAs: [settings.SocialInstagram, settings.SocialTwitter, settings.SocialYoutube, settings.SocialLinkedin].filter(Boolean) }
       : {}),

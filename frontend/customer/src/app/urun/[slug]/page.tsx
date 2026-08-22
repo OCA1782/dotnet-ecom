@@ -83,6 +83,16 @@ export default async function ProductDetailPage({
   const hasVariantPrices = variantPrices.length > 0;
   const minPrice = hasVariantPrices ? Math.min(...variantPrices) : displayPrice;
   const maxPrice = hasVariantPrices ? Math.max(...variantPrices) : displayPrice;
+  const shippingDetails = {
+    "@type": "OfferShippingDetails",
+    shippingRate: { "@type": "MonetaryAmount", value: "0", currency: "TRY" },
+    shippingDestination: { "@type": "DefinedRegion", addressCountry: "TR" },
+    deliveryTime: {
+      "@type": "ShippingDeliveryTime",
+      handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+      transitTime: { "@type": "QuantitativeValue", minValue: 2, maxValue: 5, unitCode: "DAY" },
+    },
+  };
   const offerBase = {
     url: `${SITE_URL}/urun/${product.slug}`,
     priceCurrency: "TRY",
@@ -90,6 +100,7 @@ export default async function ProductDetailPage({
     itemCondition: "https://schema.org/NewCondition",
     availability: effectiveStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     seller: { "@type": "Organization", name: siteName },
+    shippingDetails,
   };
   const offersJsonLd = hasVariantPrices && minPrice !== maxPrice
     ? { "@type": "AggregateOffer", ...offerBase, lowPrice: minPrice.toFixed(2), highPrice: maxPrice.toFixed(2), offerCount: variantPrices.length }
@@ -104,6 +115,15 @@ export default async function ProductDetailPage({
     sku: product.sku,
     ...(product.oemPartNumber ? { mpn: product.oemPartNumber } : {}),
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
+    hasMerchantReturnPolicy: {
+      "@type": "MerchantReturnPolicy",
+      url: `${SITE_URL}/iade-degisim`,
+      applicableCountry: "TR",
+      returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+      merchantReturnDays: 14,
+      returnMethod: "https://schema.org/ReturnByMail",
+      returnFees: "https://schema.org/FreeReturn",
+    },
     offers: offersJsonLd,
   };
 
