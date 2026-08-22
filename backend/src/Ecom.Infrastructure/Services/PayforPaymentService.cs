@@ -92,22 +92,59 @@ public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory h
 
         var transactionId = $"PF-{context.OrderId:N}-{DateTime.UtcNow:HHmmss}";
 
-        // QNB M047 fix: all requests to gateway must come from the application server.
-        // Card data + merchant params are combined in ONE server-to-server POST (payfor-forward).
-        // InitiateAsync only caches the merchant params; no call to QNB here.
-        var sessionId = PayforSessionCache.Store(new QnbFormData(
-            gatewayUrl,
-            formFields,
-            DateTimeOffset.UtcNow.AddMinutes(20)));
+        // M047 fix: initial POST must come from our server (not the browser).
+        // We send merchant params (no card) to 3DHost.aspx — QNB returns its own
+        // hosted card-entry form. We inject a <base> tag and forward the HTML to
+        // the frontend. The user fills the card in QNB's form; the browser submits
+        // directly to QNB, which handles 3DS and calls our callback.
+        using var http = httpClientFactory.CreateClient();
+        http.Timeout = TimeSpan.FromSeconds(30);
+        http.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        var amountForDisplay = context.Amount.ToString("N2", new System.Globalization.CultureInfo("tr-TR")) + " TL";
-        logger.LogInformation("Payfor-initiate: session cached, gateway={Url}", gatewayUrl);
+        string cardFormHtml;
+        try
+        {
+            var qnbResp = await http.PostAsync(gatewayUrl, new FormUrlEncodedContent(formFields), ct);
+            cardFormHtml = await qnbResp.Content.ReadAsStringAsync(ct);
+            logger.LogInformation("Payfor-initiate: QNB card form HTML len={Len} status={Status}",
+                cardFormHtml.Length, (int)qnbResp.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Payfor-initiate: QNB POST failed gateway={Url}", gatewayUrl);
+            return Result<PaymentInitiateResult>.Failure("QNB ödeme sayfasına bağlanılamadı. Lütfen tekrar deneyin.");
+        }
+
+        // Inject <base> so relative URLs in QNB's form (CSS, JS, form action) resolve correctly
+        try
+        {
+            var baseUri   = new Uri(gatewayUrl);
+            var lastSlash = baseUri.AbsolutePath.LastIndexOf('/');
+            var dir       = lastSlash > 0 ? baseUri.AbsolutePath[..(lastSlash + 1)] : "/";
+            var baseHref  = $"{baseUri.Scheme}://{baseUri.Host}{dir}";
+            if (!cardFormHtml.Contains("<base ", StringComparison.OrdinalIgnoreCase))
+            {
+                var headIdx = cardFormHtml.IndexOf("<head", StringComparison.OrdinalIgnoreCase);
+                if (headIdx >= 0)
+                {
+                    var headClose = cardFormHtml.IndexOf('>', headIdx);
+                    cardFormHtml = headClose >= 0
+                        ? cardFormHtml.Insert(headClose + 1, $"<base href=\"{baseHref}\">")
+                        : cardFormHtml.Insert(headIdx, $"<base href=\"{baseHref}\">");
+                }
+                else
+                {
+                    cardFormHtml = $"<base href=\"{baseHref}\">{cardFormHtml}";
+                }
+            }
+        }
+        catch { /* keep html as-is */ }
 
         var json = JsonSerializer.Serialize(new
         {
-            type      = "payfor_3dhost",
-            sessionId,
-            amount    = amountForDisplay,
+            type = "payfor_3dhost_html",
+            html = cardFormHtml,
         });
 
         return Result<PaymentInitiateResult>.Success(

@@ -219,7 +219,18 @@ export default function CheckoutClient({
         return;
       }
 
-      // QNB Payfor 3DHost — show our card form, submit via server proxy (M047: must be server-to-server)
+      // QNB Payfor 3DHost — server proxies the initial POST (M047 fix), then we render
+      // QNB's own hosted card form full-page. User fills card on QNB's form and submits
+      // directly to QNB; QNB handles 3DS and calls our callback.
+      if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost_html"')) {
+        const parsed = JSON.parse(payment.checkoutFormContent) as { type: string; html: string };
+        document.open();
+        document.write(parsed.html);
+        document.close();
+        return;
+      }
+
+      // Legacy: custom card form via server proxy (kept for fallback)
       if (payment.checkoutFormContent?.includes('"type":"payfor_3dhost"')) {
         const parsed = JSON.parse(payment.checkoutFormContent) as { type: string; sessionId: string; amount: string };
         setQnbCard({ pan: "", holderName: "", month: "", year: "", cvv: "" });
