@@ -19,8 +19,8 @@ namespace Ecom.Infrastructure.Services;
 // kart submit'i de /api/payments/payfor-forward üzerinden proxy edilir.
 public class PayforPaymentService(IApplicationDbContext db, IHttpClientFactory httpClientFactory, ILogger<PayforPaymentService> logger) : IPaymentService
 {
-    private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DHost.aspx";
-    private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/3DHost.aspx";
+    private const string TestGateway = "https://vpostest.qnbfinansbank.com/Gateway/3DPay.aspx";
+    private const string LiveGateway = "https://vpos.qnb.com.tr/Gateway/3DPay.aspx";
 
     public async Task<Result<PaymentInitiateResult>> InitiateAsync(
         PaymentContext context, CancellationToken ct = default)
