@@ -114,6 +114,12 @@ public class PaymentsController(
     /// Payfor 3DHost proxy — kart verisini sunucu üzerinden QNB'ye iletir (M047 IP kısıtlaması aşımı).
     /// Browser doğrudan QNB'ye bağlanamadığı için kart bilgileri buraya POST edilir.
     /// </summary>
+    /// <summary>
+    /// QNB 3DPay two-step server-side flow (M047 fix):
+    ///   Step 1 — server POSTs merchant params + card to Default.aspx → QNB returns step1Form (RequestGuid etc.)
+    ///   Step 2 — server POSTs step1Form fields back to Default.aspx → QNB returns ACS form (PAReq)
+    /// Only the ACS form (step 2 result) is forwarded to the browser; the browser never POSTs to QNB directly.
+    /// </summary>
     [HttpPost("payfor-forward")]
     [AllowAnonymous]
     public async Task<IActionResult> PayforForward([FromBody] PayforCardRequest req, CancellationToken ct)
@@ -122,8 +128,6 @@ public class PaymentsController(
         if (session is null)
             return BadRequest(new { error = "Oturum süresi doldu veya geçersiz. Lütfen ödeme adımını yeniden başlatın." });
 
-        // Merge merchant params with card data — QNB requires ONE server-to-server POST
-        // containing both merchant credentials and card details (M047: no browser-direct POSTs).
         var postFields = new Dictionary<string, string>(session.HiddenFields);
         postFields["Pan"]            = req.Pan.Replace(" ", "");
         postFields["CardHolderName"] = req.CardHolderName;
@@ -132,101 +136,167 @@ public class PaymentsController(
         postFields["Cvv2"]           = req.Cvv2;
 
         logger.LogInformation(
-            "Payfor-forward: gateway={Action} fieldCount={Count} pan={Pan} orderId={OrderId} amount={Amount} expiry={Expiry} fieldNames=[{Fields}]",
+            "Payfor-forward step1: gateway={Action} fieldCount={Count} pan={Pan} orderId={OrderId} amount={Amount} expiry={Expiry}",
             session.FormAction, postFields.Count, MaskPan(req.Pan),
             postFields.GetValueOrDefault("OrderId"),
             postFields.GetValueOrDefault("PurchAmount"),
-            postFields.GetValueOrDefault("ExpiryDate"),
-            string.Join(",", postFields.Keys));
+            postFields.GetValueOrDefault("Expiry"));
 
-        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        // Shared CookieContainer keeps QNB session between step1 and step2
+        var cookies = new System.Net.CookieContainer();
+        using var handler = new HttpClientHandler { CookieContainer = cookies, AllowAutoRedirect = false };
+        using var http = new HttpClient(handler);
         http.Timeout = TimeSpan.FromSeconds(30);
         http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        HttpResponseMessage response;
-        try
-        {
-            response = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct);
-        }
+        // ── Step 1: POST merchant params + card to Default.aspx ──────────────
+        HttpResponseMessage step1Resp;
+        try { step1Resp = await http.PostAsync(session.FormAction, new FormUrlEncodedContent(postFields), ct); }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Payfor-forward: QNB POST failed action={Action}", session.FormAction);
+            logger.LogError(ex, "Payfor-forward step1: POST failed url={Url}", session.FormAction);
             return BadRequest(new { error = "QNB sunucusuna bağlanılamadı. Lütfen tekrar deneyin." });
         }
 
-        var statusCode = (int)response.StatusCode;
-        logger.LogInformation("Payfor-forward: QNB response status={Status}", statusCode);
+        var step1Status = (int)step1Resp.StatusCode;
+        logger.LogInformation("Payfor-forward step1: status={Status}", step1Status);
 
-        if (statusCode is 301 or 302 or 303 or 307 or 308)
+        if (step1Status is 301 or 302 or 303 or 307 or 308)
         {
-            var location = response.Headers.Location?.ToString();
-            logger.LogWarning("Payfor-forward: QNB redirect status={Status} location={Location}", statusCode, location);
-            if (!string.IsNullOrEmpty(location))
-            {
-                // Relative redirect or GatewayError = QNB rejected our POST — don't forward to browser
-                if (!location.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                    location.Contains("GatewayError", StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogWarning("Payfor-forward: QNB error redirect → {Location}", location);
-                    return Ok(new { type = "qnb_error", html = string.Empty });
-                }
-                return Ok(new { type = "redirect", url = location });
-            }
+            var loc1 = QnbAbsoluteUrl(step1Resp.Headers.Location?.ToString(), session.FormAction);
+            logger.LogInformation("Payfor-forward step1: redirect={Url}", loc1);
+            if (!string.IsNullOrEmpty(loc1))
+                return QnbRedirectOrError(loc1);
         }
 
-        var html = await response.Content.ReadAsStringAsync(ct);
-        var preview = html.Length > 800 ? html[..800].Replace('\n', ' ').Replace('\r', ' ') : html;
-        logger.LogInformation("Payfor-forward: QNB HTML len={Len} preview={Preview}", html.Length, preview);
-        if (html.Length <= 4000)
-            logger.LogInformation("Payfor-forward: full HTML={Html}", html.Replace('\n', ' ').Replace('\r', ' '));
+        var step1Html = await step1Resp.Content.ReadAsStringAsync(ct);
+        logger.LogInformation("Payfor-forward step1: HTML len={Len} preview={Preview}",
+            step1Html.Length, step1Html.Length > 500 ? step1Html[..500].Replace('\n', ' ').Replace('\r', ' ') : step1Html);
 
-        // No <form> → QNB returned an error page, not a 3DS challenge
-        if (!html.Contains("<form", StringComparison.OrdinalIgnoreCase))
+        if (!step1Html.Contains("<form", StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogWarning("Payfor-forward: QNB response has no <form> — likely error page");
-            return Ok(new { type = "qnb_error", html });
+            logger.LogWarning("Payfor-forward step1: no <form> in response — QNB error page");
+            return Ok(new { type = "qnb_error", html = step1Html });
         }
 
-        // Log ACS form details to diagnose 3DS flow
-        var acsActionMatch = System.Text.RegularExpressions.Regex.Match(
+        var (step2Url, step2Fields) = ParseHtmlForm(step1Html, session.FormAction);
+        logger.LogInformation("Payfor-forward step1 form: action={Action} fields={Count} names=[{Names}]",
+            step2Url, step2Fields.Count, string.Join(",", step2Fields.Keys));
+
+        // If PAReq already present in step1 response — this IS the ACS form, return to browser directly
+        if (step2Fields.Keys.Any(k => k.Equals("PaReq", StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogInformation("Payfor-forward: PAReq found in step1 — returning ACS form to browser");
+            return Ok(new { type = "html", html = QnbInjectBase(step1Html, step2Url) });
+        }
+
+        // ── Step 2: POST step1 form fields back to Default.aspx from our server ──
+        // QNB requires this intermediate step to originate from the merchant server (M047).
+        HttpResponseMessage step2Resp;
+        try { step2Resp = await http.PostAsync(step2Url, new FormUrlEncodedContent(step2Fields), ct); }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Payfor-forward step2: POST failed url={Url}", step2Url);
+            return BadRequest(new { error = "QNB 3DS adımında bağlantı hatası. Lütfen tekrar deneyin." });
+        }
+
+        var step2Status = (int)step2Resp.StatusCode;
+        logger.LogInformation("Payfor-forward step2: status={Status}", step2Status);
+
+        if (step2Status is 301 or 302 or 303 or 307 or 308)
+        {
+            var loc2 = QnbAbsoluteUrl(step2Resp.Headers.Location?.ToString(), step2Url);
+            logger.LogInformation("Payfor-forward step2: redirect={Url}", loc2);
+            if (!string.IsNullOrEmpty(loc2))
+                return QnbRedirectOrError(loc2);
+        }
+
+        var step2Html = await step2Resp.Content.ReadAsStringAsync(ct);
+        logger.LogInformation("Payfor-forward step2: HTML len={Len}", step2Html.Length);
+        if (step2Html.Length <= 5000)
+            logger.LogInformation("Payfor-forward step2: full HTML={Html}", step2Html.Replace('\n', ' ').Replace('\r', ' '));
+
+        if (!step2Html.Contains("<form", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Payfor-forward step2: no <form> — QNB error page");
+            return Ok(new { type = "qnb_error", html = step2Html });
+        }
+
+        var (acsUrl, acsFields) = ParseHtmlForm(step2Html, step2Url);
+        bool hasPaReq = acsFields.Keys.Any(k => k.Equals("PaReq", StringComparison.OrdinalIgnoreCase));
+        logger.LogInformation("Payfor-forward step2 ACS form: action={Action} fields={Count} hasPaReq={HasPaReq} names=[{Names}]",
+            acsUrl, acsFields.Count, hasPaReq, string.Join(",", acsFields.Keys));
+
+        // Return ACS form to browser — browser document.write + auto-submit sends PAReq to card issuer ACS
+        return Ok(new { type = "html", html = QnbInjectBase(step2Html, acsUrl) });
+    }
+
+    private IActionResult QnbRedirectOrError(string url)
+    {
+        if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("GatewayError", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("/error/", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Payfor-forward: QNB error redirect → {Url}", url);
+            return Ok(new { type = "qnb_error", html = string.Empty });
+        }
+        return Ok(new { type = "redirect", url });
+    }
+
+    private static (string action, Dictionary<string, string> fields) ParseHtmlForm(string html, string pageUrl)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var actionMatch = System.Text.RegularExpressions.Regex.Match(
             html, @"<form\b[^>]*\baction=[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var pareqMatch = System.Text.RegularExpressions.Regex.Match(
-            html, @"name=[""']PaReq[""'][^>]*value=[""']([^""']*)[""']|value=[""']([^""']*)[""'][^>]*name=[""']PaReq[""']",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var acsAction = acsActionMatch.Success ? acsActionMatch.Groups[1].Value : "(not found)";
-        var pareqVal  = pareqMatch.Success ? (pareqMatch.Groups[1].Value.Length > 0 ? pareqMatch.Groups[1].Value : pareqMatch.Groups[2].Value) : "(not found)";
-        logger.LogInformation("Payfor-forward: ACS form action={Action} PAReq len={PAReqLen} empty={Empty}",
-            acsAction, pareqVal.Length, pareqVal.Length == 0 || pareqVal == "(not found)");
+        var action = QnbAbsoluteUrl(actionMatch.Success ? actionMatch.Groups[1].Value : null, pageUrl);
 
-        // Inject <base> tag so all relative URLs in QNB's 3DS page resolve to QNB's domain,
-        // not to our domain (which causes 404 when blob-URL iframe submits to relative paths).
+        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(
+            html, @"<input\b([^>]*)/??>", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            var attrs = m.Groups[1].Value;
+            var typeM = System.Text.RegularExpressions.Regex.Match(attrs,
+                @"\btype=[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (typeM.Success && !typeM.Groups[1].Value.Equals("hidden", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var nameM  = System.Text.RegularExpressions.Regex.Match(attrs,
+                @"\bname=[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var valueM = System.Text.RegularExpressions.Regex.Match(attrs,
+                @"\bvalue=[""']([^""']*)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!nameM.Success) continue;
+            fields[nameM.Groups[1].Value] =
+                System.Net.WebUtility.HtmlDecode(valueM.Success ? valueM.Groups[1].Value : "");
+        }
+        return (action, fields);
+    }
+
+    private static string QnbAbsoluteUrl(string? url, string baseUrl)
+    {
+        if (string.IsNullOrEmpty(url)) return baseUrl;
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return url;
+        try { return new Uri(new Uri(baseUrl), url).ToString(); }
+        catch { return baseUrl; }
+    }
+
+    private static string QnbInjectBase(string html, string refUrl)
+    {
         try
         {
-            var baseUri  = new Uri(session.FormAction);
-            var lastSlash = baseUri.AbsolutePath.LastIndexOf('/');
-            var dir = lastSlash > 0 ? baseUri.AbsolutePath[..(lastSlash + 1)] : "/";
-            var baseHref = $"{baseUri.Scheme}://{baseUri.Host}{dir}";
+            var uri = new Uri(refUrl);
+            var lastSlash = uri.AbsolutePath.LastIndexOf('/');
+            var dir = lastSlash > 0 ? uri.AbsolutePath[..(lastSlash + 1)] : "/";
+            var baseHref = $"{uri.Scheme}://{uri.Host}{dir}";
             if (!html.Contains("<base ", StringComparison.OrdinalIgnoreCase))
             {
-                // Match <head> or <head id="..."> or any <head ...> variant
-                var headIdx = html.IndexOf("<head", StringComparison.OrdinalIgnoreCase);
-                if (headIdx >= 0)
-                {
-                    var headClose = html.IndexOf('>', headIdx);
-                    html = headClose >= 0
-                        ? html.Insert(headClose + 1, $"<base href=\"{baseHref}\">")
-                        : html.Insert(headIdx, $"<base href=\"{baseHref}\">");
-                }
-                else
-                {
-                    html = $"<base href=\"{baseHref}\">{html}";
-                }
+                var headIdx   = html.IndexOf("<head", StringComparison.OrdinalIgnoreCase);
+                var headClose = headIdx >= 0 ? html.IndexOf('>', headIdx) : -1;
+                html = headClose >= 0
+                    ? html.Insert(headClose + 1, $"<base href=\"{baseHref}\">")
+                    : $"<base href=\"{baseHref}\">{html}";
             }
         }
-        catch { /* keep html as-is if URI parse fails */ }
-
-        return Ok(new { type = "html", html });
+        catch { /* keep html as-is */ }
+        return html;
     }
 
     private static string MaskPan(string pan)
