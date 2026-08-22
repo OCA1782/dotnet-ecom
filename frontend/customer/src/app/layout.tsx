@@ -99,6 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const contactEmail = settings.ContactEmail ?? "";
   const contactPhone = settings.ContactPhone ?? "";
   const contactAddress = settings.Page_Iletisim_Address ?? "";
+  const googleBusinessUrl = settings.GoogleBusinessUrl ?? "";
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -117,8 +118,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       addressCountry: "TR",
     }
   } : {}),
-    ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin
-      ? { sameAs: [settings.SocialInstagram, settings.SocialTwitter, settings.SocialYoutube, settings.SocialLinkedin].filter(Boolean) }
+    ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin || googleBusinessUrl
+      ? {
+          sameAs: [
+            googleBusinessUrl,
+            settings.SocialInstagram,
+            settings.SocialTwitter,
+            settings.SocialYoutube,
+            settings.SocialLinkedin,
+          ].filter(Boolean)
+        }
       : {}),
   };
   const websiteJsonLd = {
