@@ -13,6 +13,7 @@ import VisitorTracker from "@/components/VisitorTracker";
 import ThemeProvider from "@/components/ThemeProvider";
 import CompareBar from "@/components/CompareBar";
 import GoogleProvider from "@/components/GoogleProvider";
+import GcrBadge from "@/components/GcrBadge";
 import { CompareProvider } from "@/contexts/CompareContext";
 import { I18nProvider } from "@/contexts/I18nContext";
 import { getSettings } from "@/lib/settings";
@@ -160,6 +161,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
           <main className="flex-1">{children}</main>
           <Footer />
+          <GcrBadge />
           <ChatWidget />
           <VisitorTracker />
           <LocationPermissionBanner />

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { st } from "@/lib/server-i18n";
+import GcrSurveyOptIn from "@/components/GcrSurveyOptIn";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -16,6 +18,7 @@ export default async function PaymentSuccessPage() {
   const continueLabel = await st("payment.success.continue");
 
   return (
+    <>
     <div className="max-w-lg mx-auto px-4 py-20 text-center space-y-6">
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
         <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -43,5 +46,9 @@ export default async function PaymentSuccessPage() {
         </Link>
       </div>
     </div>
+    <Suspense>
+      <GcrSurveyOptIn />
+    </Suspense>
+    </>
   );
 }
