@@ -176,9 +176,9 @@ public class PaymentsController(
         }
 
         var html = await response.Content.ReadAsStringAsync(ct);
-        var preview = html.Length > 400 ? html[..400].Replace('\n', ' ').Replace('\r', ' ') : html;
+        var preview = html.Length > 800 ? html[..800].Replace('\n', ' ').Replace('\r', ' ') : html;
         logger.LogInformation("Payfor-forward: QNB HTML len={Len} preview={Preview}", html.Length, preview);
-        if (html.Length <= 2000)
+        if (html.Length <= 4000)
             logger.LogInformation("Payfor-forward: full HTML={Html}", html.Replace('\n', ' ').Replace('\r', ' '));
 
         // No <form> → QNB returned an error page, not a 3DS challenge
@@ -187,6 +187,17 @@ public class PaymentsController(
             logger.LogWarning("Payfor-forward: QNB response has no <form> — likely error page");
             return Ok(new { type = "qnb_error", html });
         }
+
+        // Log ACS form details to diagnose 3DS flow
+        var acsActionMatch = System.Text.RegularExpressions.Regex.Match(
+            html, @"<form\b[^>]*\baction=[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var pareqMatch = System.Text.RegularExpressions.Regex.Match(
+            html, @"name=[""']PaReq[""'][^>]*value=[""']([^""']*)[""']|value=[""']([^""']*)[""'][^>]*name=[""']PaReq[""']",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var acsAction = acsActionMatch.Success ? acsActionMatch.Groups[1].Value : "(not found)";
+        var pareqVal  = pareqMatch.Success ? (pareqMatch.Groups[1].Value.Length > 0 ? pareqMatch.Groups[1].Value : pareqMatch.Groups[2].Value) : "(not found)";
+        logger.LogInformation("Payfor-forward: ACS form action={Action} PAReq len={PAReqLen} empty={Empty}",
+            acsAction, pareqVal.Length, pareqVal.Length == 0 || pareqVal == "(not found)");
 
         // Inject <base> tag so all relative URLs in QNB's 3DS page resolve to QNB's domain,
         // not to our domain (which causes 404 when blob-URL iframe submits to relative paths).
