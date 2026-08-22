@@ -107,7 +107,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     logo: settings.CustomerLogoNamed || settings.CustomerLogoIcon || process.env.CUSTOMER_FALLBACK_LOGO_NAMED || undefined,
     ...(contactEmail ? { email: contactEmail } : {}),
     ...(contactPhone ? { telephone: contactPhone } : {}),
-    ...(contactAddress ? { address: { "@type": "PostalAddress", streetAddress: contactAddress, addressCountry: "TR" } } : {}),
+    ...(contactAddress ? {
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: contactAddress,
+      addressLocality: "Çankaya",
+      addressRegion: "Ankara",
+      postalCode: "06090",
+      addressCountry: "TR",
+    }
+  } : {}),
     ...(settings.SocialInstagram || settings.SocialTwitter || settings.SocialYoutube || settings.SocialLinkedin
       ? { sameAs: [settings.SocialInstagram, settings.SocialTwitter, settings.SocialYoutube, settings.SocialLinkedin].filter(Boolean) }
       : {}),
